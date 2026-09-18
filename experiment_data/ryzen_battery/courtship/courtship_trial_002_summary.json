@@ -1,0 +1,31 @@
+{
+  "trial_id": "courtship_trial_002",
+  "paradigm": "courtship",
+  "timestamps": {
+    "start_time": 1789764636.7463148,
+    "end_time": 1789764636.8321238,
+    "start_iso": "2026-09-18T22:50:36",
+    "end_iso": "2026-09-18T22:50:36"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238722,
+  "latencies": {},
+  "metrics": {
+    "courtship_index": 1.0,
+    "courtship_index_pct": 100.0,
+    "rejection_kicks_count": 0,
+    "female_type": "mated"
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": 1.0,
+  "tortuosity": 1.0,
+  "courtship_index_pct": 100.0,
+  "rejection_kicks_count": 0,
+  "female_type": "mated"
+}

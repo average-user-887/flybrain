@@ -1,0 +1,36 @@
+{
+  "trial_id": "gap_crossing_trial_001",
+  "paradigm": "gap_crossing",
+  "timestamps": {
+    "start_time": 1789764636.1731193,
+    "end_time": 1789764636.2529209,
+    "start_iso": "2026-09-18T22:50:36",
+    "end_iso": "2026-09-18T22:50:36"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238562,
+  "latencies": {
+    "probing_duration_ms": 0.0
+  },
+  "metrics": {
+    "gap_width_mm": 3.5,
+    "reachability_threshold_mm": 3.8,
+    "decision_outcome": null,
+    "crossing_success": false,
+    "probing_duration_ms": 0.0
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "gap_width_mm": 3.5,
+  "reachability_threshold_mm": 3.8,
+  "decision_outcome": null,
+  "crossing_success": false,
+  "probing_duration_ms": 0.0
+}

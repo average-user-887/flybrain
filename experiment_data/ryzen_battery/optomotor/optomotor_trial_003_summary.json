@@ -1,0 +1,31 @@
+{
+  "trial_id": "optomotor_trial_003",
+  "paradigm": "optomotor",
+  "timestamps": {
+    "start_time": 1789764636.0859408,
+    "end_time": 1789764636.1718185,
+    "start_iso": "2026-09-18T22:50:36",
+    "end_iso": "2026-09-18T22:50:36"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238776,
+  "latencies": {},
+  "metrics": {
+    "optomotor_gain": 8.837300484221254e-23,
+    "mean_hs_firing_rate": 76.0,
+    "mean_retinal_slip": 30.0,
+    "efference_copy_shunt_pct": 85.0
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": 8.837300484221254e-23,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "mean_hs_firing_rate": 76.0,
+  "mean_retinal_slip": 30.0,
+  "efference_copy_shunt_pct": 85.0
+}

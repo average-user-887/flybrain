@@ -1,0 +1,36 @@
+{
+  "trial_id": "labyrinth_trial_002",
+  "paradigm": "labyrinth",
+  "timestamps": {
+    "start_time": 1789764637.0101411,
+    "end_time": 1789764637.1059213,
+    "start_iso": "2026-09-18T22:50:37",
+    "end_iso": "2026-09-18T22:50:37"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.7066790771347531,
+  "latencies": {},
+  "metrics": {
+    "goal_reached": false,
+    "time_to_goal_ms": null,
+    "wall_collision_count": 0,
+    "dead_end_entries": 0,
+    "total_distance_mm": 0.7046639349942883,
+    "path_tortuosity": 0.7046639349942883
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 0.7046639349942883,
+  "goal_reached": false,
+  "time_to_goal_ms": null,
+  "wall_collision_count": 0,
+  "dead_end_entries": 0,
+  "total_distance_mm": 0.7046639349942883,
+  "path_tortuosity": 0.7046639349942883
+}

@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project NeuroFly (v1.0 Alpha) — Whole-Brain Drosophila Simulation & Neuroethology Instrument</title>
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-panel: rgba(15, 23, 42, 0.94);
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-card-hover: rgba(51, 65, 85, 0.9);
+            --bg-card-active: rgba(56, 189, 248, 0.18);
+            --border-dim: rgba(56, 189, 248, 0.18);
+            --border-bright: #38bdf8;
+            --cyan-glow: #38bdf8;
+            --amber-glow: #f59e0b;
+            --rose-glow: #f43f5e;
+            --green-glow: #22c55e;
+            --purple-glow: #c084fc;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 10px;
+            background: var(--bg-base);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            height: 100vh;
+        }
+
+        /* 3-Column Modern Dashboard Layout */
+        .instrument-container {
+            max-width: 1920px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 310px 1fr 430px;
+            gap: 10px;
+            height: calc(100vh - 20px);
+        }
+
+        /* Common Panel Styling */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .panel-header {
+            padding: 10px 14px;
+            background: rgba(15, 23, 42, 0.98);
+            border-bottom: 1px solid var(--border-dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--cyan-glow);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-weight: 700;
+            font-family: 'SF Mono', 'Roboto Mono', monospace;
+        }
+
+        .badge-cyan {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .badge-purple {
+            background: rgba(192, 132, 252, 0.15);
+            border: 1px solid var(--purple-glow);
+            color: var(--purple-glow);
+        }
+
+        .badge-amber {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--amber-glow);
+            color: var(--amber-glow);
+        }
+
+        /* -------------------------------------------------------------
+           COLUMN 1: EXPERIMENT CATALOG NAVIGATOR
+           ------------------------------------------------------------- */
+        .catalog-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+        }
+
+        .catalog-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .catalog-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        .catalog-scroll::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.25);
+            border-radius: 4px;
+        }
+
+        .experiment-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 7px;
+            padding: 9px 11px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .experiment-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .experiment-card.active {
+            background: var(--bg-card-active);
+            border: 1px solid var(--border-bright);
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+        }
+
+        .experiment-card.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3.5px;
+            background: var(--border-bright);
+            border-top-left-radius: 7px;
+            border-bottom-left-radius: 7px;
+        }
+
+        .exp-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .exp-card-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .experiment-card.active .exp-card-title {
+            color: var(--cyan-glow);
+        }
+
+        .exp-card-ref {
+            font-size: 9.5px;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .exp-card-metric {
+            font-size: 10px;
+            font-family: monospace;
+            color: var(--amber-glow);
+            margin-top: 2px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Lesions and Global Controls */
+        .lesion-panel {
+            padding: 8px 10px;
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid var(--border-dim);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .lesion-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .lesion-btn {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 4px 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .lesion-btn:hover, .lesion-btn.active {
+            background: rgba(244, 63, 94, 0.25);
+            border-color: var(--rose-glow);
+            color: #fda4af;
+        }
+
+        .lesion-btn.active-wt {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: var(--green-glow);
+            color: #86efac;
+        }
+
+        /* -------------------------------------------------------------
+           COLUMN 2: CENTER ARENA & SCOPE STAGE
+           ------------------------------------------------------------- */
+        .stage-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+        }
+
+        .top-navbar {
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-stats {
+            display: flex;
+            gap: 14px;
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-dim);
+        }
+
+        .navbar-stats b {
+            color: #f8fafc;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-btn {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .nav-btn.primary {
+            background: #0284c7;
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+
+        .speed-control-wrap {
+            display: inline-flex;
+            align-items: center;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            padding: 1px;
+            gap: 2px;
+        }
+
+        .speed-select {
+            background: #0f172a;
+            color: var(--cyan-glow);
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 3px 6px;
+            cursor: pointer;
+            outline: none;
+            font-family: 'SF Mono', 'Roboto Mono', monospace;
+            transition: border-color 0.15s;
+        }
+
+        .speed-select:hover, .speed-select:focus {
+            border-color: var(--cyan-glow);
+            box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+        }
+
+        .arena-wrapper {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #0e172a 0%, #030712 100%);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        #arenaCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .arena-overlay-tools {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .tool-btn {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            font-size: 10.5px;
+            font-weight: 600;
+            padding: 4px 9px;
+            border-radius: 5px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.15s;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .arena-legend {
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            padding: 5px 9px;
+            font-size: 9.5px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 12px;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        /* Bottom Stage Panel */
+        .bottom-stage-panel {
+            height: 165px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 240px;
+            gap: 10px;
+        }
+
+        .scope-box, .learning-curve-box, .telemetry-export-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sub-header {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--cyan-glow);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #oscilloscopeCanvas, #curveCanvas {
+            width: 100%;
+            height: 105px;
+            background: #020617;
+            border-radius: 5px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            display: block;
+        }
+
+        /* -------------------------------------------------------------
+           COLUMN 3: DIRECTOR'S GUIDE & ELECTROPHYSIOLOGY HUD
+           ------------------------------------------------------------- */
+        .hud-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .hud-column::-webkit-scrollbar {
+            width: 5px;
+        }
+        .hud-column::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.25);
+            border-radius: 4px;
+        }
+
+        .guide-box {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .guide-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        .guide-ref {
+            font-size: 10px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .watch-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 7px 9px;
+            font-size: 10.5px;
+            line-height: 1.45;
+            color: #e2e8f0;
+        }
+
+        .watch-box ul {
+            margin: 4px 0 0 16px;
+            padding: 0;
+        }
+
+        .watch-box li {
+            margin-bottom: 3px;
+        }
+
+        .param-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+
+        .param-slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 10px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-dim);
+        }
+
+        .slider-header span b {
+            color: var(--cyan-glow);
+            font-family: monospace;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+            outline: none;
+            accent-color: #38bdf8;
+        }
+
+        /* HUD Sub-sections */
+        .hud-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-dim);
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .hud-card-header {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--cyan-glow);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #kcCanvas {
+            width: 100%;
+            height: 38px;
+            background: #020617;
+            border-radius: 4px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            display: block;
+        }
+
+        .dopamine-bars {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .meter-bar-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 9.5px;
+        }
+
+        .meter-bar-bg {
+            height: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .meter-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            transition: width 0.15s ease;
+        }
+
+        .valence-scale {
+            position: relative;
+            height: 8px;
+            background: linear-gradient(90deg, #f43f5e 0%, #334155 50%, #22c55e 100%);
+            border-radius: 4px;
+        }
+
+        .valence-needle {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 3px;
+            background: #ffffff;
+            border-radius: 1px;
+            box-shadow: 0 0 4px #000;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: left 0.1s ease;
+        }
+
+        .compass-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #compassCanvas {
+            width: 80px;
+            height: 80px;
+            background: #020617;
+            border-radius: 50%;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            display: block;
+        }
+
+        .compass-data {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+
+        .legs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            font-size: 9px;
+            text-align: center;
+        }
+
+        .leg-cell {
+            padding: 3px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: monospace;
+        }
+
+        .leg-cell.stance {
+            background: rgba(34, 197, 94, 0.25);
+            border-color: var(--green-glow);
+            color: #4ade80;
+            font-weight: 700;
+        }
+
+        .leg-cell.swing {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+    <div class="instrument-container">
+        
+        <!-- =============================================================
+             COLUMN 1: EXPERIMENT CATALOG NAVIGATOR
+             ============================================================= -->
+        <div class="panel catalog-column">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span>Experiment Catalog</span>
+                </div>
+                <span class="badge badge-purple" id="catCountBadge">13 ASSAYS</span>
+            </div>
+
+            <!-- Scrollable 13 Experiment Cards -->
+            <div class="catalog-scroll" id="catalogList">
+                
+                <div class="experiment-card" data-paradigm="open-arena">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">0. Open Arena Foraging</span>
+                        <span class="badge badge-cyan">BASELINE</span>
+                    </div>
+                    <div class="exp-card-ref">Budick & Dickinson (2006)</div>
+                    <div class="exp-card-metric"><span>Mode: Multi-Modal Free Flight</span><span>Active</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="t-maze">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">1. T-Maze Conditioning</span>
+                        <span class="badge badge-amber">OLFACTION</span>
+                    </div>
+                    <div class="exp-card-ref">Tully & Quinn (1985)</div>
+                    <div class="exp-card-metric"><span>Metric: PI Index</span><span id="cardMetricTMaze">+0.00</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="y-maze">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">2. Y-Maze Alternation</span>
+                        <span class="badge badge-cyan">WORKING MEM</span>
+                    </div>
+                    <div class="exp-card-ref">Buchanan et al. (PNAS 2015)</div>
+                    <div class="exp-card-metric"><span>Metric: SAR Ratio</span><span id="cardMetricYMaze">+0.00</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="heat-maze">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">3. Thermal Heat-Maze</span>
+                        <span class="badge badge-purple">CX PLACE MEM</span>
+                    </div>
+                    <div class="exp-card-ref">Ofstad, Zuker & Reiser (Nature 2011)</div>
+                    <div class="exp-card-metric"><span>Metric: Escape Latency</span><span id="cardMetricHeatMaze">-- ms</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="buridan">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">4. Buridan's Paradigm</span>
+                        <span class="badge badge-cyan">VISION</span>
+                    </div>
+                    <div class="exp-card-ref">Götz (1980); Colomb (2012)</div>
+                    <div class="exp-card-metric"><span>Metric: Centrophobism</span><span id="cardMetricBuridan">--</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="visual-operant">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">5. Visual Operant Torque</span>
+                        <span class="badge badge-amber">OPERANT</span>
+                    </div>
+                    <div class="exp-card-ref">Wolf & Heisenberg (1991)</div>
+                    <div class="exp-card-metric"><span>Metric: Learning Index LI</span><span id="cardMetricVisOperant">--</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="wind-tunnel">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">6. Wind Tunnel Plume</span>
+                        <span class="badge badge-cyan">SURGE-CAST</span>
+                    </div>
+                    <div class="exp-card-ref">Alvarez-Salvado et al. (2018)</div>
+                    <div class="exp-card-metric"><span>Metric: Upwind Progress</span><span id="cardMetricWindTunnel">-- mm</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="looming-escape">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">7. Looming Giant Fiber</span>
+                        <span class="badge badge-amber">EVASION</span>
+                    </div>
+                    <div class="exp-card-ref">Card & Dickinson (PNAS 2008)</div>
+                    <div class="exp-card-metric"><span>Metric: Jump TT Collision</span><span id="cardMetricLooming">-- ms</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="optomotor">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">8. Optomotor Drum</span>
+                        <span class="badge badge-cyan">EFFERENCE COPY</span>
+                    </div>
+                    <div class="exp-card-ref">Götz (1964); Kim et al. (2017)</div>
+                    <div class="exp-card-metric"><span>Metric: Optomotor Gain</span><span id="cardMetricOptomotor">--</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="gap-crossing">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">9. Gap Crossing Assay</span>
+                        <span class="badge badge-purple">MOTOR PLAN</span>
+                    </div>
+                    <div class="exp-card-ref">Pick & Strauss (2005)</div>
+                    <div class="exp-card-metric"><span>Metric: Gap Width</span><span id="cardMetricGapCrossing">3.5 mm</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="circadian-dam">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">10. Circadian DAM Monitor</span>
+                        <span class="badge badge-cyan">SLEEP/WAKE</span>
+                    </div>
+                    <div class="exp-card-ref">Konopka & Benzer (1971)</div>
+                    <div class="exp-card-metric"><span>Metric: Sleep Minutes</span><span id="cardMetricCircadian">0 min</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="courtship">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">11. Courtship Conditioning</span>
+                        <span class="badge badge-amber">PHEROMONE</span>
+                    </div>
+                    <div class="exp-card-ref">Siegel & Hall (1979)</div>
+                    <div class="exp-card-metric"><span>Metric: Courtship Index</span><span id="cardMetricCourtship">-- %</span></div>
+                </div>
+
+                <div class="experiment-card" data-paradigm="labyrinth">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">12. Corridor Labyrinth</span>
+                        <span class="badge badge-purple">SLIDING OBSTACLE</span>
+                    </div>
+                    <div class="exp-card-ref">Biomimetic Complex Maze</div>
+                    <div class="exp-card-metric"><span>Metric: Path Tortuosity</span><span id="cardMetricLabyrinth">1.00</span></div>
+                </div>
+
+            </div>
+
+            <!-- Genetic Lesion / Knockout Selector -->
+            <div class="lesion-panel">
+                <div class="sub-header">
+                    <span>Genetic Knockout / Lesion</span>
+                    <span id="activeLesionLabel" style="color:#4ade80;">WT CONTROL</span>
+                </div>
+                <div class="lesion-btn-grid">
+                    <button class="lesion-btn active-wt" id="btnLesionWT">WT Control</button>
+                    <button class="lesion-btn" id="btnLesionMB">ΔMB (Kenyon)</button>
+                    <button class="lesion-btn" id="btnLesionCX">ΔCX (Compass)</button>
+                    <button class="lesion-btn" id="btnLesionGF">ΔGF (Escape)</button>
+                    <button class="lesion-btn" id="btnLesionJO">ΔJO (Wind)</button>
+                    <button class="lesion-btn" id="btnLesionOFF">ΔOFF (T5)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================
+             COLUMN 2: ARENA & REAL-TIME EXPERIMENTAL STAGE
+             ============================================================= -->
+        <div class="panel stage-column">
+            <div class="top-navbar">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-weight:800; font-size:15px; color:#38bdf8; letter-spacing:0.5px;">Project NeuroFly</span>
+                    <span class="badge badge-cyan" style="font-weight:800;">v1.0-alpha</span>
+                    <span class="badge badge-purple" id="navbarParadigmBadge">OPEN ARENA</span>
+                </div>
+                <div class="navbar-stats">
+                    <span>Sim Time: <b id="statSimTime">0.00s</b></span>
+                    <span>Step: <b id="statStep">0</b></span>
+                    <span>FPS: <b id="statFps" style="color:#4ade80;">60</b></span>
+                    <span>Speed: <b id="statSpeed">1.0x</b></span>
+                </div>
+                <div class="navbar-actions">
+                    <button class="nav-btn" id="btnPauseToggle">Pause</button>
+                    <div class="speed-control-wrap">
+                        <button class="nav-btn" id="btnSpeedToggle" title="Click to cycle simulation speed (0.5x - 100x)" style="border:none; border-radius:0; background:transparent;">Speed: 1x</button>
+                        <select class="speed-select" id="selectSpeed" title="Select Simulation Speed (up to 100x)">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="2">2x</option>
+                            <option value="5">5x</option>
+                            <option value="10">10x</option>
+                            <option value="20">20x</option>
+                            <option value="50">50x</option>
+                            <option value="100">100x (Max)</option>
+                        </select>
+                    </div>
+                    <button class="nav-btn primary" id="btnResetTrial">Reset Trial</button>
+                </div>
+            </div>
+
+            <!-- Main Canvas Stage -->
+            <div class="arena-wrapper">
+                <div class="arena-overlay-tools">
+                    <button class="tool-btn active" id="toolSelect">Inspect Fly</button>
+                    <button class="tool-btn" id="toolFood">Drop Food (Odor A)</button>
+                    <button class="tool-btn" id="toolAlarm">Alarm Pheromone (Odor B)</button>
+                    <button class="tool-btn" id="toolPredator">Deploy Threat</button>
+                    <button class="tool-btn" id="toolWind">Drag Wind</button>
+                </div>
+
+                <canvas id="arenaCanvas"></canvas>
+
+                <div class="arena-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div> Food / Reward</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#f43f5e;"></div> Aversive / Shock</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div> Threat (Looming)</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#38bdf8;"></div> Airflow Vector</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#a855f7;"></div> 72-Eye Array</div>
+                </div>
+            </div>
+
+            <!-- Bottom Multi-Channel Oscilloscope & Learning Curve -->
+            <div class="bottom-stage-panel">
+                <div class="scope-box">
+                    <div class="sub-header">
+                        <span>Descending Motor Oscilloscope (Hz)</span>
+                        <span style="color:#94a3b8; font-size:9px;">DNa02, DNp09, BPN, MDN, DNp01</span>
+                    </div>
+                    <canvas id="oscilloscopeCanvas"></canvas>
+                </div>
+
+                <div class="learning-curve-box">
+                    <div class="sub-header">
+                        <span>Tully & Quinn Learning Curve</span>
+                        <span>Current PI: <b id="currentPiVal" style="color:#38bdf8;">0.00</b></span>
+                    </div>
+                    <canvas id="curveCanvas"></canvas>
+                </div>
+
+                <div class="telemetry-export-box">
+                    <div class="sub-header">
+                        <span>Scientific Telemetry</span>
+                        <span id="telemetryStepCount" style="color:#38bdf8; font-family:monospace;">0 steps</span>
+                    </div>
+                    <button class="nav-btn primary" id="btnDownloadCsv" style="padding:6px 10px;">Download Telemetry (CSV)</button>
+                    <button class="nav-btn" id="btnDownloadJson" style="padding:6px 10px;">Export Trial Summary (JSON)</button>
+                    <button class="nav-btn" id="btnClearTelemetry" style="padding:4px 8px; font-size:9px; margin-top:2px;">Clear Buffer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================
+             COLUMN 3: DIRECTOR'S GUIDE & ELECTROPHYSIOLOGY HUD
+             ============================================================= -->
+        <div class="panel hud-column">
+            
+            <!-- A. Active Experiment Guide ("What to Watch & Parameters") -->
+            <div class="guide-box">
+                <div class="sub-header">
+                    <span style="color:#c084fc;">[0] Experiment Director's Guide</span>
+                    <span id="guideTrialBadge" class="badge badge-amber">TRIAL #1</span>
+                </div>
+
+                <div>
+                    <div class="guide-title" id="guideTitle">Open Arena Foraging</div>
+                    <div class="guide-ref" id="guideRef">Budick & Dickinson (2006) Animal Behaviour</div>
+                </div>
+
+                <!-- Live Trial Metrics Banner -->
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-size:10px;">
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div style="color:#94a3b8; font-size:9px;">Trial</div>
+                        <div id="paradigmTrial" style="font-weight:700; color:#f8fafc; font-size:11px; font-family:monospace;">#1</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div style="color:#94a3b8; font-size:9px;">Elapsed</div>
+                        <div id="paradigmElapsed" style="font-weight:700; color:#f8fafc; font-size:11px; font-family:monospace;">0.00s</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div id="paradigmMetricLabel" style="color:#38bdf8; font-size:9px;">Primary Metric</div>
+                        <div id="paradigmMetricValue" style="font-weight:700; color:#f8fafc; font-size:11px; font-family:monospace;">--</div>
+                    </div>
+                </div>
+
+                <!-- What to Observe Callout Box -->
+                <div class="watch-box">
+                    <b style="color:var(--amber-glow);">WHAT TO OBSERVE:</b>
+                    <div id="guideWhatToWatch" style="margin-top:3px;">
+                        Watch the fly navigate using olfactory gradients, bilateral antenna sampling, and 72-ommatidia visual receptive fields. Evasion saccades trigger when predators approach.
+                    </div>
+                </div>
+
+                <!-- Live Parameter Sliders (Dynamic based on experiment) -->
+                <div class="param-control-group" id="paramControlsBox">
+                    <div class="sub-header" style="font-size:9px; color:#cbd5e1;">Live Experiment Parameters</div>
+                    <div id="dynamicSlidersContainer">
+                        <!-- Populated dynamically by app.js -->
+                    </div>
+                </div>
+
+                <!-- Dopamine Reinforcement Status -->
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <div style="display:flex; justify-content:space-between; font-size:9.5px;">
+                        <span style="color:var(--text-dim);">Dopamine Reinforcement</span>
+                        <span id="valDopamineState" style="color:#38bdf8; font-weight:700;">QUIESCENT</span>
+                    </div>
+                    <div class="dopamine-bars">
+                        <div class="meter-bar-box">
+                            <div style="display:flex; justify-content:space-between; color:#38bdf8;">
+                                <span>PAM (Sugar/Relief)</span>
+                                <span id="paradigmPamRate">0.0 Hz</span>
+                            </div>
+                            <div class="meter-bar-bg">
+                                <div class="meter-bar-fill" id="paradigmPamFill" style="background:#38bdf8;"></div>
+                            </div>
+                        </div>
+                        <div class="meter-bar-box">
+                            <div style="display:flex; justify-content:space-between; color:#f43f5e;">
+                                <span>PPL1 (Shock/Heat)</span>
+                                <span id="paradigmPpl1Rate">0.0 Hz</span>
+                            </div>
+                            <div class="meter-bar-bg">
+                                <div class="meter-bar-fill" id="paradigmPpl1Fill" style="background:#f43f5e;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B. Mushroom Body Electrophysiology (120 KCs) -->
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <span>[1] Mushroom Body (120 KCs)</span>
+                    <span id="valKcActive" style="color:var(--cyan-glow); font-family:monospace;">0 / 120</span>
+                </div>
+                <canvas id="kcCanvas"></canvas>
+                <div class="valence-scale">
+                    <div class="valence-needle" id="valNeedle"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:8.5px; color:var(--text-dim); margin-top:-2px;">
+                    <span>Aversive (-1.0)</span>
+                    <span>Net Valence: <b id="valNetValence" style="color:#f8fafc;">0.00</b></span>
+                    <span>Appetitive (+1.0)</span>
+                </div>
+            </div>
+
+            <!-- C. Central Complex E-PG Heading Compass -->
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <span>[2] Central Complex Compass</span>
+                    <span id="valCompassHeading" style="color:var(--cyan-glow); font-family:monospace;">0.0°</span>
+                </div>
+                <div class="compass-box">
+                    <canvas id="compassCanvas"></canvas>
+                    <div class="compass-data">
+                        <div>Bump Phase: <b id="valHeadingBump" style="color:#38bdf8;">0°</b></div>
+                        <div>Upwind Ref: <b id="valUpwindAngle">0°</b></div>
+                        <div>PFL3 Steering: <b id="valPfl3Error" style="color:#fbbf24;">0.00</b></div>
+                        <div>Antenna Drag: <b id="valAntennaDeflect">0.0 μN</b></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D. Kuramoto-Hopf Tripod Gait CPG -->
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <span>[3] Kuramoto Tripod Gait (ΔΦ = π)</span>
+                    <span id="valCpgFreq" style="color:var(--green-glow); font-family:monospace;">8.0 Hz</span>
+                </div>
+                <div class="legs-grid">
+                    <div class="leg-cell stance" id="legL1">L1: STANCE</div>
+                    <div class="leg-cell swing" id="legL2">L2: SWING</div>
+                    <div class="leg-cell stance" id="legL3">L3: STANCE</div>
+                    <div class="leg-cell swing" id="legR1">R1: SWING</div>
+                    <div class="leg-cell stance" id="legR2">R2: STANCE</div>
+                    <div class="leg-cell swing" id="legR3">R3: SWING</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>

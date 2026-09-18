@@ -1,0 +1,32 @@
+{
+  "trial_id": "circadian_dam_trial_001",
+  "paradigm": "circadian_dam",
+  "timestamps": {
+    "start_time": 1789764636.416977,
+    "end_time": 1789764636.4970393,
+    "start_iso": "2026-09-18T22:50:36",
+    "end_iso": "2026-09-18T22:50:36"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238722,
+  "latencies": {},
+  "metrics": {
+    "total_beam_crossings": 0,
+    "total_sleep_minutes": 195.0,
+    "sleep_bouts_count": 1,
+    "mean_sleep_bout_length_min": 195.0
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": 195.0,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "total_beam_crossings": 0,
+  "total_sleep_minutes": 195.0,
+  "sleep_bouts_count": 1,
+  "mean_sleep_bout_length_min": 195.0
+}
