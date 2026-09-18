@@ -1,0 +1,38 @@
+{
+  "trial_id": "y_maze_trial_001",
+  "paradigm": "y_maze",
+  "timestamps": {
+    "start_time": 1789764634.3196058,
+    "end_time": 1789764634.4027348,
+    "start_iso": "2026-09-18T22:50:34",
+    "end_iso": "2026-09-18T22:50:34"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238776,
+  "latencies": {},
+  "metrics": {
+    "spontaneous_alternation_rate": 0.0,
+    "total_triads": 0,
+    "alternating_triads": 0,
+    "handedness_index": 0.0,
+    "left_turns": 0,
+    "right_turns": 0,
+    "choice_sequence": ""
+  },
+  "PI": null,
+  "SAR": 0.0,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "spontaneous_alternation_rate": 0.0,
+  "total_triads": 0,
+  "alternating_triads": 0,
+  "handedness_index": 0.0,
+  "left_turns": 0,
+  "right_turns": 0,
+  "choice_sequence": ""
+}

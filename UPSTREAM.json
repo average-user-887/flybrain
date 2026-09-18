@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/nftechie/doomfly",
+  "commit": "71ecf53d78eaffaf1a57ed7b0ccf5d458abc9f33",
+  "scope": "Fixed-weight Numba LIF kernel, loss-accounted importer, transmitter proxy; game integration excluded. Original repository retained in upstream/doomfly."
+}

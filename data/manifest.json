@@ -1,0 +1,18 @@
+[
+  {
+    "id": "12781",
+    "name": "DNge104_R",
+    "color": "#70e5c5",
+    "length_um": 12469.4,
+    "source": "https://storage.googleapis.com/flyem-male-cns/v1.0/segmentation/skeletons-malecns/skeletons-swc/12781.swc",
+    "sha256": "84f14c2f8b98da664db2c322c6f3f47f83b61c412207bddfa67e2315b86fc699"
+  },
+  {
+    "id": "556329",
+    "name": "DNge104_L",
+    "color": "#ffb878",
+    "length_um": 13521.2,
+    "source": "https://storage.googleapis.com/flyem-male-cns/v1.0/segmentation/skeletons-malecns/skeletons-swc/556329.swc",
+    "sha256": "af862b1065dd08bd16956e108ed785361342d584eb357f16fdc116bc26a2f7ad"
+  }
+]

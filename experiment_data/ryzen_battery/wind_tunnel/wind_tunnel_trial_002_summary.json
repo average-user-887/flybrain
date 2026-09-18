@@ -1,0 +1,36 @@
+{
+  "trial_id": "wind_tunnel_trial_002",
+  "paradigm": "wind_tunnel",
+  "timestamps": {
+    "start_time": 1789764635.488296,
+    "end_time": 1789764635.5716796,
+    "start_iso": "2026-09-18T22:50:35",
+    "end_iso": "2026-09-18T22:50:35"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 1.5065629022330533,
+  "latencies": {},
+  "metrics": {
+    "surge_to_cast_ratio": 200.0,
+    "surge_steps": 200,
+    "cast_steps": 0,
+    "source_reached": false,
+    "time_to_source_ms": null,
+    "upwind_progress_mm": 1.500372638117362
+  },
+  "PI": null,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "surge_to_cast_ratio": 200.0,
+  "surge_steps": 200,
+  "cast_steps": 0,
+  "source_reached": false,
+  "time_to_source_ms": null,
+  "upwind_progress_mm": 1.500372638117362
+}

@@ -1,0 +1,34 @@
+{
+  "trial_id": "t_maze_trial_002",
+  "paradigm": "t_maze",
+  "timestamps": {
+    "start_time": 1789764634.1528614,
+    "end_time": 1789764634.2351265,
+    "start_iso": "2026-09-18T22:50:34",
+    "end_iso": "2026-09-18T22:50:34"
+  },
+  "duration": 4.0,
+  "total_steps": 200,
+  "total_distance": 0.5188422626238562,
+  "latencies": {},
+  "metrics": {
+    "performance_index": 0.0,
+    "cs_plus_choices": 0,
+    "cs_minus_choices": 0,
+    "first_choice": null,
+    "latency_to_choice_ms": null
+  },
+  "PI": 0.0,
+  "SAR": null,
+  "Centrophobism": null,
+  "LI": null,
+  "optomotor_gain": null,
+  "sleep_minutes": null,
+  "courtship_index": null,
+  "tortuosity": 1.0,
+  "performance_index": 0.0,
+  "cs_plus_choices": 0,
+  "cs_minus_choices": 0,
+  "first_choice": null,
+  "latency_to_choice_ms": null
+}

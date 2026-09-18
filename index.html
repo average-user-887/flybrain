@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project NeuroFly (v1.0 Alpha) — Drosophila Connectome Simulation & Neuroethology Instrument</title>
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-panel: rgba(15, 23, 42, 0.94);
+            --border-dim: rgba(56, 189, 248, 0.18);
+            --border-bright: #38bdf8;
+            --cyan-glow: #38bdf8;
+            --amber-glow: #f59e0b;
+            --rose-glow: #f43f5e;
+            --green-glow: #22c55e;
+            --purple-glow: #c084fc;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 12px;
+            background: var(--bg-base);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            height: 100vh;
+        }
+
+        .instrument-container {
+            max-width: 1850px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 440px;
+            gap: 12px;
+            height: calc(100vh - 24px);
+        }
+
+        /* Left Column: Arena and Experiment Runner */
+        .stage-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .rig-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--cyan-glow);
+            letter-spacing: 0.8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rig-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid var(--border-bright);
+            color: var(--cyan-glow);
+            font-weight: 700;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', 'Roboto Mono', monospace;
+        }
+
+        .arena-wrapper {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #0e172a 0%, #030712 100%);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        #arenaCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .arena-overlay-tools {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .tool-btn {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .arena-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 10px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 14px;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Bottom Assay & Learning Curve Panel */
+        .bottom-assay-panel {
+            height: 170px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: grid;
+            grid-template-columns: 320px 1fr 240px;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .assay-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .assay-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--cyan-glow);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .action-btn {
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #334155;
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .action-btn.primary {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .action-btn.primary:hover {
+            background: rgba(56, 189, 248, 0.35);
+        }
+
+        .action-btn.danger {
+            background: rgba(244, 63, 94, 0.15);
+            border-color: #f43f5e;
+            color: #fb7185;
+        }
+
+        .action-btn.danger:hover {
+            background: rgba(244, 63, 94, 0.3);
+        }
+
+        .learning-curve-box {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .curve-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        #curveCanvas {
+            width: 100%;
+            flex: 1;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+        }
+
+        .telemetry-export-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        /* Right Column: Electrophysiology HUD */
+        .hud-column {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .hud-section {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hud-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--cyan-glow);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* 1. Mushroom Body Panel */
+        .kc-raster-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #kcCanvas {
+            width: 100%;
+            height: 48px;
+            background: #020617;
+            border-radius: 4px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .dopamine-bars {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .meter-bar-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 10px;
+        }
+
+        .meter-bar-bg {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .meter-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            transition: width 0.15s ease;
+        }
+
+        .valence-meter-box {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-top: 2px;
+        }
+
+        .valence-scale {
+            position: relative;
+            height: 10px;
+            background: linear-gradient(90deg, #f43f5e 0%, #334155 50%, #22c55e 100%);
+            border-radius: 5px;
+        }
+
+        .valence-needle {
+            position: absolute;
+            top: -2px;
+            width: 4px;
+            height: 14px;
+            background: #ffffff;
+            border-radius: 2px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+            transition: left 0.1s ease;
+        }
+
+        /* 2. Central Complex Compass */
+        .compass-hud-layout {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #compassCanvas {
+            width: 100px;
+            height: 100px;
+            background: #020617;
+            border-radius: 50%;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            margin: 0 auto;
+        }
+
+        .compass-readouts {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 11px;
+        }
+
+        /* 3. Descending Neuron Multi-Channel Oscilloscope */
+        #oscilloscopeCanvas {
+            width: 100%;
+            height: 110px;
+            background: #020617;
+            border-radius: 6px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .scope-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-dim);
+            padding: 0 4px;
+        }
+
+        /* 4. Kuramoto Gait Monitor */
+        .legs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .leg-cell {
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .leg-cell.stance {
+            background: rgba(34, 197, 94, 0.25);
+            border-color: var(--green-glow);
+            color: #4ade80;
+            font-weight: 700;
+        }
+
+        .leg-cell.swing {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #93c5fd;
+        }
+
+        /* Lesion Selector */
+        select.lesion-dropdown {
+            width: 100%;
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+
+        select.lesion-dropdown:focus {
+            border-color: var(--border-bright);
+        }
+
+        /* Paradigm Selector & HUD */
+        select.paradigm-dropdown {
+            width: 100%;
+            background: #0f172a;
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        select.paradigm-dropdown:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+        }
+
+        select.paradigm-dropdown option {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        .paradigm-hud-box {
+            border-color: rgba(56, 189, 248, 0.35) !important;
+            background: rgba(15, 23, 42, 0.96) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="instrument-container">
+        <!-- LEFT COLUMN: ARENA & ASSAY CONTROLS -->
+        <div class="stage-column">
+            <div class="header-bar">
+                <div class="rig-title">
+                    <span>Project NeuroFly</span>
+                    <span class="rig-badge" style="background:rgba(56,189,248,0.2); border-color:#38bdf8; color:#38bdf8; font-weight:800;">v1.0-alpha</span>
+                    <span class="rig-badge" id="activeLesionBadge">WT CONTROL</span>
+                    <span class="rig-badge" id="activeParadigmBadge" style="background:rgba(192,132,252,0.15); border-color:#c084fc; color:#c084fc;">OPEN ARENA</span>
+                </div>
+                <div class="header-stats">
+                    <span>Sim Time: <b id="statSimTime" style="color:#f8fafc;">0.00s</b></span>
+                    <span>Step: <b id="statStep" style="color:#f8fafc;">0</b></span>
+                    <span>FPS: <b id="statFps" style="color:#4ade80;">60</b></span>
+                    <span>Speed: <b id="statSpeed">1.0x</b></span>
+                </div>
+            </div>
+
+            <!-- Interactive 2D Bio-Arena -->
+            <div class="arena-wrapper">
+                <div class="arena-overlay-tools">
+                    <button class="tool-btn active" id="toolSelect">Inspect Fly</button>
+                    <button class="tool-btn" id="toolFood">Drop Food (Odor A)</button>
+                    <button class="tool-btn" id="toolAlarm">Alarm Pheromone (Odor B)</button>
+                    <button class="tool-btn" id="toolPredator">Deploy Predator</button>
+                    <button class="tool-btn" id="toolWind">Drag Wind</button>
+                </div>
+
+                <canvas id="arenaCanvas"></canvas>
+
+                <div class="arena-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div> Food / Odor A</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#f43f5e;"></div> Alarm Odor B</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div> Predator (Looming)</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#38bdf8;"></div> Airflow Vector</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#a855f7;"></div> 72-Ommatidia Rays</div>
+                </div>
+            </div>
+
+            <!-- Bottom Assay & Learning Curve Suite -->
+            <div class="bottom-assay-panel">
+                <div class="assay-controls">
+                    <div class="assay-title">Behavioral Conditioning Assay</div>
+                    <div class="btn-grid">
+                        <button class="action-btn primary" id="btnRunAppetitive">Appetitive (CS+ / Sugar)</button>
+                        <button class="action-btn danger" id="btnRunAversive">Aversive (CS- / Shock)</button>
+                        <button class="action-btn" id="btnRunExtinction">Extinction Test</button>
+                        <button class="action-btn" id="btnResetMemory">Clear MB Memory</button>
+                    </div>
+                </div>
+
+                <div class="learning-curve-box">
+                    <div class="curve-header">
+                        <span><b>Tully & Quinn Learning Curve</b> (Preference Index ΔPI)</span>
+                        <span>Current PI: <b id="currentPiVal" style="color:#38bdf8;">0.00</b></span>
+                    </div>
+                    <canvas id="curveCanvas"></canvas>
+                </div>
+
+                <div class="telemetry-export-box">
+                    <div class="assay-title">Scientific Telemetry</div>
+                    <button class="action-btn primary" id="btnRecordToggle">Start Recording (CSV)</button>
+                    <button class="action-btn" id="btnDownloadCsv">Download Dataset</button>
+                    <button class="action-btn" id="btnDownloadJson">Export Trial JSON</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: ELECTROPHYSIOLOGY HUD -->
+        <div class="hud-column">
+            <!-- [0] Dedicated Neuroethological Paradigm HUD -->
+            <div class="hud-section paradigm-hud-box">
+                <div class="hud-section-header">
+                    <span style="color:#c084fc;">[0] Empirical Paradigm HUD</span>
+                    <span id="paradigmTrialBadge" style="color:var(--amber-glow); font-family:monospace; font-size:10px; font-weight:700;">TRIAL #1</span>
+                </div>
+
+                <!-- Paradigm Select Dropdown with all 12 paradigms + Open Arena -->
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label for="paradigm-select" style="font-size:10px; color:var(--text-dim); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Active Neuroethological Paradigm</label>
+                    <select id="paradigm-select" class="paradigm-dropdown">
+                        <option value="open-arena" selected>open-arena (Open Arena)</option>
+                        <option value="t-maze">t-maze (T-Maze Olfactory Conditioning)</option>
+                        <option value="y-maze">y-maze (Y-Maze Spontaneous Alternation)</option>
+                        <option value="heat-maze">heat-maze (Thermal Heat-Maze Place Learning - Ofstad 2011)</option>
+                        <option value="buridan">buridan (Buridan's Visual Landmark Paradigm)</option>
+                        <option value="visual-operant">visual-operant (Visual Operant Flight Simulator - Wolf & Heisenberg 1991)</option>
+                        <option value="wind-tunnel">wind-tunnel (Wind Tunnel Plume Tracking - Alvarez-Salvado 2018)</option>
+                        <option value="looming-escape">looming-escape (Visual Looming Predator Escape - Card & Dickinson 2008)</option>
+                        <option value="optomotor">optomotor (Optomotor Gaze Stabilization & Efference Copy)</option>
+                        <option value="gap-crossing">gap-crossing (Gap Crossing & Spatial Motor Planning)</option>
+                        <option value="circadian-dam">circadian-dam (Circadian Locomotor Sleep/Wake Monitor)</option>
+                        <option value="courtship">courtship (Courtship Conditioning & Pheromone Memory)</option>
+                        <option value="labyrinth">labyrinth (Corridor Obstacle Labyrinth)</option>
+                    </select>
+                </div>
+
+                <!-- Active Paradigm Title & Reference -->
+                <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:7px 10px;">
+                    <div id="paradigmTitle" style="font-size:12px; font-weight:800; color:#38bdf8;">Open Arena Multi-Modal Assay</div>
+                    <div id="paradigmRef" style="font-size:10px; color:#94a3b8; margin-top:2px; font-style:italic;">General Neuroethology Open Arena with multi-sensory foraging</div>
+                </div>
+
+                <!-- Current Trial, Elapsed Time, Goal/Choice Status -->
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-size:10px;">
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div style="color:#94a3b8; font-size:9px;">Current Trial</div>
+                        <div id="paradigmTrial" style="font-weight:700; color:#f8fafc; font-size:12px; font-family:monospace;">#1</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div style="color:#94a3b8; font-size:9px;">Elapsed Time</div>
+                        <div id="paradigmElapsed" style="font-weight:700; color:#f8fafc; font-size:12px; font-family:monospace;">0.00s</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 6px;">
+                        <div style="color:#94a3b8; font-size:9px;">Goal/Choice</div>
+                        <div id="paradigmStatus" style="font-weight:700; color:#4ade80; font-size:11px;">FORAGING</div>
+                    </div>
+                </div>
+
+                <!-- Canonical Metric Display (dynamic based on active paradigm) -->
+                <div style="background:rgba(56,189,248,0.07); border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div id="paradigmMetricLabel" style="font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Preference Index (PI)</div>
+                        <div id="paradigmMetricSub" style="font-size:9px; color:#64748b;">Net Associative Valence</div>
+                    </div>
+                    <div id="paradigmMetricValue" style="font-size:18px; font-weight:900; color:#38bdf8; font-family:'SF Mono', 'Roboto Mono', monospace;">+0.00</div>
+                </div>
+
+                <!-- Dopamine Reinforcement Indicator (PAM / PPL1 meter) -->
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:700;">
+                        <span style="color:var(--text-dim); text-transform:uppercase; font-size:9px;">Dopamine Reinforcement (PAM / PPL1)</span>
+                        <span id="valDopamineState" style="color:#38bdf8; font-size:9px; font-family:monospace;">QUIESCENT</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                        <div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; border:1px solid rgba(245,158,11,0.2);">
+                            <div style="display:flex; justify-content:space-between; font-size:9px; color:#fbbf24;">
+                                <span>PAM (Sugar/Reward)</span>
+                                <span id="paradigmPamRate" style="font-family:monospace;">0.0 Hz</span>
+                            </div>
+                            <div class="meter-bar-bg" style="height:5px; margin-top:2px;">
+                                <div class="meter-bar-fill" id="paradigmPamFill" style="background:#f59e0b; width:0%;"></div>
+                            </div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; border:1px solid rgba(244,63,94,0.2);">
+                            <div style="display:flex; justify-content:space-between; font-size:9px; color:#fb7185;">
+                                <span>PPL1 (Shock/Pain)</span>
+                                <span id="paradigmPpl1Rate" style="font-family:monospace;">0.0 Hz</span>
+                            </div>
+                            <div class="meter-bar-bg" style="height:5px; margin-top:2px;">
+                                <div class="meter-bar-fill" id="paradigmPpl1Fill" style="background:#f43f5e; width:0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paradigm Action Buttons -->
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px; margin-top:2px;">
+                    <button class="action-btn" id="btnResetTrial" style="font-size:10px; padding:6px 2px;">Reset Trial</button>
+                    <button class="action-btn primary" id="btnDownloadParadigmCsv" style="font-size:10px; padding:6px 2px;">Download CSV</button>
+                    <button class="action-btn" id="btnDownloadParadigmJson" style="font-size:10px; padding:6px 2px;">Export JSON</button>
+                </div>
+            </div>
+
+            <!-- 1. Mushroom Body Circuit Panel -->
+            <div class="hud-section">
+                <div class="hud-section-header">
+                    <span>[1] Mushroom Body (120 KCs)</span>
+                    <span id="kcActiveFraction" style="color:#38bdf8; font-family:monospace;">0 / 120 (0%)</span>
+                </div>
+                <div class="kc-raster-wrap">
+                    <canvas id="kcCanvas" width="380" height="48"></canvas>
+                </div>
+                <div class="dopamine-bars">
+                    <div class="meter-bar-box">
+                        <div style="display:flex; justify-content:space-between; color:#fbbf24;">
+                            <span>PAM (Sugar Reward)</span>
+                            <span id="valPamDopamine">0.0 Hz</span>
+                        </div>
+                        <div class="meter-bar-bg">
+                            <div class="meter-bar-fill" id="barPamFill" style="background:#f59e0b;"></div>
+                        </div>
+                    </div>
+                    <div class="meter-bar-box">
+                        <div style="display:flex; justify-content:space-between; color:#fb7185;">
+                            <span>PPL1 (Shock Pain)</span>
+                            <span id="valPpl1Dopamine">0.0 Hz</span>
+                        </div>
+                        <div class="meter-bar-bg">
+                            <div class="meter-bar-fill" id="barPpl1Fill" style="background:#f43f5e;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="valence-meter-box">
+                    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-dim);">
+                        <span>Avoidance (Aversive)</span>
+                        <span id="valNetValence" style="color:#38bdf8; font-weight:700;">Valence: +0.00</span>
+                        <span>Approach (Appetitive)</span>
+                    </div>
+                    <div class="valence-scale">
+                        <div class="valence-needle" id="needleValence" style="left:50%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Central Complex Compass Panel -->
+            <div class="hud-section">
+                <div class="hud-section-header">
+                    <span>[2] Central Complex (E-PG Compass)</span>
+                    <span id="valCompassHeading" style="color:#38bdf8; font-family:monospace;">0.0°</span>
+                </div>
+                <div class="compass-hud-layout">
+                    <canvas id="compassCanvas" width="120" height="120"></canvas>
+                    <div class="compass-readouts">
+                        <div>Heading Bump: <b id="valBumpHead" style="color:#38bdf8;">0°</b></div>
+                        <div>Upwind Vector: <b id="valUpwindHead" style="color:#a855f7;">180°</b></div>
+                        <div>PFL3 Steering Error: <b id="valPfl3Error" style="color:#fbbf24;">0.00</b></div>
+                        <div>Antenna Deflect: <b id="valAntennaDeflect" style="color:#2dd4bf;">0.00 µN</b></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Descending Motor Command Multi-Channel Oscilloscope -->
+            <div class="hud-section">
+                <div class="hud-section-header">
+                    <span>[3] Descending Motor Scope (Hz)</span>
+                    <span style="font-size:10px; color:#94a3b8;">5.0s Window</span>
+                </div>
+                <canvas id="oscilloscopeCanvas"></canvas>
+                <div class="scope-legend">
+                    <span style="color:#38bdf8;">■ DNa02 (Yaw)</span>
+                    <span style="color:#4ade80;">■ DNp09 (Pursuit)</span>
+                    <span style="color:#fbbf24;">■ BPN (Cadence)</span>
+                    <span style="color:#a855f7;">■ MDN (Back)</span>
+                    <span style="color:#f43f5e;">■ DNp01 (GF Escape)</span>
+                </div>
+            </div>
+
+            <!-- 4. Kuramoto-Hopf Tripod Gait CPG -->
+            <div class="hud-section">
+                <div class="hud-section-header">
+                    <span>[4] Kuramoto Tripod CPG (ΔΦ = π)</span>
+                    <span id="valCpgFreq" style="color:#4ade80; font-family:monospace;">8.0 Hz</span>
+                </div>
+                <div class="legs-grid">
+                    <div class="leg-cell" id="legL1">L1: STANCE</div>
+                    <div class="leg-cell" id="legL2">L2: SWING</div>
+                    <div class="leg-cell" id="legL3">L3: STANCE</div>
+                    <div class="leg-cell" id="legR1">R1: SWING</div>
+                    <div class="leg-cell" id="legR2">R2: STANCE</div>
+                    <div class="leg-cell" id="legR3">R3: SWING</div>
+                </div>
+            </div>
+
+            <!-- 5. In-Silico Lesion Assay Selector -->
+            <div class="hud-section">
+                <div class="hud-section-header">
+                    <span>[5] Genetic & Optogenetic Lesion</span>
+                    <span id="lesionStatusText" style="color:#c084fc;">INTACT</span>
+                </div>
+                <select class="lesion-dropdown" id="selLesion">
+                    <option value="WT">Wild-Type Control (Intact Connectome)</option>
+                    <option value="DELTA_MB">ΔMB (Kenyon Cell Plasticity Knockout)</option>
+                    <option value="DELTA_CX">ΔCX (Central Complex Compass Lesion)</option>
+                    <option value="DELTA_GF">ΔGF (Giant Fiber Escape Silenced)</option>
+                    <option value="DELTA_JO">ΔJO (Johnston's Organ Deafened)</option>
+                </select>
+                <div style="font-size:10px; color:var(--text-dim); line-height:1.4;" id="lesionDesc">
+                    Control condition with complete MaleCNS v1.0 and MANC v1.0 circuits functional.
+                </div>
+            </div>
+
+            <!-- Quick Controls -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+                <button class="action-btn" id="btnPauseToggle">Pause / Resume</button>
+                <button class="action-btn" id="btnResetArena">Reset Arena</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
