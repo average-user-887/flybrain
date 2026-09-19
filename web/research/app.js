@@ -19,6 +19,7 @@ const notes = {
  'multisensory-sandbox':['Multisensory','Combined sensory benchmark','How do sensory and motor components interact?','This arena combines odor, visual, mechanosensory and locomotor components. Its composite score mixes multiple measures.','Inspect the raw submetrics. A rising composite score alone cannot establish learning.','Change one stimulus or component at a time and retain the before/after probe.']
 };
 let current = null, telemetry = null, catalog = [], trail = [], lastTrial = null, lastBrain = null, writable = false, busy = false;
+let refreshing = null, connected = false, lastSeen = null;
 const escapeText = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num = (v, n=3) => Number.isFinite(v) ? v.toFixed(n) : '—';
 const message = (text, error=false) => { $('message').textContent=text; $('message').classList.toggle('error', error); };
@@ -35,7 +36,7 @@ function buttons() {
 }
 async function command(body) {
  busy=true;buttons();
- try {const response=await request('/api/command',body);message(body.action==='probe_brain' ? `Probe recorded. A − B = ${num(response.probe.discrimination)}. Weights were unchanged.` : `Recorded: ${body.action.replaceAll('_',' ')}.`);await refresh();}
+ try {if(refreshing) await refreshing; const response=await request('/api/command',body);message(body.action==='probe_brain' ? `Probe recorded. A − B = ${num(response.probe.discrimination)}. Weights were unchanged.` : `Recorded: ${body.action.replaceAll('_',' ')}.`);await refresh();}
  catch(e){message(e.message,true);}finally{busy=false;buttons();}
 }
 for(const [pid,n] of Object.entries(notes)) {
@@ -94,13 +95,36 @@ function renderTrajectory() {
  const f=t.fly;svg+=`<g transform="translate(${X(f.x)},${Y(f.y)}) rotate(${-f.heading*180/Math.PI})"><ellipse rx="7" ry="4" fill="#173f33"/><path d="M4 0H13M0 -3L-3 -9M0 3L-3 9" stroke="#173f33" stroke-width="1.5"/></g>`;
  $('trajectory').innerHTML=svg;$('position').textContent=`x ${num(f.x,1)} · y ${num(f.y,1)} mm`;
 }
-async function refresh() {
- try{
- const [status,brain,t,all]=await Promise.all([request('/api/status'),request('/api/brain'),request('/api/telemetry'),request('/api/brains')]);
- if(t.brain_id && t.brain_id!==brain.brain_id)return;
- const first=!current;current=brain;telemetry=t;catalog=all.brains;writable=!status.stream?.read_only && !status.stream?.commands_require_token;
- $('connection').textContent=`Live · ${status.sim_speed}× simulated time${writable?'':' · read only'}`;$('signal').classList.add('live');
- if(first)message('Connected. Brains are isolated by experiment. Select an assay, teach its cues, then probe the retained memory.');render();
- }catch(e){writable=false;$('connection').textContent='Disconnected · measurements may be stale';$('signal').classList.remove('live');message(`Cannot reach ${api}. ${e.message}`,true);buttons();}
+async function readSnapshot() {
+ try {
+  const snapshot = await request('/api/observatory');
+  const {status, brain, telemetry: packet, brains} = snapshot;
+  if (!brain?.brain_id || packet.brain_id !== brain.brain_id || status.active_paradigm !== brain.paradigm) {
+   throw new Error('Received an inconsistent experiment snapshot; retrying.');
+  }
+  const first = !current, recovered = !connected && !first;
+  current = brain; telemetry = packet; catalog = brains;
+  writable = !status.stream?.read_only && !status.stream?.commands_require_token;
+  connected = true; lastSeen = new Date();
+  $('connection').textContent = `Live · ${status.sim_speed}× simulated time${writable ? '' : ' · read only'}`;
+  $('signal').classList.add('live'); $('recovery').hidden = true;
+  if (first) message('Connected. Brains are isolated by experiment. Select an assay, teach its cues, then probe the retained memory.');
+  else if (recovered) message('Connection restored. Live measurements and saved brain memories are available again.');
+  render();
+ } catch (e) {
+  writable = false; connected = false;
+  $('connection').textContent = 'Disconnected · measurements may be stale';
+  $('signal').classList.remove('live'); $('recovery').hidden = false;
+  $('lastSeen').textContent = lastSeen ? `Last live measurement: ${lastSeen.toLocaleTimeString()}.` : 'No live measurements received yet.';
+  $('phase').textContent = 'Connection unavailable · controls paused';
+  message(`Cannot reach ${api}. ${e.message}`, true); buttons();
+ }
 }
-(async()=>{await refresh();setInterval(refresh,1200);})();
+function refresh() {
+ // Slow/offline requests must not stack up every polling interval.
+ if (!refreshing) refreshing = readSnapshot().finally(() => { refreshing = null; });
+ return refreshing;
+}
+$('retry').onclick = () => refresh();
+buttons();
+(async () => { await refresh(); setInterval(refresh, 1200); })();

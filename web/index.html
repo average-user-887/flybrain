@@ -1077,7 +1077,7 @@
                         <span id="lesionCardDriver" style="color:#94a3b8; font-size:8.5px; font-family:monospace; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px;">Intact Baseline</span>
                     </div>
                     <div id="lesionCardDesc" style="color:#cbd5e1; font-size:9px; margin-bottom:4px;">
-                        Full unperturbed connectome (166,700 neurons, 25.5M synapses). Intact associative memory, spatial compass, looming evasion, and mechanosensory organs.
+                        Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.
                     </div>
                     <div style="color:#f59e0b; font-size:8.5px;">
                         <b>Expected Deficit:</b> <span id="lesionCardDeficit" style="color:#e2e8f0;">None (Normal baseline behavior across all 14 assays).</span>
@@ -1149,6 +1149,7 @@
                 </div>
             </div>
 
+            <p style="margin:0;padding:7px 12px;font-size:10px;color:#a4b5c8;background:#101b2c;line-height:1.4">When connected, the pose follows the daemon. Neural panels and lesion controls illustrate a separate local model. Use the Learning observatory for saved weights and measured cue probes.</p>
             <!-- Bottom Multi-Channel Oscilloscope & Learning Curve -->
             <div class="bottom-stage-panel">
                 <div class="scope-box">
@@ -1161,8 +1162,8 @@
 
                 <div class="learning-curve-box">
                     <div class="sub-header">
-                        <span>Tully & Quinn Learning Curve</span>
-                        <span>Current PI: <b id="currentPiVal" style="color:#38bdf8;">0.00</b></span>
+                        <span>Selected Assay Outcome</span>
+                        <span>Current value: <b id="currentPiVal" style="color:#38bdf8;">0.00</b></span>
                     </div>
                     <canvas id="curveCanvas"></canvas>
                 </div>

@@ -491,6 +491,24 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         self._set_cors_headers()
         self.end_headers()
 
+    def _status_payload(self):
+        uptime = time.time() - self.runner.start_time
+        return {
+            "status": "online",
+            "service": "Project NeuroFly Continuous Learning Daemon",
+            "uptime_sec": round(uptime, 1),
+            "total_steps": self.runner.total_steps,
+            "sim_speed": self.runner.sim_speed,
+            "active_paradigm": self.runner.active_paradigm_id,
+            "active_paradigm_title": self.runner.active_paradigm_title,
+            "current_trial": self.runner.current_trial,
+            "trials_completed": len(self.runner.trial_history),
+            "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
+            "trial_length_s": getattr(self.runner, "trial_length_s", None),
+            "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
+            "stream": self.gateway.describe()
+        }
+
     def do_GET(self):
         url = self.path.split("?")[0].rstrip("/")
 
@@ -498,22 +516,8 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self._set_cors_headers("application/json")
             self.end_headers()
-            uptime = time.time() - self.runner.start_time
-            resp = {
-                "status": "online",
-                "service": "Project NeuroFly Continuous Learning Daemon",
-                "uptime_sec": round(uptime, 1),
-                "total_steps": self.runner.total_steps,
-                "sim_speed": self.runner.sim_speed,
-                "active_paradigm": self.runner.active_paradigm_id,
-                "active_paradigm_title": self.runner.active_paradigm_title,
-                "current_trial": self.runner.current_trial,
-                "trials_completed": len(self.runner.trial_history),
-                "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
-                "trial_length_s": getattr(self.runner, "trial_length_s", None),
-                "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
-                "stream": self.gateway.describe()
-            }
+            with self.runner.lock:
+                resp = self._status_payload()
             self.wfile.write(json.dumps(resp, indent=2).encode("utf-8"))
 
         elif url == "/api/telemetry":
@@ -522,6 +526,18 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             with self.runner.lock:
                 data = self.runner.latest_telemetry
+            self.wfile.write(json.dumps(data).encode("utf-8"))
+
+        elif url == "/api/observatory":
+            # One lock and one response prevent mixed experiment identities during switches.
+            with self.runner.lock:
+                data = {"status": self._status_payload(),
+                        "brain": self.runner.active_brain.summary(details=True),
+                        "telemetry": self.runner.latest_telemetry,
+                        "brains": self.runner.brains.catalog(self.runner.active_paradigm_id)}
+            self.send_response(200)
+            self._set_cors_headers()
+            self.end_headers()
             self.wfile.write(json.dumps(data).encode("utf-8"))
 
         elif url in ("/api/brains", "/api/brain"):

@@ -194,6 +194,7 @@ class ExperimentBrains:
     def __init__(self, directory):
         self.directory = Path(directory)
         self.instances = {}
+        self._saved_summaries = {}
 
     def get(self, paradigm):
         if paradigm not in PARADIGMS:
@@ -202,10 +203,36 @@ class ExperimentBrains:
             self.instances[paradigm] = ExperimentBrain(paradigm, self.directory)
         return self.instances[paradigm]
 
+    def _saved_summary(self, paradigm):
+        """Show saved progress without instantiating or running an inactive brain."""
+        path = self.directory / f'{paradigm}.json'
+        if not path.exists():
+            return dict(paradigm=paradigm, state='not_started')
+        stat = path.stat()
+        fingerprint = (stat.st_mtime_ns, stat.st_size)
+        cached = self._saved_summaries.get(paradigm)
+        if cached and cached[0] == fingerprint:
+            return dict(cached[1])
+        try:
+            data = json.loads(path.read_text())
+            if data['schema_version'] != 1 or data['paradigm'] != paradigm:
+                raise ValueError('checkpoint schema or experiment mismatch')
+            if not isinstance(data['brain_id'], str) or not data['brain_id']:
+                raise ValueError('invalid brain identity')
+            for key in ('steps', 'trials'):
+                if type(data[key]) is not int or data[key] < 0:
+                    raise ValueError(f'invalid {key}')
+            summary = {key: data[key] for key in ('paradigm', 'brain_id', 'seed', 'steps',
+                                                  'trials', 'learning_enabled')}
+            summary.update(state='saved', last_saved=data['saved_at'])
+        except (KeyError, TypeError, ValueError) as exc:
+            summary = dict(paradigm=paradigm, state='checkpoint_error', restore_error=str(exc))
+        self._saved_summaries[paradigm] = (fingerprint, summary)
+        return dict(summary)
+
     def catalog(self, active):
         return [dict(self.instances[p].summary(), state='active' if p == active else 'paused')
-                if p in self.instances else dict(paradigm=p, state='saved' if (self.directory / f'{p}.json').exists() else 'not_started')
-                for p in PARADIGMS]
+                if p in self.instances else self._saved_summary(p) for p in PARADIGMS]
 
     def save_all(self):
         return [brain.save() for brain in self.instances.values()]
