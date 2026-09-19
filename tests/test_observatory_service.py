@@ -26,7 +26,7 @@ def make_project(tmp_path):
 def test_service_install_is_idempotent_and_keeps_venv_path(tmp_path):
     project = make_project(tmp_path)
     units = tmp_path / 'units'
-    assert len(observatory.install_units(project, units)) == 2
+    assert len(observatory.install_units(project, units)) == 3
     before = {p.name: p.stat().st_mtime_ns for p in units.iterdir()}
     assert observatory.install_units(project, units) == []
     assert {p.name: p.stat().st_mtime_ns for p in units.iterdir()} == before

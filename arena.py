@@ -667,6 +667,7 @@ class Arena:
         f.heading = float(sh) % (2.0 * math.pi)
         f.speed = 1.2
         f.angular_velocity = 0.0
+        f.assay_escape_remaining = 0.0
         f.alive = True
 
     def sense_boundaries(self, x: float, y: float, radius: float, perception: Optional[float] = None) -> List[Tuple[float, float, float]]:
@@ -822,6 +823,7 @@ class Arena:
         female_aphrodisiac: float = 0.0,
         incurred_damage: bool = False,
         is_saccade: Optional[bool] = None,
+        dt: float = 0.01,
         **kwargs
     ) -> Tuple[float, float, str, float, float]:
         f = fly or self.fly
@@ -844,7 +846,7 @@ class Arena:
                 food_ingested=is_feeding,
                 incurred_damage=incurred_damage,
                 energy_level=f.metabolic.satiety if hasattr(f, 'metabolic') else 1.0,
-                dt=0.01,
+                dt=dt,
                 temperature=temperature,
                 landmarks=landmarks,
                 cva_odor=cva_odor,
@@ -917,7 +919,8 @@ class Arena:
             fly_yaw_rate=f.angular_velocity,
             predator_positions=pred_pos_list,
             predator_velocities=pred_vel_list,
-            dt=0.01
+            external_yaw_rad_s=math.radians(float(kwargs.get("drum_velocity_deg_s", 0.0))),
+            dt=dt
         )
         if f.ablate_lc4:
             vis_data['escape_active'] = False
@@ -927,7 +930,7 @@ class Arena:
             c_left=sensory['left_a'],
             c_right=sensory['right_a'],
             wind_angle_rad=wind_relative,
-            is_feeding=is_feeding
+            is_feeding=is_feeding, dt=dt
         )
 
         # Apply metabolic hunger modulation
@@ -944,7 +947,7 @@ class Arena:
                 v_forward=v_surge,
                 mbon_valence=valence_a,
                 current_fly_heading=f.heading,
-                dt=0.01
+                dt=dt
             )
 
         # 6. Spatial Chemotaxis (Tropotaxis)
@@ -985,7 +988,7 @@ class Arena:
         # 8. CPG Tripod Gait Stepping Drive
         dn_left = max(0.0, 1.0 - dheading * 1.5)
         dn_right = max(0.0, 1.0 + dheading * 1.5)
-        cpg_data = cpg.step(dn_left, dn_right, dt=0.01)
+        cpg_data = cpg.step(dn_left, dn_right, dt=dt)
 
         return dheading, new_speed, state, compass_heading, goal_angle
 
@@ -1146,9 +1149,19 @@ class Arena:
                     bitter_pheromone=bitter_phero,
                     female_aphrodisiac=aphrodisiac,
                     incurred_damage=(punishment > 0.0),
-                    is_saccade=is_saccade
+                    is_saccade=is_saccade, dt=dt,
+                    drum_velocity_deg_s=stimuli.get("drum_velocity_deg_s", 0.0)
                 )
 
+                # The assay's expanding disk is an actual visual input, not merely
+                # a metric counter. A GF event triggers a bounded motor escape.
+                if paradigm_res.get('gf_spike') and not fly.ablate_lc4:
+                    fly.assay_escape_remaining = 0.2
+                    fly.escapes_performed += 1
+                    self.total_escapes += 1
+                if getattr(fly, 'assay_escape_remaining', 0.0) > 0:
+                    fly.assay_escape_remaining = max(0.0, fly.assay_escape_remaining - dt)
+                    new_speed, state = 3.5, 'ESCAPE'
                 fly.speed = new_speed
                 fly.behavioral_state = state
                 fly.compass_heading = compass_h
@@ -1168,8 +1181,11 @@ class Arena:
                 # Proposed position step
                 vx_step = fly.speed * math.cos(fly.heading)
                 vy_step = fly.speed * math.sin(fly.heading)
-                prop_x = prev_x + vx_step * dt
-                prop_y = prev_y + vy_step * dt
+                tethered = self.paradigm_key(self.paradigm) in ('visual_operant', 'optomotor')
+                prop_x = prev_x if tethered else prev_x + vx_step * dt
+                prop_y = prev_y if tethered else prev_y + vy_step * dt
+                if tethered:
+                    vx_step = vy_step = 0.0
 
                 # Simulation-grade continuous swept collision resolution
                 if hasattr(self.paradigm, 'check_collisions_advanced'):
@@ -1187,7 +1203,7 @@ class Arena:
 
                 fly.pos.x = res_x
                 fly.pos.y = res_y
-                fly.speed = math.hypot(res_vx, res_vy)
+                fly.speed = math.copysign(math.hypot(res_vx, res_vy), new_speed)
                 self.enforce_containment(fly, dt)
 
                 if collided and normals:
@@ -1198,17 +1214,6 @@ class Arena:
                     if n_mag > 1e-6:
                         net_nx /= n_mag
                         net_ny /= n_mag
-
-                        if fly.speed > 0.05:
-                            # Align body smoothly with sliding velocity
-                            slide_angle = math.atan2(res_vy, res_vx)
-                            dtheta = (slide_angle - fly.heading + math.pi) % (2.0 * math.pi) - math.pi
-                            fly.heading = (fly.heading + dtheta * min(1.0, 15.0 * dt)) % (2.0 * math.pi)
-                        else:
-                            # Head-on or wedged in corner: gentle repulsion torque away from wall
-                            h_cross_n = math.cos(fly.heading) * net_ny - math.sin(fly.heading) * net_nx
-                            turn_dir = 1.0 if h_cross_n >= 0.0 else -1.0
-                            fly.heading = (fly.heading + turn_dir * 4.0 * dt) % (2.0 * math.pi)
 
                         # Cuticular mechanosensory ingress: antennal deflection
                         if hasattr(fly, 'mechanosensory') and fly.mechanosensory is not None:
@@ -1324,7 +1329,7 @@ class Arena:
 
             # Compute steering and advance kinematics
             dheading, new_speed, state, compass_h, goal_a = self.compute_steering(
-                sensory, is_feeding=food_eaten_this_step, fly=fly
+                sensory, is_feeding=food_eaten_this_step, fly=fly, dt=dt
             )
             fly.speed = new_speed
             fly.behavioral_state = state

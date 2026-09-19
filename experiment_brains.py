@@ -28,12 +28,12 @@ ARRAYS = ('pn_tuning', 'w_pn_kc', 'w_kc_mbon_baseline', 'u', 'w', 'y_kc',
 
 
 class ExperimentBrain:
-    def __init__(self, paradigm: str, directory: Path):
+    def __init__(self, paradigm: str, directory: Path, seed: int | None = None):
         if paradigm not in PARADIGMS:
             raise ValueError(f'Unknown experiment: {paradigm}')
         self.paradigm = paradigm
         self.directory = directory
-        self.seed = int.from_bytes(hashlib.sha256(paradigm.encode()).digest()[:4], 'big')
+        self.seed = int.from_bytes(hashlib.sha256(paradigm.encode()).digest()[:4], 'big') if seed is None else int(seed)
         self.arena = Arena(paradigm=None if paradigm == 'open-arena' else paradigm,
                            brain_type='modular', seed=self.seed, num_flies=1, num_predators=0)
         self.brain_id = uuid.uuid4().hex
@@ -163,7 +163,7 @@ class ExperimentBrain:
             return
         try:
             data = json.loads(self.path.read_text())
-            if data['schema_version'] != 1 or data['paradigm'] != self.paradigm:
+            if data['schema_version'] != 1 or data['paradigm'] != self.paradigm or data['seed'] != self.seed:
                 raise ValueError('checkpoint schema or experiment mismatch')
             arrays = {k: np.asarray(data['circuit'][k], dtype=float) for k in ARRAYS}
             for k, value in arrays.items():

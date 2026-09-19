@@ -1883,7 +1883,7 @@ class CircadianDAMParadigm(ExperimentParadigm):
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
         # Minute of the 24-hour day (1440 min)
-        current_minute = (self.trial_manager.current_step) % 1440
+        current_minute = (self.time_elapsed_ms / 60000.0) % 1440
         hour_of_day = current_minute / 60.0
 
         if self.photoperiod == 'LD':
@@ -1913,17 +1913,20 @@ class CircadianDAMParadigm(ExperimentParadigm):
                 self.beam_crossings += 1
         self.last_x = x
 
-        # Immobility and Sleep Bout Tracking (1 step ~ 1 min of DAM recording)
+        # Time is in seconds throughout the arena; count real simulated minutes.
         if beam_crossed or speed > 0.5:
             self.consecutive_immobile_minutes = 0.0
             self.in_sleep_bout = False
         else:
-            self.consecutive_immobile_minutes += 1.0
-            if self.consecutive_immobile_minutes >= 5.0:
-                self.total_sleep_minutes += 1.0
+            self.consecutive_immobile_minutes += dt / 60.0
+            if self.consecutive_immobile_minutes >= 5.0 - 1e-9:
                 if not self.in_sleep_bout:
+                    # Include the qualifying immobility interval once it reaches 5 min.
+                    self.total_sleep_minutes += self.consecutive_immobile_minutes
                     self.in_sleep_bout = True
                     self.sleep_bouts += 1
+                else:
+                    self.total_sleep_minutes += dt / 60.0
 
         return {
             'stimuli': stimuli,
@@ -2194,10 +2197,10 @@ class LabyrinthParadigm(ExperimentParadigm):
                 (self.path_points[-1][0] - self.path_points[0][0]) ** 2 +
                 (self.path_points[-1][1] - self.path_points[0][1]) ** 2
             )
-            tortuosity = float(total_dist / max(1.0, net_disp))
+            tortuosity = float(total_dist / net_disp) if net_disp > 1e-9 else None
         else:
             total_dist = 0.0
-            tortuosity = 1.0
+            tortuosity = None
 
         return {
             'goal_reached': self.goal_reached,

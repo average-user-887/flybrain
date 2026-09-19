@@ -186,6 +186,9 @@ class TestStreamGateway:
 # =============================================================================
 
 class _StubRunner:
+    last_error = None
+    paused = False
+    continuous = False
     """Minimal stand-in for ContinuousExperimentRunner (no Arena needed)."""
 
     def __init__(self):

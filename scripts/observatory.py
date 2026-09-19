@@ -21,8 +21,9 @@ PROJECT = Path(__file__).resolve().parents[1]
 MARKER = '# Managed by NeuroFly scripts/observatory.py\n'
 BRAIN = 'neurofly-observatory-brain.service'
 WEB = 'neurofly-observatory-web.service'
-UNITS = (BRAIN, WEB)
-WEB_URL = 'http://127.0.0.1:8780/research.html'
+RESEARCH = 'neurofly-research.service'
+UNITS = (BRAIN, WEB, RESEARCH)
+WEB_URL = 'http://127.0.0.1:8780/index.html'
 API_URL = 'http://127.0.0.1:8781'
 
 
@@ -41,9 +42,13 @@ def service_text(project: Path, kind: str):
         title = 'NeuroFly learning daemon (local observatory)'
         args = [py, '-u', project / 'neurofly_daemon.py', '--host', '127.0.0.1',
                 '--port', '8781', '--paradigm', 't-maze', '--speed', '3',
-                '--trial-seconds', '20', '--checkpoint-interval', '30',
+                '--continuous', '--trial-seconds', '120', '--checkpoint-interval', '30',
                 '--output-dir', output, '--data-dir', output / 'learning',
                 '--pid-file', output / 'daemon.pid']
+        dependencies = ''
+    elif kind == 'research':
+        title = 'NeuroFly independent research cohorts and scientific data'
+        args = [py, '-u', project / 'scripts' / 'research_worker.py']
         dependencies = ''
     elif kind == 'web':
         title = 'NeuroFly learning observatory (local web UI)'
@@ -68,6 +73,8 @@ RestartSec=2
 TimeoutStopSec=20
 UMask=0077
 Environment=PYTHONUNBUFFERED=1
+Environment=OPENBLAS_NUM_THREADS=1
+Nice=10
 
 [Install]
 WantedBy=default.target
@@ -78,7 +85,8 @@ def install_units(project: Path, unit_dir: Path):
     if not (project / '.venv' / 'bin' / 'python').is_file():
         raise RuntimeError(f'Missing Python environment: {project / ".venv"}')
     # Check every target before writing any of them.
-    expected = {BRAIN: service_text(project, 'brain'), WEB: service_text(project, 'web')}
+    expected = {BRAIN: service_text(project, 'brain'), WEB: service_text(project, 'web'),
+                RESEARCH: service_text(project, 'research')}
     for name in expected:
         path = unit_dir / name
         if path.exists() and not path.read_text().startswith(MARKER):
@@ -114,7 +122,7 @@ def check_ports():
 
 def health():
     with urlopen(WEB_URL, timeout=2) as response:
-        if response.status != 200 or b'Learning Observatory' not in response.read(4096):
+        if response.status != 200 or b'Modular Sensorimotor Instrument' not in response.read(4096):
             raise RuntimeError('The web port is not serving the NeuroFly observatory')
     with urlopen(API_URL + '/api/status', timeout=2) as response:
         status = json.load(response)
@@ -165,13 +173,13 @@ def main(argv=None):
             status, brain = health()
             print(f'Healthy: {WEB_URL}\nBrain: {brain["paradigm"]} / {brain["brain_id"]} | steps: {status["total_steps"]}')
         elif args.action == 'logs':
-            return subprocess.run(['journalctl', '--user', '-u', BRAIN, '-u', WEB,
+            return subprocess.run(['journalctl', '--user', '-u', BRAIN, '-u', WEB, '-u', RESEARCH,
                                    '-n', '50', '--no-pager']).returncode
         elif args.action == 'disable':
             ctl('disable', '--now', *UNITS)
             print('Lab stopped; automatic startup disabled. Saved brain data is retained.')
         else:
-            ctl('stop', WEB, BRAIN)
+            ctl('stop', *UNITS)
             print('Lab stopped. Saved brain data is retained.')
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) else str(exc)

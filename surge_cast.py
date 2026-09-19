@@ -65,13 +65,15 @@ class SurgeCastEngine:
         self.cast_direction = 1.0
         self.cast_step_counter = 0
 
-    def step(self, c_left: float, c_right: float, wind_angle_rad: float = 0.0, is_feeding: bool = False):
+    def step(self, c_left: float, c_right: float, wind_angle_rad: float = 0.0, is_feeding: bool = False, dt: float = None):
         """
         c_left, c_right: Odor concentration at antennae
         wind_angle_rad: Wind heading relative to fly (0 = into wind/upwind, pi = downwind)
         is_feeding: True when fly is in contact with food
         Returns: forward speed, angular velocity, and behavioral tag
         """
+        if dt is not None:
+            self.dt = float(dt)
         if is_feeding:
             self.behavioral_state = 'FEED'
             return 0.2, 0.0, 'FEED'
@@ -119,11 +121,11 @@ class SurgeCastEngine:
             self.accumulated_evidence *= np.exp(-self.dt / 1.8)
             if self.locomotion_state == 1: # WALKING
                 r_S = 0.78 - (0.78 - 0.17) * np.exp(-self.time_since_last_encounter / 0.25)
-                if self.rng.random() < r_S * self.dt:
+                if self.rng.random() < (1.0 - np.exp(-r_S * self.dt)):
                     self.locomotion_state = 0
             else: # STOPPED
                 r_W = 0.2 + 0.8 * (self.accumulated_evidence / (1.0 + self.accumulated_evidence))
-                if self.rng.random() < r_W * self.dt:
+                if self.rng.random() < (1.0 - np.exp(-r_W * self.dt)):
                     self.locomotion_state = 1
 
         # 6. Forward Speed
@@ -153,4 +155,4 @@ class SurgeCastEngine:
         else:
             omega = self.rng.normal(0, 0.15)
 
-        return float(v), float(np.clip(omega, -0.45, 0.45)), self.behavioral_state
+        return float(v), float(np.clip(omega, -0.45, 0.45)), ('REST' if self.locomotion_state == 0 else self.behavioral_state)

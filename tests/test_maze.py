@@ -463,9 +463,9 @@ class TestTwelveParadigms(unittest.TestCase):
         self.assertTrue(res_cross['beam_crossed'])
         self.assertEqual(res_cross['total_beam_crossings'], 1)
 
-        # Immobility for 6 consecutive steps (1 step ~ 1 min)
+        # Immobility for 6 minutes, explicitly advancing 60 seconds per sample.
         for _ in range(6):
-            res_sleep = dam.step({'x': 35.0, 'y': 5.0, 'speed': 0.0})
+            res_sleep = dam.step({'x': 35.0, 'y': 5.0, 'speed': 0.0}, dt=60.0)
 
         # At minute 5 and 6, fly should enter sleep bout
         self.assertTrue(res_sleep['is_sleeping'])

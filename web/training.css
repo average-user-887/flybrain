@@ -1,0 +1,29 @@
+/* Extend the existing instrument without replacing its layout or renderers. */
+body { overflow: auto; }
+.top-navbar { flex-wrap: wrap; gap: 6px; flex-shrink: 0; }
+.top-navbar > div:first-child { flex-wrap: wrap; }
+.bottom-stage-panel { flex-shrink: 0; }
+.training-panel { display: none; flex-direction: column; padding: 10px; gap: 10px; overflow-y: auto; overflow-x: hidden; min-height: 230px; user-select: text; }
+.training-panel .hud-card { flex-shrink: 0; padding: 10px; }
+.training-panel p { color: var(--text-dim); font-size: 11px; line-height: 1.5; margin: 6px 0; }
+.training-panel h3 { margin: 0 0 7px; color: var(--cyan-glow); font-size: 12px; }
+.training-panel h4 { margin: 10px 0 5px; color: var(--purple-glow); font-size: 11px; }
+.training-panel code { font-size: 10px; overflow-wrap: anywhere; }
+.training-panel svg { display: block; width: 100%; height: auto; min-height: 110px; }
+.training-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.training-panel button:disabled { opacity: .4; cursor: not-allowed; }
+.training-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 9px 0; font-size: 10px; color: var(--text-dim); }
+.training-stats strong { display: block; font: 16px monospace; color: var(--cyan-glow); margin-top: 3px; }
+.training-message { color: var(--green-glow) !important; }
+.training-message.error { color: var(--rose-glow) !important; }
+.training-panel table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.training-panel th, .training-panel td { text-align: left; padding: 5px 3px; border-bottom: 1px solid var(--border-dim); }
+.training-bar { display: grid; grid-template-columns: 110px 1fr 50px; gap: 5px; align-items: center; font-size: 10px; margin: 5px 0; }
+.training-bar-track { height: 5px; background: #182c3c; }
+.training-bar-fill { height: 100%; background: var(--cyan-glow); }
+.training-panel details > summary { color: var(--cyan-glow); font-size: 11px; cursor: pointer; }
+
+/* Keep the established three columns reachable in smaller app panels. */
+.instrument-container { min-width: 1080px; grid-template-columns: minmax(230px,.8fr) minmax(450px,1.6fr) minmax(340px,1.1fr); }
+.bottom-stage-panel { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 180px; }
+.scope-box, .learning-curve-box { min-width: 0; }
