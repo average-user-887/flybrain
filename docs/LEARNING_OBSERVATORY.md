@@ -14,21 +14,21 @@ python3 scripts/observatory.py status
 ```
 
 The launcher works from any directory when called by its absolute path. It
-installs two managed user services, starts both, and waits for the actual page
+installs three managed user services, starts them, and waits for the actual page
 and brain API to respond. They survive terminal/chat-session closure, restart
 on process failure, and start at user login. No root privileges are needed.
-Both bind to localhost. Existing brain data stays in `outputs/observatory-live`.
+The web/API services bind to localhost; the research worker uses no network listener. Existing brain data stays in `outputs/observatory-live`.
 The launcher refuses to take over ports held by unrelated processes.
 
 ```bash
-python3 scripts/observatory.py logs      # recent logs for both services
+python3 scripts/observatory.py logs      # recent logs for all services
 python3 scripts/observatory.py restart   # graceful save and restart
 python3 scripts/observatory.py stop      # stop now; retain learned brains
 python3 scripts/observatory.py disable   # also disable automatic login startup
 ```
 
 Service names: `neurofly-observatory-brain.service` and
-`neurofly-observatory-web.service`. Their generated unit files live in
+`neurofly-observatory-web.service`, plus `neurofly-research.service`. Their generated unit files live in
 `~/.config/systemd/user/`. Automatic startup follows the logged-in user session;
 it does not promise availability while the computer is asleep or powered off.
 Do not start a second daemon against the same output directory.
@@ -37,7 +37,7 @@ For development on a host without systemd, use two foreground terminals:
 
 ```bash
 .venv/bin/python neurofly_daemon.py --host 127.0.0.1 --port 8781 \
-  --speed 3 --trial-seconds 20 --output-dir outputs/observatory-live \
+  --speed 3 --continuous --trial-seconds 120 --output-dir outputs/observatory-live \
   --data-dir outputs/observatory-live/learning \
   --pid-file outputs/observatory-live/daemon.pid
 .venv/bin/python -m http.server 8780 --bind 127.0.0.1 --directory web
@@ -46,11 +46,15 @@ For development on a host without systemd, use two foreground terminals:
 Those foreground processes need to stay open. The persistent launcher is the
 recommended option for this workstation.
 
-Open <http://127.0.0.1:8780/research.html>. For another daemon, append
+Open <http://127.0.0.1:8780/index.html>. For another daemon, append
 `?daemon=http://localhost:PORT`. The UI uses that explicit endpoint only.
-The original arena instrument remains available from the header. Its neural
-animations are an independent browser model; the observatory's weights and
-readouts come from the Python daemon.
+The original dark instrument is the primary interface. Its Training & Data tab
+contains saved weights, probes and background cohorts. Pose, clock, cue activity,
+compass and recorded telemetry come from the daemon while connected. Limb
+geometry is illustrative. Some old assay/lesion controls remain standalone-preview
+controls, as labeled; they are not validated interventions on the saved brain.
+The background worker runs separately and never switches the interactive assay.
+See [Research protocol](RESEARCH_PROTOCOL.md) for exports, controls and limitations.
 
 ## Each experiment owns its memory
 

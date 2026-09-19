@@ -1101,6 +1101,10 @@ class ScientificBioArena {
     }
 
     resetTrial(advanceTrial = true, keepMemory = true) {
+        if (this.remoteDriven) {
+            window.hud?.daemonBridge?.sendCommand('reset_trial', {advance: advanceTrial, keep_memory: keepMemory});
+            return;
+        }
         if (advanceTrial) {
             const metric = this.getCanonicalMetricInfo();
             if (window.hud && window.hud.recordTrialData) {
@@ -1299,6 +1303,9 @@ class ScientificBioArena {
     }
 
     step(dt = 0.02) {
+        // In live mode the daemon owns time, motion, trial boundaries and data.
+        // Running the local assay here used to reset the streamed fly independently.
+        if (this.remoteDriven || this.awaitingDaemon) return;
         this.simTime += dt;
         this.stepCount += 1;
         this.paradigmElapsedSec += dt;
@@ -2292,6 +2299,8 @@ class ScientificBioArena {
         const telemInterval = curSpeed >= 50 ? 10 : (curSpeed >= 10 ? 5 : 2);
         if (this.isRecording || this.stepCount % telemInterval === 0) {
             this.telemetryBuffer.push({
+                source: 'local_preview',
+                segment: `${this.activeParadigmId}:${this.currentTrial}`,
                 step: this.stepCount,
                 simTime: this.simTime.toFixed(3),
                 paradigm: this.activeParadigmId,
@@ -2468,6 +2477,15 @@ class ScientificBioArena {
     }
 
     getCanonicalMetricInfo() {
+        if (this.remoteDriven && this.remotePacket) {
+            const keys = {'t-maze':'performance_index','y-maze':'spontaneous_alternation_rate',
+                'heat-maze':'escape_latency_ms','buridan':'centrophobism_index','visual-operant':'operant_learning_index',
+                'wind-tunnel':'upwind_progress_mm','looming-escape':'time_to_collision_at_jump_ms','optomotor':'optomotor_gain',
+                'gap-crossing':'crossing_success','circadian-dam':'total_sleep_minutes','courtship':'courtship_index',
+                'labyrinth':'path_tortuosity','multisensory-sandbox':'composite_benchmark_score'};
+            const key=keys[this.activeParadigmId],value=this.remotePacket.metrics?.[key];
+            return {label:key ? key.replace(/_/g,' ') : 'Continuous foraging', value:Number.isFinite(value)?value.toFixed(3):typeof value==='boolean'?String(value):'Awaiting outcome',sub:'Daemon measurement'};
+        }
         const p = this.paradigmState;
         switch (this.activeParadigmId) {
             case 'open-arena':
@@ -2607,6 +2625,11 @@ class ScientificBioArena {
     }
 
     renderOpenArena(ctx) {
+        if (this.remoteDriven && this.remotePacket?.world_bounds) {
+            const b=this.remotePacket.world_bounds,o=daemonFrameOffset(this.remotePacket);
+            const a=this.worldToScreen(b[0]+o[0],b[3]+o[1]),z=this.worldToScreen(b[2]+o[0],b[1]+o[1]);
+            ctx.strokeStyle='#38bdf8';ctx.lineWidth=1.2;ctx.strokeRect(a.x,a.y,z.x-a.x,z.y-a.y);
+        }
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
         ctx.lineWidth = 1.2;
         for (const p of this.particles) {
@@ -3379,13 +3402,22 @@ const DAEMON_FRAME_OFFSET = {
     'multisensory-sandbox': [-80.0, -80.0]   // daemon 160x160 corner-origin -> browser centre-origin
 };
 
+function daemonFrameOffset(pkt) {
+    const bounds = pkt.world_bounds;
+    if (pkt.paradigm === 'multisensory-sandbox' && bounds?.[0] < 0) return [0, 0];
+    if (pkt.paradigm === 'open-arena' && bounds?.length === 4) {
+        return [-(bounds[0]+bounds[2])/2, -(bounds[1]+bounds[3])/2];
+    }
+    return DAEMON_FRAME_OFFSET[pkt.paradigm] || [0, 0];
+}
+
 class DaemonBridgeClient {
     constructor(arena, hud) {
         this.arena = arena;
         this.hud = hud;
         this.statusPill = document.getElementById('clusterStatusPill');
         this.connected = false;
-        this.daemonPort = 8769;
+        this.daemonPort = window.location.port === '8780' ? 8781 : 8769;
         this.eventSource = null;
         this.reconnectTimer = null;
         this.reconnectDelayMs = 4000;
@@ -3411,7 +3443,7 @@ class DaemonBridgeClient {
         }, 2000);
 
         const researchLink = document.getElementById('researchLink');
-        if (researchLink) researchLink.href = `research.html${window.location.search || ''}`;
+        if (researchLink) researchLink.addEventListener('click', () => document.getElementById('tabTraining').click());
         this.initConnection(false);
     }
 
@@ -3509,15 +3541,19 @@ class DaemonBridgeClient {
         }
         if (status.public === true || status.read_only === true
                 || status.stream?.read_only || status.stream?.commands_require_token) this.markReadOnly();
+        this.arena.awaitingDaemon = false;
         this.startStreaming();
     }
 
     onDaemonDisconnected(reason = '') {
         this.connected = false;
         this.readOnly = false;
+        // Keep the last scientific frame still during an outage; never silently
+        // substitute a locally generated trajectory into a daemon recording.
+        this.arena.awaitingDaemon = !!this.activeUrl;
         this.arena.remoteDriven = false;
         if (this.statusPill) {
-            this.statusPill.textContent = '○ LOCAL ENGINE';
+            this.statusPill.textContent = this.arena.awaitingDaemon ? '○ DISCONNECTED · FROZEN VIEW' : '○ LOCAL ENGINE';
             this.statusPill.style.background = 'rgba(148, 163, 184, 0.15)';
             this.statusPill.style.border = '1px solid #64748b';
             this.statusPill.style.color = '#94a3b8';
@@ -3571,13 +3607,90 @@ class DaemonBridgeClient {
         // Synchronize fly pose from the daemon ONLY when the paradigms match; the daemon
         // then owns locomotion and the local engine stops integrating position.
         const daemonParadigm = (pkt.paradigm || '').toLowerCase().replace(/_/g, '-');
+        if (!this.readOnly && daemonParadigm !== this.arena.activeParadigmId
+                && Object.prototype.hasOwnProperty.call(EXPERIMENT_GUIDES, daemonParadigm)
+                && !this.switchPending) {
+            this.arena.initParadigm(daemonParadigm);
+            this.hud.updateActiveCard(daemonParadigm);
+            this.hud.renderExperimentGuide(daemonParadigm);
+            this.hud.renderAssayTools(daemonParadigm);
+            document.getElementById('navbarParadigmBadge').textContent=daemonParadigm.toUpperCase().replace(/-/g,' ');
+        }
         const activeParadigm = (this.arena.activeParadigmId || '').toLowerCase().replace(/_/g, '-');
         const poseMatch = !!(pkt.fly && daemonParadigm === activeParadigm
             && Number.isFinite(pkt.fly.x) && Number.isFinite(pkt.fly.y));
         this.arena.remoteDriven = poseMatch;
 
         if (poseMatch) {
-            const off = DAEMON_FRAME_OFFSET[activeParadigm] || [0.0, 0.0];
+            const segment = pkt.segment_id || `${pkt.brain_id}:${pkt.trial}`;
+            const boundary = this.arena.remoteSegment !== segment;
+            if (boundary) { this.arena.fly.trail = []; this.hud.scopeHistory = []; }
+            this.arena.remoteSegment = segment;
+            this.arena.remotePacket = pkt;
+            this.arena.currentTrial = pkt.trial;
+            this.arena.paradigmElapsedSec = pkt.trial_elapsed_s;
+            this.arena.simTime = pkt.sim_time_s ?? pkt.step * 0.02;
+            this.arena.stepCount = pkt.step;
+            this.arena.paradigmStatus = pkt.error ? `SIMULATION ERROR: ${pkt.error}` : pkt.paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
+            const phaseLabel = document.getElementById('arenaRunState');
+            if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
+            this.hud.simSpeed = pkt.sim_speed;
+            document.getElementById('statSpeed').textContent = `${pkt.sim_speed}x`;
+            document.getElementById('btnSpeedToggle').textContent = `Speed: ${pkt.sim_speed}x`;
+            document.getElementById('selectSpeed').value = String(pkt.sim_speed);
+            const pause = document.getElementById('btnPauseToggle');
+            pause.textContent = pkt.paused ? 'Resume' : 'Pause';
+            this.arena.mb.kcFiring = pkt.neural?.kc_hz || this.arena.mb.kcFiring;
+            if (Number.isFinite(pkt.neural?.net_valence)) this.arena.mb.netValence = pkt.neural.net_valence;
+            this.arena.mb.pamRate = pkt.neural?.pam_trace || 0;
+            this.arena.mb.ppl1Rate = pkt.neural?.ppl1_trace || 0;
+            this.arena.cx.updateBump(pkt.neural?.compass_heading ?? pkt.fly.heading);
+            this.arena.cpg.steppingFreq = pkt.paused || pkt.brain?.teaching ? 0 : (pkt.biomechanics?.cadence_hz || 0);
+            this.arena.cpg.phaseA = this.arena.simTime * this.arena.cpg.steppingFreq * 2 * Math.PI;
+            this.arena.cpg.phaseB = this.arena.cpg.phaseA + Math.PI;
+            this.arena.dn.dna02Diff = pkt.descending?.dna02_yaw || 0;
+            this.arena.fly.yawRate = pkt.descending?.dna02_yaw || 0;
+            this.arena.dn.dnp09 = pkt.descending?.dnp09_thrust || 0;
+            this.arena.dn.mdn = pkt.descending?.mdn_reverse || 0;
+            this.arena.dn.escapeActive = !!pkt.descending?.gf_escape;
+            // Export one measured row per distinct daemon tick. No synthetic FPS samples.
+            if (this.lastRecordedSegment !== segment || this.lastRecordedStep !== pkt.step) {
+                if (this.arena.telemetryBuffer[0]?.source === 'local_preview') this.arena.telemetryBuffer = [];
+                this.arena.telemetryBuffer.push({source:'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
+                    boundary:boundary, transition:boundary ? (pkt.transition?.reason || 'segment_start') : '',
+                    step:pkt.step, simTime:pkt.sim_time_s ?? pkt.step*.02, paradigm:pkt.paradigm, trial:pkt.trial,
+                    trialTime:pkt.trial_elapsed_s, x:pkt.fly.x, y:pkt.fly.y, heading:pkt.fly.heading, speed:pkt.fly.speed,
+                    state:pkt.fly.state, paused:!!pkt.paused, teaching:!!pkt.brain?.teaching, error:pkt.error || ''});
+                this.arena.telemetryBuffer = this.arena.telemetryBuffer.slice(-4500);
+                this.lastRecordedStep = pkt.step; this.lastRecordedSegment = segment;
+            }
+            const off = daemonFrameOffset(pkt);
+            const state = this.arena.paradigmState, m = pkt.metrics || {}, stimulus = pkt.stimuli || {}, assay = pkt.assay_state || {};
+            if (state) {
+                const fields = {performance_index:'performanceIndex',spontaneous_alternation_rate:'sar',
+                    escape_latency_ms:'escapeLatencyMs',centrophobism_index:'centrophobism',operant_learning_index:'learningIndex',
+                    surge_to_cast_ratio:'surgeCastRatio',time_to_source_ms:'timeToSourceMs',source_reached:'sourceReached',
+                    optomotor_gain:'gain',mean_hs_firing_rate:'hsFiringRate',gap_width_mm:'gapWidthMm',
+                    decision_outcome:'decisionOutcome',crossing_success:'crossingSuccess',total_sleep_minutes:'totalSleepMin',
+                    total_beam_crossings:'beamCrossings',courtship_index:'courtshipIndex',rejection_kicks_count:'rejectionKicks',
+                    time_to_goal_ms:'timeToGoalMs',path_tortuosity:'pathTortuosity'};
+                for (const [key,target] of Object.entries(fields)) if (m[key] !== undefined) state[target]=m[key];
+                state.behavioralState=pkt.fly.state;
+                if (stimulus.temperature !== undefined) state.temp=stimulus.temperature;
+                if (stimulus.laser_active !== undefined) state.laserActive=stimulus.laser_active;
+                if (pkt.scene?.drum_angle_deg !== undefined) state.drumAngleDeg=pkt.scene.drum_angle_deg;
+                if (assay.yaw_torque !== undefined) state.yawTorque=assay.yaw_torque;
+                if (stimulus.looming_angle_deg !== undefined) state.thetaDeg=stimulus.looming_angle_deg;
+                if (stimulus.theta_deg !== undefined) state.thetaDeg=stimulus.theta_deg;
+                if (activeParadigm==='optomotor') state.drumAngleDeg=(stimulus.drum_velocity_deg_s||0)*pkt.trial_elapsed_s%360;
+                if (pkt.scene?.female_pos) state.femalePos=pkt.scene.female_pos.map((v,i)=>v+off[i]);
+                if (pkt.scene?.female_type) state.femaleType=pkt.scene.female_type;
+            }
+            if (activeParadigm==='open-arena' && pkt.scene) {
+                this.arena.foodItems=pkt.scene.food.map(([x,y])=>({x:x+off[0],y:y+off[1],radius:3,odorStrength:1}));
+                this.arena.alarms=pkt.scene.hazards.map(([x,y])=>({x:x+off[0],y:y+off[1],strength:1,life:1}));
+                this.arena.predators=pkt.scene.predators.map(([x,y,vx,vy])=>({x:x+off[0],y:y+off[1],vx,vy,radius:5,active:true}));
+            }
             let fx = pkt.fly.x + off[0];
             let fy = pkt.fly.y + off[1];
             // The daemon's coordinates are authoritative: they are never re-clamped with
@@ -3605,7 +3718,7 @@ class DaemonBridgeClient {
 
         // Synchronize learning curve from daemon (the daemon sends its last 30 points;
         // mirror them instead of appending, so the list stays bounded and in order).
-        if (pkt.plasticity && Array.isArray(pkt.plasticity.learning_curve) && pkt.plasticity.learning_curve.length > 0) {
+        if (pkt.plasticity && Array.isArray(pkt.plasticity.learning_curve) ) {
             const curve = pkt.plasticity.learning_curve.filter(v => Number.isFinite(v));
             if (this.hud && this.hud.learningTrials && poseMatch) {
                 const base = Math.max(0, (pkt.trial || curve.length) - curve.length);
@@ -3670,6 +3783,7 @@ class DaemonBridgeClient {
 
     async sendCommand(action, params = {}) {
         if (!this.connected || !this.activeUrl || this.readOnly) return null;
+        if (action === 'switch_paradigm') this.switchPending = true;
         try {
             const res = await fetch(`${this.activeUrl}/api/command`, {
                 method: 'POST',
@@ -3686,7 +3800,7 @@ class DaemonBridgeClient {
             }
         } catch (e) {
             console.warn('[DaemonBridge] sendCommand error:', e);
-        }
+        } finally { if (action === 'switch_paradigm') this.switchPending = false; }
         return null;
     }
 }
@@ -4331,6 +4445,8 @@ class ScientificHUD {
                 this.renderAssayTools(pid);
                 if (pid === 'multisensory-sandbox') {
                     const tabLimbDeck = document.getElementById('tabLimbDeck');
+        const tabTraining = document.getElementById('tabTraining');
+        const trainingPanel = document.getElementById('trainingPanel');
                     if (tabLimbDeck) tabLimbDeck.click();
                 }
                 const badge = document.getElementById('navbarParadigmBadge');
@@ -4346,6 +4462,8 @@ class ScientificHUD {
         const tabGuide = document.getElementById('tabGuide');
         const tabAssayTools = document.getElementById('tabAssayTools');
         const tabLimbDeck = document.getElementById('tabLimbDeck');
+        const tabTraining = document.getElementById('tabTraining');
+        const trainingPanel = document.getElementById('trainingPanel');
         const guideContent = document.getElementById('guideTabContent');
         const assayToolsPanel = document.getElementById('assayToolsPanel');
         const limbPanel = document.getElementById('limbDeckPanel');
@@ -4354,6 +4472,8 @@ class ScientificHUD {
             if (tabGuide) tabGuide.classList.toggle('active', tabGuide === activeTab);
             if (tabAssayTools) tabAssayTools.classList.toggle('active', tabAssayTools === activeTab);
             if (tabLimbDeck) tabLimbDeck.classList.toggle('active', tabLimbDeck === activeTab);
+            if (tabTraining) tabTraining.classList.toggle('active', tabTraining === activeTab);
+            if (trainingPanel) trainingPanel.style.display = activeTab === tabTraining ? 'flex' : 'none';
 
             if (guideContent) guideContent.style.display = (activeTab === tabGuide) ? 'block' : 'none';
             if (assayToolsPanel) {
@@ -4368,6 +4488,7 @@ class ScientificHUD {
         if (tabGuide) tabGuide.addEventListener('click', () => selectTab(tabGuide));
         if (tabAssayTools) tabAssayTools.addEventListener('click', () => selectTab(tabAssayTools));
         if (tabLimbDeck) tabLimbDeck.addEventListener('click', () => selectTab(tabLimbDeck));
+        if (tabTraining) tabTraining.addEventListener('click', () => selectTab(tabTraining));
     }
 
     setupNeuroStimControls() {
@@ -4794,8 +4915,10 @@ class ScientificHUD {
             alert('Telemetry buffer is currently empty. Run simulation steps first.');
             return;
         }
-        const headers = Object.keys(this.arena.telemetryBuffer[0]).join(',');
-        const rows = this.arena.telemetryBuffer.map(r => Object.values(r).join(',')).join('\n');
+        const keys = [...new Set(this.arena.telemetryBuffer.flatMap(r => Object.keys(r)))];
+        const quote = v => '"' + String(v ?? '').replaceAll('"', '""') + '"';
+        const headers = keys.map(quote).join(',');
+        const rows = this.arena.telemetryBuffer.map(r => keys.map(k => quote(r[k])).join(',')).join('\n');
         const blob = new Blob([headers + '\n' + rows], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -4810,7 +4933,9 @@ class ScientificHUD {
     downloadJson() {
         const data = {
             metadata: {
-                project: 'Project NeuroFly (v1.0 Alpha)',
+                project: 'Project NeuroFly — compact modular model',
+                dataSource: this.arena.remoteDriven ? 'daemon' : 'local_preview',
+                trajectoryRule: 'Never connect positions across segment boundaries. REST, pauses, teaching and errors are explicit.',
                 activeParadigm: this.arena.activeParadigmId,
                 paradigmTitle: this.arena.activeParadigmTitle,
                 reference: this.arena.activeParadigmRef,
@@ -4820,7 +4945,7 @@ class ScientificHUD {
                 date: new Date().toISOString(),
                 totalSteps: this.arena.stepCount
             },
-            canonicalMetrics: this.arena.getParadigmMetrics(),
+            canonicalMetrics: this.arena.remoteDriven ? this.arena.remotePacket?.metrics : this.arena.getParadigmMetrics(),
             telemetrySampleCount: this.arena.telemetryBuffer ? this.arena.telemetryBuffer.length : 0,
             telemetry: (this.arena.telemetryBuffer || []).slice(-500)
         };
@@ -5044,6 +5169,7 @@ class ScientificHUD {
         if (curPiEl) curPiEl.textContent = (valence >= 0 ? '+' : '') + valence.toFixed(2);
         this.renderKcMatrix();
         this.renderLearningCurve();
+        if (this.arena.remoteDriven && curPiEl) curPiEl.textContent = metric.value;
 
         // Compass & E-PG
         const compassHeadingEl = document.getElementById('valCompassHeading');
@@ -5221,7 +5347,8 @@ class ScientificHUD {
             for (let i = 0; i < this.scopeHistory.length; i++) {
                 const x = (i / (this.scopeHistory.length - 1)) * w;
                 const val = this.scopeHistory[i][ch.key];
-                const y = h / 2 - (val / 60.0) * (h / 2) * ch.scale;
+                const range = this.arena.remoteDriven ? ({dna02:4, dnp09:3.5, bpn:60, mdn:1, dnp01:50}[ch.key]) : 60;
+                const y = h / 2 - (val / range) * (h / 2) * ch.scale;
                 if (i === 0) this.scopeCtx.moveTo(x, y);
                 else this.scopeCtx.lineTo(x, y);
             }
@@ -5244,6 +5371,10 @@ window.addEventListener('load', () => {
     const btnPause = document.getElementById('btnPauseToggle');
     if (btnPause) {
         btnPause.addEventListener('click', () => {
+            if (hud.daemonBridge?.connected) {
+                hud.daemonBridge.sendCommand('set_paused', {paused:!arena.remotePacket?.paused});
+                return;
+            }
             isPaused = !isPaused;
             btnPause.textContent = isPaused ? 'Resume' : 'Pause';
             btnPause.classList.toggle('primary', isPaused);

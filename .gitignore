@@ -23,3 +23,7 @@ experiment_data/battery/
 .env.*
 *.pid
 *.log
+
+# Generated, shareable research summaries and latest batch bundle
+/web/research-status.json
+/web/research-latest.zip

@@ -48,13 +48,23 @@ In rough order (see `docs/OPEN_SOURCE_PLAN.md`):
 
 ## Learning observatory
 
-The new `web/research.html` shows actual daemon weights, cue probes, trial
-measurements and per-experiment teaching records. Every experiment now retains
-its own seeded brain when you switch away or restart. Start and verification
-instructions: [Learning observatory](docs/LEARNING_OBSERVATORY.md).
-On this Linux workstation, `python3 scripts/observatory.py start` starts both
-local services persistently; use `status`, `logs`, `restart`, or `stop` to manage
-them. Open <http://127.0.0.1:8780/research.html>.
+The original dark instrument is the main UI at `web/index.html`.
+Its **Training & Data** tab adds real daemon weights, cue probes, independent
+brain records, and background research graphs without replacing the arena,
+compass, neural displays, or assay decks. Each experiment retains its own memory.
+
+`python3 scripts/observatory.py start` starts three persistent local services:
+the interactive daemon, web UI, and an isolated research worker. Use `status`,
+`logs`, `restart`, or `stop` to manage them. Open <http://127.0.0.1:8780/index.html>.
+Old `research.html` bookmarks redirect to this instrument.
+
+Live observation has one clock and no automatic respawn. Pause and Reset operate
+on the daemon; resets create explicit trajectory segments. The separate worker
+trains matched cohorts and evaluates frozen memory copies across all 14 assays.
+The tab includes a shareable ZIP of raw phase trajectories, checkpoints, seeds,
+protocol, source revision, and checksums. These are exploratory model results.
+See [research and trajectory protocol](docs/RESEARCH_PROTOCOL.md) and
+[service instructions](docs/LEARNING_OBSERVATORY.md).
 
 The controlled teaching battery checks paired, reversed and frozen-learning
 conditions in all 14 brain instances. This demonstrates cue memory and isolation;

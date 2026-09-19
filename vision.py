@@ -210,7 +210,8 @@ class CompoundEyeVision:
         predator_velocities: Optional[List[np.ndarray]] = None,
         target_positions: Optional[List[np.ndarray]] = None,
         dt: float = 0.02,
-        efference_copy_active: bool = False
+        efference_copy_active: bool = False,
+        external_yaw_rad_s: float = 0.0
     ) -> Dict:
         """
         Update optic flow, evaluate visual looming threats, and compute LC features.
@@ -226,7 +227,7 @@ class CompoundEyeVision:
 
         # 2. Retinal Optic Flow Calculation
         translatory = (fly_speed * np.sin(self.azimuths)) / self.arena_radius
-        rotatory = -fly_yaw_rate
+        rotatory = external_yaw_rad_s - fly_yaw_rate
         self.optic_flow = translatory + rotatory
 
         # Efference copy shunting during voluntary saccades

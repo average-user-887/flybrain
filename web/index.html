@@ -909,6 +909,7 @@
         }
     
     </style>
+    <link rel="stylesheet" href="training.css">
 </head>
 <body>
     <div class="instrument-container">
@@ -1100,7 +1101,7 @@
                     <span style="font-weight:800; font-size:15px; color:#38bdf8; letter-spacing:0.5px;">Project NeuroFly</span>
                     <span class="badge badge-cyan" style="font-weight:800;">v1.0-release</span>
                     <span class="badge badge-purple" id="navbarParadigmBadge">OPEN ARENA</span>
-                    <a href="research.html" id="researchLink" style="color:#5eead4;font-size:11px">Learning observatory ↗</a>
+                    <button class="nav-btn" id="researchLink">Training &amp; Data</button>
                     <span class="badge" id="clusterStatusPill" style="font-weight:700; background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#22c55e; cursor:pointer;" title="Continuous Learning Cluster Daemon Connection">● LOCAL ENGINE</span>
                 </div>
                 <div class="navbar-stats">
@@ -1117,6 +1118,7 @@
                             <option value="0.5">0.5x</option>
                             <option value="1" selected>1x</option>
                             <option value="2">2x</option>
+                            <option value="3">3x</option>
                             <option value="5">5x</option>
                             <option value="10">10x</option>
                             <option value="20">20x</option>
@@ -1128,6 +1130,7 @@
                 </div>
             </div>
 
+            <div id="arenaRunState" role="status" style="padding:4px 12px;color:#38bdf8;font:10px monospace">Connecting to live experiment</div>
             <!-- Main Canvas Stage -->
             <div class="arena-wrapper">
                 <div class="arena-overlay-tools">
@@ -1149,13 +1152,13 @@
                 </div>
             </div>
 
-            <p style="margin:0;padding:7px 12px;font-size:10px;color:#a4b5c8;background:#101b2c;line-height:1.4">When connected, the pose follows the daemon. Neural panels and lesion controls illustrate a separate local model. Use the Learning observatory for saved weights and measured cue probes.</p>
+            <p style="margin:0;padding:7px 12px;font-size:10px;color:#a4b5c8;background:#101b2c;line-height:1.4">Live pose, time, cue activity and exports follow the daemon. Limb geometry is illustrative; lesion controls apply to the standalone preview. Open Training &amp; Data for saved brain weights, measured cue probes and background research.</p>
             <!-- Bottom Multi-Channel Oscilloscope & Learning Curve -->
             <div class="bottom-stage-panel">
                 <div class="scope-box">
                     <div class="sub-header">
-                        <span>Descending Motor Oscilloscope (Hz)</span>
-                        <span style="color:#94a3b8; font-size:9px;">DNa02, DNp09, BPN, MDN, DNp01</span>
+                        <span>Motor Output Traces</span>
+                        <span style="color:#94a3b8; font-size:9px;">Live: yaw rad/s, speed mm/s, event flags</span>
                     </div>
                     <canvas id="oscilloscopeCanvas"></canvas>
                 </div>
@@ -1190,8 +1193,66 @@
                 <button class="deck-tab-btn active" id="tabGuide">Director's Guide</button>
                 <button class="deck-tab-btn" id="tabAssayTools">Assay Tools & Levers</button>
                 <button class="deck-tab-btn" id="tabLimbDeck">Limb & Neuro-Stim Deck</button>
+                <button class="deck-tab-btn" id="tabTraining">Training &amp; Data</button>
             </div>
 
+            <div class="training-panel" id="trainingPanel" aria-label="Training and research data">
+                <section class="hud-card">
+                    <h3 id="trainingTitle">Retained experiment brain</h3>
+                    <p id="trainingConnection" role="status">Connecting to the learning daemon…</p>
+                    <code id="trainingBrainId">Awaiting brain identity</code>
+                    <p id="trainingPhase"></p>
+                    <div class="training-stats">
+                        <span>Completed arena trials<strong id="trainingTrials">—</strong></span>
+                        <span>Simulation steps<strong id="trainingSteps">—</strong></span>
+                        <span>Weight change (L2)<strong id="trainingDelta">—</strong></span>
+                        <span>Cue A − B valence<strong id="trainingDiscrimination">—</strong></span>
+                    </div>
+                    <div class="training-actions">
+                        <button class="nav-btn primary" id="trainingTeach" disabled>Teach A+ / B−</button>
+                        <button class="nav-btn" id="trainingReverse" disabled>Reverse cues</button>
+                        <button class="nav-btn" id="trainingProbe" disabled>Probe memory</button>
+                        <button class="nav-btn" id="trainingFreeze" disabled>Freeze learning</button>
+                        <button class="nav-btn" id="trainingSave" disabled>Save brain</button>
+                        <button class="nav-btn" id="trainingExport" disabled>Export snapshot</button>
+                    </div>
+                    <p class="training-message" id="trainingMessage" role="status">Each experiment retains its own brain. Teaching uses 8 controlled odor pairs and pauses its arena.</p>
+                </section>
+                <section class="hud-card">
+                    <h3>Measured cue memory</h3>
+                    <p>Blue: A · Pink: B. Forward probes leave weights unchanged. Valence ranges from −1 to +1.</p>
+                    <svg id="trainingProbeChart" viewBox="0 0 560 215" role="img" aria-label="Recorded cue A and B valence"></svg>
+                    <h4>Completed arena outcomes</h4>
+                    <svg id="trainingTrialChart" viewBox="0 0 560 215" role="img" aria-label="Completed arena trial outcomes"></svg>
+                    <p id="trainingMetric"></p>
+                </section>
+                <section class="hud-card">
+                    <h3>120 KC → 2 output synapses</h3>
+                    <svg id="trainingWeights" viewBox="0 0 560 200" role="img" aria-label="Saved mushroom body weight heatmap"></svg>
+                    <p>Blue: below baseline · Amber: above baseline. Hover for exact weights. These are the daemon’s saved weights. The live cue matrix shows its current activity.</p>
+                </section>
+                <section class="hud-card">
+                    <h3 id="trainingQuestion">How to interpret this assay</h3>
+                    <p id="trainingDescription"></p><p id="trainingInterpretation"></p>
+                    <h4>Useful control</h4><p id="trainingControl"></p>
+                </section>
+                <section class="hud-card">
+                    <h3>Background research</h3>
+                    <p id="researchStatus">Checking the research worker…</p>
+                    <p>Independent cohorts train through arena experience, then undergo a fresh-start evaluation with learning frozen. Matched frozen controls receive the same seed and duration. This measures behavior, not just odor calibration.</p>
+                    <svg id="researchChart" viewBox="0 0 560 215" role="img" aria-label="Held-out behavior: trained and frozen controls"></svg>
+                    <p id="researchOutcome">No research measurements yet.</p>
+                    <details><summary>Recent cohort results &amp; protocol</summary>
+                        <p id="researchProtocol"></p>
+                        <table><thead><tr><th>Assay / seed</th><th>Trained</th><th>Frozen</th></tr></thead><tbody id="researchRows"></tbody></table>
+                        <p><a href="research-status.json" style="color:#38bdf8" download>Download research summary</a> &middot; <a href="research-latest.zip" style="color:#38bdf8" download>Shareable data bundle (ZIP)</a></p>
+                    </details>
+                </section>
+                <section class="hud-card"><h3>Independent brain activity</h3><div id="trainingBrains"></div></section>
+                <section class="hud-card"><h3>Recent recorded events</h3>
+                    <table><thead><tr><th>Time</th><th>Event</th><th>Step</th></tr></thead><tbody id="trainingEvents"></tbody></table>
+                </section>
+            </div>
             <!-- TAB: SPECIALIZED ASSAY TOOLS & LEVERS -->
             <div class="assay-tools-panel" id="assayToolsPanel" style="display:none; flex-direction:column; gap:8px; overflow-y:auto; max-height:calc(100vh - 120px);">
                 <!-- Populated dynamically by app.js renderAssayTools(paradigmId) -->
@@ -1353,7 +1414,7 @@
 
                 <!-- Live Parameter Sliders (Dynamic based on experiment) -->
                 <div class="param-control-group" id="paramControlsBox">
-                    <div class="sub-header" style="font-size:9px; color:#cbd5e1;">Live Experiment Parameters</div>
+                    <div class="sub-header" style="font-size:9px; color:#cbd5e1;">Standalone Preview Parameters</div>
                     <div id="dynamicSlidersContainer">
                         <!-- Populated dynamically by app.js -->
                     </div>
@@ -1445,6 +1506,7 @@
 
     <!-- Application Script -->
     <script src="app.js"></script>
+    <script src="training.js"></script>
 
     <!-- =====================================================================
          SCIENCE & GENETICS GUIDE MODAL

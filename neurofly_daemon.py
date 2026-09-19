@@ -33,6 +33,7 @@ import signal
 import sys
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -80,7 +81,8 @@ class ContinuousExperimentRunner:
         sim_speed: float = 10.0,
         checkpoint_interval: float = 60.0,
         output_dir: Optional[Path] = None,
-        trial_length_s: float = 60.0
+        trial_length_s: float = 60.0,
+        continuous: bool = False
     ):
         self.output_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "outputs")
         self.brains = ExperimentBrains(self.output_dir / "brains")
@@ -89,6 +91,11 @@ class ContinuousExperimentRunner:
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
         self.telemetry_dir.mkdir(parents=True, exist_ok=True)
 
+        self.continuous = bool(continuous)
+        self.paused = False
+        self.last_error = None
+        self.run_id = uuid.uuid4().hex
+        self.transition = None
         self.lock = threading.Lock()
         self.running = False
         self.sim_speed = max(0.1, min(100.0, float(sim_speed)))
@@ -132,6 +139,8 @@ class ContinuousExperimentRunner:
         if hasattr(self, "active_brain"):
             self.active_brain.elapsed = self.trial_sim_time
             self.active_brain.save()
+        self.segment_id = uuid.uuid4().hex
+        self.transition = {"reason": "experiment_selected", "step": self.total_steps}
         self.active_brain = brain
         self.arena = brain.arena
         self.active_paradigm_id = paradigm_name
@@ -175,6 +184,9 @@ class ContinuousExperimentRunner:
     def step_once(self) -> Dict[str, Any]:
         """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``."""
         step_dt = self.dt
+        if self.paused or self.last_error:
+            self.latest_telemetry = self._assemble_telemetry({})
+            return {}
 
         # Teaching runs in an explicit cue chamber while the behavioral arena pauses.
         if self.active_brain.teaching:
@@ -188,7 +200,10 @@ class ContinuousExperimentRunner:
             step_result = self.arena.step(step_dt)
         except Exception as step_err:
             print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
-            step_result = {}
+            self.last_error = str(step_err)
+            self.active_brain.log("simulation_error", error=self.last_error)
+            self.latest_telemetry = self._assemble_telemetry({})
+            return {}
 
         self.total_steps += 1
         self.active_brain.steps += 1
@@ -198,6 +213,8 @@ class ContinuousExperimentRunner:
         end_reason = self._trial_end_reason(step_result)
         if end_reason is not None:
             self._end_trial(step_result, end_reason)
+            # Terminal outcomes belong to the old segment, never to the respawn pose.
+            step_result = {}
 
         # 3. Assemble telemetry snapshot
         self.latest_telemetry = self._assemble_telemetry(step_result)
@@ -211,6 +228,8 @@ class ContinuousExperimentRunner:
 
     def _trial_end_reason(self, step_result: Dict[str, Any]) -> Optional[str]:
         """Why the current trial is over, or None while it continues."""
+        if self.continuous:
+            return None
         telemetry = step_result.get("paradigm_telemetry") or {}
         for flag in self.TRIAL_END_FLAGS:
             if telemetry.get(flag):
@@ -231,7 +250,11 @@ class ContinuousExperimentRunner:
     def _end_trial(self, step_result: Dict[str, Any], reason: str):
         """Record the milestone, reset the paradigm's trial state and respawn the fly.
         Mushroom-body weights and other plasticity are kept: learning is continuous."""
+        self.transition = {"reason": reason, "step": self.total_steps, "ended_segment": self.segment_id,
+                           "terminal_pose": {"x": self.arena.fly.pos.x, "y": self.arena.fly.pos.y},
+                           "terminal_metrics": step_result.get("paradigm_metrics", {})}
         self._record_trial_milestone(step_result, reason)
+        self.segment_id = uuid.uuid4().hex
         paradigm = getattr(self.arena, "paradigm", None)
         if paradigm is not None and hasattr(paradigm, "reset_trial"):
             try:
@@ -245,6 +268,9 @@ class ContinuousExperimentRunner:
         """Constructs standardized JSON telemetry packet for browser streaming."""
         fly = self.arena.fly
         stim = step_res.get("stimuli", {})
+        if self.arena.paradigm is None:
+            sensed = self.arena.sample_antennae(fly)
+            stim = {**stim, "odor_a": sensed['mean_a'], "odor_b": sensed['mean_b']}
         p_metrics = step_res.get("paradigm_metrics", {})
 
         # Read actual effective KC→MBON weights (the old .weights field did not exist).
@@ -273,6 +299,13 @@ class ContinuousExperimentRunner:
 
         return {
             "type": "telemetry",
+            "run_id": self.run_id,
+            "segment_id": self.segment_id,
+            "transition": self.transition,
+            "continuous": self.continuous,
+            "paused": self.paused,
+            "error": self.last_error,
+            "sim_time_s": round(self.total_steps * self.dt, 5),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
             "timestamp": round(time.time(), 3),
@@ -280,13 +313,23 @@ class ContinuousExperimentRunner:
             "paradigm": self.active_paradigm_id,
             "paradigm_title": self.active_paradigm_title,
             "sim_speed": self.sim_speed,
+            "stimuli": stim,
+            "assay_state": step_res.get("paradigm_telemetry", {}),
+            "scene": {
+                "food": [p.to_tuple() for p in self.arena.food_positions],
+                "hazards": [p.to_tuple() for p in self.arena.hazard_positions],
+                "predators": [[p.pos.x, p.pos.y, p.get_velocity()[0], p.get_velocity()[1]] for p in self.arena.predators],
+                **{name: getattr(self.arena.paradigm, name) for name in
+                   ('female_pos', 'female_type', 'refuge_pos', 'refuge_radius', 'drum_angle_deg')
+                   if hasattr(self.arena.paradigm, name)},
+            },
             "trial": self.current_trial,
             "trial_elapsed_s": round(self.trial_sim_time, 2),
             "trials_completed": len(self.trial_history),
             "world_bounds": list(getattr(self.arena, "world_bounds", (0.0, 0.0, self.arena.width, self.arena.height))),
             "fly": {
-                "x": round(float(fly.pos.x), 2),
-                "y": round(float(fly.pos.y), 2),
+                "x": round(float(fly.pos.x), 5),
+                "y": round(float(fly.pos.y), 5),
                 "heading": round(float(fly.heading), 3),
                 "speed": round(float(fly.speed), 2),
                 "radius": float(getattr(fly, "radius", 1.5)),
@@ -294,8 +337,8 @@ class ContinuousExperimentRunner:
             },
             "sensory": {
                 "temp": round(float(stim.get("temperature", 24.0)), 1),
-                "odor_a": round(float(stim.get("odor_cs_plus", stim.get("odor_conc", 0.0))), 3),
-                "odor_b": round(float(stim.get("odor_cs_minus", 0.0)), 3),
+                "odor_a": round(float(stim.get("odor_a", stim.get("odor_conc", 0.0))), 3),
+                "odor_b": round(float(stim.get("odor_b", 0.0)), 3),
                 "cva": round(float(stim.get("cva_concentration", 0.0)), 3),
                 "wind_x": round(float(self.arena.wind[0]), 2),
                 "wind_y": round(float(self.arena.wind[1]), 2)
@@ -311,6 +354,14 @@ class ContinuousExperimentRunner:
                 "cadence_hz": round(8.0 * (fly.speed / 12.0) if fly.speed > 0 else 0.0, 1),
                 "joint_angles": joint_angles,
                 "cuticular_loads": loads
+            },
+            "neural": {
+                "kc_hz": fly.circuit.encode_odor(float(stim.get("odor_a", stim.get("odor_conc", 0))), float(stim.get("odor_b", 0)))[1].tolist(),
+                "kc_trace": fly.circuit.y_kc.tolist(),
+                "net_valence": fly.circuit.forward(fly.circuit.y_kc)[2],
+                "pam_trace": float(fly.circuit.y_dan_pam[0]),
+                "ppl1_trace": float(fly.circuit.y_dan_ppl1[0]),
+                "compass_heading": float(getattr(fly, "compass_heading", fly.heading)),
             },
             "plasticity": {
                 "mb_weights_mean": round(weights_mean, 4),
@@ -392,6 +443,14 @@ class ContinuousExperimentRunner:
                 self.active_brain.save()
                 return {"status": "ok", "learning_enabled": enabled}
 
+            elif action == "set_paused":
+                paused = cmd.get("paused", p.get("paused"))
+                if not isinstance(paused, bool):
+                    return {"status": "error", "message": "paused must be a boolean"}
+                self.paused = paused
+                self.latest_telemetry = self._assemble_telemetry({})
+                return {"status": "ok", "paused": self.paused}
+
             elif action == "set_speed":
                 val = cmd.get("speed") if cmd.get("speed") is not None else p.get("speed", 10.0)
                 new_speed = float(val)
@@ -424,8 +483,8 @@ class ContinuousExperimentRunner:
                 return {"status": "ok", "param": name, "value": value}
 
             elif action == "reset_trial":
-                advance = cmd.get("advance", True)
-                keep_mem = cmd.get("keep_memory", True)
+                advance = cmd.get("advance", p.get("advance", True))
+                keep_mem = cmd.get("keep_memory", p.get("keep_memory", True))
                 if advance:
                     self.current_trial += 1
                 if not keep_mem and hasattr(self.arena.fly, "circuit"):
@@ -438,6 +497,10 @@ class ContinuousExperimentRunner:
                     paradigm.reset_trial()
                 self.arena.reset_fly_to_spawn()
                 self.trial_sim_time = 0.0
+                self.segment_id = uuid.uuid4().hex
+                self.transition = {"reason": "manual_reset", "step": self.total_steps}
+                self.active_brain.log("manual_reset", segment_id=self.segment_id)
+                self.latest_telemetry = self._assemble_telemetry({})
                 return {"status": "ok", "current_trial": self.current_trial}
 
             elif action == "save_checkpoint":
@@ -494,7 +557,10 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
     def _status_payload(self):
         uptime = time.time() - self.runner.start_time
         return {
-            "status": "online",
+            "status": "error" if self.runner.last_error else "online",
+            "error": self.runner.last_error,
+            "paused": self.runner.paused,
+            "continuous": self.runner.continuous,
             "service": "Project NeuroFly Continuous Learning Daemon",
             "uptime_sec": round(uptime, 1),
             "total_steps": self.runner.total_steps,
@@ -667,6 +733,7 @@ def run_daemon():
     parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
     parser.add_argument("--trial-seconds", type=float, default=60.0,
                         help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
+    parser.add_argument("--continuous", action="store_true", help="Observe continuously without automatic respawns; manual reset starts a new segment")
     parser.add_argument("--output-dir", default=None, help="Brain checkpoints and run outputs directory")
     parser.add_argument("--pid-file", default="", help="Optional path to write daemon PID file")
 
@@ -726,6 +793,7 @@ def run_daemon():
         sim_speed=args.speed,
         checkpoint_interval=args.checkpoint_interval,
         trial_length_s=args.trial_seconds,
+        continuous=args.continuous,
         output_dir=Path(args.output_dir) if args.output_dir else None
     )
     runner.start()

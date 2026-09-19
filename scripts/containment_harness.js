@@ -73,8 +73,10 @@ globalThis.URLSearchParams = globalThis.URLSearchParams || class { get() { retur
 
 // ---------------------------------------------------------------- load app.js
 const src = new TextDecoder().decode(GLib.file_get_contents(appPath)[1]);
-new Function(src + '\nglobalThis.__NF = { ScientificBioArena, WallSegment, MushroomBodyCircuit };')();
-const { ScientificBioArena, MushroomBodyCircuit } = globalThis.__NF;
+new Function(src + '\nglobalThis.__NF = { ScientificBioArena, WallSegment, MushroomBodyCircuit, daemonFrameOffset };')();
+const { ScientificBioArena, MushroomBodyCircuit, daemonFrameOffset } = globalThis.__NF;
+if (String(daemonFrameOffset({paradigm:'multisensory-sandbox',world_bounds:[-75,-75,75,75]})) !== '0,0') throw new Error('Modern multisensory frame shifted outside arena');
+if (String(daemonFrameOffset({paradigm:'open-arena',world_bounds:[0,0,100,100]})) !== '-50,-50') throw new Error('Foraging frame not centered');
 // Reset must clear both long-term efficacy pathways, while keepMemory retains them.
 const resetCircuit = new MushroomBodyCircuit();
 resetCircuit.u[0] = [0.3, -0.4];
@@ -85,6 +87,25 @@ resetCircuit.reset(false);
 if (resetCircuit.u[0].some(v => v !== 0) || resetCircuit.w[0].some(v => v !== 0)) {
     throw new Error('memory reset left a plasticity pathway uncleared');
 }
+
+// Regression: live telemetry has exclusive ownership of pose, clock and recording.
+// Every local assay previously kept resetting the remote fly behind the stream.
+for (const pid of ['open-arena','t-maze','y-maze','heat-maze','buridan','visual-operant',
+    'wind-tunnel','looming-escape','optomotor','gap-crossing','circadian-dam','courtship','labyrinth','multisensory-sandbox']) {
+    const live = new ScientificBioArena('arenaCanvas');
+    live.initParadigm(pid);
+    live.remoteDriven = true;
+    const snapshot = () => JSON.stringify([live.fly.x,live.fly.y,live.fly.heading,live.currentTrial,
+        live.stepCount,live.simTime,live.paradigmElapsedSec,live.telemetryBuffer]);
+    const before = snapshot();
+    for (let i=0;i<5000;i++) live.step(.02);
+    if (snapshot() !== before) throw new Error(`${pid}: local simulation changed a live recording`);
+    live.remoteDriven = false;
+    live.awaitingDaemon = true;
+    live.step(.02);
+    if (snapshot() !== before) throw new Error(`${pid}: outage silently resumed synthetic data`);
+}
+print('PASS live ownership: all 14 assays preserve daemon pose, clock and samples');
 
 // ---------------------------------------------------------------- seeded RNG
 function seededRandom(seed) {
