@@ -89,3 +89,22 @@ significance or success thresholds. A single good trajectory is not a learning
 result. Short circadian windows cannot establish a daily rhythm. Curriculum and
 multi-step task learning remain research targets requiring causal controls and
 task-specific sensory representations.
+
+## Long runs and validation record
+
+Scalar means and path statistics now update incrementally while retaining only
+2,048 display samples. Cumulative counts, mean values, distance and the original
+path origin survive eviction; long runs do not repeatedly scan the entire path.
+Heat-maze `path_length` is measured in mm. In revision `2553a9e` and older, that
+particular raw metric counted samples; use the phase summary's `distance_mm`
+when analyzing those historical cohorts. Each cohort identifies its code revision.
+
+The 2026-09-19 validation included browser inspection of all 14 arenas and all
+restored renderers; daemon pause/resume, eight-pair teaching and a recorded
+non-mutating probe; 378,000 headless physics steps over 14 assays, three seeds
+and three starting poses; plus 54,000 further steps for the updated looming and
+optomotor inputs. No escapes or unexplained teleports were detected. The browser
+ownership regression checks all 14 assays for 5,000 simulated calls each without
+allowing the local engine to alter a remote pose, clock or recording.
+The full Python suite passed with 291 tests, including cumulative-statistic
+retention after display-history eviction.

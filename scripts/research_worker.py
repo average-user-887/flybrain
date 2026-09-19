@@ -194,7 +194,7 @@ def main(argv=None):
     manifest = dict(schema_version=1, revision=revision, protocol=PROTOCOL, dt=.02,
                     steps=args.steps, seeds=args.seeds, python=sys.version, numpy=np.__version__,
                     source_sha256={name:hashlib.sha256((PROJECT/name).read_bytes()).hexdigest()
-                        for name in ('arena.py','maze.py','circuit.py','surge_cast.py','experiment_brains.py','scripts/research_worker.py')})
+                        for name in ('arena.py','maze.py','online_metrics.py','circuit.py','surge_cast.py','experiment_brains.py','scripts/research_worker.py')})
     if (args.output / 'manifest.json').exists():
         previous_manifest = json.loads((args.output / 'manifest.json').read_text())
         if any(previous_manifest[k] != manifest[k] for k in ('steps','seeds','dt')):

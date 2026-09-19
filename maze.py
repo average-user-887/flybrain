@@ -25,6 +25,8 @@ import random
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Dict, Optional, Any, Type, Union, Set
 import numpy as np
+from collections import deque
+from online_metrics import ScalarHistory, PathHistory
 
 
 # ==============================================================================
@@ -804,7 +806,7 @@ class TMazeParadigm(ExperimentParadigm):
         self.choice_counts = {'arm_a': 0, 'arm_b': 0}
         self.first_choice: Optional[str] = None
         self.latency_to_choice_ms: Optional[float] = None
-        self.step_history: List[str] = []
+        self.step_history = deque(maxlen=2048)
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -1115,7 +1117,7 @@ class HeatMazeParadigm(ExperimentParadigm):
         self.refuge_reached: bool = False
         self.pam_burst_active: bool = False
         self.time_in_target_quadrant_ms: float = 0.0
-        self.path_points: List[Tuple[float, float]] = []
+        self.path_points = PathHistory()
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -1194,7 +1196,7 @@ class HeatMazeParadigm(ExperimentParadigm):
             'refuge_reached': self.refuge_reached,
             'cumulative_thermal_dose': self.cumulative_thermal_dose,
             'time_in_target_quadrant_pct': quadrant_pct,
-            'path_length': float(len(self.path_points))
+            'path_length': self.path_points.distance
         }
 
     def simulate_agent_trial(
@@ -1289,7 +1291,7 @@ class BuridanParadigm(ExperimentParadigm):
 
         self.time_center_ms: float = 0.0
         self.time_perimeter_ms: float = 0.0
-        self.fixation_scores: List[float] = []
+        self.fixation_scores = ScalarHistory()
         self.stripe_crossings: int = 0
         self.last_heading_side: Optional[int] = None
 
@@ -1351,7 +1353,7 @@ class BuridanParadigm(ExperimentParadigm):
     def get_metrics(self) -> Dict[str, Any]:
         total_time = max(1.0, self.time_center_ms + self.time_perimeter_ms)
         centrophobism = 1.0 - (self.time_center_ms / total_time)
-        mean_fix = float(np.mean(self.fixation_scores)) if self.fixation_scores else 0.0
+        mean_fix = self.fixation_scores.mean if self.fixation_scores else 0.0
 
         return {
             'centrophobism_index': centrophobism,
@@ -1382,8 +1384,8 @@ class VisualOperantParadigm(ExperimentParadigm):
         self.time_safe_ms: float = 0.0
         self.time_punished_ms: float = 0.0
         self.laser_heat_active: bool = False
-        self.torque_history_safe: List[float] = []
-        self.torque_history_punished: List[float] = []
+        self.torque_history_safe = ScalarHistory()
+        self.torque_history_punished = ScalarHistory()
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -1451,8 +1453,8 @@ class VisualOperantParadigm(ExperimentParadigm):
     def get_metrics(self) -> Dict[str, Any]:
         total = self.time_safe_ms + self.time_punished_ms
         li = float((self.time_safe_ms - self.time_punished_ms) / total) if total > 0 else 0.0
-        mean_t_safe = float(np.mean(self.torque_history_safe)) if self.torque_history_safe else 0.0
-        mean_t_punished = float(np.mean(self.torque_history_punished)) if self.torque_history_punished else 0.0
+        mean_t_safe = self.torque_history_safe.mean if self.torque_history_safe else 0.0
+        mean_t_punished = self.torque_history_punished.mean if self.torque_history_punished else 0.0
 
         return {
             'operant_learning_index': li,
@@ -1681,9 +1683,9 @@ class OptomotorParadigm(ExperimentParadigm):
             max_duration_steps=max_duration_steps
         )
         self.drum_velocity_deg_s = float(drum_velocity_deg_s)
-        self.hs_firing_history: List[float] = []
-        self.retinal_slip_history: List[float] = []
-        self.gain_history: List[float] = []
+        self.hs_firing_history = ScalarHistory()
+        self.retinal_slip_history = ScalarHistory()
+        self.gain_history = ScalarHistory()
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -1743,9 +1745,9 @@ class OptomotorParadigm(ExperimentParadigm):
         return {'trial_number': self.trial_manager.trial_number}
 
     def get_metrics(self) -> Dict[str, Any]:
-        mean_gain = float(np.mean(self.gain_history)) if self.gain_history else 0.0
-        mean_hs = float(np.mean(self.hs_firing_history)) if self.hs_firing_history else 0.0
-        mean_slip = float(np.mean(self.retinal_slip_history)) if self.retinal_slip_history else 0.0
+        mean_gain = self.gain_history.mean if self.gain_history else 0.0
+        mean_hs = self.hs_firing_history.mean if self.hs_firing_history else 0.0
+        mean_slip = self.retinal_slip_history.mean if self.retinal_slip_history else 0.0
 
         return {
             'optomotor_gain': mean_gain,
@@ -2117,7 +2119,7 @@ class LabyrinthParadigm(ExperimentParadigm):
         self.time_to_goal_ms: Optional[float] = None
         self.wall_collision_count: int = 0
         self.dead_end_entries: int = 0
-        self.path_points: List[Tuple[float, float]] = []
+        self.path_points = PathHistory()
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -2187,7 +2189,10 @@ class LabyrinthParadigm(ExperimentParadigm):
 
     def get_metrics(self) -> Dict[str, Any]:
         # Path tortuosity = actual path length / straight line distance
-        if len(self.path_points) > 1:
+        if isinstance(self.path_points, PathHistory):
+            total_dist = self.path_points.distance
+            tortuosity = self.path_points.tortuosity
+        elif len(self.path_points) > 1:
             total_dist = sum(
                 math.sqrt((self.path_points[i][0] - self.path_points[i - 1][0]) ** 2 +
                           (self.path_points[i][1] - self.path_points[i - 1][1]) ** 2)
