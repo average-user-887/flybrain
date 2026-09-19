@@ -52,6 +52,9 @@ The new `web/research.html` shows actual daemon weights, cue probes, trial
 measurements and per-experiment teaching records. Every experiment now retains
 its own seeded brain when you switch away or restart. Start and verification
 instructions: [Learning observatory](docs/LEARNING_OBSERVATORY.md).
+On this Linux workstation, `python3 scripts/observatory.py start` starts both
+local services persistently; use `status`, `logs`, `restart`, or `stop` to manage
+them. Open <http://127.0.0.1:8780/research.html>.
 
 The controlled teaching battery checks paired, reversed and frozen-learning
 conditions in all 14 brain instances. This demonstrates cue memory and isolation;

@@ -3495,7 +3495,20 @@ class DaemonBridgeClient {
             this.statusPill.style.color = '#4ade80';
             this.statusPill.title = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
         }
-        if (status.public === true || status.read_only === true) this.markReadOnly();
+        // Start the instrument on the experiment actually running on the daemon.
+        // Updating the view must not send a switch command or create a new brain.
+        const pid = (status.active_paradigm || '').replace(/_/g, '-');
+        if (Object.prototype.hasOwnProperty.call(EXPERIMENT_GUIDES, pid)
+                && pid !== this.arena.activeParadigmId) {
+            this.arena.initParadigm(pid);
+            this.hud.updateActiveCard(pid);
+            this.hud.renderExperimentGuide(pid);
+            this.hud.renderAssayTools(pid);
+            const badge = document.getElementById('navbarParadigmBadge');
+            if (badge) badge.textContent = pid.toUpperCase().replace(/-/g, ' ');
+        }
+        if (status.public === true || status.read_only === true
+                || status.stream?.read_only || status.stream?.commands_require_token) this.markReadOnly();
         this.startStreaming();
     }
 
@@ -4206,8 +4219,8 @@ const LESION_INFO = {
     'WT': {
         name: 'Wild-Type Control (Canton-S / w1118)',
         driver: 'Intact Baseline Genotype',
-        mechanism: 'Full unperturbed connectome (166,700 neurons, 25.5M synapses). Intact associative memory, spatial compass, looming evasion, and mechanosensory organs.',
-        expectedDeficit: 'None (Normal baseline behavior across all 14 assays; PI > 0.70 in T-maze, SAR > 60% in Y-maze, intact cool refuge navigation).',
+        mechanism: 'Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.',
+        expectedDeficit: 'No components disabled. Performance must be measured per assay; no target score is assumed.',
         color: '#4ade80'
     },
     'DELTA_MB': {
