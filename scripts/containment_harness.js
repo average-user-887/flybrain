@@ -114,6 +114,52 @@ streamedArena.remotePacket={...streamedArena.remotePacket,segment_id:'new-segmen
 chartHud.renderLiveOutcome();
 if(chartHud.liveOutcomeHistory.length!==1) throw new Error('Chart connected different trajectory segments');
 print('PASS live outcome chart: measured ticks, missing data and segment boundaries');
+const switchAssays=['open-arena','t-maze','y-maze','heat-maze','buridan','visual-operant',
+    'wind-tunnel','looming-escape','optomotor','gap-crossing','circadian-dam','courtship','labyrinth','multisensory-sandbox'];
+for (const from of switchAssays) for (const to of switchAssays) {
+    if(from===to)continue;
+    const sceneArena=new ScientificBioArena('arenaCanvas');
+    sceneArena.initParadigm(from);
+    sceneArena.remoteDriven=true;
+    sceneArena.remotePacket={paradigm:from,scene:{landmarks:from==='buridan'?[[110,60],[10,60]]:[]}};
+    sceneArena.initParadigm(to);
+    if(sceneArena.remotePacket!==null || sceneArena.remoteDriven || !sceneArena.awaitingDaemon) {
+        throw new Error(`${from} -> ${to}: old telemetry leaked into the new scene`);
+    }
+    sceneArena.render();
+}
+const missingLandmarks=new ScientificBioArena('arenaCanvas');
+missingLandmarks.initParadigm('buridan');
+missingLandmarks.remotePacket={paradigm:'buridan',scene:{landmarks:[]}};
+missingLandmarks.renderBuridan(makeCtx());
+print('PASS scene transitions: all 182 directed assay switches render; empty landmarks are safe');
+let requested=null;
+ScientificHUD.prototype.selectParadigm.call({
+    arena:{initParadigm(){throw new Error('Live click initialized a local scene before telemetry');}},
+    daemonBridge:{connected:true,requestParadigmSwitch(pid){requested=pid;}}
+},'buridan');
+if(requested!=='buridan')throw new Error('Live selection did not reach the command bridge');
+const queueLoop=new GLib.MainLoop(null,false);
+const queueCalls=[],queueResolvers=[];
+const queueBridge=Object.assign(Object.create(DaemonBridgeClient.prototype),{
+    sendCommand(action,params){queueCalls.push(params.paradigm);return new Promise(resolve=>queueResolvers.push(resolve));}
+});
+let queueFailure=null;
+(async()=>{
+    const pending=queueBridge.requestParadigmSwitch('wind-tunnel');
+    queueBridge.requestParadigmSwitch('heat-maze');
+    queueBridge.requestParadigmSwitch('buridan');
+    if(queueCalls.join(',')!=='wind-tunnel')throw new Error('Concurrent switches were dispatched out of order');
+    queueResolvers.shift()({status:'ok'});
+    await Promise.resolve();
+    if(queueCalls.join(',')!=='wind-tunnel,buridan')throw new Error('Latest queued click was lost');
+    queueResolvers.shift()({status:'ok'});
+    await pending;
+    if(queueBridge.switchQueueRunning || queueBridge.queuedParadigm)throw new Error('Switch queue remained locked');
+})().catch(error=>{queueFailure=error;}).finally(()=>queueLoop.quit());
+queueLoop.run();
+if(queueFailure)throw queueFailure;
+print('PASS switch requests: no optimistic scene mutation; serialized latest-click selection');
 if (String(daemonFrameOffset({paradigm:'multisensory-sandbox',world_bounds:[-75,-75,75,75]})) !== '0,0') throw new Error('Modern multisensory frame shifted outside arena');
 if (String(daemonFrameOffset({paradigm:'open-arena',world_bounds:[0,0,100,100]})) !== '-50,-50') throw new Error('Foraging frame not centered');
 // Reset must clear both long-term efficacy pathways, while keepMemory retains them.
