@@ -285,6 +285,11 @@ def summarise_runner(runner: Any) -> Dict[str, Any]:
         "mb_weights_std": plast.get("mb_weights_std"),
         "learning_curve_tail": curve[-10:],
         "metrics": telem.get("metrics", {}),
+        # Which run/controller produced these numbers, and whether it was driving.
+        "identity": telem.get("identity"),
+        "motor_source": (telem.get("motor") or {}).get("motor_source"),
+        "motor_assists_enabled": (telem.get("motor") or {}).get("motor_assists_enabled"),
+        "controller_fault": telem.get("controller_fault"),
     }
 
 

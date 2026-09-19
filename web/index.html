@@ -1138,6 +1138,16 @@
                 <button class="nav-btn" id="btnErrorResume" hidden title="Re-enable the suspended view updates">Resume view</button>
                 <button class="nav-btn" id="btnErrorDismiss" title="Hide this message (errors stay in window.neuroflyDiagnostics)">Dismiss</button>
             </div>
+            <div id="identityBar" role="status" style="display:flex;flex-wrap:wrap;gap:4px 12px;padding:3px 12px;color:#94a3b8;font:10px monospace;border-bottom:1px solid #1e293b">
+                <span title="Controller backend of the streamed run (provenance.BACKENDS)">Controller: <b id="identBackend" style="color:#e2e8f0">--</b></span>
+                <span id="identLabel" style="flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+                <span>Assists: <b id="identAssists">--</b></span>
+                <span title="Which controller produced the current motor command">Motor: <b id="identMotor">--</b></span>
+                <span title="Controller fault reported by the daemon">Fault: <b id="identFault">none</b></span>
+                <span id="identRun" style="cursor:help">run --</span>
+                <label title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist</label>
+            </div>
+            <div id="identityBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.14);border-bottom:1px solid #92400e;color:#fcd34d;font:10px monospace;font-weight:700"></div>
             <!-- Main Canvas Stage -->
             <div class="arena-wrapper">
                 <div class="arena-overlay-tools">

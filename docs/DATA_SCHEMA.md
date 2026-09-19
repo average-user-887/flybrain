@@ -55,6 +55,9 @@ next start; `sessions.jsonl` keeps every start.
 | `sim_speed` | float | effective speed multiplier after clamping |
 | `port` | int | HTTP port |
 | `public` | bool | whether the public read-only mode was on |
+| `backend` | string | controller backend chosen at launch (`--backend`) |
+| `daemon_run_id` | string | the daemon process's run id (telemetry `run_id`) |
+| `manifest` | object | full run manifest of the run active at start (see "Run manifest") |
 
 The command line is deliberately **not** recorded (it could contain paths or
 tokens). No hostname or IP address is recorded.
@@ -73,6 +76,7 @@ common header are copied verbatim from the runner:
 | `step` | int | simulation step at which the milestone was recorded |
 | `metric` | float | `performance_index` / `pi` / `learning_index` from the paradigm metrics, else `0.5` |
 | `timestamp` | float | wall-clock time of the milestone |
+| `run_id`, `instance_id`, `backend` | string | controller identity of the run that produced the trial |
 
 Because `trial` restarts per session, the unique key of a trial is
 `(session_id, trial)`. Within a session a trial number is written at most
@@ -97,6 +101,136 @@ last telemetry packet:
 | `mb_weights_mean`, `mb_weights_std` | float or null | mushroom-body KC→MBON weight statistics from the telemetry packet |
 | `learning_curve_tail` | list of float | last 10 trial metrics |
 | `metrics` | object | the paradigm's `paradigm_metrics` dict at that instant (paradigm-specific keys) |
+| `achieved_speed` | float or null | measured simulation speed (see `timing`) |
+| `identity` | object | controller identity of the packet (see "Identity") |
+| `motor_source`, `motor_assists_enabled`, `controller_fault` | | motor provenance at that instant (see "Motor provenance") |
+
+## Live telemetry packet (`GET /api/stream`, `GET /api/telemetry`)
+
+Not written to disk by the recorder, but exported by the dashboard (JSON/CSV)
+and summarised above. Units: mm, s, rad, rad/s, mm/s unless stated.
+All fields listed here are present on every packet.
+
+### Timing (`timing`)
+
+The integration step is fixed (`integration_dt_s` = 0.02 s) at every requested
+speed; the wall-clock deadline only decides *when* the next step runs.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `step` (top level and `timing.step`) | int | simulation steps since daemon start |
+| `sim_time_s` | float | `step * integration_dt_s` |
+| `requested_speed` | float | speed the user asked for (0.1–100) |
+| `achieved_speed` | float | measured simulated seconds per wall second over the last ~2 s; 0 while paused |
+| `overloaded` | bool | achieved < 90 % of requested: this computer cannot keep up (no steps are skipped) |
+| `steps_in_frame` | int | steps simulated since the previous published snapshot (decimation) |
+| `snapshot_seq`, `publish_hz` | int, float | snapshot counter and target publication rate |
+| `schedule_rebases`, `forgiven_wall_s`, `max_batch_hold_ms` | | scheduler diagnostics |
+| `command_latency` | object | `count`, `p50_ms`, `p95_ms`, `max_ms` of recent command round trips |
+
+SSE also sends `event: heartbeat` (`server_time`, `seq`) after 1 s without a new
+snapshot and `event: stream` (`sent`, `decimated_snapshots`, `stream_hz`) once a
+second. Delivery is latest-value-wins: intermediate snapshots are skipped, never
+queued.
+
+### Path (`path`)
+
+`[[step, x, y], ...]`: the measured position after each of the most recent
+steps (up to 240) of the current trial segment, so a decimated display can draw
+the path actually taken between frames. It is cleared at every segment boundary
+(trial end, manual reset, experiment switch); positions are never connected
+across segments. Display interpolation is not part of the data.
+
+### Command acknowledgement (`POST /api/command` reply, `ack`)
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `action` | string | the command |
+| `applied` | bool | whether it took effect |
+| `applied_step`, `applied_sim_time_s` | int, float | step boundary at which it was applied |
+| `latency_ms` | float | request receipt to reply |
+| `run_id` | string | daemon process run id |
+| `paradigm` | string | active assay after the command |
+| `identity` | object | identity **after** the command (see below) |
+
+For `switch_paradigm` the reply is sent only after the target's brain snapshot
+(graph backends: `ExperimentRegistry.activate`) and world snapshot
+(`Arena.restore_world`) are restored. The reply's `identity` is the newly
+active run.
+
+### Identity (`identity`, also in `/api/status`, the ack and exports)
+
+Compact form of the run manifest (`provenance.RunManifest.identity()`):
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `run_id` | string | the controller run (modular: new per activation; graph: per registry instance) |
+| `instance_id` | string | modular: the experiment brain id; graph: the registry instance id |
+| `assay` | string | assay of that run |
+| `backend` | string | `modular`, `connectome-fixed`, `connectome-plastic`, `connectome-with-trained-readout` |
+| `controller_version` | string | versioned controller implementation |
+| `graph_sha256`, `neuron_map_sha256`, `io_map_sha256` | string or null | pinned graph identity; null for modular |
+| `synthetic` | bool | a synthetic test graph (never a scientific result) |
+| `test_mode` | bool | an explicit test option was used |
+| `label` | string | human-readable description; conspicuous for synthetic/non-scientific runs |
+| `activation` | int | switch counter of this daemon process; increases on every activation |
+| `daemon_run_id` | string | equals the packet's top-level `run_id` |
+
+Stale packets: after a switch ack, a consumer rejects packets from the same
+daemon process (`run_id == ack.identity.daemon_run_id`) whose
+`identity.activation` is lower than the ack's, or equal with a different
+`run_id`/`instance_id` (`neurofly_daemon.identity_rejection`, mirrored by
+`identityRejection` in `web/app.js`). Higher activations (another dashboard
+switched later) and a restarted daemon are accepted.
+
+### Motor provenance (`motor`, `controller_fault`)
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `controller_backend` | string | backend of the arena's controller |
+| `motor_assists` | object | `wall_avoidance_reflex`, `contact_turn`: engineered assists enabled (bool each) |
+| `motor_assists_enabled` | bool | any assist enabled. Default ON for `modular` and `bridge-surrogate`, OFF for graph backends and the RPC hybrid |
+| `motor_source` | string | who produced this step's motor command (below) |
+| `motor_source_normal` | bool | `motor_source` is one of `modular`, `surrogate`, `graph-rpc`, `graph` |
+| `motor_halted` | bool | no motor command: speed and yaw are exactly zero, no assist acts |
+| `controller_fault` | string or null | controller fault (also top-level `controller_fault`) |
+| `assist_totals` | object | cumulative counts: steps near walls/in contact, reflex and contact-turn use, solver and failsafe corrections |
+| `record` | object | this step: `controller_yaw` (rad/s), `controller_speed` (mm/s), `wall_reflex_yaw`, `contact_turn_rad`, `attempted_mm`, `realized_mm`, `solver_correction_mm`, `failsafe_correction_mm`, `overlap_correction_mm`, `wall_gap_mm`, `near_wall`, `in_contact`, `tethered`, `halted`, `contacts` |
+
+Abnormal `motor_source` values: `halted-rpc-fault` (RPC graph unreachable under
+the default `on_rpc_fault='halt'`), `surrogate-fallback-TEST` (explicit test
+option: the hand-built surrogate drives), `graph-unmapped-io` (graph backend,
+no verified sensory encoder/motor decoder for the assay in the live arena, so
+no motor command), `halted-no-instance`. The dashboard shows a banner for any
+of them, for `synthetic`/`test_mode` runs and for a `controller_fault`.
+
+## Run manifest (`GET /api/manifest`)
+
+`{"identity": ..., "manifest": ...}`. The manifest is
+`provenance.RunManifest.to_dict()` (schema `neurofly.run-manifest.v1`):
+backend, assay, instance and run ids, seed, graph identity, dynamics with
+units, learned parameter locations, source revision and file hashes,
+intervention schedule and events (activations, checkpoints, restores). Modular
+manifests are written to `<output-dir>/manifests/<run_id>.json`; graph
+manifests live in the registry (`<output-dir>/registry/<assay>/<backend>/<instance_id>/manifest.json`).
+The dashboard's JSON export embeds `identity`, `manifest` and `motor`; its CSV
+rows carry `controller_run_id`, `instance_id`, `backend`, `synthetic`,
+`motor_source`, `assists` and `controller_fault`.
+
+## Graph backends and world snapshots
+
+`--backend connectome-fixed|connectome-plastic|connectome-with-trained-readout`
+loads one verified graph (`--graph-dir` or `NEUROFLY_GRAPH_DIR=/path/to/malecns_v1`;
+missing or mismatching graph = startup error) and one experiment registry under
+`<output-dir>/registry`. Every checkpoint (periodic, manual, on switch and on
+shutdown) is a registry checkpoint whose `meta.world_state` holds
+`Arena.snapshot_world()`: format `neurofly.world-state.v1`, a readable
+`summary` (fly pose and velocities, RNG states, assists) and the complete
+encoded `state` (arrays as base64 of raw bytes, large integers as strings), so
+restoring and continuing is bit-exact. Graph-run bookkeeping (curves, event
+logs) is kept under `<output-dir>/graph-bookkeeping/<backend>/`, never in the
+modular brain files. `--test-synthetic-graph` runs a graph backend on a small
+synthetic graph for tests; such runs are labelled synthetic everywhere.
 
 ## Rotation and durability
 

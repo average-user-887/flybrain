@@ -147,8 +147,14 @@ class CompoundEyeVision:
         arena_radius: float = 200.0,
         looming_threshold: float = 0.08,    # rad/s expansion rate trigger
         escape_duration: float = 0.30,      # Duration of ballistic escape flight (s)
-        refractory_period: float = 0.50     # Cooldown before another escape can trigger (s)
+        refractory_period: float = 0.50,    # Cooldown before another escape can trigger (s)
+        rng: Optional[np.random.Generator] = None
     ):
+        # Escape-direction jitter draws from this generator, never the global
+        # np.random: the Arena passes its own seeded ``np_rng`` so determinism and
+        # world snapshots do not depend on global seeding.  Standalone use gets a
+        # fixed-seed private generator.
+        self.rng = rng if rng is not None else np.random.default_rng(0)
         self.num_ommatidia = num_ommatidia
         self.arena_radius = arena_radius
         self.looming_threshold = looming_threshold
@@ -299,7 +305,7 @@ class CompoundEyeVision:
             if self.looming_intensity >= self.looming_threshold or min_dist < 18.0:
                 self.escape_active = True
                 self.escape_timer = self.escape_duration
-                escape_offset = math.pi + np.random.uniform(-0.3, 0.3)
+                escape_offset = math.pi + self.rng.uniform(-0.3, 0.3)
                 self.escape_heading_target = (fly_heading + detected_threat_bearing + escape_offset) % (2.0 * math.pi)
 
         return {

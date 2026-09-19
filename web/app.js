@@ -532,6 +532,9 @@ class ScientificBioArena {
         window.addEventListener('resize', () => this.resize());
 
         this.activeParadigmId = 'open-arena';
+        // Illustrative local preview only: the wall-avoidance reflex is an engineered
+        // assist, not physics. On by default (legacy preview), toggled in the identity bar.
+        this.previewWallAssist = true;
         this.activeParadigmTitle = 'Open Arena Multi-Modal Assay';
         this.activeParadigmRef = 'General Neuroethology Open Arena with multi-sensory foraging';
         this.currentTrial = 1;
@@ -2060,7 +2063,8 @@ class ScientificBioArena {
             // the yaw command after the brain/DN output and before heading integration.
             // fly.yawRate stays the brain's (filtered) command; the reflex output is not fed
             // back into that state, otherwise it accumulates step after step.
-            const yawCmd = this.wallAvoidanceTurn(this.fly.yawRate, dt);
+            // Engineered assist, gated by the labelled "Preview wall-reflex assist" toggle.
+            const yawCmd = this.previewWallAssist ? this.wallAvoidanceTurn(this.fly.yawRate, dt) : this.fly.yawRate;
             this.fly.yawCommand = yawCmd;
             this.fly.heading = ((this.fly.heading + yawCmd * dt + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
             this.cx.updateBump(this.fly.heading);
@@ -3458,6 +3462,65 @@ function isStaleDaemonPacket(pkt, previous) {
         || (Number.isFinite(pkt.timestamp) && pkt.timestamp < previous.timestamp);
 }
 
+/**
+ * Why a packet must be rejected after this tab's last acknowledged switch, or null.
+ * Mirror of neurofly_daemon.identity_rejection. The ack names the activated run and
+ * instance and its activation counter: from the same daemon process, an older
+ * activation is stale and the same activation must match run_id and instance_id.
+ * A newer activation (another tab switched later) or another daemon process is accepted.
+ */
+function identityRejection(pkt, ack) {
+    const want = ack?.identity, got = pkt?.identity;
+    if (!want || !got) return null;
+    if (pkt.run_id !== want.daemon_run_id) return null;
+    if (!Number.isInteger(got.activation) || !Number.isInteger(want.activation)) return 'packet identity has no activation counter';
+    if (got.activation < want.activation) return `stale: activation ${got.activation} precedes acknowledged switch ${want.activation}`;
+    if (got.activation === want.activation && (got.run_id !== want.run_id || got.instance_id !== want.instance_id)) {
+        return 'run_id/instance_id differ from the acknowledged switch';
+    }
+    return null;
+}
+window.neuroflyIdentityRejection = identityRejection;
+
+// motor_source values that mean the named controller drove the step (arena.py
+// Arena.MOTOR_SOURCES_NORMAL); anything else is shown in the identity banner.
+const MOTOR_SOURCE_NOTES = {
+    'halted-rpc-fault': 'graph RPC unavailable: the fly is halted, no motor command',
+    'surrogate-fallback-TEST': 'TEST fallback: the hand-built surrogate drives the fly, not the graph',
+    'graph-unmapped-io': 'no verified sensory/motor mapping for this assay yet: the graph gets no input and commands no motion',
+    'halted-no-instance': 'no active graph instance: the fly is halted',
+};
+
+/** Identity bar + conspicuous banner for synthetic/test runs, abnormal motor sources and faults. */
+function renderIdentity(pkt) {
+    const id = pkt?.identity || {}, motor = pkt?.motor || {};
+    const set = (elId, text, title) => { const el = document.getElementById(elId); if (el) { el.textContent = text; if (title !== undefined) el.title = title; } };
+    set('identBackend', id.backend || 'unknown');
+    set('identLabel', id.label || '', id.label || '');
+    const assists = motor.motor_assists || {};
+    const on = Object.keys(assists).filter(k => assists[k]);
+    set('identAssists', motor.motor_assists_enabled ? `ON (${on.join(', ')})` : 'OFF', 'Engineered motor assists: they turn the fly away from walls on the controller\'s behalf and are not credited to any brain.');
+    set('identMotor', motor.motor_source || '--');
+    const fault = pkt?.controller_fault ?? motor.controller_fault ?? null;
+    set('identFault', fault || 'none');
+    set('identRun', `run ${(id.run_id || '--').slice(-12)}`, `run_id ${id.run_id || '?'}\ninstance_id ${id.instance_id || '?'}\ngraph_sha256 ${id.graph_sha256 || 'none (modular)'}\nactivation ${id.activation ?? '?'}`);
+    const faultEl = document.getElementById('identFault');
+    if (faultEl) faultEl.style.color = fault ? '#f87171' : '';
+    const lines = [];
+    if (id.synthetic) lines.push(`SYNTHETIC TEST GRAPH · backend ${id.backend || '?'} · not a scientific result`);
+    else if (id.test_mode) lines.push(`TEST MODE · ${id.label || id.backend} · not a scientific result`);
+    if (motor.motor_source && motor.motor_source_normal === false) {
+        lines.push(`MOTOR SOURCE ${motor.motor_source}: ${MOTOR_SOURCE_NOTES[motor.motor_source] || 'not a normal controller source'}`);
+    }
+    if (fault) lines.push(`CONTROLLER FAULT: ${fault}`);
+    const banner = document.getElementById('identityBanner');
+    if (banner) {
+        const text = lines.join(' · ');
+        if (banner.textContent !== text) banner.textContent = text;
+        banner.style.display = text ? 'block' : 'none';
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Structured error reporting. Every failure names its phase and the assay, run and
 // step it hit; repeats are counted, not re-logged, so no error loop floods the
@@ -3550,6 +3613,11 @@ class DaemonBridgeClient {
         this.rejectedPackets = 0;
         this.streamStats = null;
         this.lastAck = null;
+        this.lastSwitchAck = null;          // ack of this tab's last successful switch (identity)
+        this.rejectedIdentityPackets = 0;
+        this.lastIdentityRejection = null;
+        this.manifest = null;               // full run manifest (GET /api/manifest), for exports
+        this.manifestRunId = null;
         this.injectPending = NEUROFLY_INJECT;
 
         if (this.statusPill) {
@@ -3795,9 +3863,19 @@ class DaemonBridgeClient {
 
         // Drop stale / out-of-order packets (SSE reconnects can replay old frames).
         if (isStaleDaemonPacket(pkt, this.lastOrderedPacket)) return false;
+        // Packets produced before this tab's acknowledged switch (older activation or a
+        // different run/instance) must not be drawn under the new run's identity.
+        const identityProblem = identityRejection(pkt, this.lastSwitchAck);
+        if (identityProblem) {
+            this.rejectedIdentityPackets++;
+            this.lastIdentityRejection = identityProblem;
+            return false;
+        }
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = pkt;
+        renderIdentity(pkt);
+        if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 
         // Synchronize fly pose from the daemon ONLY when the paradigms match; the daemon
         // then owns locomotion and the local engine stops integrating position.
@@ -3866,6 +3944,10 @@ class DaemonBridgeClient {
             if (this.lastRecordedSegment !== segment || this.lastRecordedStep !== pkt.step) {
                 if (this.arena.telemetryBuffer[0]?.source === 'local_preview') this.arena.telemetryBuffer = [];
                 this.arena.telemetryBuffer.push({source:'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
+                    controller_run_id:pkt.identity?.run_id || '', instance_id:pkt.identity?.instance_id || '',
+                    backend:pkt.identity?.backend || '', synthetic:!!pkt.identity?.synthetic,
+                    motor_source:pkt.motor?.motor_source || '', assists:!!pkt.motor?.motor_assists_enabled,
+                    controller_fault:pkt.controller_fault || '',
                     boundary:boundary, transition:boundary ? (pkt.transition?.reason || 'segment_start') : '',
                     step:pkt.step, simTime:pkt.sim_time_s ?? pkt.step*.02, paradigm:pkt.paradigm, trial:pkt.trial,
                     trialTime:pkt.trial_elapsed_s, x:pkt.fly.x, y:pkt.fly.y, heading:pkt.fly.heading, speed:pkt.fly.speed,
@@ -4037,6 +4119,21 @@ class DaemonBridgeClient {
         } finally { this.switchQueueRunning = false; }
     }
 
+    /** Fetch the full manifest of the streamed run once per run_id (exports embed it). */
+    async fetchManifest(runId) {
+        this.manifestRunId = runId;
+        if (!this.activeUrl) return;
+        try {
+            const res = await fetch(`${this.activeUrl}/api/manifest`, {signal: AbortSignal.timeout(3000)});
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data?.manifest?.run_id === runId) this.manifest = data.manifest;
+            else this.manifestRunId = null;   // switched meanwhile; retry on the next packet
+        } catch (e) {
+            this.manifestRunId = null;
+        }
+    }
+
     async sendCommand(action, params = {}) {
         if (!this.connected || !this.activeUrl || this.readOnly) return null;
         if (action === 'switch_paradigm') this.switchPending = true;
@@ -4056,6 +4153,9 @@ class DaemonBridgeClient {
                 if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
                 // The daemon acknowledges the step at which the command took effect.
                 if (data.ack) this.lastAck = {...data.ack, action};
+                // A switch is acknowledged only after the target's brain and world are
+                // ready; from now on older-identity packets are rejected.
+                if (action === 'switch_paradigm' && data.status === 'ok' && data.ack?.identity) this.lastSwitchAck = data.ack;
                 return data;
             }
         } catch (e) {
@@ -5211,6 +5311,12 @@ class ScientificHUD {
                 date: new Date().toISOString(),
                 totalSteps: this.arena.stepCount
             },
+            // Controller identity and the full run manifest of the streamed run (daemon
+            // only; the local preview is illustrative and has no manifest).
+            identity: this.arena.remoteDriven ? (this.arena.remotePacket?.identity || null) : null,
+            manifest: this.arena.remoteDriven && this.daemonBridge?.manifest?.run_id === this.arena.remotePacket?.identity?.run_id
+                ? this.daemonBridge.manifest : null,
+            motor: this.arena.remoteDriven ? (this.arena.remotePacket?.motor || null) : {previewWallAssist: !!this.arena.previewWallAssist},
             canonicalMetrics: this.arena.remoteDriven ? this.arena.remotePacket?.metrics : this.arena.getParadigmMetrics(),
             telemetrySampleCount: this.arena.telemetryBuffer ? this.arena.telemetryBuffer.length : 0,
             telemetry: (this.arena.telemetryBuffer || []).slice(-500)
@@ -5687,6 +5793,11 @@ window.addEventListener('load', () => {
     document.getElementById('btnErrorResume')?.addEventListener('click', () => NeuroflyErrors.resume());
     try {
         startNeuroflyApp();
+        const previewAssist = document.getElementById('previewWallAssist');
+        if (previewAssist && window.arena) {
+            previewAssist.checked = !!window.arena.previewWallAssist;
+            previewAssist.addEventListener('change', () => { window.arena.previewWallAssist = previewAssist.checked; });
+        }
     } catch (e) {
         // Startup failed: say so with context instead of leaving a blank or half-built page.
         NeuroflyErrors.report('startup', e);

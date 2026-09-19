@@ -64,6 +64,77 @@ except ImportError as e:
 from stream_gateway import MAX_COMMAND_BYTES, StreamGateway, StreamPolicy
 from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
 from experiment_brains import ExperimentBrains
+# Controller identity (WP4).  experiment_registry / brainlab are imported only when
+# a graph backend is selected, so the modular default never touches the graph.
+from provenance import GRAPH_BACKENDS, RunManifest, get_backend, source_revision
+
+DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
+
+
+def identity_rejection(packet_identity: Optional[Dict[str, Any]], packet_daemon_run: Optional[str],
+                       ack: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Why a telemetry packet must be rejected after a switch acknowledgement, or None.
+
+    Mirrors ``identityRejection`` in web/app.js.  ``ack`` is the last switch ack
+    (``ack.identity`` names the activated run/instance and its ``activation``
+    counter).  A packet from the same daemon process with an older activation was
+    produced before the acknowledged switch (stale); one with the same activation
+    must carry exactly the acknowledged run_id and instance_id.  Newer activations
+    (another dashboard switched later) and other daemon processes are accepted.
+    """
+    expected = (ack or {}).get("identity")
+    if not expected or not packet_identity:
+        return None
+    if packet_daemon_run != expected.get("daemon_run_id"):
+        return None
+    got, want = packet_identity.get("activation"), expected.get("activation")
+    if not isinstance(got, int) or not isinstance(want, int):
+        return "packet identity has no activation counter"
+    if got < want:
+        return f"stale: activation {got} precedes acknowledged switch {want}"
+    if got == want and (packet_identity.get("run_id") != expected.get("run_id")
+                        or packet_identity.get("instance_id") != expected.get("instance_id")):
+        return "run_id/instance_id differ from the acknowledged switch"
+    return None
+
+
+class GraphArenaController:
+    """Arena motor controller for graph backends (connectome-fixed/-plastic/-readout).
+
+    Each arena step advances the active registry instance by ``step_ms`` of
+    simulated brain time.  No assay yet has a verified sensory encoder and motor
+    decoder wired into the live arena (WP5 validates optomotor offline, WP7 extends
+    the roster), so no sensory drive is delivered and no motor command is decoded:
+    the fly receives zero speed and zero yaw, reported as
+    ``motor_source='graph-unmapped-io'``.  That is the honest outcome; no surrogate
+    controller or engineered assist moves the fly instead.
+    """
+
+    UNMAPPED = "graph-unmapped-io"
+
+    def __init__(self, runner: "ContinuousExperimentRunner", step_ms: float):
+        self.runner = runner
+        self.step_ms = float(step_ms)
+        self._currents = None
+        self.last_total_spikes = 0
+
+    def __call__(self, fly=None, sensory=None, dt=0.02, **_):
+        registry = self.runner.registry
+        instance = registry.active if registry is not None else None
+        if instance is None or instance.assay != self.runner.active_paradigm_id:
+            return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": "halted-no-instance",
+                    "controller_fault": "no active graph instance for this assay", "state": "HALTED"}
+        n = instance.brain.n
+        if self._currents is None or len(self._currents) != n:
+            self._currents = np.zeros(n, dtype=np.float32)
+        result = instance.step(self._currents, self.step_ms)
+        self.last_total_spikes = int(result.counts.sum())
+        return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": self.UNMAPPED,
+                "controller_fault": None, "state": "NO-MOTOR-MAP",
+                "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
+                "total_spikes": self.last_total_spikes,
+                "unsupported": f"No verified sensory encoder or motor decoder for assay "
+                               f"{self.runner.active_paradigm_id!r} in the live arena; no motor command."}
 
 
 class TimedLock:
@@ -191,10 +262,47 @@ class ContinuousExperimentRunner:
         checkpoint_interval: float = 60.0,
         output_dir: Optional[Path] = None,
         trial_length_s: float = 60.0,
-        continuous: bool = False
+        continuous: bool = False,
+        backend: str = "modular",
+        graph_dir: Optional[Path] = None,
+        test_synthetic_graph: bool = False,
+        graph_step_ms: Optional[float] = None,
+        shared_graph: Any = None,
+        registry_root: Optional[Path] = None
     ):
         self.output_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "outputs")
-        self.brains = ExperimentBrains(self.output_dir / "brains")
+        # Controller backend (provenance.BACKENDS).  A graph backend loads ONE shared
+        # immutable graph and ONE ExperimentRegistry; a missing or mismatching graph
+        # raises here (GraphUnavailable), never falls back to another controller.
+        # ``test_synthetic_graph`` is the explicit, labelled test option.
+        if backend not in DAEMON_BACKENDS:
+            raise ValueError(f"Unknown backend {backend!r}; choose one of {DAEMON_BACKENDS}")
+        self.backend = backend
+        self.backend_spec = get_backend(backend, scientific=not test_synthetic_graph, allow_test=test_synthetic_graph)
+        self.graph_mode = backend in GRAPH_BACKENDS
+        self.test_mode = bool(test_synthetic_graph)
+        self._source = source_revision(files=self.backend_spec.source_files)
+        self.registry = None
+        self.shared_graph = None
+        self.graph_controller = None
+        self._graph_arenas: Dict[str, Any] = {}
+        self.activation = 0
+        self.manifest: Optional[RunManifest] = None
+        if self.graph_mode:
+            from experiment_registry import ExperimentRegistry as GraphRegistry, SharedGraph
+            if shared_graph is None:
+                shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if test_synthetic_graph
+                                else SharedGraph.load(graph_dir))
+            self.shared_graph = shared_graph
+            self.registry = GraphRegistry(shared_graph, Path(registry_root) if registry_root else
+                                          self.output_dir / "registry", test_mode=self.test_mode)
+            self.graph_controller = GraphArenaController(
+                self, graph_step_ms if graph_step_ms is not None else 20.0)
+            # Bookkeeping (curves, event logs) for graph runs never shares files with
+            # the modular brains: modular weights are not graph weights.
+            self.brains = ExperimentBrains(self.output_dir / "graph-bookkeeping" / backend)
+        else:
+            self.brains = ExperimentBrains(self.output_dir / "brains")
         self.checkpoints_dir = self.output_dir / "checkpoints"
         self.telemetry_dir = self.output_dir / "telemetry"
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
@@ -271,9 +379,42 @@ class ContinuousExperimentRunner:
         """Activate an experiment's own arena and learned state; never share weights."""
         # Resolve first so an invalid request cannot disturb the active experiment.
         brain = self.brains.get(paradigm_name)
+        if self.graph_mode:
+            # Checkpoint the outgoing instance WITH its world, activate the target
+            # (brain snapshot restored), then restore the target's world.  Only after
+            # both are ready does this return, so the switch ack names a ready instance.
+            active = self.registry.active
+            if active is not None and hasattr(self, "arena"):
+                active.world_state = self.arena.snapshot_world()
+            instance = self.registry.activate(paradigm_name, self.backend)
+            arena = self._graph_arenas.get(paradigm_name)
+            if arena is None:
+                arena = self._build_graph_arena(paradigm_name, instance.seed)
+                self._graph_arenas[paradigm_name] = arena
+            if instance.world_state:
+                arena.restore_world(instance.world_state)
+            brain.arena = arena
+            manifest = instance.manifest
+        else:
+            manifest = RunManifest.create(
+                backend="modular", assay=paradigm_name, instance_id=brain.brain_id, seed=brain.seed, graph=None,
+                dynamics={"model": "modular MB + CX + surge-cast (experiment_brains/arena)", "dt_s": self.dt,
+                          "motor_assists": dict(brain.arena.motor_assists)},
+                learned_parameter_locations={"mb_weights": str(brain.path),
+                                             "events": str(brain.directory / f"{paradigm_name}.events.jsonl")},
+                parent_run_id=self.manifest.run_id if self.manifest is not None else None,
+                source=self._source)
+            try:
+                manifest.write(self.output_dir / "manifests" / f"{manifest.run_id}.json")
+            except OSError as exc:
+                print(f"[Daemon] manifest write failed: {exc}", file=sys.stderr)
         if hasattr(self, "active_brain"):
             self.active_brain.elapsed = self.trial_sim_time
             self.active_brain.save()
+        self.manifest = manifest
+        self.activation += 1
+        manifest.record_event("activate", step=getattr(self, "total_steps", 0), activation=self.activation,
+                              daemon_run_id=self.run_id)
         self.segment_id = uuid.uuid4().hex
         self.transition = {"reason": "experiment_selected", "step": self.total_steps}
         self.active_brain = brain
@@ -286,6 +427,39 @@ class ContinuousExperimentRunner:
         self._last_step_result = {}
         self._publish_due = True
         self.latest_telemetry = self._assemble_telemetry({})
+
+    def _build_graph_arena(self, paradigm_name: str, seed: int):
+        """World for a graph backend: motor assists default OFF (Arena, decision item 4),
+        the modular mushroom body is ablated (it is not this run's controller)."""
+        return Arena(paradigm=None if paradigm_name == "open-arena" else paradigm_name, brain_type="modular",
+                     seed=int(seed), num_flies=1, num_predators=0, fly_ablations=[{"ablate_mb": True}],
+                     controller_backend=self.backend, graph_controller=self.graph_controller)
+
+    def identity(self) -> Dict[str, Any]:
+        """Compact run identity carried by every packet, /api/status and each ack."""
+        ident = self.manifest.identity() if self.manifest is not None else {}
+        ident.update(activation=self.activation, daemon_run_id=self.run_id)
+        return ident
+
+    MOTOR_RECORD_FIELDS = ("step", "state", "controller_yaw", "controller_speed", "wall_reflex_yaw",
+                           "controller_yaw_suppressed", "contact_turn_rad", "attempted_mm", "realized_mm",
+                           "solver_correction_mm", "failsafe_correction_mm", "overlap_correction_mm",
+                           "wall_gap_mm", "near_wall", "in_contact", "tethered", "halted")
+
+    def motor_summary(self) -> Dict[str, Any]:
+        """Motor provenance: assists, controller source/fault and this step's motor record."""
+        fly = self.arena.fly
+        prov = self.arena.motor_provenance(fly)
+        record = getattr(fly, "motor_record", None) or {}
+        summary = {}
+        for key in self.MOTOR_RECORD_FIELDS:
+            value = record.get(key)
+            if isinstance(value, float):
+                value = round(value, 6) if math.isfinite(value) else None
+            summary[key] = value
+        summary["contacts"] = len(record.get("contact_normals") or [])
+        prov["record"] = summary
+        return prov
 
     def start(self):
         """Starts background continuous execution thread."""
@@ -612,9 +786,15 @@ class ContinuousExperimentRunner:
             }
             loads = {k: (1.85 if v["phase"] == "STANCE" else 0.0) for k, v in joint_angles.items()}
 
+        motor = self.motor_summary()
         return {
             "type": "telemetry",
             "run_id": self.run_id,
+            # Controller identity (same dict as /api/status and the switch ack) and
+            # motor provenance; see docs/DATA_SCHEMA.md "Identity and motor provenance".
+            "identity": self.identity(),
+            "motor": motor,
+            "controller_fault": motor.get("controller_fault"),
             "segment_id": self.segment_id,
             "transition": self.transition,
             "continuous": self.continuous,
@@ -714,7 +894,11 @@ class ContinuousExperimentRunner:
                               metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
                               reason=reason, metrics=metrics, probe=self.active_brain.probe())
         self.active_brain.save()
+        ident = self.identity()
         self.trial_history.append({
+            "run_id": ident.get("run_id"),
+            "instance_id": ident.get("instance_id"),
+            "backend": ident.get("backend"),
             "brain_id": self.active_brain.brain_id,
             "brain_trial": self.active_brain.trials,
             "trial": self.current_trial,
@@ -770,7 +954,11 @@ class ContinuousExperimentRunner:
                              "applied": result.get("status") == "ok",
                              "applied_step": self.total_steps,
                              "applied_sim_time_s": round(self.total_steps * self.dt, 5),
-                             "paradigm": self.active_paradigm_id}
+                             "paradigm": self.active_paradigm_id,
+                             # Built after the command (for a switch: after the target's
+                             # brain and world snapshots are restored).  Packets whose
+                             # identity is older are stale (identity_rejection).
+                             "identity": self.identity()}
         self._publish_due = True
         return result
 
@@ -785,9 +973,14 @@ class ContinuousExperimentRunner:
             target = cmd.get("paradigm") or p.get("paradigm", "open-arena")
             try:
                 self._init_arena(target)
-            except (ValueError, OSError) as exc:
-                return {"status": "error", "message": str(exc)}
-            return {"status": "ok", "active_paradigm": self.active_paradigm_id}
+            except (ValueError, OSError, RuntimeError) as exc:
+                # RuntimeError covers BackendError, GraphUnavailable and checkpoint errors.
+                return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity()}
+
+        elif action in ("probe_brain", "teach_brain") and self.graph_mode:
+            return {"status": "error", "message": f"{action} acts on the modular mushroom body, which is not "
+                                                  f"the controller of this {self.backend} run"}
 
         elif action == "probe_brain":
             probe = self.active_brain.probe()
@@ -809,6 +1002,8 @@ class ContinuousExperimentRunner:
                 return {"status": "error", "message": "Wait for teaching to finish before changing its control"}
             self.active_brain.learning_enabled = enabled
             self.arena.fly.learning_enabled = enabled
+            if self.registry is not None:
+                self.registry.learning_enabled = enabled
             self.active_brain.log("learning_control", enabled=enabled)
             self.active_brain.save()
             return {"status": "ok", "learning_enabled": enabled}
@@ -907,7 +1102,15 @@ class ContinuousExperimentRunner:
         safe_tag = "".join(c for c in str(tag) if c.isalnum() or c in "_-")[:60] or "manual"
         filename = f"checkpoint_{self.active_paradigm_id}_{safe_tag}_{time.time_ns()}.json"
         target_file = self.checkpoints_dir / filename
+        graph_checkpoint = None
+        if self.graph_mode and self.registry.active is not None:
+            # Registry checkpoint: brain transients, RNG, learned parameters AND the
+            # world snapshot, written atomically and versioned.
+            graph_checkpoint = str(self.registry.checkpoint(world_state=self.arena.snapshot_world()))
         data = {
+            "identity": self.identity(),
+            "manifest": self.manifest.to_dict() if self.manifest is not None else None,
+            "graph_checkpoint": graph_checkpoint,
             "tag": str(tag),
             "brain_id": self.active_brain.brain_id,
             "brain_checkpoint": str(self.active_brain.path),
@@ -964,6 +1167,14 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
             "stream": self.gateway.describe()
         }
+        if hasattr(self.runner, "identity"):
+            # Plain reads of the published snapshot (no lock): same identity and motor
+            # provenance the stream carries.
+            latest = getattr(self.runner, "latest_telemetry", None) or {}
+            payload["identity"] = latest.get("identity") or self.runner.identity()
+            payload["motor"] = latest.get("motor")
+            payload["controller_fault"] = latest.get("controller_fault")
+            payload["backend"] = getattr(self.runner, "backend", "modular")
         if hasattr(self.runner, "timing_snapshot"):
             payload["timing"] = self.runner.timing_snapshot()
         if hasattr(self.runner.lock, "profile"):
@@ -1006,6 +1217,16 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps(data).encode("utf-8"))
+
+        elif url == "/api/manifest":
+            # Full machine-readable run manifest of the active run (exports embed it).
+            with self.runner.lock:
+                manifest = self.runner.manifest.to_dict() if getattr(self.runner, "manifest", None) else None
+                data = {"identity": self.runner.identity(), "manifest": manifest}
+            self.send_response(200)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
 
         elif url in ("/api/brains", "/api/brain"):
             with self.runner.lock:
@@ -1178,6 +1399,21 @@ def run_daemon():
     parser.add_argument("--output-dir", default=None, help="Brain checkpoints and run outputs directory")
     parser.add_argument("--pid-file", default="", help="Optional path to write daemon PID file")
 
+    backend_group = parser.add_argument_group(
+        "controller backend", "Which controller drives the fly (provenance.BACKENDS). Graph backends need the "
+        "prepared MaleCNS graph: --graph-dir or NEUROFLY_GRAPH_DIR=/path/to/malecns_v1.")
+    backend_group.add_argument("--backend", choices=DAEMON_BACKENDS,
+                               default=os.environ.get("NEUROFLY_BACKEND") or "modular",
+                               help="Controller backend (env: NEUROFLY_BACKEND; default modular)")
+    backend_group.add_argument("--graph-dir", default=None,
+                               help="Prepared graph directory (default: NEUROFLY_GRAPH_DIR, then "
+                                    "<checkout>/outputs/brainlab/malecns_v1). Missing graph = startup error.")
+    backend_group.add_argument("--graph-step-ms", type=float, default=None,
+                               help="Simulated brain milliseconds per 20 ms arena step (default 20)")
+    backend_group.add_argument("--test-synthetic-graph", action="store_true",
+                               help="TEST ONLY: run the graph backend on a small synthetic graph. The run is "
+                                    "labelled SYNTHETIC in every packet and in the dashboard.")
+
     public_group = parser.add_argument_group(
         "public streaming",
         "Read-only exposure of the stream (docs/PUBLIC_STREAMING.md). The admin token is read "
@@ -1229,14 +1465,30 @@ def run_daemon():
               f" | stream {stream_policy.stream_hz:g} Hz")
     print("===============================================================================", flush=True)
 
-    runner = ContinuousExperimentRunner(
-        initial_paradigm=args.paradigm,
-        sim_speed=args.speed,
-        checkpoint_interval=args.checkpoint_interval,
-        trial_length_s=args.trial_seconds,
-        continuous=args.continuous,
-        output_dir=Path(args.output_dir) if args.output_dir else None
-    )
+    try:
+        runner = ContinuousExperimentRunner(
+            initial_paradigm=args.paradigm,
+            sim_speed=args.speed,
+            checkpoint_interval=args.checkpoint_interval,
+            trial_length_s=args.trial_seconds,
+            continuous=args.continuous,
+            output_dir=Path(args.output_dir) if args.output_dir else None,
+            backend=args.backend,
+            graph_dir=Path(args.graph_dir) if args.graph_dir else None,
+            test_synthetic_graph=args.test_synthetic_graph,
+            graph_step_ms=args.graph_step_ms,
+        )
+    except RuntimeError as exc:
+        # Missing/mismatching graph or an unusable backend: fail explicitly, no fallback.
+        print(f"[Daemon] Cannot start backend {args.backend!r}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        try:
+            pid_path.unlink()
+        except OSError:
+            pass
+        sys.exit(2)
+    ident = runner.identity()
+    print(f"[Daemon] Backend: {ident.get('backend')} | label: {ident.get('label')} | "
+          f"graph_sha256: {ident.get('graph_sha256')} | synthetic: {ident.get('synthetic')}", flush=True)
     runner.start()
 
     # Durable learning records: a poller thread that never touches the sim loop.
@@ -1248,6 +1500,11 @@ def run_daemon():
             "sim_speed": runner.sim_speed,
             "port": args.port,
             "public": stream_policy.public,
+            "backend": runner.backend,
+            "daemon_run_id": runner.run_id,
+            # Manifest of the run active at start; each switch starts a run whose
+            # identity is stamped on every trial line and telemetry summary.
+            "manifest": runner.manifest.to_dict() if runner.manifest is not None else None,
         })
         recorder_thread = RecorderThread(runner, recorder, summary_interval=args.summary_interval)
         recorder_thread.start()
