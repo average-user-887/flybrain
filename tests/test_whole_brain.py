@@ -431,36 +431,35 @@ class TestMushroomBodyIntegration:
         # PAM depresses avoidance MBONs → net valence shifts positive
         assert trained_valence != baseline_valence, "Valence should change after training"
 
-    def test_aversive_learning_triggers_mdn_retreat(self):
-        """Punishment paired with odor should eventually trigger MDN backward walking."""
+    def test_delayed_punishment_learns_aversive_cue(self):
+        """A forward-paired cue acquires negative valence in the bridge's MB.
+
+        Simultaneous sustained cue/shock onset is not a forward-conditioning
+        protocol for the timing-dependent rule. The old test relied on the KC
+        trace being advanced twice per bin. Use a cue lead and separated trials.
+        """
         bridge = ConnectomeBridge()
         bridge.reset(keep_memory=False)
 
-        # Training: pair odor with punishment (shock)
-        for _ in range(300):
-            bridge.step(
+        def tick(odor, damage=False):
+            return bridge.step(
                 fly_pos=np.array([0.0, 0.0]),
                 fly_heading=0.0, fly_speed=5.0, fly_yaw_rate=0.0,
-                odor_left=0.1, odor_right=0.1,
+                odor_left=odor, odor_right=odor,
                 wind_vector=np.array([5.0, 0.0]),
-                incurred_damage=True,
-                energy_level=0.7,
-                dt=0.02
-            )
+                incurred_damage=damage, energy_level=0.7, dt=0.02)
 
-        # Test: same odor without punishment - should now avoid
-        r = bridge.step(
-            fly_pos=np.array([0.0, 0.0]),
-            fly_heading=0.0, fly_speed=5.0, fly_yaw_rate=0.0,
-            odor_left=0.1, odor_right=0.1,
-            wind_vector=np.array([5.0, 0.0]),
-            incurred_damage=False,
-            energy_level=0.7,
-            dt=0.02
-        )
-        # MB valence should be negative or MDN should be active
-        assert r["mb_valence"] < 0.0 or r["mdn_rate"] > 0.0, \
-            "Aversive learning should produce negative valence or MDN activity"
+        for _ in range(6):
+            for _ in range(25):
+                tick(0.4)  # cue leads shock by 500 ms
+            for _ in range(25):
+                tick(0.4, True)
+            for _ in range(100):
+                tick(0.0)  # washout before the next pairing
+
+        bridge.mb_learning_enabled = False  # held-out readout cannot retrain
+        result = tick(0.4)
+        assert result["mb_valence"] < -0.05
 
     def test_mb_reset_clears_memory(self):
         """reset(keep_memory=False) should clear learned KC→MBON weights."""

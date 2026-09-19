@@ -1086,13 +1086,17 @@ class Arena:
                     temp = max(temp, 40.0)
 
                 # Odor representation
-                if 'odor_cs_plus' in stimuli and 'odor_cs_minus' in stimuli:
+                if 'odor_a' in stimuli:
+                    # Preserve physical cue identities even when reward contingencies
+                    # reverse, and keep left/right antenna samples separate from A/B.
+                    sensory = self._sample_paradigm_antennae(fly, stimuli)
+                elif 'odor_cs_plus' in stimuli and 'odor_cs_minus' in stimuli:
                     odor_l = stimuli['odor_cs_plus']
                     odor_r = stimuli['odor_cs_minus']
                     sensory = {
-                        'left_a': odor_l, 'right_a': odor_r,
-                        'mean_a': 0.5 * (odor_l + odor_r), 'diff_a': odor_l - odor_r,
-                        'left_b': 0.0, 'right_b': 0.0, 'mean_b': 0.0, 'diff_b': 0.0
+                        'left_a': odor_l, 'right_a': odor_l,
+                        'mean_a': odor_l, 'diff_a': 0.0,
+                        'left_b': odor_r, 'right_b': odor_r, 'mean_b': odor_r, 'diff_b': 0.0
                     }
                 elif 'odor_conc' in stimuli:
                     c = stimuli['odor_conc']
@@ -1100,10 +1104,6 @@ class Arena:
                         'left_a': c, 'right_a': c, 'mean_a': c, 'diff_a': 0.0,
                         'left_b': 0.0, 'right_b': 0.0, 'mean_b': 0.0, 'diff_b': 0.0
                     }
-                elif 'odor_a' in stimuli:
-                    # Paradigm-owned plume fields (multisensory arena): sample them at
-                    # both antennae so the bilateral difference can drive tropotaxis.
-                    sensory = self._sample_paradigm_antennae(fly, stimuli)
                 else:
                     sensory = self.sample_antennae(fly)
 
@@ -1125,13 +1125,13 @@ class Arena:
                 # Mushroom Body learning step (if modular)
                 if not fly.ablate_mb and hasattr(fly, 'circuit') and fly.circuit is not None:
                     dopamine_gain = fly.metabolic.get_dopamine_gain() if hasattr(fly, 'metabolic') else 1.0
-                    fly.circuit.step(
+                    fly.circuit.advance(
                         odor_a=sensory['mean_a'],
                         odor_b=sensory['mean_b'],
                         reward=reward * dopamine_gain,
                         punishment=punishment,
-                        dt_seconds=0.01 * dt,
-                        learning=True
+                        dt_seconds=dt,
+                        learning=getattr(fly, "learning_enabled", True)
                     )
 
                 # 5. Feed sampled stimuli into fly brain / connectome bridge
@@ -1313,13 +1313,13 @@ class Arena:
 
             # Step Mushroom Body circuit with modulated dopamine (unless ablated)
             if not fly.ablate_mb:
-                fly.circuit.step(
+                fly.circuit.advance(
                     odor_a=sensory['mean_a'],
                     odor_b=sensory['mean_b'],
                     reward=reward * dopamine_gain,
                     punishment=punishment,
-                    dt_seconds=0.01,
-                    learning=True
+                    dt_seconds=dt,
+                    learning=getattr(fly, "learning_enabled", True)
                 )
 
             # Compute steering and advance kinematics

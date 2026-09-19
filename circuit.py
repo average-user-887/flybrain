@@ -156,6 +156,16 @@ class MushroomBodyCircuit:
         net_valence = (mbon_approach - mbon_avoidance)
         return mbon_approach, mbon_avoidance, net_valence
 
+    def advance(self, odor_a, odor_b, reward=0.0, punishment=0.0,
+                dt_seconds=0.02, learning=True):
+        """Integrate elapsed seconds using the plasticity rule's <=10 ms bins."""
+        if not math.isfinite(dt_seconds) or not 0 < dt_seconds <= 1.0:
+            raise ValueError("dt_seconds must be finite and in (0, 1]")
+        bins = math.ceil(dt_seconds / 0.01)
+        for _ in range(bins):
+            result = self.step(odor_a, odor_b, reward, punishment, dt_seconds / bins, learning)
+        return result
+
     def step(
         self,
         odor_a: float,
@@ -175,9 +185,11 @@ class MushroomBodyCircuit:
         dan_ppl1_hz = np.array([np.clip(punishment, 0.0, 1.0) * 40.0])
 
         if learning:
+            # Each pathway integrates the same pre-bin KC trace once.
+            kc_trace_pam = self.y_kc.copy()
             # PAM dopamine depresses avoidance synapses (column 1)
             rule_advance(
-                self.y_kc,
+                kc_trace_pam,
                 self.y_dan_pam,
                 self.u[:, 1],
                 self.w[:, 1],
