@@ -635,6 +635,16 @@ class ScientificBioArena {
             const mouseY = e.clientY - rect.top;
             const worldPos = this.screenToWorld(mouseX, mouseY);
 
+            if (this.remoteDriven || this.awaitingDaemon) {
+                if (this.toolMode === 'select') return;
+                const packet=this.remotePacket, bridge=window.hud?.daemonBridge;
+                if (!packet || packet.paradigm!=='open-arena' || !bridge?.connected) return;
+                const off=daemonFrameOffset(packet);
+                bridge.sendCommand('place_stimulus',{type:this.toolMode,x:worldPos.x-off[0],y:worldPos.y-off[1]}).then(r=>{
+                    if(r?.status!=='ok') alert(r?.message||'Stimulus was not applied.');
+                });
+                return;
+            }
             if (this.toolMode === 'food') {
                 this.foodItems.push({ x: worldPos.x, y: worldPos.y, radius: 12.0, odorStrength: 1.0 });
             } else if (this.toolMode === 'alarm') {
@@ -2679,7 +2689,8 @@ class ScientificBioArena {
         }
         ctx.shadowBlur = 0;
 
-        const sa = this.worldToScreen(15.0, 50.0);
+        const reversed = this.remotePacket?.scene?.cs_plus_arm === 'arm_b';
+        const sa = this.worldToScreen(reversed ? 125.0 : 15.0, 50.0);
         const gradA = ctx.createRadialGradient(sa.x, sa.y, 2, sa.x, sa.y, 70);
         gradA.addColorStop(0, 'rgba(34, 197, 94, 0.5)');
         gradA.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
@@ -2691,7 +2702,7 @@ class ScientificBioArena {
         ctx.fillStyle = '#86efac';
         ctx.beginPath(); ctx.arc(sa.x - 2, sa.y - 2, 3, 0, 2 * Math.PI); ctx.fill();
 
-        const sb = this.worldToScreen(125.0, 50.0);
+        const sb = this.worldToScreen(reversed ? 15.0 : 125.0, 50.0);
         const gradB = ctx.createRadialGradient(sb.x, sb.y, 2, sb.x, sb.y, 70);
         gradB.addColorStop(0, 'rgba(244, 63, 94, 0.5)');
         gradB.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
@@ -2700,7 +2711,7 @@ class ScientificBioArena {
 
         ctx.strokeStyle = this.paradigmState.shockPulse > 0.1 ? '#fbbf24' : 'rgba(244, 63, 94, 0.35)';
         ctx.lineWidth = 1.0;
-        for (let gx = 82; gx < 128; gx += 4) {
+        for (let gx = reversed ? 12 : 82; gx < (reversed ? 58 : 128); gx += 4) {
             const sTop = this.worldToScreen(gx, 56.0);
             const sBot = this.worldToScreen(gx, 44.0);
             ctx.beginPath(); ctx.moveTo(sTop.x, sTop.y); ctx.lineTo(sBot.x, sBot.y); ctx.stroke();
@@ -2828,13 +2839,16 @@ class ScientificBioArena {
         ctx.beginPath(); ctx.arc(sCenter.x, sCenter.y, 25.0 * sCenter.scale, 0, 2 * Math.PI); ctx.stroke();
         ctx.setLineDash([]);
 
-        const s1 = this.worldToScreen(110.0, 60.0);
-        const s2 = this.worldToScreen(10.0, 60.0);
+        const stripes=this.remotePacket?.scene?.landmarks || [[110,60],[10,60]];
+        const s1 = this.worldToScreen(...stripes[0]);
+        const s2 = this.worldToScreen(...stripes[1]);
+        ctx.globalAlpha=this.remotePacket?.scene?.stripe_contrast === 0 ? 0 : 1;
         ctx.fillStyle = '#000000';
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
         ctx.fillRect(s1.x - 5, s1.y - 18, 10, 36); ctx.strokeRect(s1.x - 5, s1.y - 18, 10, 36);
         ctx.fillRect(s2.x - 5, s2.y - 18, 10, 36); ctx.strokeRect(s2.x - 5, s2.y - 18, 10, 36);
+        ctx.globalAlpha=1;
 
         const sf = this.worldToScreen(this.fly.x, this.fly.y);
         ctx.strokeStyle = '#fbbf24';
@@ -2853,7 +2867,7 @@ class ScientificBioArena {
         for (let q = 0; q < 4; q++) {
             const startAng = ((p.drumAngleDeg + q * 90) * Math.PI) / 180;
             const endAng = startAng + Math.PI / 2;
-            const isPunished = (q % 2 === 1);
+            const isPunished = (q % 2 === 1) !== !!this.remotePacket?.scene?.invert_sectors;
             ctx.strokeStyle = isPunished ? '#f43f5e' : '#22c55e';
             ctx.lineWidth = 6;
             ctx.beginPath(); ctx.arc(sc.x, sc.y, rDrum, startAng, endAng); ctx.stroke();
@@ -2939,7 +2953,7 @@ class ScientificBioArena {
         for (let i = 0; i < numStripes; i++) {
             const a1 = ((p.drumAngleDeg + i * (360 / numStripes)) * Math.PI) / 180;
             const a2 = a1 + (Math.PI / numStripes);
-            ctx.fillStyle = i % 2 === 0 ? '#020617' : '#e2e8f0';
+            ctx.fillStyle = p.contrast === 0 ? '#64748b' : (i % 2 === 0 ? '#020617' : '#e2e8f0');
             ctx.beginPath(); ctx.moveTo(sc.x, sc.y); ctx.arc(sc.x, sc.y, 85, a1, a2); ctx.fill();
         }
 
@@ -3673,9 +3687,18 @@ class DaemonBridgeClient {
                     optomotor_gain:'gain',mean_hs_firing_rate:'hsFiringRate',gap_width_mm:'gapWidthMm',
                     decision_outcome:'decisionOutcome',crossing_success:'crossingSuccess',total_sleep_minutes:'totalSleepMin',
                     total_beam_crossings:'beamCrossings',courtship_index:'courtshipIndex',rejection_kicks_count:'rejectionKicks',
-                    time_to_goal_ms:'timeToGoalMs',path_tortuosity:'pathTortuosity'};
+                    time_to_goal_ms:'timeToGoalMs',path_tortuosity:'pathTortuosity',
+                    mean_stripe_fixation:'meanFixation',stripe_crossings:'stripeCrossings',refuge_reached:'refugeReached',
+                    goal_reached:'goalReached',total_distance_mm:'pathLength',probing_duration_ms:'probingDurationMs',
+                    surge_steps:'surgeSteps',cast_steps:'castSteps',upwind_progress_mm:'upwindProgress',mean_retinal_slip:'effectiveSlip'};
                 for (const [key,target] of Object.entries(fields)) if (m[key] !== undefined) state[target]=m[key];
                 state.behavioralState=pkt.fly.state;
+                if (pkt.scene?.nozzle_pos) state.nozzlePos=pkt.scene.nozzle_pos;
+                if (pkt.scene?.filament_sigma!==undefined) state.filamentSigma=pkt.scene.filament_sigma;
+                if (pkt.scene?.cs_plus_arm) state.csPlusArm=pkt.scene.cs_plus_arm;
+                if (stimulus.drum_velocity_deg_s!==undefined) state.drumVelocityDegS=stimulus.drum_velocity_deg_s;
+                if (stimulus.contrast!==undefined) state.contrast=stimulus.contrast;
+                if (assay.wing_extension_angle_deg!==undefined) state.wingAngleDeg=assay.wing_extension_angle_deg;
                 if (stimulus.temperature !== undefined) state.temp=stimulus.temperature;
                 if (stimulus.laser_active !== undefined) state.laserActive=stimulus.laser_active;
                 if (pkt.scene?.drum_angle_deg !== undefined) state.drumAngleDeg=pkt.scene.drum_angle_deg;
@@ -3796,7 +3819,9 @@ class DaemonBridgeClient {
                 return null;
             }
             if (res.ok) {
-                return await res.json();
+                const data=await res.json();
+                if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
+                return data;
             }
         } catch (e) {
             console.warn('[DaemonBridge] sendCommand error:', e);
@@ -4786,6 +4811,12 @@ class ScientificHUD {
         const panel = document.getElementById('assayToolsPanel');
         if (!panel) return;
 
+        this.liveAssayMounted = !!(this.arena.remoteDriven && this.arena.remotePacket?.live_assay);
+        if (this.liveAssayMounted) {
+            this.liveAssayParadigm = this.arena.remotePacket.paradigm;
+            window.mountLiveAssay(this, panel);
+            return;
+        }
         const spec = ASSAY_CONFIGS[pid] || ASSAY_CONFIGS['open-arena'];
         panel.innerHTML = `
             <!-- Assay Header Card -->
@@ -4905,6 +4936,7 @@ class ScientificHUD {
     }
 
     updateAssayTools() {
+        if ((!this.liveAssayMounted || this.liveAssayParadigm !== this.arena.remotePacket?.paradigm) && this.arena.remoteDriven && this.arena.remotePacket?.live_assay) this.renderAssayTools(this.arena.activeParadigmId);
         if (this.activeAssayUpdater) {
             this.activeAssayUpdater();
         }
@@ -5088,6 +5120,14 @@ class ScientificHUD {
     }
 
     update() {
+        if (this.arena.remoteDriven && this.arena.remotePacket?.live_assay) {
+            const t=this.arena.remotePacket;
+            const watch=document.getElementById('guideWhatToWatch');
+            if(watch)watch.textContent=t.live_assay.limitation+' Use Assay Tools & Levers for connected controls and measured motor responses.';
+            const open=t.paradigm==='open-arena';
+            ['toolFood','toolAlarm','toolWind','toolPredator'].forEach(id=>{const e=document.getElementById(id);if(e){e.disabled=!open||id==='toolPredator'||this.daemonBridge.readOnly;e.title=e.disabled?'Not available in this live assay':'Place a real stimulus in the daemon arena';}});
+            document.querySelectorAll('#paramControlsBox input,#limbDeckPanel input,#limbDeckPanel button,[id^="btnLesion"]').forEach(e=>{e.disabled=true;e.title='Standalone preview control. Use the connected controls in Assay Tools & Levers.';});
+        }
         const simTimeEl = document.getElementById('statSimTime');
         if (simTimeEl) simTimeEl.textContent = this.arena.simTime.toFixed(2) + 's';
         const stepEl = document.getElementById('statStep');

@@ -65,7 +65,7 @@ class SurgeCastEngine:
         self.cast_direction = 1.0
         self.cast_step_counter = 0
 
-    def step(self, c_left: float, c_right: float, wind_angle_rad: float = 0.0, is_feeding: bool = False, dt: float = None):
+    def step(self, c_left: float, c_right: float, wind_angle_rad: float = 0.0, is_feeding: bool = False, dt: float = None, stop_rate_scale: float = 1.0):
         """
         c_left, c_right: Odor concentration at antennae
         wind_angle_rad: Wind heading relative to fly (0 = into wind/upwind, pi = downwind)
@@ -121,7 +121,7 @@ class SurgeCastEngine:
             self.accumulated_evidence *= np.exp(-self.dt / 1.8)
             if self.locomotion_state == 1: # WALKING
                 r_S = 0.78 - (0.78 - 0.17) * np.exp(-self.time_since_last_encounter / 0.25)
-                if self.rng.random() < (1.0 - np.exp(-r_S * self.dt)):
+                if self.rng.random() < (1.0 - np.exp(-r_S * max(0.0, stop_rate_scale) * self.dt)):
                     self.locomotion_state = 0
             else: # STOPPED
                 r_W = 0.2 + 0.8 * (self.accumulated_evidence / (1.0 + self.accumulated_evidence))
@@ -143,7 +143,7 @@ class SurgeCastEngine:
         delta_c = (c_left - c_right) / (c_left + c_right + 1e-4)
         
         if self.behavioral_state == 'SURGE':
-            d_upwind = -np.sin(wind_angle_rad)
+            d_upwind = np.sin(wind_angle_rad)
             omega = 0.25 * d_upwind + 0.35 * delta_c + self.rng.normal(0, 0.04)
         elif self.behavioral_state == 'CAST':
             self.cast_step_counter += 1

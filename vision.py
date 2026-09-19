@@ -211,7 +211,8 @@ class CompoundEyeVision:
         target_positions: Optional[List[np.ndarray]] = None,
         dt: float = 0.02,
         efference_copy_active: bool = False,
-        external_yaw_rad_s: float = 0.0
+        external_yaw_rad_s: float = 0.0,
+        contrast: float = 1.0
     ) -> Dict:
         """
         Update optic flow, evaluate visual looming threats, and compute LC features.
@@ -228,7 +229,7 @@ class CompoundEyeVision:
         # 2. Retinal Optic Flow Calculation
         translatory = (fly_speed * np.sin(self.azimuths)) / self.arena_radius
         rotatory = external_yaw_rad_s - fly_yaw_rate
-        self.optic_flow = translatory + rotatory
+        self.optic_flow = (translatory + rotatory) * max(0.0, min(1.0, contrast))
 
         # Efference copy shunting during voluntary saccades
         shunt = 0.15 if efference_copy_active else 1.0
@@ -236,7 +237,10 @@ class CompoundEyeVision:
         # LPTC Horizontal System (HS) responses
         self.hs_right = float(np.mean(self.optic_flow[self.right_mask])) * shunt
         self.hs_left = float(-np.mean(self.optic_flow[self.left_mask])) * shunt
-        self.delta_hs = float(self.hs_right - self.hs_left)
+        # A sensory time constant prevents one-tick delayed negative feedback
+        # from flipping the motor command at the integration frequency.
+        target_delta = float(self.hs_right - self.hs_left)
+        self.delta_hs += (target_delta - self.delta_hs) * (1.0 - math.exp(-dt / .08))
         self.sum_hs = float(self.hs_right + self.hs_left)
 
         # 3. LC4 / LPLC2 Looming Threat Detection

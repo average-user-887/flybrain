@@ -133,8 +133,8 @@ class JohnstonsOrgan:
         allocentric_wind = math.atan2(v_rel_y, v_rel_x)
         # Egocentric angle: 0 = airflow hitting fly head-on (from front)
         self.rel_wind_angle = math.atan2(
-            math.sin(allocentric_wind - fly_heading),
-            math.cos(allocentric_wind - fly_heading)
+            math.sin(allocentric_wind + math.pi - fly_heading),
+            math.cos(allocentric_wind + math.pi - fly_heading)
         )
 
         # Mechanical deflection on angled left/right aristae (outward vs inward)

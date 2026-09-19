@@ -38,6 +38,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import numpy as np
+import assay_controls
 
 # Resolve project root dynamically without hardcoded machine paths
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -268,7 +269,7 @@ class ContinuousExperimentRunner:
         """Constructs standardized JSON telemetry packet for browser streaming."""
         fly = self.arena.fly
         stim = step_res.get("stimuli", {})
-        if self.arena.paradigm is None:
+        if self.arena.paradigm is None and not stim:
             sensed = self.arena.sample_antennae(fly)
             stim = {**stim, "odor_a": sensed['mean_a'], "odor_b": sensed['mean_b']}
         p_metrics = step_res.get("paradigm_metrics", {})
@@ -314,13 +315,18 @@ class ContinuousExperimentRunner:
             "paradigm_title": self.active_paradigm_title,
             "sim_speed": self.sim_speed,
             "stimuli": stim,
+            "live_assay": assay_controls.describe(self.arena),
+            "motor_drives": getattr(fly, "sensorimotor_drives", {}),
             "assay_state": step_res.get("paradigm_telemetry", {}),
             "scene": {
+                "landmarks": [lm.pos for lm in getattr(self.arena.paradigm,"landmarks",[]) if lm.pos is not None],
+                "stripe_contrast": getattr(self.arena.paradigm,"stripe_contrast",1.0),
+                "invert_sectors": getattr(self.arena.paradigm,"invert_sectors",False),
                 "food": [p.to_tuple() for p in self.arena.food_positions],
                 "hazards": [p.to_tuple() for p in self.arena.hazard_positions],
                 "predators": [[p.pos.x, p.pos.y, p.get_velocity()[0], p.get_velocity()[1]] for p in self.arena.predators],
                 **{name: getattr(self.arena.paradigm, name) for name in
-                   ('female_pos', 'female_type', 'refuge_pos', 'refuge_radius', 'drum_angle_deg')
+                   ('female_pos', 'female_type', 'refuge_pos', 'refuge_radius', 'drum_angle_deg', 'nozzle_pos', 'filament_sigma', 'cs_plus_arm')
                    if hasattr(self.arena.paradigm, name)},
             },
             "trial": self.current_trial,
@@ -340,8 +346,8 @@ class ContinuousExperimentRunner:
                 "odor_a": round(float(stim.get("odor_a", stim.get("odor_conc", 0.0))), 3),
                 "odor_b": round(float(stim.get("odor_b", 0.0)), 3),
                 "cva": round(float(stim.get("cva_concentration", 0.0)), 3),
-                "wind_x": round(float(self.arena.wind[0]), 2),
-                "wind_y": round(float(self.arena.wind[1]), 2)
+                "wind_x": round(float(stim.get("wind", self.arena.wind)[0]), 2),
+                "wind_y": round(float(stim.get("wind", self.arena.wind)[1]), 2)
             },
             "descending": {
                 "dna02_yaw": round(float(getattr(fly, "angular_velocity", 0.0)), 3),
@@ -457,30 +463,44 @@ class ContinuousExperimentRunner:
                 self.sim_speed = max(0.1, min(100.0, new_speed))
                 return {"status": "ok", "sim_speed": self.sim_speed}
 
-            elif action == "inject_stimulus":
-                stim_type = cmd.get("type") or p.get("type", "")
-                val = cmd.get("value") if cmd.get("value") is not None else p.get("value", 1.0)
-                if stim_type == "optogenetic_dna02":
-                    self.arena.fly.angular_velocity += float(val)
-                elif stim_type == "optogenetic_dnp09":
-                    self.arena.fly.speed = float(val) * 20.0
-                elif stim_type == "gf_looming":
-                    self.arena.fly.behavioral_state = "ESCAPE"
-                    self.arena.fly.speed = 35.0
-                elif stim_type == "thermal_flash":
-                    if hasattr(self.arena.paradigm, "state"):
-                        self.arena.paradigm.state["temp"] = float(val)
-                elif stim_type == "odor_puff":
-                    if hasattr(self.arena, "odor_a"):
-                        self.arena.odor_a.add_source(self.arena.fly.pos.x, self.arena.fly.pos.y, float(val))
-                return {"status": "ok", "injected": stim_type}
+            elif action in ('set_param', 'assay_action'):
+                name = cmd.get('name', p.get('name', ''))
+                try:
+                    if action == 'set_param':
+                        value = assay_controls.set_parameter(self.arena, name, cmd.get('value', p.get('value')))
+                    else:
+                        assay_controls.act(self.arena, name)
+                        value = None
+                except (ValueError, TypeError) as exc:
+                    return {'status':'error','message':str(exc)}
+                self.active_brain.log('intervention', action=action, name=name, value=value,
+                                      run_id=self.run_id, segment_id=self.segment_id, sim_time_s=self.total_steps*self.dt)
+                return {'status':'ok','applied':name,'live_assay':assay_controls.describe(self.arena)}
 
-            elif action == "set_param":
-                name = cmd.get("name") or p.get("name", "")
-                value = cmd.get("value") if cmd.get("value") is not None else p.get("value")
-                if hasattr(self.arena.paradigm, "state") and name in self.arena.paradigm.state:
-                    self.arena.paradigm.state[name] = value
-                return {"status": "ok", "param": name, "value": value}
+            elif action == 'place_stimulus':
+                if self.arena.paradigm is not None:
+                    return {'status':'error','message':'Spatial editing is only available in the open arena'}
+                from arena import Position
+                kind = cmd.get('type', p.get('type'))
+                try:
+                    x,y = float(cmd.get('x',p.get('x'))),float(cmd.get('y',p.get('y')))
+                    if not all(math.isfinite(v) for v in (x,y)) or not (2<=x<=self.arena.width-2 and 2<=y<=self.arena.height-2):
+                        raise ValueError('Place the stimulus inside the arena')
+                    if kind=='food':
+                        self.arena.food_positions.append(Position(x,y)); self.arena.odor_a.add_source(x,y,1.0)
+                    elif kind=='alarm':
+                        self.arena.hazard_positions.append(Position(x,y)); self.arena.odor_b.add_source(x,y,1.0)
+                    elif kind=='wind':
+                        angle=math.atan2(y-self.arena.height/2, x-self.arena.width/2)
+                        self.arena.wind=(-15*math.cos(angle),-15*math.sin(angle))
+                    else: raise ValueError('This spatial stimulus is not supported by the live model')
+                except (ValueError,TypeError) as exc:
+                    return {'status':'error','message':str(exc)}
+                self.active_brain.log('spatial_intervention', stimulus=kind,x=x,y=y,run_id=self.run_id,step=self.total_steps)
+                return {'status':'ok','applied':kind}
+
+            elif action == 'inject_stimulus':
+                return {'status':'error','message':'This preview-only injection is not connected. Use the supported live assay controls.'}
 
             elif action == "reset_trial":
                 advance = cmd.get("advance", p.get("advance", True))

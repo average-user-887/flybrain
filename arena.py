@@ -15,6 +15,7 @@ import math
 import random
 from typing import List, Tuple, Dict, Optional, Union, Any
 import numpy as np
+from assay_response import respond as assay_response
 
 try:
     from circuit import MushroomBodyCircuit
@@ -668,6 +669,8 @@ class Arena:
         f.speed = 1.2
         f.angular_velocity = 0.0
         f.assay_escape_remaining = 0.0
+        f.feeding_remaining = 0.0
+        f.food_contact_active = False
         f.alive = True
 
     def sense_boundaries(self, x: float, y: float, radius: float, perception: Optional[float] = None) -> List[Tuple[float, float, float]]:
@@ -736,6 +739,10 @@ class Arena:
         if abs(cross) > 0.1:
             fly.wall_turn_dir = 1.0 if cross > 0.0 else -1.0
         avoid = fly.wall_turn_dir * self.WALL_AVOID_YAW_RAD_S * proximity * approach
+        # At contact, sensory attraction must not cancel the avoidance torque
+        # and hold the body against a wall. Resume taxis once facing away.
+        if proximity > .9:
+            dheading = 0.0
         # Rate limit; with legacy whole-second ticks never rotate more than a quarter turn per step
         limit = min(self.WALL_AVOID_YAW_RAD_S, (math.pi / 2.0) / max(float(dt), 1e-6))
         return float(max(-limit, min(limit, dheading + avoid)))
@@ -776,18 +783,16 @@ class Arena:
             except TypeError:
                 return self.paradigm.sample_stimuli(pos.x, pos.y, fly.heading)
 
-        try:
-            sl, sr = at(left_pos), at(right_pos)
-            left_a, right_a = float(sl.get('odor_a', 0.0)), float(sr.get('odor_a', 0.0))
-            left_b, right_b = float(sl.get('odor_b', 0.0)), float(sr.get('odor_b', 0.0))
-        except Exception:
-            left_a = right_a = float(stimuli.get('odor_a', 0.0))
-            left_b = right_b = float(stimuli.get('odor_b', 0.0))
+        sl, sr = at(left_pos), at(right_pos)
+        left_a, right_a = float(sl.get('odor_a', sl.get('odor_conc', 0.0))), float(sr.get('odor_a', sr.get('odor_conc', 0.0)))
+        left_b, right_b = float(sl.get('odor_b', 0.0)), float(sr.get('odor_b', 0.0))
         return {
             'left_a': left_a, 'right_a': right_a,
             'mean_a': 0.5 * (left_a + right_a), 'diff_a': left_a - right_a,
             'left_b': left_b, 'right_b': right_b,
-            'mean_b': 0.5 * (left_b + right_b), 'diff_b': left_b - right_b
+            'mean_b': 0.5 * (left_b + right_b), 'diff_b': left_b - right_b,
+            'temperature_left': float(sl.get('temperature', 25.0)),
+            'temperature_right': float(sr.get('temperature', 25.0))
         }
 
     def sample_antennae(self, fly: FlyState = None) -> Dict[str, float]:
@@ -873,13 +878,6 @@ class Arena:
             goal_angle = float(bridge_out.get('wpn_wind_heading', f.heading))
             return dheading, new_speed, state, compass_heading, goal_angle
 
-        # Thermal stress in modular brain: MDN-like backward walking
-        if temperature > 35.0:
-            state = 'REVERSE'
-            new_speed = -0.5
-            dheading = float(np.clip(self.rng.uniform(-0.25, 0.25), -0.45, 0.45))
-            return dheading, new_speed, state, float(f.heading), float(f.heading)
-
         circuit = f.circuit
         surge_cast = f.surge_cast
         cx = f.cx
@@ -920,6 +918,7 @@ class Arena:
             predator_positions=pred_pos_list,
             predator_velocities=pred_vel_list,
             external_yaw_rad_s=math.radians(float(kwargs.get("drum_velocity_deg_s", 0.0))),
+            contrast=float(kwargs.get("visual_contrast", 1.0)),
             dt=dt
         )
         if f.ablate_lc4:
@@ -930,11 +929,17 @@ class Arena:
             c_left=sensory['left_a'],
             c_right=sensory['right_a'],
             wind_angle_rad=wind_relative,
-            is_feeding=is_feeding, dt=dt
+            is_feeding=is_feeding, dt=dt, stop_rate_scale=metabolic.get_stop_suppression()
         )
 
         # Apply metabolic hunger modulation
         v_surge *= metabolic.get_surge_multiplier()
+
+        # In still air, reduce approach speed in concentrated attractive odor.
+        # Without this local braking, proportional taxis creates a permanent orbit
+        # around a point source as its bilateral gradient vanishes near the peak.
+        if np.linalg.norm(w_vec) < 1 and sensory['mean_a'] > .5 and valence_a >= 0:
+            v_surge *= max(.08, min(1.0, (1.0 - sensory['mean_a']) / .5))
 
         # 5. Step Central Complex Engine
         if f.ablate_cx:
@@ -951,8 +956,13 @@ class Arena:
             )
 
         # 6. Spatial Chemotaxis (Tropotaxis)
-        steering_gain = 3.5
-        chemotaxis = steering_gain * (valence_a * sensory['diff_a'] + valence_b * sensory['diff_b'])
+        steering_gain = 12.0
+        # Normalize bilateral differences by local concentration; a dilute plume
+        # must retain a directional signal. Innate attraction/aversion is explicit
+        # and learned MB values can strengthen or reverse it (heuristic gains).
+        chemotaxis = steering_gain * (
+            (.25 + valence_a) * sensory['diff_a'] / (sensory['mean_a'] + .05)
+            + (-.25 + valence_b) * sensory['diff_b'] / (sensory['mean_b'] + .05))
 
         # 7. Sensorimotor Integration & Escape Override
         if vis_data['escape_active']:
@@ -983,7 +993,11 @@ class Arena:
 
         # Add optomotor yaw stabilization from vision
         total_turn += vision.get_optomotor_yaw_bias()
-        dheading = float(np.clip(total_turn, -0.45, 0.45))
+        dheading = float(np.clip(total_turn, -2.5, 2.5))
+
+        dheading, new_speed, state = assay_response(
+            f, kwargs.get("assay_stimuli", {"temperature": temperature}),
+            dheading, new_speed, state, dt)
 
         # 8. CPG Tripod Gait Stepping Drive
         dn_left = max(0.0, 1.0 - dheading * 1.5)
@@ -1020,9 +1034,9 @@ class Arena:
         if into > 0.0:
             # Keep only the tangential share of the commanded speed (no bounce)
             fly.speed = float(fly.speed) * math.sqrt(max(0.0, 1.0 - into * into))
-            cross = hx * ny - hy * nx
-            if abs(cross) > 0.1:
-                fly.wall_turn_dir = 1.0 if cross > 0.0 else -1.0
+            # Retain the direction selected from all nearby boundaries. The
+            # nearest face alternates at a corner and otherwise reverses this
+            # torque every tick, trapping the fly against the same corner.
             turn = min(self.WALL_AVOID_YAW_RAD_S * dt, math.pi / 2.0)
             fly.heading = (fly.heading + fly.wall_turn_dir * turn) % (2.0 * math.pi)
         return True
@@ -1088,27 +1102,14 @@ class Arena:
                     punishment = max(punishment, 1.0)
                     temp = max(temp, 40.0)
 
-                # Odor representation
-                if 'odor_a' in stimuli:
-                    # Preserve physical cue identities even when reward contingencies
-                    # reverse, and keep left/right antenna samples separate from A/B.
-                    sensory = self._sample_paradigm_antennae(fly, stimuli)
-                elif 'odor_cs_plus' in stimuli and 'odor_cs_minus' in stimuli:
-                    odor_l = stimuli['odor_cs_plus']
-                    odor_r = stimuli['odor_cs_minus']
-                    sensory = {
-                        'left_a': odor_l, 'right_a': odor_l,
-                        'mean_a': odor_l, 'diff_a': 0.0,
-                        'left_b': odor_r, 'right_b': odor_r, 'mean_b': odor_r, 'diff_b': 0.0
-                    }
-                elif 'odor_conc' in stimuli:
-                    c = stimuli['odor_conc']
-                    sensory = {
-                        'left_a': c, 'right_a': c, 'mean_a': c, 'diff_a': 0.0,
-                        'left_b': 0.0, 'right_b': 0.0, 'mean_b': 0.0, 'diff_b': 0.0
-                    }
-                else:
-                    sensory = self.sample_antennae(fly)
+                # Sample physical fields at both antennae, including odor_conc assays.
+                sensory = self._sample_paradigm_antennae(fly, stimuli)
+                stimuli.update({k:sensory[k] for k in ('temperature_left','temperature_right')})
+                stimuli['odor_a'], stimuli['odor_b'] = sensory['mean_a'], sensory['mean_b']
+                stimuli['wind'] = list(wind_vec)
+                if self.paradigm_key(self.paradigm) == 'gap_crossing':
+                    stimuli.update({k:paradigm_res.get(k) for k in ('decision_outcome','probing_duration_ms')})
+                fly.sensory_input = dict(sensory)
 
                 landmarks = stimuli.get('landmark_bearings', stimuli.get('stripe_bearings', getattr(self.paradigm, 'landmarks', None)))
                 cva_odor = float(stimuli.get('cva_concentration', 0.0))
@@ -1116,11 +1117,19 @@ class Arena:
                 bitter_phero = 1.0 if (stimuli.get('female_type') == 'mated' and stimuli.get('inter_fly_distance_mm', 999.0) < 2.5) else 0.0
                 is_saccade = stimuli.get('is_saccade', None)
 
-                # Food ingestion / metabolic feed
-                if reward > 0.0:
+                # Reinforcement is not ingestion. Relief, social cues and successful
+                # crossings must never masquerade as eating or produce infinite FEED.
+                fly.metabolic.step(dt=dt, speed=abs(fly.speed))
+                contact = bool(stimuli.get('food_contact', False))
+                if contact and not getattr(fly, 'food_contact_active', False) and not fly.metabolic.is_satiated:
+                    fly.feeding_remaining = 1.0
                     fly.food_collected += 1
                     self.food_collected += 1
-                    fly.metabolic.feed(0.35 * reward)
+                fly.food_contact_active = contact
+                feeding = contact and getattr(fly, 'feeding_remaining', 0) > 0
+                if feeding:
+                    fly.metabolic.feed(.35 * dt)
+                fly.feeding_remaining = max(0.0, getattr(fly, 'feeding_remaining', 0) - dt)
 
                 if punishment > 0.0:
                     self.hazard_encounters += 1
@@ -1140,7 +1149,7 @@ class Arena:
                 # 5. Feed sampled stimuli into fly brain / connectome bridge
                 dheading, new_speed, state, compass_h, goal_a = self.compute_steering(
                     sensory=sensory,
-                    is_feeding=(reward > 0.0),
+                    is_feeding=feeding,
                     fly=fly,
                     temperature=temp,
                     wind_vector=wind_vec,
@@ -1150,7 +1159,9 @@ class Arena:
                     female_aphrodisiac=aphrodisiac,
                     incurred_damage=(punishment > 0.0),
                     is_saccade=is_saccade, dt=dt,
-                    drum_velocity_deg_s=stimuli.get("drum_velocity_deg_s", 0.0)
+                    drum_velocity_deg_s=stimuli.get("drum_velocity_deg_s", 0.0),
+                    visual_contrast=stimuli.get("contrast", 1.0),
+                    assay_stimuli=stimuli
                 )
 
                 # The assay's expanding disk is an actual visual input, not merely
@@ -1229,7 +1240,7 @@ class Arena:
                                     getattr(fly.mechanosensory, 'deflect_right', 0.0) + 0.35
                                 )
 
-            self.total_distance += self.fly.speed * dt
+            self.total_distance += abs(self.fly.speed) * dt
             metrics = self.paradigm.get_metrics()
 
             return {
@@ -1279,6 +1290,7 @@ class Arena:
                 continue
 
             sensory = self.sample_antennae(fly)
+            fly.sensory_input = dict(sensory)
 
             # Check interactions with Food and Hazards
             reward = 0.0
@@ -1311,7 +1323,7 @@ class Arena:
                     break
 
             # Advance metabolic hunger
-            fly.metabolic.step(dt=0.01 * dt, speed=fly.speed)
+            fly.metabolic.step(dt=dt, speed=abs(fly.speed))
 
             # Modulate dopamine learning rate by hunger
             dopamine_gain = fly.metabolic.get_dopamine_gain()
@@ -1372,6 +1384,8 @@ class Arena:
             'fly_heading': self.fly.heading,
             'fly_speed': self.fly.speed,
             'state': self.fly.behavioral_state,
+            'stimuli': {'odor_a': sensory['mean_a'], 'odor_b': sensory['mean_b'], 'wind': self.wind},
+            'reward': reward, 'punishment': punishment,
             'satiety': self.fly.metabolic.satiety,
             'food_collected': self.food_collected,
             'hazard_encounters': self.hazard_encounters,
