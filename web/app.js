@@ -3713,6 +3713,14 @@ class DaemonBridgeClient {
                     surge_steps:'surgeSteps',cast_steps:'castSteps',upwind_progress_mm:'upwindProgress',mean_retinal_slip:'effectiveSlip'};
                 for (const [key,target] of Object.entries(fields)) if (m[key] !== undefined) state[target]=m[key];
                 state.behavioralState=pkt.fly.state;
+                if(activeParadigm==='y-maze' && typeof m.choice_sequence==='string') {
+                    state.armCounts=['A','B','C'].map(letter=>Array.from(m.choice_sequence).filter(v=>v===letter).length);
+                }
+                if(activeParadigm==='t-maze') {
+                    const reversed=pkt.scene?.cs_plus_arm==='arm_b';
+                    state.choiceCounts={arm_a:reversed?m.cs_minus_choices:m.cs_plus_choices,arm_b:reversed?m.cs_plus_choices:m.cs_minus_choices};
+                    state.shockPulse=assay.punishment||0;
+                }
                 if (pkt.scene?.nozzle_pos) state.nozzlePos=pkt.scene.nozzle_pos;
                 if (pkt.scene?.filament_sigma!==undefined) state.filamentSigma=pkt.scene.filament_sigma;
                 if (pkt.scene?.cs_plus_arm) state.csPlusArm=pkt.scene.cs_plus_arm;
