@@ -32,19 +32,24 @@
             background: var(--bg-base);
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            overflow: hidden;
+            overflow: hidden auto;
             user-select: none;
             height: 100vh;
+            box-sizing: border-box;
         }
 
-        /* 3-Column Modern Dashboard Layout */
+        /* 3-Column Modern Dashboard Layout.
+           Below ~1320px the fixed side columns would squeeze the arena column to nothing
+           (navbar and oscilloscope row overlap), so the page scrolls horizontally instead. */
         .instrument-container {
             max-width: 1920px;
+            min-width: 1320px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 310px 1fr 430px;
+            grid-template-columns: 310px minmax(560px, 1fr) 430px;
             gap: 10px;
             height: calc(100vh - 20px);
+            min-height: 640px;
         }
 
         /* Common Panel Styling */
