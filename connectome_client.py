@@ -1,7 +1,7 @@
 """
 Drosophila Connectome RPC Co-Simulation Client
 ==============================================
-Provides high-throughput HTTP/JSON communication with the remote Ryzen
+Provides high-throughput HTTP/JSON communication with the remote
 166,700-neuron MaleCNS v1.0 spiking engine (brainlab/cosim_server.py).
 
 Features:
@@ -10,6 +10,7 @@ Features:
 - Batch packet transmission (20 sub-steps per 2.0 ms physics tick).
 """
 
+import os
 import json
 import time
 import urllib.request
@@ -21,12 +22,12 @@ import numpy as np
 class ConnectomeClient:
     def __init__(
         self,
-        host: str = "192.168.194.227",
+        host: Optional[str] = None,
         port: int = 8768,
         timeout: float = 0.20,           # 200 ms timeout per step
         fallback_enabled: bool = True
     ):
-        self.host = host
+        self.host = host or os.environ.get("NEUROFLY_CONNECTOME_HOST", "127.0.0.1")
         self.port = port
         self.base_url = f"http://{host}:{port}"
         self.timeout = timeout
@@ -39,7 +40,7 @@ class ConnectomeClient:
         self.check_health()
 
     def check_health(self) -> bool:
-        """Ping the remote Ryzen co-simulation server."""
+        """Ping the remote co-simulation server."""
         url = f"{self.base_url}/status"
         try:
             req = urllib.request.Request(url, method="GET")
@@ -72,7 +73,7 @@ class ConnectomeClient:
         duration_ms: float = 2.0
     ) -> Optional[Dict[str, Any]]:
         """
-        Transmits sensory drive vector to the remote Ryzen connectome and returns descending neuron activity.
+        Transmits sensory drive vector to the remote connectome and returns descending neuron activity.
         Returns None if remote server fails, prompting client to use local surrogate.
         """
         if not self.is_connected and not self.check_health():

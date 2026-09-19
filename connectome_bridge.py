@@ -25,7 +25,7 @@ Connects continuous multi-agent arena physics with whole-brain connectomic circu
    - Campaniform Sensilla ground force feedback enforcing Cruse's Walknet Rule 1 (stance maintenance under load).
 5. Dual-Mode Co-Simulation:
    - In-process biophysical surrogate (default, < 1 ms / step).
-   - Remote RPC client connecting to Ryzen workstation (166,700 neurons, 25.58M synapses).
+   - Remote RPC client connecting to a brainlab co-simulation server (full connectome graph).
 """
 
 import math
@@ -60,7 +60,7 @@ class ConnectomeBridge:
     def __init__(
         self,
         mode: str = "surrogate",          # "surrogate" or "rpc"
-        rpc_host: str = "192.168.194.227",
+        rpc_host: Optional[str] = None,
         rpc_port: int = 8768,
         num_ommatidia: int = 72,
         arena_radius: float = 200.0,
