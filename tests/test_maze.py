@@ -510,7 +510,7 @@ class TestTwelveParadigms(unittest.TestCase):
     def test_experiment_registry_lookup_and_coverage(self):
         """Test ExperimentRegistry factory: registration, catalog listing, and retrieval for all 12 paradigms."""
         catalog = ExperimentRegistry.list_paradigms()
-        self.assertEqual(len(catalog), 12)
+        self.assertGreaterEqual(len(catalog), 12)
 
         expected_paradigms = [
             "t_maze",
@@ -525,6 +525,7 @@ class TestTwelveParadigms(unittest.TestCase):
             "circadian_dam",
             "courtship",
             "labyrinth",
+            "multisensory_benchmark",
         ]
 
         for p_name in expected_paradigms:

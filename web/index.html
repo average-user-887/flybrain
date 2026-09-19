@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project NeuroFly (v1.0 Alpha) — Whole-Brain Drosophila Simulation & Neuroethology Instrument</title>
+    <title>Project NeuroFly (v1.0 Release) — Whole-Brain Drosophila Simulation & Sensorimotor Benchmark</title>
     <style>
         :root {
             --bg-base: #060913;
@@ -665,6 +665,118 @@
             border-color: rgba(56, 189, 248, 0.4);
             color: #93c5fd;
         }
+
+        /* Deck Tab Switcher */
+        .deck-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            padding: 4px 6px;
+            background: rgba(15, 23, 42, 0.98);
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .deck-tab-btn {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--border-dim);
+            border-radius: 5px;
+            padding: 5px 8px;
+            color: var(--text-dim);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .deck-tab-btn:hover {
+            color: #fff;
+            background: rgba(51, 65, 85, 0.9);
+        }
+
+        .deck-tab-btn.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: var(--border-bright);
+            color: var(--cyan-glow);
+        }
+
+        .limb-deck-panel {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px;
+            overflow-y: auto;
+        }
+
+        .scorecard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 10px;
+        }
+
+        .score-card {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 6px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .score-val {
+            font-size: 13px;
+            font-weight: 800;
+            font-family: monospace;
+            color: #38bdf8;
+        }
+
+        .stim-btn-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+        }
+
+        .stim-btn {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 4px;
+            padding: 5px;
+            color: #fbbf24;
+            font-size: 9.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .stim-btn:hover {
+            background: rgba(245, 158, 11, 0.25);
+            border-color: #f59e0b;
+        }
+
+        .stim-btn.danger {
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.3);
+            color: #f43f5e;
+        }
+
+        .stim-btn.danger:hover {
+            background: rgba(244, 63, 94, 0.25);
+            border-color: #f43f5e;
+        }
+
+        .joint-angles-box {
+            font-family: monospace;
+            font-size: 8.5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 4px;
+            padding: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
     </style>
 </head>
 <body>
@@ -678,7 +790,7 @@
                 <div class="panel-title">
                     <span>Experiment Catalog</span>
                 </div>
-                <span class="badge badge-purple" id="catCountBadge">13 ASSAYS</span>
+                <span class="badge badge-purple" id="catCountBadge">14 ASSAYS</span>
             </div>
 
             <!-- Scrollable 13 Experiment Cards -->
@@ -801,6 +913,15 @@
                     <div class="exp-card-metric"><span>Metric: Path Tortuosity</span><span id="cardMetricLabyrinth">1.00</span></div>
                 </div>
 
+                <div class="experiment-card" data-paradigm="multisensory-sandbox" id="card-multisensory-sandbox">
+                    <div class="exp-card-header">
+                        <span class="exp-card-title">13. Multisensory Limb Sandbox</span>
+                        <span class="badge badge-amber">BENCHMARK</span>
+                    </div>
+                    <div class="exp-card-ref">Multi-modal Ingress & Direct 6-Limb Deck</div>
+                    <div class="exp-card-metric"><span>Score: Benchmark Index</span><span id="cardMetricMultisensory">-- / 100</span></div>
+                </div>
+
             </div>
 
             <!-- Genetic Lesion / Knockout Selector -->
@@ -827,7 +948,7 @@
             <div class="top-navbar">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-weight:800; font-size:15px; color:#38bdf8; letter-spacing:0.5px;">Project NeuroFly</span>
-                    <span class="badge badge-cyan" style="font-weight:800;">v1.0-alpha</span>
+                    <span class="badge badge-cyan" style="font-weight:800;">v1.0-release</span>
                     <span class="badge badge-purple" id="navbarParadigmBadge">OPEN ARENA</span>
                 </div>
                 <div class="navbar-stats">
@@ -911,7 +1032,131 @@
              ============================================================= -->
         <div class="panel hud-column">
             
-            <!-- A. Active Experiment Guide ("What to Watch & Parameters") -->
+            <!-- Deck Tab Switcher -->
+            <div class="deck-tabs">
+                <button class="deck-tab-btn active" id="tabGuide">Director's Guide</button>
+                <button class="deck-tab-btn" id="tabLimbDeck">Limb & Neuro-Stim Deck</button>
+            </div>
+
+            <!-- TAB 2: INTERACTIVE LIMB & NEURO-STIMULATION CONTROL DECK -->
+            <div class="limb-deck-panel" id="limbDeckPanel">
+                
+                <!-- Control Mode Banner -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); border:1px solid var(--border-dim); border-radius:6px; padding:6px 10px;">
+                    <div>
+                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase;">Control Mode</div>
+                        <div id="labelControlMode" style="font-weight:800; font-size:11px; color:#4ade80;">AUTONOMOUS BRAIN</div>
+                    </div>
+                    <button class="nav-btn primary" id="btnToggleManualControl" style="padding:4px 8px; font-size:9.5px;">Enable Manual Stim</button>
+                </div>
+
+                <!-- Benchmark Scorecard -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <span>Benchmark Scorecard</span>
+                        <span id="deckCompositeScore" style="color:#38bdf8; font-family:monospace; font-size:12px;">-- / 100</span>
+                    </div>
+                    <div class="scorecard-grid">
+                        <div class="score-card">
+                            <span style="color:#94a3b8; font-size:8.5px;">Tripod Coordination</span>
+                            <span class="score-val" id="deckCoordScore">-- %</span>
+                        </div>
+                        <div class="score-card">
+                            <span style="color:#94a3b8; font-size:8.5px;">Sensory Alignment</span>
+                            <span class="score-val" id="deckSensoryScore">-- %</span>
+                        </div>
+                        <div class="score-card">
+                            <span style="color:#94a3b8; font-size:8.5px;">Biomechanical Efficacy</span>
+                            <span class="score-val" id="deckEfficacyScore">-- %</span>
+                        </div>
+                        <div class="score-card">
+                            <span style="color:#94a3b8; font-size:8.5px;">Kinematic Smoothness</span>
+                            <span class="score-val" id="deckSmoothScore">-- %</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direct Neuro-Stimulation Sliders -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <span>Direct Premotor Neuro-Stimulation</span>
+                        <span style="color:#fbbf24; font-size:8.5px;">OVERRIDE DECK</span>
+                    </div>
+
+                    <div class="param-slider-row">
+                        <div class="slider-header">
+                            <span>DNa02 Steering Yaw (Left ↔ Right)</span>
+                            <span><b id="valStimDna02">0.00</b> rad/s</span>
+                        </div>
+                        <input type="range" id="sliderStimDna02" min="-1.0" max="1.0" step="0.05" value="0">
+                    </div>
+
+                    <div class="param-slider-row">
+                        <div class="slider-header">
+                            <span>DNp09 Pursuit Thrust (Forward)</span>
+                            <span><b id="valStimThrust">0</b> %</span>
+                        </div>
+                        <input type="range" id="sliderStimThrust" min="0" max="100" step="5" value="0">
+                    </div>
+
+                    <div class="param-slider-row">
+                        <div class="slider-header">
+                            <span>MDN Moonwalker Reverse (Backward)</span>
+                            <span><b id="valStimMdn">0</b> %</span>
+                        </div>
+                        <input type="range" id="sliderStimMdn" min="0" max="100" step="5" value="0">
+                    </div>
+
+                    <div class="param-slider-row">
+                        <div class="slider-header">
+                            <span>CPG Cadence Override</span>
+                            <span><b id="valStimCpg">8.5</b> Hz</span>
+                        </div>
+                        <input type="range" id="sliderStimCpg" min="3.0" max="14.0" step="0.5" value="8.5">
+                    </div>
+
+                    <div class="param-slider-row">
+                        <div class="slider-header">
+                            <span>Wing Extension Angle (Song)</span>
+                            <span><b id="valStimWing">0</b> °</span>
+                        </div>
+                        <input type="range" id="sliderStimWing" min="0" max="90" step="5" value="0">
+                    </div>
+                </div>
+
+                <!-- Sensory Flash Triggers -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <span>Instant Sensory Ingress Flares</span>
+                    </div>
+                    <div class="stim-btn-row">
+                        <button class="stim-btn danger" id="btnFlareGf">Trigger GF Looming</button>
+                        <button class="stim-btn danger" id="btnFlareHeat">Thermal Flash (38°C)</button>
+                        <button class="stim-btn" id="btnFlareOdor">Food Odor Puff</button>
+                        <button class="stim-btn" id="btnFlareWind">Anemotaxic Wind Gust</button>
+                    </div>
+                </div>
+
+                <!-- 6-Leg Joint Kinematics Readout -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <span>6-Leg Articulated Joint Kinematics</span>
+                        <span style="color:#38bdf8; font-size:8.5px;">FeCO + CS LOADS</span>
+                    </div>
+                    <div class="joint-angles-box" id="jointAnglesBox">
+                        <div>L1: CTr: +0° FTi: 80° [STANCE]</div>
+                        <div>R1: CTr: +0° FTi: 80° [SWING]</div>
+                        <div>L2: CTr: +0° FTi: 80° [SWING]</div>
+                        <div>R2: CTr: +0° FTi: 80° [STANCE]</div>
+                        <div>L3: CTr: +0° FTi: 80° [STANCE]</div>
+                        <div>R3: CTr: +0° FTi: 80° [SWING]</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 1: A. Active Experiment Guide ("What to Watch & Parameters") -->
+            <div id="guideTabContent">
             <div class="guide-box">
                 <div class="sub-header">
                     <span style="color:#c084fc;">[0] Experiment Director's Guide</span>
@@ -983,6 +1228,7 @@
                     </div>
                 </div>
             </div>
+            </div> <!-- end guideTabContent -->
 
             <!-- B. Mushroom Body Electrophysiology (120 KCs) -->
             <div class="hud-card">

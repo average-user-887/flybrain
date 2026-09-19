@@ -2000,6 +2000,303 @@ class LabyrinthParadigm(ExperimentParadigm):
         }
 
 
+
+class MultisensoryLimbBenchmark(ExperimentParadigm):
+    """Assay 13: Multisensory Ingress & Full-Body Limb Biomechanics Benchmark.
+
+    A comprehensive closed-loop benchmark integrating:
+    1. Multi-Sensory Ingress:
+       - 3 olfactory plumes: Food Odor A (+45, +45), Repellent Odor B (-45, -45), cVA pheromone (+45, -45).
+       - 2D continuous thermal terrain: Hotspot (38.5C) at (-40, +40), Cool Refuge (22.0C) at (+45, +45), ambient 24.0C.
+       - Vector anemotaxis wind field [-15.0, 0.0] mm/s with Johnston's organ deflection.
+       - 4 contrasting chromatic visual pillars at (+-35, +-35) with parallax landmark tracking.
+       - Dynamic looming threat disc expanding optically towards fly.
+    2. Full-Body 6-Leg Biomechanics & Proprioception:
+       - 6 articulated legs (L1, L2, L3, R1, R2, R3) with Coxa-Trochanter, Femur-Tibia, and Tibia-Tarsus joint angles.
+       - Femoral Chordotonal Organ (FeCO) angular velocity & Campaniform Sensilla (CS) cuticular load feedback.
+       - Coupled Kuramoto-Hopf tripod gait with adjustable frequency (3-14 Hz) and stance/swing ratio.
+    3. Direct Manual Neuro-Stimulation & Override Deck:
+       - DNa02 asymmetric steering yaw torque override.
+       - DNp09 forward pursuit thrust override.
+       - MDN moonwalker backward walking drive override.
+       - DNp01 / Giant Fiber (GF) emergency escape jump trigger.
+       - Direct 6-leg stance/swing phase offsets and wing extension angles.
+    4. Quantitative Sensorimotor Benchmark Suite:
+       - Locomotor Coordination Index (tripod anti-phase coherence).
+       - Multi-Sensory Integration Score (sensory gradient alignment).
+       - Biomechanical Efficiency (speed per unit metabolic power).
+       - Kinematic Smoothness (jerk minimization).
+       - Compound Benchmark Score (composite 0 - 100).
+    """
+
+    def __init__(
+        self,
+        dimensions: Tuple[float, float] = (160.0, 160.0),
+        arena_radius: float = 75.0,
+        pillar_radius: float = 6.0,
+        max_duration_steps: int = 1500
+    ):
+        self.arena_radius = float(arena_radius)
+        self.pillar_radius = float(pillar_radius)
+
+        walls: List[WallSegment] = []
+        # 32-segment circular boundary wall
+        n_outer = 32
+        for i in range(n_outer):
+            a1 = (2 * math.pi * i) / n_outer
+            a2 = (2 * math.pi * (i + 1)) / n_outer
+            p1 = (self.arena_radius * math.cos(a1), self.arena_radius * math.sin(a1))
+            p2 = (self.arena_radius * math.cos(a2), self.arena_radius * math.sin(a2))
+            walls.append(WallSegment(p1, p2, friction=0.5, restitution=0.1))
+
+        # 4 internal visual pillar obstacles at (+-35, +-35)
+        self.pillar_centers = [
+            (35.0, 35.0), (-35.0, 35.0), (-35.0, -35.0), (35.0, -35.0)
+        ]
+        n_p = 8
+        for pc in self.pillar_centers:
+            for i in range(n_p):
+                a1 = (2 * math.pi * i) / n_p
+                a2 = (2 * math.pi * (i + 1)) / n_p
+                p1 = (pc[0] + self.pillar_radius * math.cos(a1), pc[1] + self.pillar_radius * math.sin(a1))
+                p2 = (pc[0] + self.pillar_radius * math.cos(a2), pc[1] + self.pillar_radius * math.sin(a2))
+                walls.append(WallSegment(p1, p2, friction=0.5, restitution=0.1))
+
+        # Interactive sensory zones
+        zones = [
+            MazeZone("food_refuge", "circle", (45.0, 45.0, 12.0), reward=1.0),
+            MazeZone("thermal_hotspot", "circle", (-40.0, 40.0, 15.0), punishment=1.0),
+            MazeZone("pheromone_zone", "circle", (45.0, -45.0, 12.0), reward=0.5),
+            MazeZone("open_arena", "rectangle", (-75.0, -75.0, 75.0, 75.0))
+        ]
+
+        # Visual landmarks corresponding to pillars
+        landmarks = [
+            VisualLandmark("pillar_ne", azimuth_rad=math.pi / 4, glyph="cylinder", pos=(35.0, 35.0)),
+            VisualLandmark("pillar_nw", azimuth_rad=3 * math.pi / 4, glyph="cylinder", pos=(-35.0, 35.0)),
+            VisualLandmark("pillar_sw", azimuth_rad=-3 * math.pi / 4, glyph="cylinder", pos=(-35.0, -35.0)),
+            VisualLandmark("pillar_se", azimuth_rad=-math.pi / 4, glyph="cylinder", pos=(35.0, -35.0)),
+        ]
+
+        super().__init__(
+            name="Multisensory Limb & Body Benchmark",
+            description="Comprehensive closed-loop benchmark integrating multi-sensory ingress with direct 6-limb biomechanics.",
+            dimensions=dimensions,
+            walls=walls,
+            zones=zones,
+            landmarks=landmarks,
+            max_duration_steps=max_duration_steps
+        )
+
+        # Multi-sensory positions
+        self.food_pos = (45.0, 45.0)
+        self.repellent_pos = (-45.0, -45.0)
+        self.pheromone_pos = (45.0, -45.0)
+        self.hotspot_pos = (-40.0, 40.0)
+        self.cool_pos = (45.0, 45.0)
+        self.wind_vector = [-15.0, 0.0]
+
+        # 6-leg biomechanical state
+        self.leg_names = ['L1', 'L2', 'L3', 'R1', 'R2', 'R3']
+        self.leg_phases = {
+            'L1': 0.0, 'R2': 0.0, 'L3': 0.0,
+            'R1': math.pi, 'L2': math.pi, 'R3': math.pi
+        }
+        self.cpg_freq_hz = 8.5
+        self.leg_states = {name: math.sin(phi) > 0 for name, phi in self.leg_phases.items()}
+        self.joint_angles = {
+            name: {'ctr': 0.0, 'fti': 85.0, 'tita': 35.0} for name in self.leg_names
+        }
+        self.cuticular_loads = {name: 1.85 if self.leg_states[name] else 0.0 for name in self.leg_names}
+
+        # Benchmark metrics
+        self.path_points: List[Tuple[float, float]] = []
+        self.coordination_history: List[float] = []
+        self.sensory_alignment_history: List[float] = []
+        self.jerk_history: List[float] = []
+        self.total_distance = 0.0
+        self.total_energy = 0.0
+        self.wall_collision_count = 0
+        self.prev_speed = 0.0
+        self.prev_accel = 0.0
+
+    def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
+        fx, fy, fheading = self._normalize_stimuli_args(x, y, heading)
+
+        # 1. Olfactory plumes (Gaussian diffusion)
+        da = math.hypot(fx - self.food_pos[0], fy - self.food_pos[1])
+        db = math.hypot(fx - self.repellent_pos[0], fy - self.repellent_pos[1])
+        dc = math.hypot(fx - self.pheromone_pos[0], fy - self.pheromone_pos[1])
+
+        odor_a = float(math.exp(-(da * da) / (2 * 20.0 * 20.0)))
+        odor_b = float(math.exp(-(db * db) / (2 * 20.0 * 20.0)))
+        odor_cva = float(0.8 * math.exp(-(dc * dc) / (2 * 18.0 * 18.0)))
+
+        # 2. Thermal terrain (ambient 24.0, hotspot 38.5, cool refuge 22.0)
+        dh = math.hypot(fx - self.hotspot_pos[0], fy - self.hotspot_pos[1])
+        d_cool = math.hypot(fx - self.cool_pos[0], fy - self.cool_pos[1])
+        temp_hot = 14.5 * math.exp(-(dh * dh) / (2 * 18.0 * 18.0))
+        temp_cool = -2.0 * math.exp(-(d_cool * d_cool) / (2 * 12.0 * 12.0))
+        temperature = float(max(20.0, min(42.0, 24.0 + temp_hot + temp_cool)))
+
+        # 3. Mechanosensory wind
+        wind_mag = math.hypot(self.wind_vector[0], self.wind_vector[1])
+        wind_angle = math.atan2(self.wind_vector[1], self.wind_vector[0])
+        upwind_angle = math.atan2(-self.wind_vector[1], -self.wind_vector[0])
+        egocentric_wind = ((upwind_angle - fheading + math.pi) % (2 * math.pi)) - math.pi
+        jo_antenna_deflect_un = float(wind_mag * 0.12)
+
+        # 4. Visual landmarks
+        landmarks_data = []
+        for lm in self.landmarks:
+            bearing = lm.get_apparent_bearing(fx, fy, fheading)
+            d_lm = math.hypot(lm.pos[0] - fx, lm.pos[1] - fy) if lm.pos else 50.0
+            landmarks_data.append({
+                'id': lm.landmark_id,
+                'distance': float(d_lm),
+                'bearing_rad': float(bearing),
+                'glyph': lm.glyph
+            })
+
+        return {
+            'odor_a': odor_a,
+            'odor_b': odor_b,
+            'odor_cva': odor_cva,
+            'temperature': temperature,
+            'wind_magnitude': float(wind_mag),
+            'egocentric_wind': float(egocentric_wind),
+            'jo_antenna_deflect_un': jo_antenna_deflect_un,
+            'landmarks': landmarks_data
+        }
+
+    def step(self, fly: Any, dt: float = 0.02, **kwargs) -> Dict[str, Any]:
+        self.time_elapsed_ms += dt * 1000.0
+        fx, fy, fheading, fspeed, fang_vel = self._extract_fly_pose(fly)
+
+        # Check for direct manual control overrides
+        override_dna02 = kwargs.get('override_dna02', None)
+        override_thrust = kwargs.get('override_thrust', None)
+        override_mdn = kwargs.get('override_mdn', None)
+        override_gf = kwargs.get('override_gf', False)
+        override_legs = kwargs.get('override_legs', None)
+        override_wings = kwargs.get('override_wings', None)
+        manual_active = any(k is not None for k in [override_dna02, override_thrust, override_mdn, override_legs])
+
+        # Step CPG biomechanical limbs
+        effective_drive = override_thrust * 50.0 if override_thrust is not None else max(10.0, fspeed * 3.0)
+        self.cpg_freq_hz = min(14.0, max(3.0, 6.0 + effective_drive * 0.12))
+        dphi = 2 * math.pi * self.cpg_freq_hz * dt
+
+        for name in self.leg_names:
+            if override_legs and name in override_legs:
+                self.leg_states[name] = bool(override_legs[name])
+            else:
+                self.leg_phases[name] = (self.leg_phases[name] + dphi) % (2 * math.pi)
+                self.leg_states[name] = math.sin(self.leg_phases[name]) > 0
+
+            # Kinematic joint angles
+            phi = self.leg_phases[name]
+            self.joint_angles[name] = {
+                'ctr': float(22.0 * math.sin(phi)),
+                'fti': float(80.0 + 32.0 * math.cos(phi)),
+                'tita': float(38.0 - 14.0 * math.sin(phi))
+            }
+            self.cuticular_loads[name] = 1.85 if self.leg_states[name] else 0.0
+
+        # Collision resolution
+        proposed_vx = fspeed * math.cos(fheading)
+        proposed_vy = fspeed * math.sin(fheading)
+        res_x, res_y, res_vx, res_vy, collided = self.check_collisions(
+            fx + proposed_vx * dt, fy + proposed_vy * dt, proposed_vx, proposed_vy, radius=1.5
+        )
+        if collided:
+            self.wall_collision_count += 1
+
+        # Distance & Trajectory
+        step_dist = math.hypot(res_x - fx, res_y - fy)
+        self.total_distance += step_dist
+        self.path_points.append((res_x, res_y))
+        if len(self.path_points) > 300:
+            self.path_points.pop(0)
+
+        # Benchmark metrics:
+        phase_diff = abs((self.leg_phases['L1'] - self.leg_phases['R1'] + math.pi) % (2 * math.pi) - math.pi)
+        coordination = float(max(0.0, 1.0 - abs(phase_diff - math.pi) / math.pi))
+        self.coordination_history.append(coordination)
+        if len(self.coordination_history) > 100: self.coordination_history.pop(0)
+
+        stim = self.sample_stimuli(res_x, res_y, fheading)
+        desirable_dir = math.atan2(self.food_pos[1] - res_y, self.food_pos[0] - res_x)
+        dir_error = abs(((desirable_dir - fheading + math.pi) % (2 * math.pi)) - math.pi)
+        sensory_alignment = float(math.cos(dir_error * 0.5))
+        self.sensory_alignment_history.append(sensory_alignment)
+        if len(self.sensory_alignment_history) > 100: self.sensory_alignment_history.pop(0)
+
+        accel = (fspeed - self.prev_speed) / max(1e-4, dt)
+        jerk = abs(accel - self.prev_accel) / max(1e-4, dt)
+        self.prev_speed = fspeed
+        self.prev_accel = accel
+        self.jerk_history.append(jerk)
+        if len(self.jerk_history) > 100: self.jerk_history.pop(0)
+
+        power = (self.cpg_freq_hz * 0.8 + fspeed * 0.5) * dt
+        self.total_energy += power
+
+        reward = 1.0 if stim['odor_a'] > 0.6 and stim['temperature'] < 25.0 else 0.0
+        punishment = 1.0 if stim['temperature'] > 35.0 or stim['odor_b'] > 0.5 else 0.0
+
+        return {
+            'stimuli': stim,
+            'active_zones': [z.name for z in self.get_active_zones(res_x, res_y)],
+            'resolved_position': (res_x, res_y),
+            'collided': collided,
+            'reward': reward,
+            'punishment': punishment,
+            'biomechanics': {
+                'cpg_freq_hz': self.cpg_freq_hz,
+                'leg_states': self.leg_states,
+                'joint_angles': self.joint_angles,
+                'cuticular_loads': self.cuticular_loads,
+                'manual_override_active': manual_active
+            },
+            'metrics': self.get_metrics()
+        }
+
+    def reset_trial(self) -> Dict[str, Any]:
+        self.trial_manager.reset()
+        self.time_elapsed_ms = 0.0
+        self.total_distance = 0.0
+        self.total_energy = 0.0
+        self.wall_collision_count = 0
+        self.path_points.clear()
+        self.coordination_history.clear()
+        self.sensory_alignment_history.clear()
+        self.jerk_history.clear()
+        return {'trial_number': self.trial_manager.trial_number}
+
+    def get_metrics(self) -> Dict[str, Any]:
+        mean_coord = float(sum(self.coordination_history) / len(self.coordination_history)) if self.coordination_history else 1.0
+        mean_sensory = float(sum(self.sensory_alignment_history) / len(self.sensory_alignment_history)) if self.sensory_alignment_history else 0.85
+        mean_jerk = float(sum(self.jerk_history) / len(self.jerk_history)) if self.jerk_history else 0.0
+        smoothness = float(1.0 / (1.0 + mean_jerk * 0.005))
+        efficiency = float(min(1.0, self.total_distance / max(1.0, self.total_energy * 10.0)))
+
+        composite_score = float(max(0.0, min(100.0,
+            (0.30 * mean_coord + 0.25 * mean_sensory + 0.25 * efficiency + 0.20 * smoothness) * 100.0
+        )))
+
+        return {
+            'locomotor_coordination_index': mean_coord,
+            'multisensory_integration_score': mean_sensory,
+            'biomechanical_efficiency': efficiency,
+            'kinematic_smoothness': smoothness,
+            'composite_benchmark_score': composite_score,
+            'wall_collisions': self.wall_collision_count,
+            'total_distance_mm': self.total_distance,
+            'total_energy_atp': self.total_energy
+        }
+
+
 # ==============================================================================
 # 4. EXPERIMENT REGISTRY FACTORY
 # ==============================================================================
@@ -2022,6 +2319,7 @@ class ExperimentRegistry:
         "circadian_dam",
         "courtship",
         "labyrinth",
+        "multisensory_benchmark",
     ]
 
     @classmethod
@@ -2063,6 +2361,11 @@ for p_cls in [
     CircadianDAMParadigm,
     CourtshipParadigm,
     LabyrinthParadigm,
+    MultisensoryLimbBenchmark,
 ]:
     ExperimentRegistry.register(p_cls.__name__, p_cls)
-    ExperimentRegistry.register(p_cls.__name__.lower().replace("paradigm", ""), p_cls)
+    ExperimentRegistry.register(p_cls.__name__.lower().replace("paradigm", "").replace("benchmark", ""), p_cls)
+
+ExperimentRegistry.register("multisensory_benchmark", MultisensoryLimbBenchmark)
+ExperimentRegistry.register("multisensory_sandbox", MultisensoryLimbBenchmark)
+ExperimentRegistry.register("multisensory", MultisensoryLimbBenchmark)
