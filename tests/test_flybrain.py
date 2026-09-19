@@ -204,7 +204,10 @@ class TestArenaNavigation(unittest.TestCase):
         self.assertLess(sensory['diff_a'], 0.0)
 
     def test_closed_loop_foraging(self):
-        """Trained fly uses chemotaxis, surge-cast, and CX memory to reach food closer than naive wanderer."""
+        """A conditioned cue changes first-food latency in one controlled 20-ms run.
+
+        This is a regression fixture, not a population learning claim.
+        """
         np.random.seed(42)
         food_pos = Position(70.0, 50.0)
 
@@ -213,6 +216,7 @@ class TestArenaNavigation(unittest.TestCase):
         arena_naive.food_positions = [Position(70.0, 50.0)]
         arena_naive.hazard_positions = []
         arena_naive.odor_a.clear()
+        arena_naive.odor_b.clear()
         arena_naive.odor_a.add_source(70.0, 50.0, 1.0)
         arena_naive.initialize_fly(50.0, 50.0, heading=math.pi / 2.0)
 
@@ -221,6 +225,7 @@ class TestArenaNavigation(unittest.TestCase):
         arena_trained.food_positions = [Position(70.0, 50.0)]
         arena_trained.hazard_positions = []
         arena_trained.odor_a.clear()
+        arena_trained.odor_b.clear()
         arena_trained.odor_a.add_source(70.0, 50.0, 1.0)
         arena_trained.initialize_fly(50.0, 50.0, heading=math.pi / 2.0)
 
@@ -230,18 +235,20 @@ class TestArenaNavigation(unittest.TestCase):
         for _ in range(4):
             sim.run_learning_trial(0.8, 0.0, reward=True, steps=80)
 
-        for _ in range(30):
-            arena_naive.step()
-            arena_trained.step()
+        # Record the first encounter. Food respawns after ingestion, so distance
+        # to its old position at an arbitrary final tick is not a valid endpoint.
+        latency = []
+        for arena in (arena_naive, arena_trained):
+            first_food = math.inf
+            for tick in range(6000):
+                arena.step(.02)
+                if arena.food_collected:
+                    first_food = (tick + 1) * .02
+                    break
+            latency.append(first_food)
+        self.assertLess(latency[1], latency[0])
+        self.assertLess(latency[1], 60)
 
-        dist_naive = arena_naive.fly.pos.distance_to(food_pos)
-        dist_trained = arena_trained.fly.pos.distance_to(food_pos)
-
-        self.assertLess(dist_trained, dist_naive, f"Trained distance ({dist_trained:.1f}) must be closer than naive ({dist_naive:.1f})")
-
-
-
-class TestFlyBrainEnvAdapter(unittest.TestCase):
     def test_env_reset_and_dimensions(self):
         """Env reset must return 12-dim observation and valid info state."""
         env = FlyBrainEnvAdapter(seed=42)

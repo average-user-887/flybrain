@@ -69,21 +69,11 @@ class TestNeuroflyDaemonEngine(unittest.TestCase):
         self.assertEqual(res["status"], "ok")
         self.assertEqual(self.runner.active_paradigm_id, "t-maze")
 
-    def test_command_dispatch_inject_stimulus(self):
-        """Optogenetic and sensory flares inject proper force/velocity overrides."""
-        res = self.runner.dispatch_command({
-            "action": "inject_stimulus",
-            "type": "optogenetic_dna02",
-            "value": 0.5
-        })
-        self.assertEqual(res["status"], "ok")
-
-        res_gf = self.runner.dispatch_command({
-            "action": "inject_stimulus",
-            "type": "gf_looming"
-        })
-        self.assertEqual(res_gf["status"], "ok")
-        self.assertEqual(self.runner.arena.fly.behavioral_state, "ESCAPE")
+    def test_unsupported_legacy_injection_is_not_silently_acknowledged(self):
+        before = self.runner.arena.fly.speed
+        res = self.runner.dispatch_command({"action":"inject_stimulus", "type":"gf_looming"})
+        self.assertEqual(res["status"], "error")
+        self.assertEqual(self.runner.arena.fly.speed, before)
 
     def test_checkpoint_generation_and_rotation(self):
         """Periodic checkpointing creates JSON ledger without exceeding max files."""

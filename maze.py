@@ -804,6 +804,7 @@ class TMazeParadigm(ExperimentParadigm):
         )
 
         self.choice_counts = {'arm_a': 0, 'arm_b': 0}
+        self.last_choice_arm = None
         self.first_choice: Optional[str] = None
         self.latency_to_choice_ms: Optional[float] = None
         self.step_history = deque(maxlen=2048)
@@ -835,7 +836,8 @@ class TMazeParadigm(ExperimentParadigm):
             'odor_cs_plus': conc_a if self.cs_plus_arm == 'arm_a' else conc_b,
             'odor_cs_minus': conc_b if self.cs_plus_arm == 'arm_a' else conc_a,
             'wind': wind,
-            'temperature': 24.0
+            'temperature': 24.0,
+            'food_contact': (dist_a < 4 if self.cs_plus_arm == 'arm_a' else dist_b < 4)
         }
 
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
@@ -849,20 +851,18 @@ class TMazeParadigm(ExperimentParadigm):
         reward = sum(z.reward for z in active_zones)
         punishment = sum(z.punishment for z in active_zones)
 
-        # Check arm choices
+        # Count an arm entry once, not every integration tick spent in that arm.
         active_zone_names = [z.name for z in active_zones]
-        if "arm_a" in active_zone_names and x < 45.0:
+        arm = 'arm_a' if 'arm_a' in active_zone_names and x < 45 else ('arm_b' if 'arm_b' in active_zone_names and x > 95 else None)
+        if arm and arm != self.last_choice_arm:
             if self.first_choice is None:
-                self.first_choice = "arm_a"
+                self.first_choice = arm
                 self.latency_to_choice_ms = self.time_elapsed_ms
-            self.choice_counts['arm_a'] += 1
-            self.step_history.append("arm_a")
-        elif "arm_b" in active_zone_names and x > 95.0:
-            if self.first_choice is None:
-                self.first_choice = "arm_b"
-                self.latency_to_choice_ms = self.time_elapsed_ms
-            self.choice_counts['arm_b'] += 1
-            self.step_history.append("arm_b")
+            self.choice_counts[arm] += 1
+            self.step_history.append(arm)
+            self.last_choice_arm = arm
+        elif 63 <= x <= 77:
+            self.last_choice_arm = None
 
         return {
             'stimuli': stimuli,
@@ -879,6 +879,7 @@ class TMazeParadigm(ExperimentParadigm):
         self.first_choice = None
         self.latency_to_choice_ms = None
         self.choice_counts = {'arm_a': 0, 'arm_b': 0}
+        self.last_choice_arm = None
         self.step_history.clear()
         self.time_elapsed_ms = 0.0
         return {'trial_number': self.trial_manager.trial_number}
@@ -1292,6 +1293,7 @@ class BuridanParadigm(ExperimentParadigm):
         self.time_center_ms: float = 0.0
         self.time_perimeter_ms: float = 0.0
         self.fixation_scores = ScalarHistory()
+        self.stripe_contrast = 1.0
         self.stripe_crossings: int = 0
         self.last_heading_side: Optional[int] = None
 
@@ -1303,6 +1305,7 @@ class BuridanParadigm(ExperimentParadigm):
 
         return {
             'stripe_bearings': bearings,
+            'stripe_contrast': self.stripe_contrast,
             'nearest_bearing': min(bearings, key=abs),
             'stripe_fixation': stripe_fixation,
             'is_in_moat': self.moat.is_in_water(x, y),
@@ -1381,6 +1384,7 @@ class VisualOperantParadigm(ExperimentParadigm):
         )
         self.coupling_gain = float(coupling_gain)
         self.drum_angle_deg: float = 0.0  # [0, 360)
+        self.invert_sectors = False
         self.time_safe_ms: float = 0.0
         self.time_punished_ms: float = 0.0
         self.laser_heat_active: bool = False
@@ -1394,7 +1398,7 @@ class VisualOperantParadigm(ExperimentParadigm):
         angle = self.drum_angle_deg % 360.0
         quadrant = int(angle // 90.0)
         pattern = 'T' if quadrant in [0, 2] else 'inverted_T'
-        is_punished = (pattern == 'inverted_T')
+        is_punished = (pattern == 'inverted_T') != self.invert_sectors
 
         temp = 41.0 if is_punished else 24.0
 
@@ -1520,8 +1524,8 @@ class WindTunnelParadigm(ExperimentParadigm):
         return {
             'odor_conc': float(np.clip(conc, 0.0, 1.0)),
             'wind': self.wind_flow,
-            'wind_speed': 25.0,
-            'wind_direction_rad': math.pi  # Wind blows in -x direction
+            'wind_speed': math.hypot(*self.wind_flow),
+            'wind_direction_rad': math.atan2(self.wind_flow[1], self.wind_flow[0])  # Wind blows in -x direction
         }
 
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
@@ -1597,6 +1601,7 @@ class LoomingEscapeParadigm(ExperimentParadigm):
             dimensions=dimensions,
             max_duration_steps=max_duration_steps
         )
+        self.stimulus_started_ms = 0.0
         self.t_collision_s = float(t_collision_s)
         self.r_over_v_s = float(r_over_v_s)
         self.gf_threshold_rad = math.radians(65.0)  # ~1.134 rad
@@ -1607,7 +1612,7 @@ class LoomingEscapeParadigm(ExperimentParadigm):
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
-        t = self.time_elapsed_ms / 1000.0
+        t = (self.time_elapsed_ms - self.stimulus_started_ms) / 1000.0
         time_to_coll = max(0.001, self.t_collision_s - t)
 
         # Looming equation: theta(t) = 2 * arctan((r/v) / (t_coll - t))
@@ -1655,6 +1660,7 @@ class LoomingEscapeParadigm(ExperimentParadigm):
         self.looming_size_at_jump_deg = None
         self.gf_spike = False
         self.time_elapsed_ms = 0.0
+        self.stimulus_started_ms = 0.0
         return {'trial_number': self.trial_manager.trial_number}
 
     def get_metrics(self) -> Dict[str, Any]:
@@ -1683,6 +1689,7 @@ class OptomotorParadigm(ExperimentParadigm):
             max_duration_steps=max_duration_steps
         )
         self.drum_velocity_deg_s = float(drum_velocity_deg_s)
+        self.contrast = 0.9
         self.hs_firing_history = ScalarHistory()
         self.retinal_slip_history = ScalarHistory()
         self.gain_history = ScalarHistory()
@@ -1692,7 +1699,7 @@ class OptomotorParadigm(ExperimentParadigm):
         return {
             'drum_velocity_deg_s': self.drum_velocity_deg_s,
             'spatial_wavelength_deg': 30.0,
-            'contrast': 0.9
+            'contrast': self.contrast
         }
 
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
@@ -1916,7 +1923,7 @@ class CircadianDAMParadigm(ExperimentParadigm):
         self.last_x = x
 
         # Time is in seconds throughout the arena; count real simulated minutes.
-        if beam_crossed or speed > 0.5:
+        if beam_crossed or abs(speed) > 0.5:
             self.consecutive_immobile_minutes = 0.0
             self.in_sleep_bout = False
         else:
@@ -2003,6 +2010,7 @@ class CourtshipParadigm(ExperimentParadigm):
 
         return {
             'inter_fly_distance_mm': dist,
+            'social_bearing_rad': math.atan2(math.sin(math.atan2(dy, dx)-heading), math.cos(math.atan2(dy, dx)-heading)),
             'cva_concentration': float(np.clip(cva_conc, 0.0, 1.0)),
             'aphrodisiac_concentration': float(np.clip(aphrodisiac_conc, 0.0, 1.0)),
             'female_type': self.female_type
@@ -2018,7 +2026,7 @@ class CourtshipParadigm(ExperimentParadigm):
         dist = stimuli['inter_fly_distance_mm']
 
         # Male courts if close (dist < 3.5mm)
-        courtship_active = (dist < 3.5)
+        courtship_active = (getattr(fly, 'behavioral_state', '') == 'COURTSHIP') if not isinstance(fly, dict) else (dist < 3.5)
         punishment = 0.0
 
         if courtship_active:
@@ -2133,7 +2141,8 @@ class LabyrinthParadigm(ExperimentParadigm):
             'odor_conc': odor_conc,
             'temperature': 24.0,
             'wind': (0.0, 0.0),
-            'goal_distance_mm': dist
+            'goal_distance_mm': dist,
+            'food_contact': dist < 4.0
         }
 
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
@@ -2379,6 +2388,9 @@ class MultisensoryLimbBenchmark(ExperimentParadigm):
             'odor_a': odor_a,
             'odor_b': odor_b,
             'odor_cva': odor_cva,
+            'cva_concentration': odor_cva,
+            'wind': self.wind_vector,
+            'food_contact': da < 4.0,
             'temperature': temperature,
             'wind_magnitude': float(wind_mag),
             'egocentric_wind': float(egocentric_wind),

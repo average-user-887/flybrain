@@ -32,7 +32,7 @@ METRICS = dict(zip(PARADIGMS, (
     'centrophobism_index', 'operant_learning_index', 'upwind_progress_mm',
     'time_to_collision_at_jump_ms', 'optomotor_gain', 'crossing_success',
     'total_sleep_minutes', 'courtship_index', 'path_tortuosity', 'composite_benchmark_score')))
-PROTOCOL = ('Arena experience with plasticity enabled versus a matched-seed frozen control; '
+PROTOCOL = ('Sensorimotor-v2: explicit heuristic reflexes, not a validated biological circuit. Arena experience with plasticity enabled versus a matched-seed frozen control; '
             'retained memory across rounds. Evaluation: fresh arena seed, copied MB memory, '
             'reset eligibility traces and frozen weights in both groups. Reinforcement remains '
             'present during evaluation. Raw trajectories sampled every simulated second; '
@@ -172,7 +172,7 @@ def bundle(output, rows, manifest, target):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output', type=Path, default=PROJECT / 'outputs' / 'research-live')
+    p.add_argument('--output', type=Path, default=PROJECT / 'outputs' / 'research-sensorimotor-v2')
     p.add_argument('--public-status', type=Path, default=PROJECT / 'web' / 'research-status.json')
     p.add_argument('--bundle', type=Path, default=PROJECT / 'web' / 'research-latest.zip')
     p.add_argument('--steps', type=int, default=3000)
@@ -194,7 +194,7 @@ def main(argv=None):
     manifest = dict(schema_version=1, revision=revision, protocol=PROTOCOL, dt=.02,
                     steps=args.steps, seeds=args.seeds, python=sys.version, numpy=np.__version__,
                     source_sha256={name:hashlib.sha256((PROJECT/name).read_bytes()).hexdigest()
-                        for name in ('arena.py','maze.py','online_metrics.py','circuit.py','surge_cast.py','experiment_brains.py','scripts/research_worker.py')})
+                        for name in ('arena.py','maze.py','online_metrics.py','assay_response.py','assay_controls.py','circuit.py','surge_cast.py','vision.py','mechanosensory.py','metabolic.py','central_complex.py','locomotion.py','experiment_brains.py','scripts/research_worker.py')})
     if (args.output / 'manifest.json').exists():
         previous_manifest = json.loads((args.output / 'manifest.json').read_text())
         if any(previous_manifest[k] != manifest[k] for k in ('steps','seeds','dt')):
