@@ -1,0 +1,10 @@
+# Loose runtime requirements. For a reproducible environment (and for CI) use
+# requirements-lock.txt instead.
+numpy>=2.0
+numba>=0.60
+pandas>=2.2
+pyarrow>=16
+
+# Tests
+pytest>=8
+brian2>=2.7   # reference comparison for the LIF kernel (tests/test_reference.py)
