@@ -95,6 +95,9 @@ class FlyState:
         self.alive = True
         self.brain_type = brain_type
         self.radius = 1.5
+        # Hysteresis for the wall-avoidance reflex: which way the fly last turned away
+        # from a boundary (+1 = counter-clockwise). Breaks head-on ties consistently.
+        self.wall_turn_dir = 1.0
 
         # Ablation / Knockout switches
         self.ablate_mb = ablate_mb
@@ -293,10 +296,158 @@ class ContinuousOdorField:
         return float(np.clip(conc, 0.0, 1.0))
 
 
+class ContainmentRegion:
+    """Closed legal region for a fly body centre.
+
+    ``signed_gap(x, y)`` is the distance from the point to the region boundary
+    (positive inside, negative outside); a body of radius r is inside when
+    ``signed_gap >= r``. ``inward_normal`` is the unit vector pointing from the nearest
+    boundary into the region, i.e. the direction that moves the body away from the wall.
+    ``clamp`` projects a point back inside with the given margin. These three queries
+    drive the hard containment failsafe, the wall-avoidance reflex and the audit.
+    """
+
+    def signed_gap(self, x: float, y: float) -> float:
+        raise NotImplementedError
+
+    def inward_normal(self, x: float, y: float) -> Tuple[float, float]:
+        raise NotImplementedError
+
+    def clamp(self, x: float, y: float, margin: float) -> Tuple[float, float]:
+        raise NotImplementedError
+
+    def bbox(self) -> Tuple[float, float, float, float]:
+        raise NotImplementedError
+
+
+class RectRegion(ContainmentRegion):
+    def __init__(self, xmin: float, ymin: float, xmax: float, ymax: float):
+        self.xmin, self.ymin, self.xmax, self.ymax = float(xmin), float(ymin), float(xmax), float(ymax)
+
+    def signed_gap(self, x: float, y: float) -> float:
+        return min(x - self.xmin, self.xmax - x, y - self.ymin, self.ymax - y)
+
+    def inward_normal(self, x: float, y: float) -> Tuple[float, float]:
+        sides = [
+            (x - self.xmin, (1.0, 0.0)),
+            (self.xmax - x, (-1.0, 0.0)),
+            (y - self.ymin, (0.0, 1.0)),
+            (self.ymax - y, (0.0, -1.0)),
+        ]
+        return min(sides, key=lambda s: s[0])[1]
+
+    def clamp(self, x: float, y: float, margin: float) -> Tuple[float, float]:
+        return (
+            max(self.xmin + margin, min(self.xmax - margin, x)),
+            max(self.ymin + margin, min(self.ymax - margin, y)),
+        )
+
+    def bbox(self) -> Tuple[float, float, float, float]:
+        return (self.xmin, self.ymin, self.xmax, self.ymax)
+
+
+class CircleRegion(ContainmentRegion):
+    def __init__(self, cx: float, cy: float, radius: float):
+        self.cx, self.cy, self.radius = float(cx), float(cy), float(radius)
+
+    def signed_gap(self, x: float, y: float) -> float:
+        return self.radius - math.hypot(x - self.cx, y - self.cy)
+
+    def inward_normal(self, x: float, y: float) -> Tuple[float, float]:
+        dx, dy = self.cx - x, self.cy - y
+        d = math.hypot(dx, dy)
+        return (dx / d, dy / d) if d > 1e-9 else (1.0, 0.0)
+
+    def clamp(self, x: float, y: float, margin: float) -> Tuple[float, float]:
+        max_d = max(0.0, self.radius - margin)
+        dx, dy = x - self.cx, y - self.cy
+        d = math.hypot(dx, dy)
+        if d <= max_d or d < 1e-9:
+            return x, y
+        return self.cx + dx * (max_d / d), self.cy + dy * (max_d / d)
+
+    def bbox(self) -> Tuple[float, float, float, float]:
+        return (self.cx - self.radius, self.cy - self.radius, self.cx + self.radius, self.cy + self.radius)
+
+
+class UnionRegion(ContainmentRegion):
+    """Union of overlapping members (T-maze stem + cross-bar). The member with the
+    largest signed gap is the one the point 'belongs' to."""
+
+    def __init__(self, members: List[ContainmentRegion]):
+        self.members = list(members)
+
+    def _best(self, x: float, y: float) -> ContainmentRegion:
+        return max(self.members, key=lambda m: m.signed_gap(x, y))
+
+    def signed_gap(self, x: float, y: float) -> float:
+        return max(m.signed_gap(x, y) for m in self.members)
+
+    def inward_normal(self, x: float, y: float) -> Tuple[float, float]:
+        return self._best(x, y).inward_normal(x, y)
+
+    def clamp(self, x: float, y: float, margin: float) -> Tuple[float, float]:
+        if self.signed_gap(x, y) >= margin:
+            return x, y
+        return self._best(x, y).clamp(x, y, margin)
+
+    def bbox(self) -> Tuple[float, float, float, float]:
+        boxes = [m.bbox() for m in self.members]
+        return (min(b[0] for b in boxes), min(b[1] for b in boxes),
+                max(b[2] for b in boxes), max(b[3] for b in boxes))
+
+
+class HoledRegion(ContainmentRegion):
+    """An outer region minus circular obstacles (multisensory arena pillars)."""
+
+    def __init__(self, outer: ContainmentRegion, holes: List[CircleRegion]):
+        self.outer = outer
+        self.holes = list(holes)
+
+    def _terms(self, x: float, y: float):
+        yield self.outer.signed_gap(x, y), None
+        for h in self.holes:
+            yield math.hypot(x - h.cx, y - h.cy) - h.radius, h
+
+    def signed_gap(self, x: float, y: float) -> float:
+        return min(g for g, _ in self._terms(x, y))
+
+    def inward_normal(self, x: float, y: float) -> Tuple[float, float]:
+        _, hole = min(self._terms(x, y), key=lambda t: t[0])
+        if hole is None:
+            return self.outer.inward_normal(x, y)
+        dx, dy = x - hole.cx, y - hole.cy
+        d = math.hypot(dx, dy)
+        return (dx / d, dy / d) if d > 1e-9 else (1.0, 0.0)
+
+    def clamp(self, x: float, y: float, margin: float) -> Tuple[float, float]:
+        x, y = self.outer.clamp(x, y, margin)
+        for h in self.holes:
+            dx, dy = x - h.cx, y - h.cy
+            d = math.hypot(dx, dy)
+            keep_out = h.radius + margin
+            if d < keep_out:
+                if d < 1e-9:
+                    dx, dy, d = 1.0, 0.0, 1.0
+                x = h.cx + dx * (keep_out / d)
+                y = h.cy + dy * (keep_out / d)
+        return x, y
+
+    def bbox(self) -> Tuple[float, float, float, float]:
+        return self.outer.bbox()
+
+
 class Arena:
     """Multi-Agent 2D Simulation Arena with Drosophila and Stalking Predators."""
 
     FLY_COLORS = ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#AB47BC', '#00ACC1', '#FF7043']
+
+    # Wall-avoidance reflex (mirrored in web/app.js as wallAvoidanceTurn):
+    # boundaries closer than this to the body edge are perceived, and the reflex can
+    # command up to this yaw rate away from them. Mechanosensory/visual proximity at
+    # descending-neuron level; it does not touch the brain models.
+    WALL_PERCEPTION_MM = 4.0
+    WALL_AVOID_YAW_RAD_S = 4.0
 
     def __init__(
         self,
@@ -401,6 +552,11 @@ class Arena:
         self.surge_cast = self.fly.surge_cast
         self.cx = self.fly.cx
 
+        # Legal region for fly body centres: hard failsafe, wall perception and audits
+        # all read this one description of the paradigm's enclosure.
+        self.containment: ContainmentRegion = self._build_containment()
+        self.world_bounds: Tuple[float, float, float, float] = self.containment.bbox()
+
         # Ecological Metrics
         self.time_step = 0
         self.food_collected = 0
@@ -411,51 +567,177 @@ class Arena:
         self.time_to_food_history: List[int] = []
         self.last_food_step = 0
 
+    @staticmethod
+    def paradigm_key(paradigm: Any) -> str:
+        """Canonical snake_case key of a paradigm ('t_maze', 'heat_maze', 'multisensory', ...).
+
+        Exact keys, never substring tests: 'heat_maze' contains 't_maze', and matching by
+        substring once clamped the heat-maze fly into the T-maze corridor.
+        """
+        if paradigm is None:
+            return ''
+        name = str(getattr(paradigm, 'name', '')).strip().lower().replace('-', '_').replace(' ', '_')
+        if name.startswith('multisensory'):
+            return 'multisensory'
+        return name
+
     def _get_paradigm_spawn(self, paradigm: Any) -> Tuple[float, float, float]:
         """Compute initial fly spawn coordinates (x, y, heading) based on paradigm geometry."""
         if hasattr(paradigm, 'spawn_pos') and paradigm.spawn_pos is not None:
             sp = paradigm.spawn_pos
             return float(sp[0]), float(sp[1]), float(getattr(paradigm, 'spawn_heading', 0.0))
 
-        p_name = getattr(paradigm, 'name', '').lower().replace('-', '_')
-        if 't_maze' in p_name:
+        spawns = {
             # Stem base center (x=70, y=18), facing up stem (+y, pi/2)
-            return 70.0, 18.0, math.pi / 2.0
-        elif 'y_maze' in p_name:
+            't_maze': (70.0, 18.0, math.pi / 2.0),
             # Central hub
-            return 60.0, 60.0, 0.0
-        elif 'heat_maze' in p_name:
+            'y_maze': (60.0, 60.0, 0.0),
             # Circular platform center
-            return 60.0, 60.0, 0.0
-        elif 'buridan' in p_name:
-            # Circular platform center
-            return 60.0, 60.0, 0.0
-        elif 'visual_operant' in p_name:
+            'heat_maze': (60.0, 60.0, 0.0),
+            'buridan': (60.0, 60.0, 0.0),
             # Flight simulator center
-            return 40.0, 40.0, 0.0
-        elif 'wind_tunnel' in p_name:
+            'visual_operant': (40.0, 40.0, 0.0),
             # Downwind release point facing upwind (East, heading 0.0)
-            return 20.0, 30.0, 0.0
-        elif 'looming_escape' in p_name:
+            'wind_tunnel': (20.0, 30.0, 0.0),
             # Center of stage
-            return 40.0, 40.0, 0.0
-        elif 'optomotor' in p_name:
+            'looming_escape': (40.0, 40.0, 0.0),
             # Center of drum
-            return 45.0, 45.0, 0.0
-        elif 'gap_crossing' in p_name:
+            'optomotor': (45.0, 45.0, 0.0),
             # Takeoff track start
-            return 20.0, 10.0, 0.0
-        elif 'circadian_dam' in p_name:
+            'gap_crossing': (20.0, 10.0, 0.0),
             # Tube 0 start
-            return 15.0, 5.0, 0.0
-        elif 'courtship' in p_name:
+            'circadian_dam': (15.0, 5.0, 0.0),
             # Male facing female at center (10, 10)
-            return 10.0, 13.0, -math.pi / 2.0
-        elif 'labyrinth' in p_name:
+            'courtship': (10.0, 13.0, -math.pi / 2.0),
             # Maze entrance
-            return 15.0, 15.0, 0.0
+            'labyrinth': (15.0, 15.0, 0.0),
+            # Origin-centred circular arena (r=75): the dashboard spawns at (0, 0)
+            'multisensory': (0.0, 0.0, 0.0),
+        }
+        return spawns.get(self.paradigm_key(paradigm), (self.width / 2.0, self.height / 2.0, 0.0))
+
+    def _build_containment(self) -> ContainmentRegion:
+        """Legal body-centre region of the active paradigm.
+
+        Matches the enclosure web/app.js draws for the same paradigm id so that the
+        daemon's coordinates land inside the dashboard's picture of the arena.
+        """
+        p = self.paradigm
+        key = self.paradigm_key(p)
+        w, h = float(self.width), float(self.height)
+        if key == 't_maze':
+            # Stem [63,77]x[10,57] joins the cross-bar [10,130]x[43,57]
+            return UnionRegion([RectRegion(63.0, 10.0, 77.0, 57.0), RectRegion(10.0, 43.0, 130.0, 57.0)])
+        if key == 'y_maze':
+            cx, cy = getattr(p, 'center', (60.0, 60.0))
+            return CircleRegion(cx, cy, 48.0)  # arms are enclosed by their own walls
+        if key == 'heat_maze':
+            cx, cy = getattr(p, 'arena_center', (60.0, 60.0))
+            return CircleRegion(cx, cy, float(getattr(p, 'arena_radius', 55.0)))
+        if key == 'buridan':
+            cx, cy = getattr(p, 'center', (60.0, 60.0))
+            return CircleRegion(cx, cy, float(getattr(p, 'platform_radius', 50.0)))
+        if key == 'courtship':
+            cx, cy = getattr(p, 'chamber_center', (10.0, 10.0))
+            return CircleRegion(cx, cy, float(getattr(p, 'chamber_radius', 8.5)))
+        if key == 'wind_tunnel':
+            return RectRegion(0.0, 0.0, 200.0, 60.0)
+        if key == 'gap_crossing':
+            return RectRegion(5.0, 7.5, 95.0, 12.5)
+        if key == 'circadian_dam':
+            return RectRegion(5.0, 1.0, 60.0, 9.0)  # active tube 0
+        if key == 'labyrinth':
+            return RectRegion(0.0, 0.0, 140.0, 100.0)
+        if key == 'multisensory':
+            outer = CircleRegion(0.0, 0.0, float(getattr(p, 'arena_radius', 75.0)))
+            pr = float(getattr(p, 'pillar_radius', 6.0))
+            holes = [CircleRegion(pc[0], pc[1], pr) for pc in getattr(p, 'pillar_centers', [])]
+            return HoledRegion(outer, holes)
+        # visual_operant, looming_escape, optomotor and the open arena are plain rectangles
+        return RectRegion(0.0, 0.0, w, h)
+
+    def reset_fly_to_spawn(self, fly: Optional[FlyState] = None):
+        """Return a fly to the paradigm's spawn pose for a new trial, keeping its memory."""
+        f = fly or self.fly
+        if self.paradigm is not None:
+            sx, sy, sh = self._get_paradigm_spawn(self.paradigm)
         else:
-            return self.width / 2.0, self.height / 2.0, 0.0
+            sx, sy, sh = self.width / 2.0, self.height / 2.0, 0.0
+        f.pos.x, f.pos.y = float(sx), float(sy)
+        f.heading = float(sh) % (2.0 * math.pi)
+        f.speed = 1.2
+        f.angular_velocity = 0.0
+        f.alive = True
+
+    def sense_boundaries(self, x: float, y: float, radius: float, perception: Optional[float] = None) -> List[Tuple[float, float, float]]:
+        """Boundaries within ``perception`` mm of the body edge as (gap, nx, ny).
+
+        ``gap`` is the free space between body edge and boundary (negative when
+        penetrating); (nx, ny) is the unit normal pointing away from that boundary.
+        Wall segments of the paradigm and the containment region are both sensed.
+        """
+        reach = self.WALL_PERCEPTION_MM if perception is None else perception
+        found: List[Tuple[float, float, float]] = []
+        g = self.containment.signed_gap(x, y) - radius
+        if g < reach:
+            nx, ny = self.containment.inward_normal(x, y)
+            found.append((g, nx, ny))
+        for wall in (getattr(self.paradigm, 'walls', None) or []):
+            px, py, _ = wall.project_point(x, y)
+            dx, dy = x - px, y - py
+            d = math.hypot(dx, dy)
+            g = d - radius
+            if g < reach:
+                if d > 1e-8:
+                    found.append((g, dx / d, dy / d))
+                else:
+                    found.append((g, wall.nx, wall.ny))
+        return found
+
+    def wall_avoidance_turn(self, fly: FlyState, dheading: float, dt: float = 0.02) -> float:
+        """Descending-level reflex: steer away from boundaries the fly can perceive.
+
+        Each perceived boundary contributes its away-normal weighted by proximity
+        (1 at contact, 0 at the perception range). If the fly is heading into the net
+        normal, an extra yaw of up to WALL_AVOID_YAW_RAD_S is added in the direction
+        that rotates the heading away from the wall; the side is remembered in
+        ``fly.wall_turn_dir`` so a head-on approach does not dither. Sliding parallel
+        to a wall (thigmotaxis) is untouched because the approach term is zero.
+        """
+        radius = getattr(fly, 'radius', 1.5)
+        sensed = self.sense_boundaries(fly.pos.x, fly.pos.y, radius)
+        if not sensed:
+            return dheading
+
+        reach = self.WALL_PERCEPTION_MM
+        net_x = net_y = 0.0
+        proximity = 0.0
+        for gap, nx, ny in sensed:
+            wgt = 1.0 - max(0.0, gap) / reach
+            net_x += wgt * nx
+            net_y += wgt * ny
+            proximity = max(proximity, wgt)
+        n_mag = math.hypot(net_x, net_y)
+        if n_mag < 1e-9 or proximity <= 0.0:
+            return dheading
+        net_x /= n_mag
+        net_y /= n_mag
+
+        # Direction of travel, not the heading: a fly walking backwards (MDN reverse
+        # under heat or laser) can back into a wall while facing away from it.
+        travel = fly.heading if fly.speed >= 0.0 else fly.heading + math.pi
+        hx, hy = math.cos(travel), math.sin(travel)
+        approach = -(hx * net_x + hy * net_y)  # > 0 when moving into the boundary
+        if approach <= 0.0:
+            return dheading
+
+        cross = hx * net_y - hy * net_x  # > 0: counter-clockwise turn moves travel toward the normal
+        if abs(cross) > 0.1:
+            fly.wall_turn_dir = 1.0 if cross > 0.0 else -1.0
+        avoid = fly.wall_turn_dir * self.WALL_AVOID_YAW_RAD_S * proximity * approach
+        # Rate limit; with legacy whole-second ticks never rotate more than a quarter turn per step
+        limit = min(self.WALL_AVOID_YAW_RAD_S, (math.pi / 2.0) / max(float(dt), 1e-6))
+        return float(max(-limit, min(limit, dheading + avoid)))
 
     def _spawn_entities(self):
         self.food_positions.clear()
@@ -482,6 +764,30 @@ class Arena:
         self.fly.speed = 1.2
         self.fly.angular_velocity = 0.0
         self.fly.alive = True
+
+    def _sample_paradigm_antennae(self, fly: FlyState, stimuli: Dict[str, Any]) -> Dict[str, float]:
+        """Bilateral odour sample of a paradigm that publishes 'odor_a'/'odor_b' fields."""
+        left_pos, right_pos = fly.get_antennae_positions()
+
+        def at(pos: Position) -> Dict[str, Any]:
+            try:
+                return self.paradigm.sample_stimuli((pos.x, pos.y), fly.heading)
+            except TypeError:
+                return self.paradigm.sample_stimuli(pos.x, pos.y, fly.heading)
+
+        try:
+            sl, sr = at(left_pos), at(right_pos)
+            left_a, right_a = float(sl.get('odor_a', 0.0)), float(sr.get('odor_a', 0.0))
+            left_b, right_b = float(sl.get('odor_b', 0.0)), float(sr.get('odor_b', 0.0))
+        except Exception:
+            left_a = right_a = float(stimuli.get('odor_a', 0.0))
+            left_b = right_b = float(stimuli.get('odor_b', 0.0))
+        return {
+            'left_a': left_a, 'right_a': right_a,
+            'mean_a': 0.5 * (left_a + right_a), 'diff_a': left_a - right_a,
+            'left_b': left_b, 'right_b': right_b,
+            'mean_b': 0.5 * (left_b + right_b), 'diff_b': left_b - right_b
+        }
 
     def sample_antennae(self, fly: FlyState = None) -> Dict[str, float]:
         f = fly or self.fly
@@ -683,88 +989,40 @@ class Arena:
 
         return dheading, new_speed, state, compass_heading, goal_angle
 
-    def enforce_containment(self, fly: FlyState) -> bool:
-        """Absolute geometric bounding enforcement preventing any out-of-bounds clipping across all paradigms."""
+    def enforce_containment(self, fly: FlyState, dt: float = 0.02) -> bool:
+        """Hard geometric failsafe: keep the body inside the paradigm's legal region.
+
+        Runs after collision resolution and the wall reflex, so it only fires when
+        those have already failed. When it does fire it behaves like a wall contact
+        rather than a silent clamp: the position is projected back inside, the speed
+        component driving into the boundary is removed, and the heading receives the
+        same away-from-wall torque as a real collision, so the fly can never be left
+        pushing into an invisible boundary step after step.
+        Returns True when the position had to be corrected.
+        """
         if not fly or not fly.alive:
             return False
 
         r = getattr(fly, 'radius', 1.5)
-        clamped = False
-        p_name = getattr(self.paradigm, 'name', '').lower().replace('-', '_') if self.paradigm else ''
+        x, y = fly.pos.x, fly.pos.y
+        if self.containment.signed_gap(x, y) >= r:
+            return False
 
-        if 't_maze' in p_name:
-            # Stem: x in [63+r, 77-r], y in [10+r, 43.0]
-            # Arms: x in [10+r, 130-r], y in [43.0, 57-r]
-            # Junction: x in [63+r, 77-r], y in [43.0, 57-r]
-            in_stem = (63.0 + r <= fly.pos.x <= 77.0 - r) and (10.0 + r <= fly.pos.y <= 43.0)
-            in_arms = (10.0 + r <= fly.pos.x <= 130.0 - r) and (43.0 <= fly.pos.y <= 57.0 - r)
-            if not (in_stem or in_arms):
-                clamped = True
-                if fly.pos.y < 43.0:
-                    fly.pos.x = max(63.0 + r, min(77.0 - r, fly.pos.x))
-                    fly.pos.y = max(10.0 + r, min(43.0, fly.pos.y))
-                else:
-                    fly.pos.x = max(10.0 + r, min(130.0 - r, fly.pos.x))
-                    fly.pos.y = max(43.0, min(57.0 - r, fly.pos.y))
+        nx, ny = self.containment.inward_normal(x, y)
+        fly.pos.x, fly.pos.y = self.containment.clamp(x, y, r)
 
-        elif 'y_maze' in p_name:
-            # Distance from hub (60, 60) max 50mm
-            cx, cy, max_r = 60.0, 60.0, 48.0 - r
-            d = math.hypot(fly.pos.x - cx, fly.pos.y - cy)
-            if d > max_r:
-                clamped = True
-                fly.pos.x = cx + (fly.pos.x - cx) * (max_r / d)
-                fly.pos.y = cy + (fly.pos.y - cy) * (max_r / d)
-
-        elif any(k in p_name for k in ['heat_maze', 'buridan', 'courtship', 'optomotor', 'visual_operant']):
-            # Circular platform
-            cx = self.width / 2.0
-            cy = self.height / 2.0
-            max_r = min(self.width, self.height) * 0.48 - r
-            d = math.hypot(fly.pos.x - cx, fly.pos.y - cy)
-            if d > max_r:
-                clamped = True
-                fly.pos.x = cx + (fly.pos.x - cx) * (max_r / d)
-                fly.pos.y = cy + (fly.pos.y - cy) * (max_r / d)
-
-        elif 'wind_tunnel' in p_name:
-            orig_x, orig_y = fly.pos.x, fly.pos.y
-            fly.pos.x = max(r, min(200.0 - r, fly.pos.x))
-            fly.pos.y = max(r, min(60.0 - r, fly.pos.y))
-            if fly.pos.x != orig_x or fly.pos.y != orig_y:
-                clamped = True
-
-        elif 'gap_crossing' in p_name:
-            orig_x, orig_y = fly.pos.x, fly.pos.y
-            fly.pos.x = max(r, min(100.0 - r, fly.pos.x))
-            fly.pos.y = max(7.5 + r, min(12.5 - r, fly.pos.y))
-            if fly.pos.x != orig_x or fly.pos.y != orig_y:
-                clamped = True
-
-        elif 'circadian_dam' in p_name:
-            # Active tube 0: y in [0, 10], x in [0, 65]
-            orig_x, orig_y = fly.pos.x, fly.pos.y
-            fly.pos.x = max(r, min(65.0 - r, fly.pos.x))
-            fly.pos.y = max(r, min(10.0 - r, fly.pos.y))
-            if fly.pos.x != orig_x or fly.pos.y != orig_y:
-                clamped = True
-
-        elif 'labyrinth' in p_name:
-            orig_x, orig_y = fly.pos.x, fly.pos.y
-            fly.pos.x = max(r, min(140.0 - r, fly.pos.x))
-            fly.pos.y = max(r, min(100.0 - r, fly.pos.y))
-            if fly.pos.x != orig_x or fly.pos.y != orig_y:
-                clamped = True
-
-        else:
-            # Default rectangular arena containment
-            orig_x, orig_y = fly.pos.x, fly.pos.y
-            fly.pos.x = max(r, min(self.width - r, fly.pos.x))
-            fly.pos.y = max(r, min(self.height - r, fly.pos.y))
-            if fly.pos.x != orig_x or fly.pos.y != orig_y:
-                clamped = True
-
-        return clamped
+        travel = fly.heading if fly.speed >= 0.0 else fly.heading + math.pi
+        hx, hy = math.cos(travel), math.sin(travel)
+        into = -(hx * nx + hy * ny)
+        if into > 0.0:
+            # Keep only the tangential share of the commanded speed (no bounce)
+            fly.speed = float(fly.speed) * math.sqrt(max(0.0, 1.0 - into * into))
+            cross = hx * ny - hy * nx
+            if abs(cross) > 0.1:
+                fly.wall_turn_dir = 1.0 if cross > 0.0 else -1.0
+            turn = min(self.WALL_AVOID_YAW_RAD_S * dt, math.pi / 2.0)
+            fly.heading = (fly.heading + fly.wall_turn_dir * turn) % (2.0 * math.pi)
+        return True
 
     def step(self, dt: float = 1.0) -> Dict:
         """Execute one simulation tick for all flies and predators."""
@@ -842,6 +1100,10 @@ class Arena:
                         'left_a': c, 'right_a': c, 'mean_a': c, 'diff_a': 0.0,
                         'left_b': 0.0, 'right_b': 0.0, 'mean_b': 0.0, 'diff_b': 0.0
                     }
+                elif 'odor_a' in stimuli:
+                    # Paradigm-owned plume fields (multisensory arena): sample them at
+                    # both antennae so the bilateral difference can drive tropotaxis.
+                    sensory = self._sample_paradigm_antennae(fly, stimuli)
                 else:
                     sensory = self.sample_antennae(fly)
 
@@ -892,6 +1154,9 @@ class Arena:
                 fly.compass_heading = compass_h
                 fly.goal_angle = goal_a
 
+                # Wall perception: turn away from boundaries before touching them
+                dheading = self.wall_avoidance_turn(fly, dheading, dt)
+
                 # Save pre-update position for true continuous swept trajectory
                 prev_x = fly.pos.x
                 prev_y = fly.pos.y
@@ -923,7 +1188,7 @@ class Arena:
                 fly.pos.x = res_x
                 fly.pos.y = res_y
                 fly.speed = math.hypot(res_vx, res_vy)
-                self.enforce_containment(fly)
+                self.enforce_containment(fly, dt)
 
                 if collided and normals:
                     # Continuous physical contact torque steering (zero angular teleportation)

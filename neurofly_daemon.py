@@ -3,7 +3,7 @@
 Project NeuroFly (v1.0-release) — Continuous Background Learning Daemon
 ========================================================================
 Runs 24/7 headless biological simulation and continuous online learning
-on remote compute nodes (e.g. AMD Ryzen workstation) or local environments.
+on a workstation, a server, or a laptop; it needs only the Python standard library and NumPy.
 
 Key Capabilities:
 1. 24/7 Continuous Headless Simulation: Steps active neuroethological paradigms
@@ -18,6 +18,11 @@ Key Capabilities:
    - POST /api/command    : Bidirectional interventions (stimuli, speed, parameters, switches).
 4. Auto-Checkpointing: Periodically writes weight matrices and trial summaries to disk.
 5. Zero External Dependencies: Pure Python 3.12 standard library + NumPy.
+6. Public mode (--public / NEUROFLY_PUBLIC=1): read-only stream for untrusted
+   viewers -- POST /api/command needs a bearer token equal to NEUROFLY_ADMIN_TOKEN,
+   SSE clients are capped and the stream is throttled (stream_gateway.py).
+7. Durable learning records: append-only trials.jsonl / telemetry_summary.jsonl
+   under NEUROFLY_DATA_DIR or outputs/learning (learning_recorder.py).
 """
 
 import argparse
@@ -45,16 +50,36 @@ except ImportError as e:
     print(f"[Daemon] Error importing arena/maze modules: {e}", file=sys.stderr)
     raise
 
+# Flag-gated public-stream policy and durable learning records.  Both default
+# to the historical behaviour (private LAN mode; see docs/PUBLIC_STREAMING.md
+# and docs/DATA_SCHEMA.md).  They never touch the simulation loop.
+from stream_gateway import MAX_COMMAND_BYTES, StreamGateway, StreamPolicy
+from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
+
 
 class ContinuousExperimentRunner:
     """Manages the continuous headless simulation loop and online plasticity."""
+
+    # Paradigm telemetry flags that mark a natural end of a trial (goal reached, choice
+    # made, escape fired). Paradigms without such an endpoint (multisensory sandbox,
+    # optomotor, courtship, circadian...) end on time: the paradigm's own TrialManager
+    # duration or ``trial_length_s`` of simulated time, whichever comes first.
+    TRIAL_END_FLAGS = ("goal_reached", "source_reached", "refuge_reached", "crossing_success", "escape_initiated")
+    # Ordered candidates for the per-trial learning-curve value, with a scale to [0, 1].
+    TRIAL_METRIC_KEYS = (
+        ("performance_index", 1.0), ("pi", 1.0), ("learning_index", 1.0),
+        ("operant_learning_index", 1.0), ("spontaneous_alternation_rate", 1.0),
+        ("centrophobism_index", 1.0), ("courtship_index", 1.0), ("optomotor_gain", 1.0),
+        ("composite_benchmark_score", 0.01), ("surge_to_cast_ratio", 1.0),
+    )
 
     def __init__(
         self,
         initial_paradigm: str = "multisensory-sandbox",
         sim_speed: float = 10.0,
         checkpoint_interval: float = 60.0,
-        output_dir: Optional[Path] = None
+        output_dir: Optional[Path] = None,
+        trial_length_s: float = 60.0
     ):
         self.output_dir = output_dir or (PROJECT_ROOT / "outputs")
         self.checkpoints_dir = self.output_dir / "checkpoints"
@@ -68,11 +93,14 @@ class ContinuousExperimentRunner:
         self.dt = 0.02
         self.active_paradigm_id = initial_paradigm
         self.checkpoint_interval = max(5.0, float(checkpoint_interval))
+        # Simulated seconds after which a trial ends even without a natural endpoint
+        self.trial_length_s = max(1.0, float(trial_length_s))
 
         # Runtime state
         self.start_time = time.time()
         self.total_steps = 0
         self.current_trial = 1
+        self.trial_sim_time = 0.0
         self.last_checkpoint_time = time.time()
         self.trial_history: List[Dict[str, Any]] = []
         self.learning_curve: List[float] = []
@@ -112,6 +140,7 @@ class ContinuousExperimentRunner:
             self.arena = Arena(paradigm=None)
             self.active_paradigm_id = "open-arena"
             self.active_paradigm_title = "Open Arena Assay"
+        self.trial_sim_time = 0.0
 
     def start(self):
         """Starts background continuous execution thread."""
@@ -137,35 +166,74 @@ class ContinuousExperimentRunner:
             loop_start = time.perf_counter()
 
             with self.lock:
-                # 1. Step simulation arena
-                try:
-                    step_result = self.arena.step(step_dt)
-                except Exception as step_err:
-                    print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
-                    step_result = {}
-
-                self.total_steps += 1
-                fly = self.arena.fly
-
-                # 2. Check for trial advancement or milestone metrics
-                p_metrics = step_result.get("paradigm_metrics", {})
-                if p_metrics.get("trial_complete", False) or step_result.get("food_collected", 0) > len(self.trial_history) * 5:
-                    self._record_trial_milestone(step_result)
-
-                # 3. Assemble telemetry snapshot
-                self.latest_telemetry = self._assemble_telemetry(step_result)
-
-                # 4. Periodic Checkpointing
-                now = time.time()
-                if now - self.last_checkpoint_time >= self.checkpoint_interval:
-                    self.save_checkpoint("periodic")
-                    self.last_checkpoint_time = now
+                self.step_once()
 
             # Sleep to match target speed pacing
             elapsed = time.perf_counter() - loop_start
             sleep_time = (step_dt / self.sim_speed) - elapsed
             if sleep_time > 0.0005:
                 time.sleep(sleep_time)
+
+    def step_once(self) -> Dict[str, Any]:
+        """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``."""
+        step_dt = self.dt
+
+        # 1. Step simulation arena
+        try:
+            step_result = self.arena.step(step_dt)
+        except Exception as step_err:
+            print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
+            step_result = {}
+
+        self.total_steps += 1
+        self.trial_sim_time += step_dt
+
+        # 2. Trial advancement: natural endpoint or time limit
+        end_reason = self._trial_end_reason(step_result)
+        if end_reason is not None:
+            self._end_trial(step_result, end_reason)
+
+        # 3. Assemble telemetry snapshot
+        self.latest_telemetry = self._assemble_telemetry(step_result)
+
+        # 4. Periodic Checkpointing
+        now = time.time()
+        if now - self.last_checkpoint_time >= self.checkpoint_interval:
+            self.save_checkpoint("periodic")
+            self.last_checkpoint_time = now
+        return step_result
+
+    def _trial_end_reason(self, step_result: Dict[str, Any]) -> Optional[str]:
+        """Why the current trial is over, or None while it continues."""
+        telemetry = step_result.get("paradigm_telemetry") or {}
+        for flag in self.TRIAL_END_FLAGS:
+            if telemetry.get(flag):
+                return flag
+        if telemetry.get("first_choice"):
+            return "first_choice"
+        if telemetry.get("decision_outcome") == "ABORT":
+            return "decision_abort"
+
+        paradigm = getattr(self.arena, "paradigm", None)
+        manager = getattr(paradigm, "trial_manager", None)
+        if manager is not None and not getattr(manager, "trial_active", True):
+            return "max_duration_steps"
+        if self.trial_sim_time >= self.trial_length_s:
+            return "time_limit"
+        return None
+
+    def _end_trial(self, step_result: Dict[str, Any], reason: str):
+        """Record the milestone, reset the paradigm's trial state and respawn the fly.
+        Mushroom-body weights and other plasticity are kept: learning is continuous."""
+        self._record_trial_milestone(step_result, reason)
+        paradigm = getattr(self.arena, "paradigm", None)
+        if paradigm is not None and hasattr(paradigm, "reset_trial"):
+            try:
+                paradigm.reset_trial()
+            except Exception as reset_err:
+                print(f"[Daemon] paradigm.reset_trial failed: {reset_err}", file=sys.stderr)
+        self.arena.reset_fly_to_spawn()
+        self.trial_sim_time = 0.0
 
     def _assemble_telemetry(self, step_res: Dict[str, Any]) -> Dict[str, Any]:
         """Constructs standardized JSON telemetry packet for browser streaming."""
@@ -209,11 +277,15 @@ class ContinuousExperimentRunner:
             "paradigm_title": self.active_paradigm_title,
             "sim_speed": self.sim_speed,
             "trial": self.current_trial,
+            "trial_elapsed_s": round(self.trial_sim_time, 2),
+            "trials_completed": len(self.trial_history),
+            "world_bounds": list(getattr(self.arena, "world_bounds", (0.0, 0.0, self.arena.width, self.arena.height))),
             "fly": {
                 "x": round(float(fly.pos.x), 2),
                 "y": round(float(fly.pos.y), 2),
                 "heading": round(float(fly.heading), 3),
                 "speed": round(float(fly.speed), 2),
+                "radius": float(getattr(fly, "radius", 1.5)),
                 "state": getattr(fly, "behavioral_state", "FORAGING")
             },
             "sensory": {
@@ -244,15 +316,25 @@ class ContinuousExperimentRunner:
             "metrics": p_metrics
         }
 
-    def _record_trial_milestone(self, step_res: Dict[str, Any]):
+    def _trial_metric(self, metrics: Dict[str, Any]) -> float:
+        """The paradigm's headline score for the learning curve, scaled to about [0, 1]."""
+        for key, scale in self.TRIAL_METRIC_KEYS:
+            val = metrics.get(key)
+            if isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val):
+                return float(val) * scale
+        return 0.5
+
+    def _record_trial_milestone(self, step_res: Dict[str, Any], reason: str = "milestone"):
         """Records end of trial or adaptation milestone in continuous memory."""
-        metrics = step_res.get("paradigm_metrics", {})
-        metric_val = metrics.get("performance_index", metrics.get("pi", metrics.get("learning_index", 0.5)))
+        metrics = step_res.get("paradigm_metrics", {}) or {}
+        metric_val = self._trial_metric(metrics)
         self.learning_curve.append(float(metric_val))
         self.trial_history.append({
             "trial": self.current_trial,
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
+            "sim_seconds": round(self.trial_sim_time, 3),
+            "reason": reason,
             "metric": float(metric_val),
             "timestamp": time.time()
         })
@@ -310,9 +392,12 @@ class ContinuousExperimentRunner:
                     self.current_trial += 1
                 if not keep_mem and hasattr(self.arena.fly, "circuit"):
                     self.arena.fly.circuit.reset(preserve_weights=False)
-                # Reset fly position to center or paradigm spawn
-                self.arena.fly.pos.x = self.arena.width / 2.0
-                self.arena.fly.pos.y = self.arena.height / 2.0
+                # Reset paradigm trial state and return the fly to the paradigm spawn
+                paradigm = getattr(self.arena, "paradigm", None)
+                if paradigm is not None and hasattr(paradigm, "reset_trial"):
+                    paradigm.reset_trial()
+                self.arena.reset_fly_to_spawn()
+                self.trial_sim_time = 0.0
                 return {"status": "ok", "current_trial": self.current_trial}
 
             elif action == "save_checkpoint":
@@ -355,9 +440,12 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
     """Multi-threaded HTTP Server handling REST telemetry and SSE streaming."""
 
     runner: ContinuousExperimentRunner = None  # Injected on startup
+    # Private-mode gateway by default (no auth, unlimited clients, 30 Hz);
+    # run_daemon() replaces it when --public / NEUROFLY_PUBLIC is set.
+    gateway: StreamGateway = StreamGateway(StreamPolicy())
 
     def _set_cors_headers(self, content_type: str = "application/json"):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self.gateway.policy.allowed_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Content-Type", content_type)
@@ -384,7 +472,11 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                 "active_paradigm": self.runner.active_paradigm_id,
                 "active_paradigm_title": self.runner.active_paradigm_title,
                 "current_trial": self.runner.current_trial,
-                "trials_completed": len(self.runner.trial_history)
+                "trials_completed": len(self.runner.trial_history),
+                "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
+                "trial_length_s": getattr(self.runner, "trial_length_s", None),
+                "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
+                "stream": self.gateway.describe()
             }
             self.wfile.write(json.dumps(resp, indent=2).encode("utf-8"))
 
@@ -419,7 +511,17 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"paradigms": all_p}).encode("utf-8"))
 
         elif url == "/api/stream":
-            # Server-Sent Events (SSE) stream
+            # Server-Sent Events (SSE) stream, capped and paced by the gateway
+            # (unlimited clients at 30 Hz unless --public is set).
+            slot = self.gateway.acquire_stream_slot()
+            if not slot:
+                self.send_response(503)
+                self._set_cors_headers()
+                self.send_header("Retry-After", "5")
+                self.end_headers()
+                self.wfile.write(b'{"error": "Too many stream clients; retry later"}')
+                return
+
             self.send_response(200)
             self._set_cors_headers("text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
@@ -427,6 +529,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             try:
+                last_send = 0.0
                 while self.runner.running:
                     with self.runner.lock:
                         payload = self.runner.latest_telemetry
@@ -434,9 +537,11 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                         msg = f"data: {json.dumps(payload)}\n\n"
                         self.wfile.write(msg.encode("utf-8"))
                         self.wfile.flush()
-                    time.sleep(0.033)  # ~30 Hz broadcast
+                    last_send = self.gateway.pace(last_send)
             except (BrokenPipeError, ConnectionResetError):
                 pass
+            finally:
+                slot.release()
 
         else:
             self.send_response(404)
@@ -447,7 +552,24 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         url = self.path.split("?")[0].rstrip("/")
         if url == "/api/command":
-            content_len = int(self.headers.get("Content-Length", 0))
+            # Public mode: commands need a matching bearer token (or are off).
+            if not self.gateway.authorize_command(self.headers):
+                self.send_response(403)
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps(self.gateway.command_rejection()).encode("utf-8"))
+                return
+
+            try:
+                content_len = int(self.headers.get("Content-Length", 0) or 0)
+            except ValueError:
+                content_len = -1
+            if content_len < 0 or content_len > MAX_COMMAND_BYTES:
+                self.send_response(413)
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(b'{"error": "Command body too large"}')
+                return
             body = self.rfile.read(content_len).decode("utf-8")
             try:
                 cmd = json.loads(body)
@@ -481,8 +603,44 @@ def run_daemon():
     parser.add_argument("--paradigm", default="multisensory-sandbox", help="Initial experimental paradigm")
     parser.add_argument("--speed", type=float, default=10.0, help="Initial simulation speed multiplier (default: 10.0x)")
     parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
+    parser.add_argument("--trial-seconds", type=float, default=60.0,
+                        help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
     parser.add_argument("--pid-file", default="", help="Optional path to write daemon PID file")
+
+    public_group = parser.add_argument_group(
+        "public streaming",
+        "Read-only exposure of the stream (docs/PUBLIC_STREAMING.md). The admin token is read "
+        "from NEUROFLY_ADMIN_TOKEN only, never from the command line.")
+    public_group.add_argument("--public", action="store_true", default=None,
+                              help="Public mode: POST /api/command disabled unless a bearer token "
+                                   "matching NEUROFLY_ADMIN_TOKEN is sent; SSE clients capped and "
+                                   "throttled (env: NEUROFLY_PUBLIC=1)")
+    public_group.add_argument("--max-stream-clients", type=int, default=None,
+                              help="Cap on concurrent SSE clients, 0 = unlimited "
+                                   "(env: NEUROFLY_MAX_STREAM_CLIENTS; public default 50)")
+    public_group.add_argument("--stream-hz", type=float, default=None,
+                              help="SSE broadcast rate in Hz (env: NEUROFLY_STREAM_HZ; "
+                                   "default 30 private, 10 public)")
+    public_group.add_argument("--allowed-origin", default=None,
+                              help="Access-Control-Allow-Origin value (env: NEUROFLY_ALLOWED_ORIGIN; default *)")
+
+    record_group = parser.add_argument_group(
+        "durable learning records", "Append-only JSONL under the data directory (docs/DATA_SCHEMA.md).")
+    record_group.add_argument("--data-dir", default=None,
+                              help="Directory for trials.jsonl / telemetry_summary.jsonl "
+                                   "(env: NEUROFLY_DATA_DIR; default <project>/outputs/learning)")
+    record_group.add_argument("--summary-interval", type=float, default=60.0,
+                              help="Seconds between telemetry summary lines (default 60)")
+    record_group.add_argument("--no-record", action="store_true",
+                              help="Disable the durable JSONL learning records")
     args = parser.parse_args()
+
+    stream_policy = StreamPolicy.from_env(
+        public=args.public,
+        max_stream_clients=args.max_stream_clients,
+        stream_hz=args.stream_hz,
+        allowed_origin=args.allowed_origin,
+    )
 
     # PID writing if requested
     pid_path = Path(args.pid_file) if args.pid_file else (PROJECT_ROOT / "outputs" / "neurofly_daemon.pid")
@@ -494,27 +652,52 @@ def run_daemon():
     print("PROJECT NEUROFLY — 24/7 CONTINUOUS REMOTE LEARNING DAEMON")
     print(f"PID: {os.getpid()} | API Port: {args.port} | Speed: {args.speed}x")
     print(f"Active Paradigm: {args.paradigm}")
+    if stream_policy.public:
+        mode = "READ-ONLY (no admin token set)" if stream_policy.read_only else "token-gated commands"
+        print(f"Public mode: {mode} | max SSE clients: {stream_policy.max_stream_clients or 'unlimited'}"
+              f" | stream {stream_policy.stream_hz:g} Hz")
     print("===============================================================================", flush=True)
 
     runner = ContinuousExperimentRunner(
         initial_paradigm=args.paradigm,
         sim_speed=args.speed,
-        checkpoint_interval=args.checkpoint_interval
+        checkpoint_interval=args.checkpoint_interval,
+        trial_length_s=args.trial_seconds
     )
     runner.start()
 
+    # Durable learning records: a poller thread that never touches the sim loop.
+    recorder_thread: Optional[RecorderThread] = None
+    if not args.no_record:
+        data_dir = resolve_data_dir(PROJECT_ROOT, args.data_dir)
+        recorder = LearningRecorder(data_dir, session={
+            "paradigm": args.paradigm,
+            "sim_speed": runner.sim_speed,
+            "port": args.port,
+            "public": stream_policy.public,
+        })
+        recorder_thread = RecorderThread(runner, recorder, summary_interval=args.summary_interval)
+        recorder_thread.start()
+        print(f"[Daemon] Learning records: {data_dir}", flush=True)
+
     NeuroflyHTTPHandler.runner = runner
+    NeuroflyHTTPHandler.gateway = StreamGateway(stream_policy)
     server = ThreadingHTTPServer((args.host, args.port), NeuroflyHTTPHandler)
 
     def _signal_handler(signum, frame):
         print(f"\n[Daemon] Received signal {signum}. Initiating graceful shutdown...", flush=True)
         runner.stop()
+        if recorder_thread is not None:
+            recorder_thread.stop()
         try:
             if pid_path.exists():
                 pid_path.unlink()
         except OSError:
             pass
-        server.shutdown()
+        # Do not call server.shutdown() here: the handler runs on the thread
+        # that is inside serve_forever(), and shutdown() would wait forever for
+        # that loop to exit.  SystemExit unwinds serve_forever() instead and the
+        # finally block below closes the socket.
         sys.exit(0)
 
     signal.signal(signal.SIGINT, _signal_handler)
@@ -527,6 +710,8 @@ def run_daemon():
         pass
     finally:
         runner.stop()
+        if recorder_thread is not None:
+            recorder_thread.stop()
         server.server_close()
         print("[Daemon] Clean shutdown complete.", flush=True)
 
