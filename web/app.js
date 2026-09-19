@@ -285,12 +285,23 @@ class WallSegment {
         const vy = p1[1] - p0[1];
         const lSq = vx * vx + vy * vy;
 
+        // Walls are two-sided: a circle that already overlaps the segment is a hit at
+        // toi=0 with the normal pointing from the segment towards the circle centre.
+        // (Being on the "back" side of a wall at a distance is NOT a hit; internal maze
+        // walls, pillars and non-convex arenas all have flies legitimately behind walls.)
         const [cx0, cy0] = this.projectPoint(p0[0], p0[1]);
         const d0 = Math.hypot(p0[0] - cx0, p0[1] - cy0);
-        const signed0 = (p0[0] - cx0) * this.nx + (p0[1] - cy0) * this.ny;
-        if (d0 <= radius || signed0 < 0.0) {
-            const nx = (signed0 < 0.0 || d0 <= 1e-8) ? this.nx : (p0[0] - cx0) / d0;
-            const ny = (signed0 < 0.0 || d0 <= 1e-8) ? this.ny : (p0[1] - cy0) / d0;
+        if (d0 <= radius) {
+            let nx, ny;
+            if (d0 > 1e-8) {
+                nx = (p0[0] - cx0) / d0;
+                ny = (p0[1] - cy0) / d0;
+            } else {
+                // Centre exactly on the wall line: push back against the motion direction.
+                const side = (vx * this.nx + vy * this.ny) > 0.0 ? -1.0 : 1.0;
+                nx = side * this.nx;
+                ny = side * this.ny;
+            }
             return { hit: true, toi: 0.0, cp: [cx0, cy0], normal: [nx, ny] };
         }
 
@@ -420,6 +431,94 @@ class WallSegment {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Containment regions (mirror of arena.py RectRegion / CircleRegion / UnionRegion /
+// HoledRegion). signedGap(x, y) is the distance from a point to the region boundary
+// (positive inside); a body of radius r is inside when signedGap >= r. inwardNormal is
+// the unit vector from the nearest boundary into the region. clamp projects a point
+// back inside with a margin.
+// -----------------------------------------------------------------------------
+class RectRegion {
+    constructor(xmin, ymin, xmax, ymax) { this.xmin = xmin; this.ymin = ymin; this.xmax = xmax; this.ymax = ymax; }
+    signedGap(x, y) { return Math.min(x - this.xmin, this.xmax - x, y - this.ymin, this.ymax - y); }
+    inwardNormal(x, y) {
+        const sides = [[x - this.xmin, [1, 0]], [this.xmax - x, [-1, 0]], [y - this.ymin, [0, 1]], [this.ymax - y, [0, -1]]];
+        let best = sides[0];
+        for (const s of sides) if (s[0] < best[0]) best = s;
+        return best[1];
+    }
+    clamp(x, y, margin) {
+        return [Math.max(this.xmin + margin, Math.min(this.xmax - margin, x)), Math.max(this.ymin + margin, Math.min(this.ymax - margin, y))];
+    }
+    bbox() { return [this.xmin, this.ymin, this.xmax, this.ymax]; }
+}
+
+class CircleRegion {
+    constructor(cx, cy, radius) { this.cx = cx; this.cy = cy; this.radius = radius; }
+    signedGap(x, y) { return this.radius - Math.hypot(x - this.cx, y - this.cy); }
+    inwardNormal(x, y) {
+        const dx = this.cx - x, dy = this.cy - y, d = Math.hypot(dx, dy);
+        return d > 1e-9 ? [dx / d, dy / d] : [1, 0];
+    }
+    clamp(x, y, margin) {
+        const maxD = Math.max(0.0, this.radius - margin);
+        const dx = x - this.cx, dy = y - this.cy, d = Math.hypot(dx, dy);
+        if (d <= maxD || d < 1e-9) return [x, y];
+        return [this.cx + dx * (maxD / d), this.cy + dy * (maxD / d)];
+    }
+    bbox() { return [this.cx - this.radius, this.cy - this.radius, this.cx + this.radius, this.cy + this.radius]; }
+}
+
+class UnionRegion {
+    // Union of overlapping members (T-maze stem + cross-bar): the member with the
+    // largest signed gap is the one the point belongs to.
+    constructor(members) { this.members = members; }
+    best(x, y) {
+        let b = this.members[0], bg = -Infinity;
+        for (const m of this.members) { const g = m.signedGap(x, y); if (g > bg) { bg = g; b = m; } }
+        return b;
+    }
+    signedGap(x, y) { return Math.max(...this.members.map(m => m.signedGap(x, y))); }
+    inwardNormal(x, y) { return this.best(x, y).inwardNormal(x, y); }
+    clamp(x, y, margin) { return this.signedGap(x, y) >= margin ? [x, y] : this.best(x, y).clamp(x, y, margin); }
+    bbox() {
+        const b = this.members.map(m => m.bbox());
+        return [Math.min(...b.map(v => v[0])), Math.min(...b.map(v => v[1])), Math.max(...b.map(v => v[2])), Math.max(...b.map(v => v[3]))];
+    }
+}
+
+class HoledRegion {
+    // An outer region minus circular obstacles (multisensory arena pillars).
+    constructor(outer, holes) { this.outer = outer; this.holes = holes; }
+    terms(x, y) {
+        const t = [[this.outer.signedGap(x, y), null]];
+        for (const h of this.holes) t.push([Math.hypot(x - h.cx, y - h.cy) - h.radius, h]);
+        return t;
+    }
+    signedGap(x, y) { return Math.min(...this.terms(x, y).map(t => t[0])); }
+    inwardNormal(x, y) {
+        let best = null;
+        for (const t of this.terms(x, y)) if (best === null || t[0] < best[0]) best = t;
+        if (best[1] === null) return this.outer.inwardNormal(x, y);
+        const dx = x - best[1].cx, dy = y - best[1].cy, d = Math.hypot(dx, dy);
+        return d > 1e-9 ? [dx / d, dy / d] : [1, 0];
+    }
+    clamp(x, y, margin) {
+        [x, y] = this.outer.clamp(x, y, margin);
+        for (const h of this.holes) {
+            let dx = x - h.cx, dy = y - h.cy, d = Math.hypot(dx, dy);
+            const keepOut = h.radius + margin;
+            if (d < keepOut) {
+                if (d < 1e-9) { dx = 1.0; dy = 0.0; d = 1.0; }
+                x = h.cx + dx * (keepOut / d);
+                y = h.cy + dy * (keepOut / d);
+            }
+        }
+        return [x, y];
+    }
+    bbox() { return this.outer.bbox(); }
+}
+
 // =============================================================================
 // 3. SCIENTIFIC BIO-ARENA & PARADIGM BATTERY CONTROLLER
 // =============================================================================
@@ -441,6 +540,8 @@ class ScientificBioArena {
 
         this.worldBounds = { minX: -150, maxX: 150, minY: -110, maxY: 110 };
 
+        // Body radius matches the daemon's FlyState (arena.py: 1.5 mm) so both engines
+        // fit the same enclosures; the fly sprite is drawn at a fixed screen size.
         this.fly = {
             x: 0.0,
             y: 0.0,
@@ -448,9 +549,11 @@ class ScientificBioArena {
             speed: 0.0,
             yawRate: 0.0,
             energy: 1.0,
-            radius: 3.5,
+            radius: 1.5,
+            wallTurnDir: 1.0,
             trail: []
         };
+        this.containment = new RectRegion(-138.0, -98.0, 138.0, 98.0);
 
         this.mb = new MushroomBodyCircuit(120, 40, 5, 42);
         this.cx = new CentralComplexCompass(16);
@@ -797,10 +900,10 @@ class ScientificBioArena {
                 this.fly.x = 12.0; this.fly.y = 10.0; this.fly.heading = 0.0; this.fly.speed = 8.0;
                 this.paradigmStatus = 'APPROACHING CHASM';
                 this.currentWalls = [
-                    new WallSegment([5.0, 7.0], [95.0, 7.0]),   // bottom: ny = +1 (inward)
-                    new WallSegment([95.0, 7.0], [95.0, 13.0]), // right: nx = -1 (inward)
-                    new WallSegment([95.0, 13.0], [5.0, 13.0]), // top: ny = -1 (inward)
-                    new WallSegment([5.0, 13.0], [5.0, 7.0])   // left: nx = +1 (inward)
+                    new WallSegment([5.0, 7.0], [95.0, 7.0]),   // bottom
+                    new WallSegment([95.0, 7.0], [95.0, 13.0]), // right cap
+                    new WallSegment([95.0, 13.0], [5.0, 13.0]), // top
+                    new WallSegment([5.0, 13.0], [5.0, 7.0])   // left cap
                 ];
                 this.paradigmState = {
                     gapWidthMm: 3.5,
@@ -887,7 +990,9 @@ class ScientificBioArena {
                     new WallSegment([125.0, 20.0], [125.0, 70.0]),
                     new WallSegment([100.0, 80.0], [140.0, 80.0]),
                     new WallSegment([50.0, 85.0], [100.0, 85.0]),
-                    new WallSegment([100.0, 70.0], [100.0, 80.0])
+                    // Closes the pocket below the goal chamber: the old 5 mm slit between
+                    // (100,80) and (100,85) was narrower than the fly and trapped it.
+                    new WallSegment([100.0, 70.0], [100.0, 85.0])
                 ];
                 this.paradigmState = {
                     goalPos: [130.0, 85.0],
@@ -964,7 +1069,35 @@ class ScientificBioArena {
                 };
                 break;
         }
+        this.containment = this.buildContainment(paradigmId);
+        this.fly.wallTurnDir = 1.0;
         this.enforceContainment();
+    }
+
+    /**
+     * Legal body-centre region of a paradigm (mirror of arena.py `_build_containment`,
+     * same numbers, so daemon coordinates land inside the dashboard's picture of the
+     * arena). The open arena keeps the browser's own ±138 x ±98 frame.
+     */
+    buildContainment(pid) {
+        switch (pid) {
+            case 't-maze': return new UnionRegion([new RectRegion(63.0, 10.0, 77.0, 57.0), new RectRegion(10.0, 43.0, 130.0, 57.0)]);
+            case 'y-maze': return new CircleRegion(60.0, 60.0, 48.0);
+            case 'heat-maze': return new CircleRegion(60.0, 60.0, 55.0);
+            case 'buridan': return new CircleRegion(60.0, 60.0, 50.0);
+            case 'courtship': return new CircleRegion(10.0, 10.0, 8.5);
+            case 'visual-operant': return new RectRegion(0.0, 0.0, 80.0, 80.0);
+            case 'looming-escape': return new RectRegion(0.0, 0.0, 80.0, 80.0);
+            case 'optomotor': return new RectRegion(0.0, 0.0, 90.0, 90.0);
+            case 'wind-tunnel': return new RectRegion(0.0, 0.0, 200.0, 60.0);
+            case 'gap-crossing': return new RectRegion(5.0, 7.5, 95.0, 12.5);
+            case 'circadian-dam': return new RectRegion(5.0, 1.0, 60.0, 9.0);
+            case 'labyrinth': return new RectRegion(0.0, 0.0, 140.0, 100.0);
+            case 'multisensory-sandbox':
+                return new HoledRegion(new CircleRegion(0.0, 0.0, 75.0),
+                    [[35.0, 35.0], [-35.0, 35.0], [-35.0, -35.0], [35.0, -35.0]].map(pc => new CircleRegion(pc[0], pc[1], 6.0)));
+            default: return new RectRegion(-138.0, -98.0, 138.0, 98.0);
+        }
     }
 
     resetTrial(advanceTrial = true, keepMemory = true) {
@@ -981,6 +1114,8 @@ class ScientificBioArena {
                 rawMetric: this.getRawTrialMetric(),
                 elapsed: this.paradigmElapsedSec
             });
+            // Bounded: a public stream runs for days and trials complete every few seconds.
+            if (this.trialHistory.length > 500) this.trialHistory = this.trialHistory.slice(-400);
             this.currentTrial += 1;
         }
         this.paradigmElapsedSec = 0.0;
@@ -1088,7 +1223,7 @@ class ScientificBioArena {
                 this.paradigmStatus = 'APPROACHING CHASM';
                 break;
             case 'circadian-dam':
-                this.fly.x = 10.0; this.fly.y = 75.0; this.fly.heading = 0.0; this.fly.speed = 8.0;
+                this.fly.x = 15.0; this.fly.y = 5.0; this.fly.heading = 0.0; this.fly.speed = 8.0;
                 if (this.paradigmState) {
                     this.paradigmState.beamCrossings = 0;
                     this.paradigmState.totalSleepMin = 0;
@@ -1395,7 +1530,8 @@ class ScientificBioArena {
                 } else {
                     const excess = distRef - p.refugeRadius;
                     const gauss = Math.exp(-(excess * excess) / (2 * 8.0 * 8.0));
-                    p.temp = 36.5 - (36.5 - 24.0) * gauss;
+                    const hotFloor = p.hotTemp || 36.5;
+                    p.temp = hotFloor - (hotFloor - 24.0) * gauss;
                     punishmentSignal = Math.max(0.0, (p.temp - 25.0) / 11.5);
                     p.cumulativeDose += Math.max(0.0, p.temp - 25.0) * dt;
                     this.paradigmStatus = `HOT FLOOR (${p.temp.toFixed(1)}°C)`;
@@ -1632,7 +1768,9 @@ class ScientificBioArena {
                         this.paradigmStatus = 'SUCCESSFUL STEP-OVER';
                     }
                 } else if (p.decisionOutcome === 'ABORT') {
-                    this.fly.heading = Math.PI;
+                    // Walk back toward the start; once there let the wall reflex take over
+                    // rather than forcing the heading into the start cap every step.
+                    if (this.fly.x > 14.0) this.fly.heading = Math.PI;
                     this.paradigmStatus = 'ABORT 180° TURN';
                 }
 
@@ -1677,14 +1815,17 @@ class ScientificBioArena {
                     p.inSleepBout = false;
                 }
 
-                if (this.fly.x > 60.0) this.fly.heading = Math.PI;
-                if (this.fly.x < 5.0) this.fly.heading = 0.0;
-
                 this.paradigmStatus = p.inSleepBout ? 'SLEEP BOUT (>=5m)' : 'LOCOMOTING [AWAKE]';
-                if (this.fly.x <= 7.5 && Math.cos(this.fly.heading) < 0) {
-                    this.fly.heading = 0.0;
-                } else if (this.fly.x >= 57.5 && Math.cos(this.fly.heading) > 0) {
-                    this.fly.heading = Math.PI;
+                // Turn around before reaching the tube end caps (tube x = 5..60, fly radius r).
+                // The thresholds must lie inside the reachable range or the fly presses
+                // against the cap forever.
+                {
+                    const rr = this.fly.radius;
+                    if (this.fly.x <= 5.0 + rr + 1.5 && Math.cos(this.fly.heading) < 0) {
+                        this.fly.heading = 0.0;
+                    } else if (this.fly.x >= 60.0 - rr - 1.5 && Math.cos(this.fly.heading) > 0) {
+                        this.fly.heading = Math.PI;
+                    }
                 }
                 if (this.paradigmElapsedSec >= 180.0) {
                     this.resetTrial(true, true);
@@ -1788,6 +1929,13 @@ class ScientificBioArena {
                     }
                 }
 
+                // When the daemon streams this paradigm its kinematics and benchmark metrics
+                // are mirrored into paradigmState by DaemonBridgeClient; do not overwrite them.
+                if (this.remoteDriven) {
+                    this.paradigmStatus = `LIVE DAEMON BENCHMARK: ${(p.compositeScore || 0).toFixed(1)} / 100`;
+                    break;
+                }
+
                 // 6-Leg Joint Kinematics Calculation
                 const phiA = this.cpg.phaseA;
                 const phiB = this.cpg.phaseB;
@@ -1802,7 +1950,7 @@ class ScientificBioArena {
                 }
 
                 // Benchmark Scoring
-                p.totalDistance += this.fly.speed * dt;
+                p.totalDistance += Math.abs(this.fly.speed) * dt;
                 p.totalEnergy += (this.cpg.steppingFreq * 0.8 + this.fly.speed * 0.5) * dt;
 
                 const headingError = Math.abs(((paradigmGoalAngle - this.fly.heading + Math.PI) % (2 * Math.PI)) - Math.PI);
@@ -1867,7 +2015,10 @@ class ScientificBioArena {
         const isReversing = this.dn.mdn > 25.0;
         this.cpg.step(this.dn.dnp09 + this.dn.bpn, isReversing, dt);
 
-        if (this.activeParadigmId !== 'visual-operant' && this.activeParadigmId !== 'optomotor') {
+        // When a live daemon streams this paradigm, the daemon owns the fly position and
+        // heading (see DaemonBridgeClient); the local engine still runs the brain models
+        // for the HUD but must not integrate locomotion on top of the streamed pose.
+        if (this.activeParadigmId !== 'visual-operant' && this.activeParadigmId !== 'optomotor' && !this.remoteDriven) {
             if (this.dn.escapeActive) {
                 this.fly.speed = 42.0;
                 this.fly.yawRate = 6.0 * Math.sign(this.dn.dna02Diff || 1.0);
@@ -1881,7 +2032,13 @@ class ScientificBioArena {
                 this.fly.yawRate += (yawTorque - 4.5 * this.fly.yawRate) * dt;
             }
 
-            this.fly.heading = ((this.fly.heading + this.fly.yawRate * dt + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            // Descending-level wall reflex (mirror of arena.py wall_avoidance_turn): applied to
+            // the yaw command after the brain/DN output and before heading integration.
+            // fly.yawRate stays the brain's (filtered) command; the reflex output is not fed
+            // back into that state, otherwise it accumulates step after step.
+            const yawCmd = this.wallAvoidanceTurn(this.fly.yawRate, dt);
+            this.fly.yawCommand = yawCmd;
+            this.fly.heading = ((this.fly.heading + yawCmd * dt + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
             this.cx.updateBump(this.fly.heading);
 
             let vx = this.fly.speed * Math.cos(this.fly.heading);
@@ -1922,25 +2079,24 @@ class ScientificBioArena {
                     const cx = p0[0] + s * (p1[0] - p0[0]);
                     const cy = p0[1] + s * (p1[1] - p0[1]);
 
+                    // Gather every wall actually touching the fly at the time of impact.
+                    // Normals always point from the wall towards the fly centre, so walls
+                    // are two-sided and a far wall the fly happens to be "behind" is never
+                    // treated as a contact (that was the cause of through-wall teleports).
                     const contacts = [];
                     for (const wall of this.currentWalls) {
                         const proj = wall.projectPoint(cx, cy);
                         const d = Math.hypot(cx - proj[0], cy - proj[1]);
-                        const sDist = (cx - proj[0]) * wall.nx + (cy - proj[1]) * wall.ny;
-                        if (d <= this.fly.radius + 0.05 || sDist < 0.0) {
+                        if (d <= this.fly.radius + 0.05) {
                             let nx, ny;
-                            if (sDist < 0.0 || d <= 1e-8) {
-                                nx = wall.nx;
-                                ny = wall.ny;
+                            if (d > 1e-8) {
+                                nx = (cx - proj[0]) / d;
+                                ny = (cy - proj[1]) / d;
                             } else {
-                                const dot = ((cx - proj[0]) / d) * wall.nx + ((cy - proj[1]) / d) * wall.ny;
-                                if (dot >= 0.0) {
-                                    nx = (cx - proj[0]) / d;
-                                    ny = (cy - proj[1]) / d;
-                                } else {
-                                    nx = wall.nx;
-                                    ny = wall.ny;
-                                }
+                                const sidePrev = (p0[0] - proj[0]) * wall.nx + (p0[1] - proj[1]) * wall.ny;
+                                const side = sidePrev >= 0.0 ? 1.0 : -1.0;
+                                nx = side * wall.nx;
+                                ny = side * wall.ny;
                             }
                             contacts.push({ wall, cp: [proj[0], proj[1]], n: [nx, ny], d });
                         }
@@ -1956,11 +2112,9 @@ class ScientificBioArena {
 
                             const vd = vx * c1.n[0] + vy * c1.n[1];
                             if (vd < 0.0) {
-                                const vtx = vx - vd * c1.n[0];
-                                const vty = vy - vd * c1.n[1];
-                                const fric = Math.max(0.0, 1.0 - c1.wall.friction);
-                                resVx = -c1.wall.restitution * vd * c1.n[0] + vtx * fric;
-                                resVy = -c1.wall.restitution * vd * c1.n[1] + vty * fric;
+                                const slid = this.coulombSlide(vx, vy, c1.n, vd, c1.wall.friction);
+                                resVx = -c1.wall.restitution * vd * c1.n[0] + slid[0];
+                                resVy = -c1.wall.restitution * vd * c1.n[1] + slid[1];
                             } else {
                                 resVx = vx;
                                 resVy = vy;
@@ -1980,16 +2134,57 @@ class ScientificBioArena {
                             }
                             const c1 = pair[0];
                             const c2 = pair[1];
+                            const dotN = c1.n[0] * c2.n[0] + c1.n[1] * c2.n[1];
 
-                            const det = c1.n[0] * c2.n[1] - c1.n[1] * c2.n[0];
-                            if (Math.abs(det) > 1e-4) {
-                                const d1 = c1.cp[0] * c1.n[0] + c1.cp[1] * c1.n[1] + this.fly.radius + 0.001;
-                                const d2 = c2.cp[0] * c2.n[0] + c2.cp[1] * c2.n[1] + this.fly.radius + 0.001;
-                                resX = (c2.n[1] * d1 - c1.n[1] * d2) / det;
-                                resY = (-c2.n[0] * d1 + c1.n[0] * d2) / det;
+                            if (dotN > 0.6) {
+                                // Nearly parallel normals (adjacent facets of a polygonal rim, or a
+                                // wall plus the endpoint of a wall abutting it): this is one surface,
+                                // not a wedge. Slide along the mean normal; zeroing the velocity here
+                                // pinned the fly to the Buridan rim and labyrinth T-junctions.
+                                let mx = c1.n[0] + c2.n[0], my = c1.n[1] + c2.n[1];
+                                const mm = Math.hypot(mx, my) || 1.0;
+                                mx /= mm; my /= mm;
+                                const deeper = c1.d <= c2.d ? c1 : c2;
+                                // Correct only penetration at the impact point. Anchoring the
+                                // averaged normal at either wall's closest point adds a spurious
+                                // tangential jump at endpoints, repeatedly undoing the slide.
+                                resX = cx;
+                                resY = cy;
+                                for (let pass = 0; pass < 4; pass++) {
+                                    for (const c of contacts) {
+                                        const deficit = this.fly.radius + 0.001
+                                            - ((resX - c.cp[0]) * c.n[0] + (resY - c.cp[1]) * c.n[1]);
+                                        if (deficit > 0.0) {
+                                            resX += c.n[0] * deficit;
+                                            resY += c.n[1] * deficit;
+                                        }
+                                    }
+                                }
+                                const vdm = vx * mx + vy * my;
+                                if (vdm < 0.0) {
+                                    const slid = this.coulombSlide(vx, vy, [mx, my], vdm, deeper.wall.friction);
+                                    resVx = -deeper.wall.restitution * vdm * mx + slid[0];
+                                    resVy = -deeper.wall.restitution * vdm * my + slid[1];
+                                } else {
+                                    resVx = vx;
+                                    resVy = vy;
+                                }
                             } else {
-                                resX = (c1.cp[0] + c1.n[0] * this.fly.radius + c2.cp[0] + c2.n[0] * this.fly.radius) * 0.5;
-                                resY = (c1.cp[1] + c1.n[1] * this.fly.radius + c2.cp[1] + c2.n[1] * this.fly.radius) * 0.5;
+
+                            // Contact constraints are inequalities. Keep separating motion;
+                            // solving both walls as equalities snaps a departing fly back into
+                            // the corner every tick. Project only actual overlap instead.
+                            resX = cx;
+                            resY = cy;
+                            for (let pass = 0; pass < 4; pass++) {
+                                for (const c of contacts) {
+                                    const deficit = this.fly.radius + 0.001
+                                        - ((resX - c.cp[0]) * c.n[0] + (resY - c.cp[1]) * c.n[1]);
+                                    if (deficit > 0.0) {
+                                        resX += c.n[0] * deficit;
+                                        resY += c.n[1] * deficit;
+                                    }
+                                }
                             }
 
                             const vd1 = vx * c1.n[0] + vy * c1.n[1];
@@ -1998,18 +2193,17 @@ class ScientificBioArena {
                                 resVx = 0.0;
                                 resVy = 0.0;
                             } else if (vd1 < 0.0) {
-                                const vtx = (vx - vd1 * c1.n[0]) * Math.max(0.0, 1.0 - c1.wall.friction);
-                                const vty = (vy - vd1 * c1.n[1]) * Math.max(0.0, 1.0 - c1.wall.friction);
+                                const [vtx, vty] = this.coulombSlide(vx, vy, c1.n, vd1, c1.wall.friction);
                                 resVx = (vtx * c2.n[0] + vty * c2.n[1] >= -1e-5) ? vtx : 0.0;
-                                resVy = (vtx * c2.n[0] + vty * c2.n[1] >= -1e-5) ? vtx : 0.0;
+                                resVy = (vtx * c2.n[0] + vty * c2.n[1] >= -1e-5) ? vty : 0.0;
                             } else if (vd2 < 0.0) {
-                                const vtx = (vx - vd2 * c2.n[0]) * Math.max(0.0, 1.0 - c2.wall.friction);
-                                const vty = (vy - vd2 * c2.n[1]) * Math.max(0.0, 1.0 - c2.wall.friction);
+                                const [vtx, vty] = this.coulombSlide(vx, vy, c2.n, vd2, c2.wall.friction);
                                 resVx = (vtx * c1.n[0] + vty * c1.n[1] >= -1e-5) ? vtx : 0.0;
-                                resVy = (vtx * c1.n[0] + vty * c1.n[1] >= -1e-5) ? vtx : 0.0;
+                                resVy = (vtx * c1.n[0] + vty * c1.n[1] >= -1e-5) ? vty : 0.0;
                             } else {
                                 resVx = vx;
                                 resVy = vy;
+                            }
                             }
                         }
 
@@ -2047,50 +2241,41 @@ class ScientificBioArena {
                             this.paradigmState.wallCollisions += 1;
                         }
 
-                        // Smooth contact torque steering (zero angular teleportation)
-                        let netNx = 0.0, netNy = 0.0;
-                        for (const c of contacts) {
-                            netNx += c.n[0];
-                            netNy += c.n[1];
-                        }
-                        const nMag = Math.hypot(netNx, netNy);
-                        if (nMag > 1e-6) {
-                            netNx /= nMag;
-                            netNy /= nMag;
+                        // Collision impulses change translation, not body heading. The
+                        // tactile reflex above supplies turning. Aligning heading to a tiny
+                        // frictional slide can cancel that reflex and pin a fly in a corner.
 
-                            if (Math.hypot(vx, vy) > 0.05) {
-                                const slideAngle = Math.atan2(vy, vx);
-                                const dTheta = ((slideAngle - this.fly.heading + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-                                this.fly.heading = ((this.fly.heading + dTheta * Math.min(1.0, 15.0 * dt) + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-                            } else {
-                                const hCrossN = Math.cos(this.fly.heading) * netNy - Math.sin(this.fly.heading) * netNx;
-                                const turnDir = hCrossN >= 0.0 ? 1.0 : -1.0;
-                                this.fly.heading = ((this.fly.heading + turnDir * 4.0 * dt + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-                            }
-                        }
                     }
                 }
             }
 
-            // Universal hard containment to prevent escaping to infinity
+            // Universal hard containment (safety net only; the wall physics above should
+            // keep the fly inside). Bounce: reflect the velocity AND the heading so the fly
+            // walks away from the boundary instead of being pinned against it.
             if (this.worldBounds) {
                 const pad = this.fly.radius + 0.1;
                 const minX = this.worldBounds.minX + pad;
                 const maxX = this.worldBounds.maxX - pad;
                 const minY = this.worldBounds.minY + pad;
                 const maxY = this.worldBounds.maxY - pad;
-                if (proposedX < minX) { proposedX = minX; vx = Math.abs(vx) * 0.2; }
-                if (proposedX > maxX) { proposedX = maxX; vx = -Math.abs(vx) * 0.2; }
-                if (proposedY < minY) { proposedY = minY; vy = Math.abs(vy) * 0.2; }
-                if (proposedY > maxY) { proposedY = maxY; vy = -Math.abs(vy) * 0.2; }
+                let bounced = false;
+                if (proposedX < minX) { proposedX = minX; vx = Math.abs(vx); bounced = true; }
+                if (proposedX > maxX) { proposedX = maxX; vx = -Math.abs(vx); bounced = true; }
+                if (proposedY < minY) { proposedY = minY; vy = Math.abs(vy); bounced = true; }
+                if (proposedY > maxY) { proposedY = maxY; vy = -Math.abs(vy); bounced = true; }
+                if (bounced && Math.hypot(vx, vy) > 1e-6) {
+                    this.fly.heading = Math.atan2(vy, vx);
+                }
             }
 
             this.fly.x = proposedX;
             this.fly.y = proposedY;
-            this.fly.speed = Math.hypot(vx, vy);
+            // Keep the sign of the speed: MDN "moonwalking" is backward motion and must
+            // not be folded into forward motion by the magnitude.
+            this.fly.speed = (isReversing ? -1.0 : 1.0) * Math.hypot(vx, vy);
 
-            // Paradigm-specific exact geometric enclosure enforcement
-            this.enforceContainment();
+            // Hard geometric failsafe (region based, mirrors arena.py enforce_containment)
+            this.enforceContainment(dt);
         }
 
         // Subsample trail to preserve long visible history even at ultra-high speeds up to 100x
@@ -2128,114 +2313,158 @@ class ScientificBioArena {
         }
     }
 
-    enforceContainment() {
-        const r = this.fly.radius;
-        switch (this.activeParadigmId) {
-            case 'open-arena':
-                this.fly.x = Math.max(-138.0 + r, Math.min(138.0 - r, this.fly.x));
-                this.fly.y = Math.max(-98.0 + r, Math.min(98.0 - r, this.fly.y));
-                break;
+    // Wall-avoidance reflex, mirrored from arena.py (WALL_PERCEPTION_MM / WALL_AVOID_YAW_RAD_S):
+    // boundaries closer than 4 mm to the body edge are perceived, and the reflex commands
+    // a yaw away from them. arena.py clips the brain's yaw command to 0.45 rad/s and uses a
+    // 4 rad/s reflex; this engine's brain saturates at ~2.1 rad/s (0.14 * 67.5 / 4.5), so the
+    // reflex ceiling is 8 rad/s here to stay dominant over the goal drive the same way.
+    // The "Boundary Repulsion" slider scales it (1.0 = default).
+    static get WALL_PERCEPTION_MM() { return 4.0; }
+    static get WALL_AVOID_YAW_RAD_S() { return 8.0; }
 
-            case 't-maze': {
-                const inStem = (this.fly.x >= 63.0 && this.fly.x <= 77.0 && this.fly.y >= 10.0 && this.fly.y <= 57.0);
-                const inBar = (this.fly.x >= 10.0 && this.fly.x <= 130.0 && this.fly.y >= 43.0 && this.fly.y <= 57.0);
-                if (!inStem && !inBar) {
-                    if (this.fly.y < 43.0) {
-                        this.fly.x = Math.max(63.0 + r, Math.min(77.0 - r, this.fly.x));
-                        this.fly.y = Math.max(10.0 + r, Math.min(56.0 - r, this.fly.y));
-                    } else {
-                        this.fly.x = Math.max(10.0 + r, Math.min(130.0 - r, this.fly.x));
-                        this.fly.y = Math.max(43.0 + r, Math.min(57.0 - r, this.fly.y));
-                    }
-                }
-                break;
-            }
-
-            case 'y-maze': {
-                const dCenter = Math.hypot(this.fly.x - 60.0, this.fly.y - 60.0);
-                if (dCenter > 44.0) {
-                    const angle = Math.atan2(this.fly.y - 60.0, this.fly.x - 60.0);
-                    this.fly.x = 60.0 + Math.cos(angle) * 44.0;
-                    this.fly.y = 60.0 + Math.sin(angle) * 44.0;
-                }
-                break;
-            }
-
-            case 'heat-maze': {
-                const d = Math.hypot(this.fly.x - 60.0, this.fly.y - 60.0);
-                const maxR = 54.0 - r;
-                if (d > maxR && d > 1e-6) {
-                    this.fly.x = 60.0 + (this.fly.x - 60.0) / d * maxR;
-                    this.fly.y = 60.0 + (this.fly.y - 60.0) / d * maxR;
-                }
-                break;
-            }
-
-            case 'buridan': {
-                const d = Math.hypot(this.fly.x - 60.0, this.fly.y - 60.0);
-                const maxR = 46.5 - r;
-                if (d > maxR && d > 1e-6) {
-                    this.fly.x = 60.0 + (this.fly.x - 60.0) / d * maxR;
-                    this.fly.y = 60.0 + (this.fly.y - 60.0) / d * maxR;
-                }
-                break;
-            }
-
-            case 'visual-operant':
-                this.fly.x = 40.0;
-                this.fly.y = 40.0;
-                break;
-
-            case 'wind-tunnel':
-                this.fly.x = Math.max(3.0 + r, Math.min(197.0 - r, this.fly.x));
-                this.fly.y = Math.max(3.0 + r, Math.min(57.0 - r, this.fly.y));
-                break;
-
-            case 'looming-escape':
-                this.fly.x = Math.max(5.0 + r, Math.min(75.0 - r, this.fly.x));
-                this.fly.y = Math.max(5.0 + r, Math.min(75.0 - r, this.fly.y));
-                break;
-
-            case 'optomotor':
-                this.fly.x = 45.0;
-                this.fly.y = 45.0;
-                break;
-
-            case 'gap-crossing':
-                this.fly.x = Math.max(5.0 + r, Math.min(95.0 - r, this.fly.x));
-                this.fly.y = Math.max(7.5 + r, Math.min(12.5 - r, this.fly.y));
-                break;
-
-            case 'circadian-dam':
-                this.fly.x = Math.max(5.0 + r, Math.min(60.0 - r, this.fly.x));
-                this.fly.y = Math.max(1.5 + r, Math.min(8.5 - r, this.fly.y));
-                break;
-
-            case 'courtship': {
-                const d = Math.hypot(this.fly.x - 10.0, this.fly.y - 10.0);
-                const maxR = 8.2 - r;
-                if (d > maxR && d > 1e-6) {
-                    this.fly.x = 10.0 + (this.fly.x - 10.0) / d * maxR;
-                    this.fly.y = 10.0 + (this.fly.y - 10.0) / d * maxR;
-                }
-                break;
-            }
-
-            case 'labyrinth':
-                this.fly.x = Math.max(3.0 + r, Math.min(137.0 - r, this.fly.x));
-                this.fly.y = Math.max(3.0 + r, Math.min(97.0 - r, this.fly.y));
-                break;
-
-            case 'multisensory-sandbox': {
-                const d = Math.hypot(this.fly.x, this.fly.y);
-                const maxR = 74.0 - r;
-                if (d > maxR && d > 1e-6) {
-                    this.fly.x = (this.fly.x / d) * maxR;
-                    this.fly.y = (this.fly.y / d) * maxR;
-                }
-                break;
+    /**
+     * Boundaries within `perception` mm of the body edge as [gap, nx, ny]: gap is the
+     * free space between body edge and boundary (negative when penetrating), (nx, ny)
+     * the unit normal pointing away from that boundary. Wall segments and the
+     * containment region are both sensed (mirror of arena.py sense_boundaries).
+     */
+    senseBoundaries(x, y, radius, perception) {
+        const reach = perception === undefined ? ScientificBioArena.WALL_PERCEPTION_MM : perception;
+        const found = [];
+        if (this.containment) {
+            const g = this.containment.signedGap(x, y) - radius;
+            if (g < reach) {
+                const n = this.containment.inwardNormal(x, y);
+                found.push([g, n[0], n[1]]);
             }
         }
+        for (const wall of (this.currentWalls || [])) {
+            const [px, py] = wall.projectPoint(x, y);
+            const dx = x - px, dy = y - py;
+            const d = Math.hypot(dx, dy);
+            const g = d - radius;
+            if (g < reach) {
+                if (d > 1e-8) found.push([g, dx / d, dy / d]);
+                else found.push([g, wall.nx, wall.ny]);
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Descending-level reflex (mirror of arena.py wall_avoidance_turn): each perceived
+     * boundary contributes its away-normal weighted by proximity (1 at contact, 0 at the
+     * perception range). If the fly is travelling into the net normal, an extra yaw of
+     * up to WALL_AVOID_YAW_RAD_S is added in the direction that rotates the travel
+     * direction away from the wall; the side is remembered in fly.wallTurnDir so a
+     * head-on approach does not dither. Sliding parallel to a wall is untouched.
+     * Returns the modified yaw command (rad/s).
+     */
+    wallAvoidanceTurn(dheading, dt) {
+        const fly = this.fly;
+        const sensed = this.senseBoundaries(fly.x, fly.y, fly.radius);
+        if (sensed.length === 0) return dheading;
+
+        const reach = ScientificBioArena.WALL_PERCEPTION_MM;
+        const travel = fly.speed >= 0.0 ? fly.heading : fly.heading + Math.PI;
+        const hx = Math.cos(travel), hy = Math.sin(travel);
+        let netX = 0.0, netY = 0.0, proximity = 0.0;
+        for (const [gap, nx, ny] of sensed) {
+            const wgt = 1.0 - Math.max(0.0, gap) / reach;
+            // A wall we are departing must not cancel the wall we are approaching
+            // at a junction. Weight each normal by its own closing direction.
+            const closing = Math.max(0.0, -(hx * nx + hy * ny));
+            netX += wgt * closing * nx;
+            netY += wgt * closing * ny;
+            proximity = Math.max(proximity, wgt);
+        }
+        const nMag = Math.hypot(netX, netY);
+        if (nMag < 1e-9 || proximity <= 0.0) return dheading;
+        netX /= nMag;
+        netY /= nMag;
+
+        // Direction of travel, not the heading: a fly walking backwards (MDN reverse)
+        // can back into a wall while facing away from it.
+        const approach = -(hx * netX + hy * netY);   // > 0 when moving into the boundary
+        if (approach <= 0.0) return dheading;
+
+        const cross = hx * netY - hy * netX;          // > 0: CCW turn moves travel toward the normal
+        if (Math.abs(cross) > 0.1) fly.wallTurnDir = cross > 0.0 ? 1.0 : -1.0;
+        const gain = (this.wallRepulsion !== undefined) ? this.wallRepulsion : 1.0;
+        const avoid = fly.wallTurnDir * ScientificBioArena.WALL_AVOID_YAW_RAD_S * gain * proximity * approach;
+        const limit = Math.min(ScientificBioArena.WALL_AVOID_YAW_RAD_S * Math.max(1.0, gain), (Math.PI / 2.0) / Math.max(dt, 1e-6));
+        return Math.max(-limit, Math.min(limit, dheading + avoid));
+    }
+
+    /**
+     * Coulomb sliding: the tangential velocity that survives a contact. The friction
+     * impulse is bounded by mu times the normal impulse (|vd| removed), so a glancing
+     * contact barely slows the fly while a head-on one stops it. (A fixed percentage cut
+     * per 20 ms step made walls "sticky": the fly crawled along them at < 1 mm/s.)
+     */
+    coulombSlide(vx, vy, n, vd, mu) {
+        const vtx = vx - vd * n[0];
+        const vty = vy - vd * n[1];
+        const vtMag = Math.hypot(vtx, vty);
+        if (vtMag < 1e-9) return [0.0, 0.0];
+        const cut = Math.min(vtMag, Math.max(0.0, mu) * (-vd));
+        const k = (vtMag - cut) / vtMag;
+        return [vtx * k, vty * k];
+    }
+
+    /** Drops a food pellet a little ahead of the fly (Open Arena / Labyrinth action button). */
+    spawnFoodNearFly() {
+        const ahead = 18.0;
+        this.foodItems.push({
+            x: this.fly.x + ahead * Math.cos(this.fly.heading),
+            y: this.fly.y + ahead * Math.sin(this.fly.heading),
+            radius: 12.0, odorStrength: 1.0
+        });
+        if (this.foodItems.length > 12) this.foodItems.shift();
+    }
+
+    /** Launches a looming predator toward the fly (Open Arena action button). */
+    triggerLooming() {
+        const dist = 70.0;
+        const ang = this.fly.heading + Math.PI * 0.75;
+        const px = this.fly.x + dist * Math.cos(ang);
+        const py = this.fly.y + dist * Math.sin(ang);
+        const toFly = Math.atan2(this.fly.y - py, this.fly.x - px);
+        this.predators.push({ x: px, y: py, vx: Math.cos(toFly) * 28.0, vy: Math.sin(toFly) * 28.0, radius: 8.0, active: true });
+        if (this.predators.length > 6) this.predators.shift();
+    }
+
+    /**
+     * Hard geometric failsafe (mirror of arena.py enforce_containment): keep the body
+     * inside the paradigm's legal region. Runs after collision resolution and the wall
+     * reflex, so it only fires when those have already failed. It behaves like a wall
+     * contact rather than a silent clamp: the position is projected back inside, the
+     * speed component driving into the boundary is removed, and the heading receives
+     * the same away-from-wall torque as a real collision, so the fly is never left
+     * pushing into an invisible boundary step after step. Returns true when corrected.
+     */
+    enforceContainment(dt = 0.02) {
+        const fly = this.fly;
+        if (!this.containment) return false;
+        const r = fly.radius;
+        const x = fly.x, y = fly.y;
+        if (this.containment.signedGap(x, y) >= r) return false;
+
+        const [nx, ny] = this.containment.inwardNormal(x, y);
+        [fly.x, fly.y] = this.containment.clamp(x, y, r);
+
+        const travel = fly.speed >= 0.0 ? fly.heading : fly.heading + Math.PI;
+        const hx = Math.cos(travel), hy = Math.sin(travel);
+        const into = -(hx * nx + hy * ny);
+        if (into > 0.0) {
+            // Keep only the tangential share of the commanded speed (no bounce), sign kept.
+            fly.speed = fly.speed * Math.sqrt(Math.max(0.0, 1.0 - into * into));
+            const cross = hx * ny - hy * nx;
+            if (Math.abs(cross) > 0.1) fly.wallTurnDir = cross > 0.0 ? 1.0 : -1.0;
+            const turn = Math.min(ScientificBioArena.WALL_AVOID_YAW_RAD_S * dt, Math.PI / 2.0);
+            fly.heading = ((fly.heading + fly.wallTurnDir * turn + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+        }
+        return true;
     }
 
     getCanonicalMetricInfo() {
@@ -3143,6 +3372,13 @@ const EXPERIMENT_GUIDES = {
 // 7B. CONTINUOUS LEARNING CLUSTER DAEMON BRIDGE (RYZEN & LOCAL CLUSTER)
 // =============================================================================
 
+// The daemon reports fly positions in each paradigm's own arena frame ([0, width] x
+// [0, height], see maze.py `dimensions`). Most browser arenas use the same frame; the
+// ones that do not are listed here as (offset x, offset y) to add to daemon coordinates.
+const DAEMON_FRAME_OFFSET = {
+    'multisensory-sandbox': [-80.0, -80.0]   // daemon 160x160 corner-origin -> browser centre-origin
+};
+
 class DaemonBridgeClient {
     constructor(arena, hud) {
         this.arena = arena;
@@ -3152,8 +3388,12 @@ class DaemonBridgeClient {
         this.daemonPort = 8769;
         this.eventSource = null;
         this.reconnectTimer = null;
+        this.reconnectDelayMs = 4000;
         this.activeUrl = null;
         this.lastPacketTime = 0;
+        this.lastPacketStep = -1;
+        this.lastPacketTimestamp = 0;
+        this.staleAfterMs = 8000;
 
         if (this.statusPill) {
             this.statusPill.addEventListener('click', () => {
@@ -3161,25 +3401,55 @@ class DaemonBridgeClient {
             });
         }
 
+        // Watchdog: an EventSource that silently stops delivering (proxy timeout, daemon
+        // restart) never fires onerror, so treat a silent stream as disconnected.
+        this.watchdogTimer = setInterval(() => {
+            if (this.connected && this.lastPacketTime > 0 && (performance.now() - this.lastPacketTime) > this.staleAfterMs) {
+                this.onDaemonDisconnected('stream stale');
+                this.scheduleReconnect();
+            }
+        }, 2000);
+
         this.initConnection(false);
     }
 
+    /**
+     * Daemon base URLs to probe, in order:
+     *   1. `?daemon=http://host:port` query parameter (explicit),
+     *   2. the page's own origin (dashboard served by the daemon or behind one proxy),
+     *   3. the page's host on the daemon port,
+     *   4. localhost / 127.0.0.1 on the daemon port.
+     */
     get candidateUrls() {
         const list = [];
         const port = this.daemonPort;
+        const add = (u) => { if (u && !list.includes(u)) list.push(u); };
         if (typeof window !== 'undefined' && window.location) {
-            if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                list.push(`http://${window.location.hostname}:${port}`);
-            }
+            const loc = window.location;
+            try {
+                const param = new URLSearchParams(loc.search || '').get('daemon');
+                if (param) add(param.replace(/\/+$/, ''));
+            } catch (e) {}
+            const httpLike = loc.protocol === 'http:' || loc.protocol === 'https:';
+            if (httpLike && loc.origin && loc.origin !== 'null') add(loc.origin);
+            if (httpLike && loc.hostname) add(`${loc.protocol}//${loc.hostname}:${port}`);
         }
-        list.push(`http://192.168.194.227:${port}`);
-        list.push(`http://localhost:${port}`);
-        list.push(`http://127.0.0.1:${port}`);
+        add(`http://localhost:${port}`);
+        add(`http://127.0.0.1:${port}`);
         return list;
+    }
+
+    scheduleReconnect() {
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = setTimeout(() => this.initConnection(false), this.reconnectDelayMs);
+        this.reconnectDelayMs = Math.min(30000, Math.round(this.reconnectDelayMs * 1.5));
     }
 
     async initConnection(force = false) {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.probing && !force) return;
+        this.probing = true;
+        if (force) this.reconnectDelayMs = 4000;
         let foundUrl = null;
 
         for (const url of this.candidateUrls) {
@@ -3199,35 +3469,45 @@ class DaemonBridgeClient {
                 }
             } catch (e) {}
         }
+        this.probing = false;
 
         if (!foundUrl) {
             this.onDaemonDisconnected();
-            this.reconnectTimer = setTimeout(() => this.initConnection(false), 5000);
+            this.scheduleReconnect();
         }
     }
 
     onDaemonConnected(status) {
         this.connected = true;
+        this.readOnly = false;
+        this.reconnectDelayMs = 4000;
+        this.lastPacketTime = performance.now();
+        this.lastPacketStep = -1;
         if (this.statusPill) {
-            this.statusPill.textContent = '● LIVE RYZEN CLUSTER';
+            this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
             this.statusPill.style.border = '1px solid #22c55e';
             this.statusPill.style.color = '#4ade80';
-            this.statusPill.title = `Connected to background learning daemon at ${this.activeUrl} (Assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
+            this.statusPill.title = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
         }
+        if (status.public === true || status.read_only === true) this.markReadOnly();
         this.startStreaming();
     }
 
-    onDaemonDisconnected() {
+    onDaemonDisconnected(reason = '') {
         this.connected = false;
+        this.readOnly = false;
+        this.arena.remoteDriven = false;
         if (this.statusPill) {
             this.statusPill.textContent = '○ LOCAL ENGINE';
             this.statusPill.style.background = 'rgba(148, 163, 184, 0.15)';
             this.statusPill.style.border = '1px solid #64748b';
             this.statusPill.style.color = '#94a3b8';
-            this.statusPill.title = 'In-browser simulation engine active (offline/standalone mode). Click to reconnect to Ryzen cluster daemon.';
+            this.statusPill.title = `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
         }
         if (this.eventSource) {
+            this.eventSource.onerror = null;
+            this.eventSource.onmessage = null;
             this.eventSource.close();
             this.eventSource = null;
         }
@@ -3246,9 +3526,10 @@ class DaemonBridgeClient {
                 } catch (e) {}
             };
             this.eventSource.onerror = () => {
-                this.onDaemonDisconnected();
-                if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-                this.reconnectTimer = setTimeout(() => this.initConnection(false), 4000);
+                // EventSource retries on its own; close it and re-probe with backoff so a
+                // dead daemon does not produce a tight reconnect loop.
+                this.onDaemonDisconnected('stream error');
+                this.scheduleReconnect();
             };
         } catch (e) {
             this.onDaemonDisconnected();
@@ -3256,74 +3537,121 @@ class DaemonBridgeClient {
     }
 
     handleDaemonPacket(pkt) {
-        if (!pkt) return;
-        this.lastPacketTime = performance.now();
+        if (!pkt || pkt.type !== 'telemetry') return;
 
-        // Synchronize fly coordinates and heading from daemon ONLY when paradigms match!
+        // Drop stale / out-of-order packets (SSE reconnects can replay old frames).
+        const step = Number.isFinite(pkt.step) ? pkt.step : null;
+        const ts = Number.isFinite(pkt.timestamp) ? pkt.timestamp : null;
+        const sameRun = pkt.paradigm === this.lastPacketParadigm;
+        if (sameRun && step !== null && step < this.lastPacketStep) return;
+        if (sameRun && ts !== null && ts < this.lastPacketTimestamp) return;
+        this.lastPacketTime = performance.now();
+        if (step !== null) this.lastPacketStep = step;
+        if (ts !== null) this.lastPacketTimestamp = ts;
+        this.lastPacketParadigm = pkt.paradigm;
+
+        // Synchronize fly pose from the daemon ONLY when the paradigms match; the daemon
+        // then owns locomotion and the local engine stops integrating position.
         const daemonParadigm = (pkt.paradigm || '').toLowerCase().replace(/_/g, '-');
         const activeParadigm = (this.arena.activeParadigmId || '').toLowerCase().replace(/_/g, '-');
+        const poseMatch = !!(pkt.fly && daemonParadigm === activeParadigm
+            && Number.isFinite(pkt.fly.x) && Number.isFinite(pkt.fly.y));
+        this.arena.remoteDriven = poseMatch;
 
-        if (pkt.fly && daemonParadigm === activeParadigm) {
-            this.arena.fly.x = pkt.fly.x;
-            this.arena.fly.y = pkt.fly.y;
-            this.arena.fly.heading = pkt.fly.heading;
-            this.arena.fly.speed = pkt.fly.speed;
-            this.arena.enforceContainment();
+        if (poseMatch) {
+            const off = DAEMON_FRAME_OFFSET[activeParadigm] || [0.0, 0.0];
+            let fx = pkt.fly.x + off[0];
+            let fy = pkt.fly.y + off[1];
+            // The daemon's coordinates are authoritative: they are never re-clamped with
+            // the browser's own geometry. Its body radius and world bounds (present in
+            // newer telemetry) are adopted; the bounds only guard against a corrupt frame.
+            if (Number.isFinite(pkt.fly.radius) && pkt.fly.radius > 0) this.arena.fly.radius = pkt.fly.radius;
+            const wb = Array.isArray(pkt.world_bounds) && pkt.world_bounds.length === 4 ? pkt.world_bounds : null;
+            if (wb && wb.every(Number.isFinite)) {
+                const rr = this.arena.fly.radius;
+                fx = Math.max(wb[0] + off[0] + rr, Math.min(wb[2] + off[0] - rr, fx));
+                fy = Math.max(wb[1] + off[1] + rr, Math.min(wb[3] + off[1] - rr, fy));
+            }
+            this.arena.fly.x = fx;
+            this.arena.fly.y = fy;
+            if (Number.isFinite(pkt.fly.heading)) {
+                // Daemon headings are 0..2pi; the browser keeps -pi..pi.
+                this.arena.fly.heading = ((pkt.fly.heading + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            }
+            if (Number.isFinite(pkt.fly.speed)) this.arena.fly.speed = pkt.fly.speed;
+            if (this.arena.fly.trail && (step === null || step % 5 === 0)) {
+                this.arena.fly.trail.push({ x: this.arena.fly.x, y: this.arena.fly.y, speed: this.arena.fly.speed, escape: !!(pkt.descending && pkt.descending.gf_escape > 0.5) });
+                if (this.arena.fly.trail.length > 200) this.arena.fly.trail = this.arena.fly.trail.slice(-150);
+            }
         }
 
-        // Synchronize learning curve from daemon
-        if (pkt.plasticity && pkt.plasticity.learning_curve && pkt.plasticity.learning_curve.length > 0) {
-            const curve = pkt.plasticity.learning_curve;
-            if (this.hud && this.hud.learningTrials) {
-                if (curve.length > this.hud.learningTrials.length) {
-                    for (let i = this.hud.learningTrials.length; i < curve.length; i++) {
-                        this.hud.learningTrials.push({ trial: i + 1, value: curve[i] });
+        // Synchronize learning curve from daemon (the daemon sends its last 30 points;
+        // mirror them instead of appending, so the list stays bounded and in order).
+        if (pkt.plasticity && Array.isArray(pkt.plasticity.learning_curve) && pkt.plasticity.learning_curve.length > 0) {
+            const curve = pkt.plasticity.learning_curve.filter(v => Number.isFinite(v));
+            if (this.hud && this.hud.learningTrials && poseMatch) {
+                const base = Math.max(0, (pkt.trial || curve.length) - curve.length);
+                this.hud.learningTrials = curve.map((v, i) => ({ trial: base + i + 1, value: v, formatted: v.toFixed(2) }));
+            }
+        }
+
+        // Synchronize 6-leg joint angles from daemon
+        if (pkt.biomechanics && pkt.biomechanics.joint_angles && poseMatch) {
+            const ja = pkt.biomechanics.joint_angles;
+            const box = document.getElementById('jointAnglesBox');
+            if (box) {
+                const fmt = (v) => Number.isFinite(v) ? v.toFixed(0) : '--';
+                box.innerHTML = Object.entries(ja).map(([leg, info]) => {
+                    const ctrSign = (info && info.ctr >= 0) ? '+' : '';
+                    return `<div>${leg}: CTr: ${ctrSign}${fmt(info && info.ctr)}° FTi: ${fmt(info && info.fti)}° [${(info && info.phase) || '--'}]</div>`;
+                }).join('');
+            }
+            // Mirror the daemon's kinematics into the local state so hud.update() (which
+            // redraws the same box every frame) shows the streamed values, not local ones.
+            const p = this.arena.paradigmState;
+            if (p && p.jointAngles) {
+                for (const [leg, info] of Object.entries(ja)) {
+                    if (p.jointAngles[leg] && info) {
+                        p.jointAngles[leg].ctr = Number.isFinite(info.ctr) ? info.ctr : p.jointAngles[leg].ctr;
+                        p.jointAngles[leg].fti = Number.isFinite(info.fti) ? info.fti : p.jointAngles[leg].fti;
+                        this.arena.cpg.legStates[leg] = info.phase === 'STANCE';
                     }
                 }
             }
         }
 
-        // Synchronize 6-leg joint angles from daemon
-        if (pkt.biomechanics && pkt.biomechanics.joint_angles) {
-            const ja = pkt.biomechanics.joint_angles;
-            const box = document.getElementById('jointAnglesBox');
-            if (box) {
-                box.innerHTML = Object.entries(ja).map(([leg, info]) => {
-                    const ctrSign = info.ctr >= 0 ? '+' : '';
-                    return `<div>${leg}: CTr: ${ctrSign}${info.ctr.toFixed(0)}° FTi: ${info.fti.toFixed(0)}° [${info.phase}]</div>`;
-                }).join('');
-            }
-        }
-
-        // Synchronize composite benchmark scorecard
-        if (pkt.metrics && this.arena.activeParadigmId === 'multisensory-sandbox') {
+        // Synchronize composite benchmark scorecard (daemon schema: metrics.{composite_benchmark_score,
+        // locomotor_coordination_index, multisensory_integration_score, biomechanical_efficiency,
+        // kinematic_smoothness, wall_collisions, total_distance_mm, total_energy_atp}).
+        if (pkt.metrics && poseMatch && this.arena.activeParadigmId === 'multisensory-sandbox') {
             const m = pkt.metrics;
-            const compEl = document.getElementById('deckCompositeScore');
-            const coordEl = document.getElementById('deckCoordScore');
-            const sensEl = document.getElementById('deckSensoryScore');
-            const effEl = document.getElementById('deckEfficacyScore');
-            const smoothEl = document.getElementById('deckSmoothScore');
-
-            if (compEl && m.composite_benchmark_score !== undefined) {
-                compEl.textContent = `${m.composite_benchmark_score.toFixed(1)} / 100`;
-            }
-            if (coordEl && m.locomotor_coordination_index !== undefined) {
-                coordEl.textContent = `${(m.locomotor_coordination_index * 100).toFixed(0)}%`;
-            }
-            if (sensEl && m.multisensory_integration_score !== undefined) {
-                sensEl.textContent = `${(m.multisensory_integration_score * 100).toFixed(0)}%`;
-            }
-            if (effEl && m.biomechanical_efficiency !== undefined) {
-                effEl.textContent = `${(m.biomechanical_efficiency * 100).toFixed(0)}%`;
-            }
-            if (smoothEl && m.kinematic_smoothness !== undefined) {
-                smoothEl.textContent = `${(m.kinematic_smoothness * 100).toFixed(0)}%`;
+            const p = this.arena.paradigmState;
+            const num = (v, fallback) => Number.isFinite(v) ? v : fallback;
+            if (p) {
+                p.compositeScore = num(m.composite_benchmark_score, p.compositeScore);
+                p.coordinationScore = num(m.locomotor_coordination_index, p.coordinationScore);
+                p.sensoryIntegrationScore = num(m.multisensory_integration_score, p.sensoryIntegrationScore);
+                p.efficiencyScore = num(m.biomechanical_efficiency, p.efficiencyScore);
+                p.smoothnessScore = num(m.kinematic_smoothness, p.smoothnessScore);
+                p.wallCollisions = num(m.wall_collisions, p.wallCollisions);
+                p.totalDistance = num(m.total_distance_mm, p.totalDistance);
+                p.totalEnergy = num(m.total_energy_atp, p.totalEnergy);
             }
         }
     }
 
+    /** Marks the daemon as read-only (it runs with --public and refuses /api/command). */
+    markReadOnly() {
+        if (this.readOnly) return;
+        this.readOnly = true;
+        if (this.statusPill && this.connected) {
+            this.statusPill.textContent = '● LIVE DAEMON (READ-ONLY)';
+            this.statusPill.title = `Connected to a public learning daemon at ${this.activeUrl}: the stream is live, but commands (paradigm switches, speed, stimuli) are only applied to the in-browser engine.`;
+        }
+    }
+
     async sendCommand(action, params = {}) {
-        if (!this.connected || !this.activeUrl) return null;
+        if (!this.connected || !this.activeUrl || this.readOnly) return null;
         try {
             const res = await fetch(`${this.activeUrl}/api/command`, {
                 method: 'POST',
@@ -3331,6 +3659,10 @@ class DaemonBridgeClient {
                 body: JSON.stringify({ action, params }),
                 signal: AbortSignal.timeout(2000)
             });
+            if (res.status === 403) {
+                this.markReadOnly();
+                return null;
+            }
             if (res.ok) {
                 return await res.json();
             }
@@ -3375,7 +3707,7 @@ const ASSAY_CONFIGS = {
             ctx.lineWidth = 1.2;
             ctx.beginPath();
             pts.forEach((p, i) => {
-                const r = Math.hypot(p[0], p[1]);
+                const r = Math.hypot(p.x, p.y);
                 const x = 20 + (i / 80) * (w - 30);
                 const y = h - 10 - Math.min(h - 24, (r / 140.0) * (h - 24));
                 if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -3467,15 +3799,15 @@ const ASSAY_CONFIGS = {
         badge: 'OFSTAD ET AL. (NATURE 2011)',
         ref: 'Ofstad, Zuker & Reiser (Nature 2011) Visual Place Learning',
         sliders: [
-            { key: 'floorTemp', label: 'Arena Floor Temperature', min: 32, max: 44, step: 1, val: 38, unit: ' °C', desc: 'Aversive heated floor temperature (°C) driving thermotactic escape search toward cool refuge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotTemp = v; } },
-            { key: 'refugeRadius', label: 'Cool Refuge Radius', min: 6, max: 20, step: 1, val: 12, unit: ' mm', desc: 'Target cool tile radius (mm). Smaller radius requires tighter landmark triangulation by Central Complex.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.coolRadius = v; } }
+            { key: 'floorTemp', label: 'Arena Floor Temperature', min: 32, max: 44, step: 1, val: 36.5, unit: ' °C', desc: 'Aversive heated floor temperature (°C) driving thermotactic escape search toward cool refuge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotTemp = v; } },
+            { key: 'refugeRadius', label: 'Cool Refuge Radius', min: 6, max: 20, step: 1, val: 9, unit: ' mm', desc: 'Target cool tile radius (mm). Smaller radius requires tighter landmark triangulation by Central Complex.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.refugeRadius = v; } }
         ],
         actions: [
             { label: 'Relocate Cool Refuge', class: 'primary', handler: (a, h) => {
                 if (a.paradigmState) {
                     const angles = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
                     const choice = angles[Math.floor(Math.random() * angles.length)];
-                    a.paradigmState.coolPos = [Math.cos(choice) * 25.0, Math.sin(choice) * 25.0];
+                    a.paradigmState.refugePos = [60.0 + Math.cos(choice) * 28.0, 60.0 + Math.sin(choice) * 28.0];
                 }
             } },
             { label: 'Thermal Shock Flash (42°C)', class: 'danger', handler: (a, h) => {
@@ -3485,9 +3817,9 @@ const ASSAY_CONFIGS = {
             { label: 'Reset Spatial Map', class: '', handler: (a, h) => { a.cx.headingBump = 0; } }
         ],
         metrics: [
-            { label: 'Escape Latency', get: (a) => `${(a.paradigmState && a.paradigmState.latencySec !== undefined ? a.paradigmState.latencySec : a.paradigmElapsedSec).toFixed(1)}s` },
-            { label: 'Current Surface Temp', get: (a) => `${(a.paradigmState && a.paradigmState.currentTemp !== undefined ? a.paradigmState.currentTemp : 38.0).toFixed(1)}°C` },
-            { label: 'Cool Spot Reached', get: (a) => `${a.paradigmState && a.paradigmState.foundRefuge ? 'YES' : 'SEARCHING'}` }
+            { label: 'Escape Latency', get: (a) => `${(a.paradigmState && a.paradigmState.escapeLatencyMs ? a.paradigmState.escapeLatencyMs / 1000 : a.paradigmElapsedSec).toFixed(1)}s` },
+            { label: 'Current Surface Temp', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.temp) ? a.paradigmState.temp : 36.5).toFixed(1)}°C` },
+            { label: 'Cool Spot Reached', get: (a) => `${a.paradigmState && a.paradigmState.refugeReached ? 'YES' : 'SEARCHING'}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#fbbf24';
@@ -3521,12 +3853,12 @@ const ASSAY_CONFIGS = {
         actions: [
             { label: 'Invert Contrast (Dark/Light)', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.inverted = !a.paradigmState.inverted; } },
             { label: 'Rotate Stripes (90°)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.stripeAngle = (a.paradigmState.stripeAngle || 0) + Math.PI / 2; } },
-            { label: 'Reset Platform Transits', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.transitions = 0; } }
+            { label: 'Reset Platform Transits', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.stripeCrossings = 0; } }
         ],
         metrics: [
-            { label: 'Stripe Fixation Index', get: (a) => `${(a.paradigmState && a.paradigmState.fixationIndex !== undefined ? a.paradigmState.fixationIndex : 0.78).toFixed(2)}` },
-            { label: 'Platform Transitions', get: (a) => `${a.paradigmState && a.paradigmState.transitions !== undefined ? a.paradigmState.transitions : 0}` },
-            { label: 'Centrophobism Ratio', get: (a) => `86.4%` }
+            { label: 'Stripe Fixation Index', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.meanFixation) ? a.paradigmState.meanFixation : 0).toFixed(2)}` },
+            { label: 'Platform Transitions', get: (a) => `${a.paradigmState && a.paradigmState.stripeCrossings !== undefined ? a.paradigmState.stripeCrossings : 0}` },
+            { label: 'Centrophobism Ratio', get: (a) => `${((a.paradigmState && Number.isFinite(a.paradigmState.centrophobism) ? a.paradigmState.centrophobism : 1.0) * 100).toFixed(1)}%` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
@@ -3556,12 +3888,12 @@ const ASSAY_CONFIGS = {
         actions: [
             { label: 'Invert Heat Sectors (Reversal)', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.invertSectors = !a.paradigmState.invertSectors; } },
             { label: 'Laser Beam Pulse', class: 'danger', handler: (a, h) => { a.mb.stepPlasticity(0.0, 1.0, 4.0); } },
-            { label: 'Reset Quadrant Timers', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.safeSec = 0; a.paradigmState.punishedSec = 0; } } }
+            { label: 'Reset Quadrant Timers', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.timeSafeMs = 0; a.paradigmState.timePunishedMs = 0; } } }
         ],
         metrics: [
-            { label: 'Operant PI', get: (a) => `${(a.paradigmState && a.paradigmState.operantPi !== undefined ? a.paradigmState.operantPi : 0.65).toFixed(2)}` },
+            { label: 'Operant PI', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.learningIndex) ? a.paradigmState.learningIndex : 0).toFixed(2)}` },
             { label: 'Current Sector', get: (a) => `${a.paradigmState && a.paradigmState.laserActive ? 'PUNISHED (LASER ON)' : 'SAFE SECTOR'}` },
-            { label: 'Laser Cumulative', get: (a) => `${(a.paradigmState && a.paradigmState.totalLaserSec ? a.paradigmState.totalLaserSec : 0.0).toFixed(1)}s` }
+            { label: 'Laser Cumulative', get: (a) => `${((a.paradigmState && a.paradigmState.timePunishedMs) ? a.paradigmState.timePunishedMs / 1000 : 0.0).toFixed(1)}s` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#f43f5e';
@@ -3583,16 +3915,16 @@ const ASSAY_CONFIGS = {
         ref: 'Alvarez-Salvado (2018) / Demir (2020) Odor Plume Navigation',
         sliders: [
             { key: 'windVelocity', label: 'Laminar Airflow Speed', min: 5, max: 40, step: 1, val: 18, unit: ' cm/s', desc: 'Laminar carrier airflow speed channeling upstream odor plume pulses toward downwind fly.', apply: (a, v) => { a.windVector[0] = -v; } },
-            { key: 'plumeWidth', label: 'Gaussian Plume Width', min: 6, max: 30, step: 1, val: 16, unit: ' mm', desc: 'Gaussian width of intermittent odor plume filaments dictating surge vs casting transitions.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.plumeWidth = v; } }
+            { key: 'plumeWidth', label: 'Gaussian Plume Width', min: 6, max: 30, step: 1, val: 14, unit: ' mm', desc: 'Gaussian width of intermittent odor plume filaments dictating surge vs casting transitions.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.filamentSigma = v / 4.0; } }
         ],
         actions: [
-            { label: 'Shift Plume Source', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.sourceY = (Math.random() - 0.5) * 40.0; } },
-            { label: 'Turbulent Crosswind Gust', class: 'danger', handler: (a, h) => { a.windVector[1] = (Math.random() - 0.5) * 30.0; } },
-            { label: 'Reset Surge/Cast Filters', class: '', handler: (a, h) => { if (a.surgeCast) a.surgeCast.reset(); } }
+            { label: 'Shift Plume Source', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.nozzlePos[1] = 30.0 + (Math.random() - 0.5) * 30.0; } },
+            { label: 'Turbulent Crosswind Gust', class: 'danger', handler: (a, h) => { a.windVector[1] = (Math.random() - 0.5) * 30.0; setTimeout(() => { a.windVector[1] = 0.0; }, 2500); } },
+            { label: 'Reset Surge/Cast Filters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.surgeSteps = 0; a.paradigmState.castSteps = 0; } } }
         ],
         metrics: [
-            { label: 'Surge/Cast Ratio', get: (a) => `2.4x` },
-            { label: 'Upwind Progress', get: (a) => `${Math.max(0, -a.fly.x).toFixed(1)} mm` },
+            { label: 'Surge/Cast Ratio', get: (a) => { const p = a.paradigmState || {}; return p.castSteps > 0 ? `${(p.surgeSteps / p.castSteps).toFixed(2)}x` : '0.00x'; } },
+            { label: 'Upwind Progress', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.upwindProgress) ? a.paradigmState.upwindProgress : 0).toFixed(1)} mm` },
             { label: 'Antenna Wind Deflection', get: (a) => `${(Math.hypot(a.windVector[0], a.windVector[1]) * 0.12).toFixed(1)} μN` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
@@ -3654,18 +3986,18 @@ const ASSAY_CONFIGS = {
         badge: 'GÖTZ (1964) / KIM (2017)',
         ref: 'Götz (1964) Kybernetik / Kim et al. (Cell 2017) Saccadic Efference Copy',
         sliders: [
-            { key: 'patternSpeed', label: 'Grating Velocity (omega)', min: -120, max: 120, step: 10, val: 35, unit: ' °/s', desc: 'Angular velocity of surrounding high-contrast vertical grating drum driving wide-field optic flow.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gratingSpeed = v; } },
+            { key: 'patternSpeed', label: 'Grating Velocity (omega)', min: -120, max: 120, step: 10, val: 30, unit: ' °/s', desc: 'Angular velocity of surrounding high-contrast vertical grating drum driving wide-field optic flow.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = v; } },
             { key: 'spatialPeriod', label: 'Grating Spatial Wavelength', min: 10, max: 60, step: 5, val: 30, unit: ' °', desc: 'Grating angular wavelength. Shorter periods test spatial resolution limits of compound eyes.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.wavelength = v; } }
         ],
         actions: [
-            { label: 'Invert Grating Direction', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gratingSpeed = -(a.paradigmState.gratingSpeed || 35); } },
+            { label: 'Invert Grating Direction', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = -(a.paradigmState.drumVelocityDegS || 30); } },
             { label: 'Toggle Efference Copy', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.efferenceCopy = !a.paradigmState.efferenceCopy; } },
             { label: 'Zero Contrast (Uniform)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.contrast = (a.paradigmState.contrast === 0 ? 0.9 : 0); } }
         ],
         metrics: [
             { label: 'Optomotor Yaw Torque', get: (a) => `${(a.dn.dna02Diff).toFixed(2)} rad/s` },
-            { label: 'Retinal Slip Rate', get: (a) => `24.2 °/s` },
-            { label: 'Closed-Loop Gain', get: (a) => `0.84` }
+            { label: 'Retinal Slip Rate', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.effectiveSlip) ? a.paradigmState.effectiveSlip : 0).toFixed(1)} °/s` },
+            { label: 'Closed-Loop Gain', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.gain) ? a.paradigmState.gain : 0.88).toFixed(2)}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
@@ -3691,18 +4023,18 @@ const ASSAY_CONFIGS = {
         badge: 'PICK & STRAUSS (2005)',
         ref: 'Pick & Strauss (Nature 2005) / Triphan (2010) Gap Crossing Spatial Planning',
         sliders: [
-            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.2, unit: ' mm', desc: 'Physical chasm width. Fly will probe with forelegs and attempt crossing if <= 3.8mm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidth = v; } },
+            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.5, unit: ' mm', desc: 'Physical chasm width. Fly will probe with forelegs and attempt crossing if <= 3.8mm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidthMm = v; } },
             { key: 'clawAdhesion', label: 'Tarsal Claw Friction', min: 0.5, max: 2.0, step: 0.1, val: 1.2, unit: ' x', desc: 'Tarsal claw cuticular friction coefficient against runway substrate edge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.friction = v; } }
         ],
         actions: [
             { label: 'Extend Foreleg Probe', class: 'primary', handler: (a, h) => { if (a.cpg) a.cpg.steppingFreq = 4.0; } },
-            { label: 'Widen Gap (+0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidth = Math.min(5.0, (a.paradigmState.gapWidth || 3.2) + 0.5); } },
-            { label: 'Narrow Gap (-0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidth = Math.max(1.5, (a.paradigmState.gapWidth || 3.2) - 0.5); } }
+            { label: 'Widen Gap (+0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidthMm = Math.min(5.0, (a.paradigmState.gapWidthMm || 3.5) + 0.5); } },
+            { label: 'Narrow Gap (-0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidthMm = Math.max(1.5, (a.paradigmState.gapWidthMm || 3.5) - 0.5); } }
         ],
         metrics: [
-            { label: 'Crossing Success Rate', get: (a) => `82.5%` },
-            { label: 'Max Foreleg Reach', get: (a) => `3.8 mm` },
-            { label: 'Tactile Probe Latency', get: (a) => `140 ms` }
+            { label: 'Crossing Outcome', get: (a) => { const p = a.paradigmState || {}; return p.crossingSuccess ? 'CROSSED' : (p.decisionOutcome || (p.isProbing ? 'PROBING' : 'APPROACH')); } },
+            { label: 'Max Foreleg Reach', get: (a) => `${(a.paradigmState && a.paradigmState.reachabilityThreshMm) || 3.8} mm` },
+            { label: 'Tactile Probe Time', get: (a) => `${((a.paradigmState && a.paradigmState.probingDurationMs) || 0).toFixed(0)} ms` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#4ade80';
@@ -3731,12 +4063,13 @@ const ASSAY_CONFIGS = {
         actions: [
             { label: 'Toggle Light/Dark Phase', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.isDark = !a.paradigmState.isDark; } },
             { label: 'Trigger Arousal Tap', class: 'danger', handler: (a, h) => { a.fly.speed = 12.0; } },
-            { label: 'Clear DAM Activity Logs', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.beamBreaks = 0; } }
+            { label: 'Clear DAM Activity Logs', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.beamCrossings = 0; a.paradigmState.totalSleepMin = 0; a.paradigmState.sleepBouts = 0; } } }
         ],
         metrics: [
-            { label: 'Zeitgeber Time (ZT)', get: (a) => `ZT 08:30` },
-            { label: 'Sleep Fraction (24h)', get: (a) => `38.2%` },
-            { label: 'Current State', get: (a) => `${a.fly.speed < 0.5 ? 'SLEEP BOUT' : 'ACTIVE LOCOMOTION'}` }
+            // The DAM assay runs at 1 sim second = 2 fly-minutes (see step()).
+            { label: 'Zeitgeber Time (ZT)', get: (a) => { const mins = a.paradigmElapsedSec * 2.0; const hh = Math.floor((mins / 60) % 24); const mm = Math.floor(mins % 60); return `ZT ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; } },
+            { label: 'Sleep Fraction', get: (a) => { const p = a.paradigmState || {}; const mins = Math.max(1, a.paradigmElapsedSec * 2.0); return `${(100 * (p.totalSleepMin || 0) / mins).toFixed(1)}%`; } },
+            { label: 'Beam Crossings', get: (a) => `${(a.paradigmState && a.paradigmState.beamCrossings) || 0}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#fbbf24';
@@ -3765,9 +4098,9 @@ const ASSAY_CONFIGS = {
             { label: 'Reset Courtship Suppression', class: '', handler: (a, h) => { a.mb.reset(false); } }
         ],
         metrics: [
-            { label: 'Courtship Index (CI)', get: (a) => `0.42` },
-            { label: 'Inter-Pulse Interval (IPI)', get: (a) => `35.8 ms` },
-            { label: 'Target Proximity', get: (a) => `4.2 mm` }
+            { label: 'Courtship Index (CI)', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.courtshipIndex) ? a.paradigmState.courtshipIndex : 0).toFixed(2)}` },
+            { label: 'Wing Extension', get: (a) => `${((a.paradigmState && a.paradigmState.wingAngleDeg) || 0).toFixed(0)}°` },
+            { label: 'Target Proximity', get: (a) => { const p = a.paradigmState; return p && p.femalePos ? `${Math.hypot(a.fly.x - p.femalePos[0], a.fly.y - p.femalePos[1]).toFixed(1)} mm` : '--'; } }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#f43f5e';
@@ -3789,30 +4122,31 @@ const ASSAY_CONFIGS = {
         badge: 'SPATIAL DECISION NETWORK',
         ref: 'Continuous Sliding Collision Physics & Multi-Junction Maze',
         sliders: [
-            { key: 'wallFriction', label: 'Wall Coulomb Friction', min: 0.0, max: 0.8, step: 0.05, val: 0.2, unit: '', desc: 'Coulomb crawling friction coefficient along corridor walls during sliding contacts.', apply: (a, v) => { a.frictionCoeff = v; } },
+            { key: 'wallFriction', label: 'Wall Coulomb Friction', min: 0.0, max: 0.8, step: 0.05, val: 0.5, unit: '', desc: 'Coulomb crawling friction coefficient along corridor walls during sliding contacts.', apply: (a, v) => { (a.currentWalls || []).forEach(w => { w.friction = v; }); } },
             { key: 'exitOdor', label: 'Goal Exit Odor Emission', min: 0.5, max: 3.0, step: 0.2, val: 1.8, unit: ' x', desc: 'Sucrose food volatile emission strength emanating from terminal goal chamber.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.exitOdor = v; } }
         ],
         actions: [
             { label: 'Bait Exit Chamber', class: 'primary', handler: (a, h) => { a.spawnFoodNearFly(); } },
-            { label: 'Teleport to Maze Start', class: 'danger', handler: (a, h) => { a.fly.x = -110; a.fly.y = -60; } },
+            { label: 'Return to Maze Start', class: 'danger', handler: (a, h) => { a.resetTrial(false, true); } },
             { label: 'Clear Maze Trail', class: '', handler: (a, h) => { a.fly.trail = []; } }
         ],
         metrics: [
-            { label: 'Dead-End Errors', get: (a) => `${a.paradigmState && a.paradigmState.deadEnds ? a.paradigmState.deadEnds : 0}` },
-            { label: 'Path Traversed', get: (a) => `${(a.fly.trail.length * 0.4).toFixed(1)} mm` },
-            { label: 'Exit Reached', get: (a) => `${a.paradigmState && a.paradigmState.exitReached ? 'YES' : 'NAVIGATING'}` }
+            { label: 'Wall Contacts', get: (a) => `${(a.paradigmState && a.paradigmState.wallCollisions) || 0}` },
+            { label: 'Path Traversed', get: (a) => `${((a.paradigmState && a.paradigmState.pathLength) || 0).toFixed(1)} mm` },
+            { label: 'Goal Reached', get: (a) => `${a.paradigmState && a.paradigmState.goalReached ? 'YES' : 'NAVIGATING'}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
             ctx.font = '9px monospace';
             ctx.fillText('Path Efficiency vs Optimal Euclidean Path', 8, 14);
-            const eff = 0.74;
+            const tort = (a.paradigmState && a.paradigmState.tortuosity) || 1.0;
+            const eff = Math.max(0.0, Math.min(1.0, 1.0 / tort));
             ctx.fillStyle = '#0284c7';
             ctx.fillRect(25, h / 2 - 10, (w - 50) * eff, 20);
             ctx.strokeStyle = '#38bdf8';
             ctx.strokeRect(25, h / 2 - 10, w - 50, 20);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(`74.0% Optimal Routing`, 32, h / 2 + 4);
+            ctx.fillText(`${(eff * 100).toFixed(1)}% Optimal Routing (tortuosity ${tort.toFixed(2)})`, 32, h / 2 + 4);
         }
     },
     'multisensory-sandbox': {
@@ -3820,8 +4154,8 @@ const ASSAY_CONFIGS = {
         badge: 'INTEGRATED BENCHMARK',
         ref: 'Simultaneous Visual, Thermal, Olfactory, Wind & Articulated Kinematics',
         sliders: [
-            { key: 'cpgCadence', label: 'Kuramoto CPG Base Cadence', min: 3.0, max: 14.0, step: 0.5, val: 8.5, unit: ' Hz', desc: 'Kuramoto tripod gait base stepping frequency coordinating 6 articulated limb phases.', apply: (a, v) => { a.cpg.steppingFreq = v; } },
-            { key: 'dna02Gain', label: 'DNa02 Steering Sensitivity', min: 0.5, max: 2.5, step: 0.1, val: 1.2, unit: ' x', desc: 'Descending neuron DNa02 steering sensitivity translating lateral turn commands into leg kinematics.', apply: (a, v) => { a.dn.gain = v; } }
+            { key: 'cpgCadence', label: 'Kuramoto CPG Base Cadence', min: 3.0, max: 14.0, step: 0.5, val: 8.0, unit: ' Hz', desc: 'Kuramoto tripod gait base stepping frequency coordinating 6 articulated limb phases.', apply: (a, v) => { a.cpg.baseFreq = v; } },
+            { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Gain of the anticipatory wall-avoidance steering (antennal proximity whiskers) that turns the fly away from walls and pillars.', apply: (a, v) => { a.wallRepulsion = v; } }
         ],
         actions: [
             { label: 'Optogenetic DNa02 Turn', class: 'primary', handler: (a, h) => { a.fly.heading += 0.4; if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'optogenetic_dna02', value: 0.4 }); } },
@@ -3829,9 +4163,9 @@ const ASSAY_CONFIGS = {
             { label: 'Sugar Odor Puff', class: 'primary', handler: (a, h) => { a.mb.stepPlasticity(1, 0, 4); if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'odor_puff', value: 1.0 }); } }
         ],
         metrics: [
-            { label: 'Composite Score', get: (a) => `${((a.paradigmState && a.paradigmState.compositeScore !== undefined ? a.paradigmState.compositeScore : 0.88) * 100).toFixed(1)} / 100` },
-            { label: 'Tripod Coordination', get: (a) => `99.2%` },
-            { label: 'Sensory Alignment', get: (a) => `91.5%` }
+            { label: 'Composite Score', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.compositeScore) ? a.paradigmState.compositeScore : 0).toFixed(1)} / 100` },
+            { label: 'Tripod Coordination', get: (a) => `${((a.paradigmState && a.paradigmState.coordinationScore) || 0) * 100 | 0}%` },
+            { label: 'Sensory Alignment', get: (a) => `${(((a.paradigmState && a.paradigmState.sensoryIntegrationScore) || 0) * 100).toFixed(1)}%` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
@@ -3862,6 +4196,51 @@ const ASSAY_CONFIGS = {
 // =============================================================================
 // 8. MODERN SCIENTIFIC HUD & DIRECTOR'S DASHBOARD
 // =============================================================================
+
+const LESION_INFO = {
+    'WT': {
+        name: 'Wild-Type Control (Canton-S / w1118)',
+        driver: 'Intact Baseline Genotype',
+        mechanism: 'Full unperturbed connectome (166,700 neurons, 25.5M synapses). Intact associative memory, spatial compass, looming evasion, and mechanosensory organs.',
+        expectedDeficit: 'None (Normal baseline behavior across all 14 assays; PI > 0.70 in T-maze, SAR > 60% in Y-maze, intact cool refuge navigation).',
+        color: '#4ade80'
+    },
+    'DELTA_MB': {
+        name: 'ΔMB Kenyon Cell Silencing',
+        driver: 'MB247-GAL4 > UAS-TNT / rutabaga / dunce',
+        mechanism: 'Genetic ablation of ~4,000 Mushroom Body Kenyon Cells and MBONs. Completely abolishes anti-Hebbian dopamine (PPL1/PAM) synaptic plasticity.',
+        expectedDeficit: 'Total loss of associative olfactory & thermal learning: Fails odor avoidance conditioning (PI ~ 0.00 in T-maze), fails heat-maze place learning, fails courtship memory.',
+        color: '#fda4af'
+    },
+    'DELTA_CX': {
+        name: 'ΔCX Central Complex Compass Knockout',
+        driver: 'R60D05-GAL4 > UAS-TNT / ccd (central complex deranged)',
+        mechanism: 'Silences 16-wedge E-PG ring attractor compass neurons and PFL3 steering decoders, destroying the fly\'s internal allocentric heading coordinate frame.',
+        expectedDeficit: 'Loss of spatial orientation & landmark navigation: Cannot fixate visual stripes (fails Buridan), cannot triangulate cool refuge in heat-maze, wanders aimlessly.',
+        color: '#f43f5e'
+    },
+    'DELTA_GF': {
+        name: 'ΔGF Giant Fiber Looming Ablation',
+        driver: 'R68A06-GAL4 > UAS-shi[ts] / Passover / shakB',
+        mechanism: 'Silences descending Giant Fiber pair (DNp01/GF) that integrates looming optical expansion from lobula columnar neurons LPLC2 and Col4.',
+        expectedDeficit: 'Blind to approaching predatory shadows: Fails to trigger rapid 5ms tergotrochanteral motor jump takeoff, resulting in 100% predatory strike capture.',
+        color: '#fb923c'
+    },
+    'DELTA_JO': {
+        name: 'ΔJO Johnston’s Organ Mechanosensory Knockout',
+        driver: 'tilB (touch-insensitive-larva-B) / nompA / JO-GAL4',
+        mechanism: 'Silences Johnston’s organ chordotonal neurons in the second antennal segment (pedicel), abolishing wind drag and acoustic vibration transduction.',
+        expectedDeficit: 'Loss of wind anemotaxis and courtship hearing: Fails upwind surge-and-cast flight in wind tunnel, fails courtship song recognition, disorients in airflow.',
+        color: '#a78bfa'
+    },
+    'DELTA_OFF': {
+        name: 'ΔOFF T5 Motion Detector Silencing',
+        driver: 'T5-split-GAL4 > UAS-Kir2.1 / dark-edge motion blind',
+        mechanism: 'Silences T5 columnar neurons in the optic lobe medulla/lobula, which compute elementary motion detection for moving dark edges (OFF pathway).',
+        expectedDeficit: 'Loss of dark-edge optomotor gaze stabilization: Fly fails to compensate for rotating dark stripes, causing severe heading drift during visual flow.',
+        color: '#38bdf8'
+    }
+};
 
 class ScientificHUD {
     constructor(arena) {
@@ -4130,51 +4509,6 @@ class ScientificHUD {
             }
         }
     }
-
-const LESION_INFO = {
-    'WT': {
-        name: 'Wild-Type Control (Canton-S / w1118)',
-        driver: 'Intact Baseline Genotype',
-        mechanism: 'Full unperturbed connectome (166,700 neurons, 25.5M synapses). Intact associative memory, spatial compass, looming evasion, and mechanosensory organs.',
-        expectedDeficit: 'None (Normal baseline behavior across all 14 assays; PI > 0.70 in T-maze, SAR > 60% in Y-maze, intact cool refuge navigation).',
-        color: '#4ade80'
-    },
-    'DELTA_MB': {
-        name: 'ΔMB Kenyon Cell Silencing',
-        driver: 'MB247-GAL4 > UAS-TNT / rutabaga / dunce',
-        mechanism: 'Genetic ablation of ~4,000 Mushroom Body Kenyon Cells and MBONs. Completely abolishes anti-Hebbian dopamine (PPL1/PAM) synaptic plasticity.',
-        expectedDeficit: 'Total loss of associative olfactory & thermal learning: Fails odor avoidance conditioning (PI ~ 0.00 in T-maze), fails heat-maze place learning, fails courtship memory.',
-        color: '#fda4af'
-    },
-    'DELTA_CX': {
-        name: 'ΔCX Central Complex Compass Knockout',
-        driver: 'R60D05-GAL4 > UAS-TNT / ccd (central complex deranged)',
-        mechanism: 'Silences 16-wedge E-PG ring attractor compass neurons and PFL3 steering decoders, destroying the fly\'s internal allocentric heading coordinate frame.',
-        expectedDeficit: 'Loss of spatial orientation & landmark navigation: Cannot fixate visual stripes (fails Buridan), cannot triangulate cool refuge in heat-maze, wanders aimlessly.',
-        color: '#f43f5e'
-    },
-    'DELTA_GF': {
-        name: 'ΔGF Giant Fiber Looming Ablation',
-        driver: 'R68A06-GAL4 > UAS-shi[ts] / Passover / shakB',
-        mechanism: 'Silences descending Giant Fiber pair (DNp01/GF) that integrates looming optical expansion from lobula columnar neurons LPLC2 and Col4.',
-        expectedDeficit: 'Blind to approaching predatory shadows: Fails to trigger rapid 5ms tergotrochanteral motor jump takeoff, resulting in 100% predatory strike capture.',
-        color: '#fb923c'
-    },
-    'DELTA_JO': {
-        name: 'ΔJO Johnston’s Organ Mechanosensory Knockout',
-        driver: 'tilB (touch-insensitive-larva-B) / nompA / JO-GAL4',
-        mechanism: 'Silences Johnston’s organ chordotonal neurons in the second antennal segment (pedicel), abolishing wind drag and acoustic vibration transduction.',
-        expectedDeficit: 'Loss of wind anemotaxis and courtship hearing: Fails upwind surge-and-cast flight in wind tunnel, fails courtship song recognition, disorients in airflow.',
-        color: '#a78bfa'
-    },
-    'DELTA_OFF': {
-        name: 'ΔOFF T5 Motion Detector Silencing',
-        driver: 'T5-split-GAL4 > UAS-Kir2.1 / dark-edge motion blind',
-        mechanism: 'Silences T5 columnar neurons in the optic lobe medulla/lobula, which compute elementary motion detection for moving dark edges (OFF pathway).',
-        expectedDeficit: 'Loss of dark-edge optomotor gaze stabilization: Fly fails to compensate for rotating dark stripes, causing severe heading drift during visual flow.',
-        color: '#38bdf8'
-    }
-};
 
     setupLesionEvents() {
         const lesions = [
