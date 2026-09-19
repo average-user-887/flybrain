@@ -1,0 +1,88 @@
+{
+  "kind": "isolated daemon stress check",
+  "module": "current",
+  "paradigm": "wind-tunnel",
+  "requested_speed": 100.0,
+  "wall_seconds": 60.0,
+  "port": 19000,
+  "host": {
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 12,
+    "machine": "x86_64"
+  },
+  "achieved_speed_server_timestamps": 29.847,
+  "achieved_speed_reported_last": 30.031,
+  "sse": {
+    "frames": 1566,
+    "events": 1624,
+    "frame_gap_p50_ms": 38.6,
+    "frame_gap_p95_ms": 40.4,
+    "frame_gap_max_ms": 42.5,
+    "any_event_gap_max_ms": 42.5,
+    "client_error": null,
+    "stale_threshold_s": 8.0,
+    "stale_disconnect_would_fire": false,
+    "first_step": 1689,
+    "last_step": 91357
+  },
+  "commands": {
+    "count": 224,
+    "failures": [],
+    "p50_ms": 14.81,
+    "p95_ms": 19.63,
+    "max_ms": 26.18,
+    "acks_with_applied_step": 224,
+    "gate": {
+      "p95_lt_ms": 250.0,
+      "max_lt_ms": 1000.0,
+      "pass": true
+    }
+  },
+  "status_get": {
+    "p95_ms": 9.71,
+    "max_ms": 10.27
+  },
+  "child_profile": {
+    "lock_profile": {
+      "simulation": {
+        "acquisitions": 10115,
+        "mean_wait_ms": 0.0,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 0.0,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 62,
+        "mean_wait_ms": 0.094,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 4.455,
+        "max_wait_ms": 4.455,
+        "window": 62
+      }
+    },
+    "total_steps": 93071,
+    "timing": {
+      "requested_speed": 100.0,
+      "achieved_speed": 30.048,
+      "integration_dt_s": 0.02,
+      "sim_time_s": 1861.42,
+      "step": 93071,
+      "snapshot_seq": 3292,
+      "publish_hz": 60.0,
+      "overloaded": true,
+      "schedule_rebases": 172,
+      "forgiven_wall_s": 43.618,
+      "max_batch_hold_ms": 20.337,
+      "command_latency": {
+        "count": 224,
+        "p50_ms": 9.94,
+        "p95_ms": 11.41,
+        "max_ms": 17.93
+      }
+    }
+  }
+}

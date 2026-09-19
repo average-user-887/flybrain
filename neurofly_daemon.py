@@ -23,6 +23,11 @@ Key Capabilities:
    SSE clients are capped and the stream is throttled (stream_gateway.py).
 7. Durable learning records: append-only trials.jsonl / telemetry_summary.jsonl
    under NEUROFLY_DATA_DIR or outputs/learning (learning_recorder.py).
+8. Timing: fixed dt = 0.02 s at every requested speed; a deadline scheduler runs
+   steps in short batches and reports requested vs achieved speed (``timing`` in
+   telemetry and /api/status).  Telemetry is published as immutable, pre-serialized
+   snapshots, so delivery never holds the simulation lock; commands are applied at a
+   step boundary and acknowledged with ``ack.applied_step``.
 """
 
 import argparse
@@ -34,6 +39,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -58,6 +64,108 @@ except ImportError as e:
 from stream_gateway import MAX_COMMAND_BYTES, StreamGateway, StreamPolicy
 from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
 from experiment_brains import ExperimentBrains
+
+
+class TimedLock:
+    """The simulation lock, instrumented and polite.
+
+    Records how long each thread role waited to acquire it, and exposes the number
+    of waiting threads so the simulation loop can yield between step batches
+    instead of re-acquiring immediately (``threading.Lock`` is not fair).
+    Supports the ``with`` protocol and ``acquire``/``release`` like a plain lock.
+    """
+
+    def __init__(self, samples: int = 4096):
+        self._lock = threading.Lock()
+        self._meta = threading.Lock()
+        self.waiting = 0
+        self._waits: Dict[str, deque] = {}
+        self._totals: Dict[str, List[float]] = {}  # role -> [count, total_s, max_s]
+        self._samples = samples
+
+    @staticmethod
+    def _role() -> str:
+        name = threading.current_thread().name
+        if name.startswith("NeuroFly-SimLoop"):
+            return "simulation"
+        if name.startswith("NeuroFly-Recorder"):
+            return "recorder"
+        if name == "MainThread":
+            return "main"
+        return "http"
+
+    def _record(self, wait_s: float) -> None:
+        role = self._role()
+        with self._meta:
+            self._waits.setdefault(role, deque(maxlen=self._samples)).append(wait_s)
+            tot = self._totals.setdefault(role, [0, 0.0, 0.0])
+            tot[0] += 1
+            tot[1] += wait_s
+            tot[2] = max(tot[2], wait_s)
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        if self._lock.acquire(False):
+            self._record(0.0)
+            return True
+        if not blocking:
+            return False
+        start = time.perf_counter()
+        with self._meta:
+            self.waiting += 1
+        try:
+            ok = self._lock.acquire(True, timeout)
+        finally:
+            with self._meta:
+                self.waiting -= 1
+        if ok:
+            self._record(time.perf_counter() - start)
+        return ok
+
+    def release(self) -> None:
+        self._lock.release()
+
+    def locked(self) -> bool:
+        return self._lock.locked()
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
+
+    def profile(self) -> Dict[str, Any]:
+        """Per-role lock wait summary in milliseconds (recent-window percentiles)."""
+        out = {}
+        with self._meta:
+            items = [(role, sorted(w), list(self._totals[role])) for role, w in self._waits.items()]
+        for role, waits, (count, total, peak) in items:
+            def pct(q):
+                return round(waits[min(len(waits) - 1, int(q * len(waits)))] * 1e3, 3) if waits else 0.0
+            out[role] = {"acquisitions": count, "mean_wait_ms": round(total / count * 1e3, 3) if count else 0.0,
+                         "p50_wait_ms": pct(0.50), "p95_wait_ms": pct(0.95), "p99_wait_ms": pct(0.99),
+                         "max_wait_ms": round(peak * 1e3, 3), "window": len(waits)}
+        return out
+
+
+def _percentiles_ms(values) -> Dict[str, float]:
+    vals = sorted(values)
+    if not vals:
+        return {"count": 0}
+    pick = lambda q: round(vals[min(len(vals) - 1, int(q * len(vals)))] * 1e3, 2)
+    return {"count": len(vals), "p50_ms": pick(0.5), "p95_ms": pick(0.95), "max_ms": round(vals[-1] * 1e3, 2)}
+
+
+class _Snapshot:
+    """One immutable published telemetry frame: serialized once, shared by every reader."""
+
+    __slots__ = ("seq", "step", "data", "wall_time")
+
+    def __init__(self, seq: int, step: int, data: bytes, wall_time: float):
+        self.seq = seq
+        self.step = step
+        self.data = data
+        self.wall_time = wall_time
 
 
 class ContinuousExperimentRunner:
@@ -97,8 +205,34 @@ class ContinuousExperimentRunner:
         self.last_error = None
         self.run_id = uuid.uuid4().hex
         self.transition = None
-        self.lock = threading.Lock()
+        self.lock = TimedLock()
         self.running = False
+        # Scheduling and delivery (docs: fixed dt; the wall-clock deadline only decides
+        # WHEN the next fixed step runs, never its size).  Snapshots are published at
+        # ``publish_hz`` while running and ``paused_publish_hz`` while paused; readers
+        # never take the simulation lock to deliver them.
+        self.publish_hz = 60.0
+        self.paused_publish_hz = 2.0
+        self.max_batch_wall_s = 0.008   # longest uninterrupted lock hold for a step batch
+        self.max_lag_wall_s = 0.25      # schedule debt beyond this is forgiven, not burst
+        self.yield_wall_s = 0.001       # GIL hand-over after every batch (see _yield_lock)
+        self.command_timeout_s = 5.0
+        self.published: Optional[_Snapshot] = None
+        self._snapshot_seq = 0
+        self._publish_due = True
+        self._last_step_result: Dict[str, Any] = {}
+        self._path: deque = deque(maxlen=240)   # (step, x, y) of every recent step
+        self._speed_samples: deque = deque(maxlen=256)
+        self._commands: deque = deque()
+        self._commands_lock = threading.Lock()
+        self._wake = threading.Event()
+        self._scheduled: Dict[int, List[Dict[str, Any]]] = {}
+        self.command_latency: deque = deque(maxlen=1024)
+        self.stop_at_step: Optional[int] = None   # test/replay hook: hold at this step
+        self.step_hook = None                     # test hook: called under lock after each step
+        self.sched_stats = {"rebases": 0, "forgiven_wall_s": 0.0, "batches": 0,
+                            "max_batch_hold_ms": 0.0, "steps_since_publish": 0, "achieved_speed": 0.0,
+                            "published_snapshots": 0}
         self.sim_speed = max(0.1, min(100.0, float(sim_speed)))
         self.dt = 0.02
         self.active_paradigm_id = initial_paradigm
@@ -148,6 +282,9 @@ class ContinuousExperimentRunner:
         self.active_paradigm_title = getattr(self.arena.paradigm, "name", "Open Arena Assay")
         self.trial_sim_time = brain.elapsed
         self.learning_curve = brain.curve
+        self._path.clear()
+        self._last_step_result = {}
+        self._publish_due = True
         self.latest_telemetry = self._assemble_telemetry({})
 
     def start(self):
@@ -161,39 +298,208 @@ class ContinuousExperimentRunner:
         """Stops simulation and saves final checkpoint."""
         print("[Daemon] Stopping simulation loop...", flush=True)
         self.running = False
+        self._wake.set()
         if hasattr(self, "sim_thread"):
             self.sim_thread.join(timeout=3.0)
         self.save_checkpoint("final_shutdown")
 
+    # ------------------------------------------------------------------ scheduling
+    def _can_step(self) -> bool:
+        if self.paused or self.last_error:
+            return False
+        return self.stop_at_step is None or self.total_steps < self.stop_at_step
+
+    def _loop_active(self) -> bool:
+        thread = getattr(self, "sim_thread", None)
+        return bool(self.running and thread is not None and thread.is_alive()
+                    and threading.current_thread() is not thread)
+
+    def _yield_lock(self, max_wait_s: float = 0.005):
+        """Give other threads the GIL and the lock before the next batch.
+
+        Measured (outputs/rethink-audit/lock_profile_receipt.json): a CPU-bound step
+        loop that never blocks starves every other Python thread of the GIL -- a
+        33 ms ``time.sleep`` in another thread took ~570 ms at 100x.  A real sleep
+        hands the GIL over; it costs about ``yield_wall_s / max_batch_wall_s`` of
+        throughput and bounds delivery and command latency.
+        """
+        if self.yield_wall_s is not None:   # None: no hand-over (diagnostics only)
+            time.sleep(self.yield_wall_s)
+        deadline = time.perf_counter() + max_wait_s
+        while self.lock.waiting and time.perf_counter() < deadline:
+            time.sleep(0.0002)
+
     def _run_loop(self):
-        """High-speed continuous integration and online learning loop."""
-        step_dt = self.dt
-        base_interval = step_dt / self.sim_speed
+        """Deadline-aware fixed-dt scheduler.
 
+        Every step integrates exactly ``self.dt`` simulated seconds.  Wall-clock
+        deadlines only decide when the next step runs: step ``n`` after the anchor is
+        due at ``anchor + n*dt/speed``.  If the machine cannot keep up, the schedule
+        debt is capped at ``max_lag_wall_s`` and the remainder forgiven (counted in
+        ``sched_stats``), so overload lowers the *achieved* speed visibly instead of
+        causing catch-up bursts.  Steps run in batches of at most ``max_batch_wall_s``
+        under the lock; between batches the lock is yielded to waiting threads,
+        queued commands are applied at a step boundary and a snapshot is published.
+        """
+        dt = self.dt
+        anchor_wall = time.perf_counter()
+        anchor_steps = self.total_steps
+        anchor_speed = self.sim_speed
+        last_publish = 0.0
         while self.running:
-            loop_start = time.perf_counter()
-
+            self._wake.clear()
+            self._drain_commands()
+            now = time.perf_counter()
+            if not self._can_step():
+                if self._publish_due or now - last_publish >= 1.0 / self.paused_publish_hz:
+                    self._publish_snapshot()
+                    last_publish = now
+                self._wake.wait(0.05)
+                anchor_wall, anchor_steps, anchor_speed = time.perf_counter(), self.total_steps, self.sim_speed
+                continue
+            speed = self.sim_speed
+            if speed != anchor_speed:
+                anchor_wall, anchor_steps, anchor_speed = now, self.total_steps, speed
+            behind = anchor_steps + int((now - anchor_wall) * speed / dt) - self.total_steps
+            if behind <= 0:
+                fresh = self.sched_stats["steps_since_publish"] > 0
+                if self._publish_due or (now - last_publish >= 1.0 / self.publish_hz
+                                         and (fresh or now - last_publish >= 0.5)):
+                    self._publish_snapshot()
+                    last_publish = now
+                next_deadline = anchor_wall + (self.total_steps + 1 - anchor_steps) * dt / speed
+                wait = min(next_deadline, last_publish + 1.0 / self.publish_hz) - time.perf_counter()
+                if wait > 0:
+                    self._wake.wait(min(wait, 0.05))
+                continue
+            max_lag = max(1, int(self.max_lag_wall_s * speed / dt))
+            if behind > max_lag:
+                # Overload: forgive the debt instead of bursting to catch up.
+                self.sched_stats["rebases"] += 1
+                self.sched_stats["forgiven_wall_s"] += (behind - 1) * dt / speed
+                anchor_wall, anchor_steps = now - dt / speed, self.total_steps
+                behind = 1
+            batch_start = time.perf_counter()
             with self.lock:
-                self.step_once()
+                taken = 0
+                while taken < behind and self._can_step() and self.running:
+                    self._advance_one()
+                    taken += 1
+                    if time.perf_counter() - batch_start >= self.max_batch_wall_s:
+                        break
+            hold_ms = (time.perf_counter() - batch_start) * 1e3
+            self.sched_stats["batches"] += 1
+            self.sched_stats["max_batch_hold_ms"] = max(self.sched_stats["max_batch_hold_ms"], round(hold_ms, 3))
+            self._yield_lock()
+            now = time.perf_counter()
+            if self._publish_due or now - last_publish >= 1.0 / self.publish_hz:
+                self._publish_snapshot()
+                last_publish = now
 
-            # Sleep to match target speed pacing
-            elapsed = time.perf_counter() - loop_start
-            sleep_time = (step_dt / self.sim_speed) - elapsed
-            if sleep_time > 0.0005:
-                time.sleep(sleep_time)
+    def _advance_one(self):
+        """One scheduled step: step-indexed commands first, then the fixed-dt tick. Holds lock."""
+        for entry in self._scheduled.pop(self.total_steps, ()):
+            entry["result"] = self._apply_command(entry["cmd"])
+        result = self.step_once(publish=False)
+        self.sched_stats["steps_since_publish"] += 1
+        if self.step_hook is not None:
+            self.step_hook(self)
+        return result
 
-    def step_once(self) -> Dict[str, Any]:
-        """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``."""
+    def schedule_command(self, step: int, cmd: dict) -> dict:
+        """Apply ``cmd`` exactly when ``total_steps == step`` (before that step's successor).
+
+        Step-indexed interventions make runs at different requested speeds comparable.
+        Returns the entry; its ``result`` (with ``ack.applied_step``) is filled once applied.
+        """
+        entry = {"cmd": dict(cmd), "result": None}
+        with self.lock:
+            if step < self.total_steps:
+                raise ValueError(f"step {step} is already in the past (now {self.total_steps})")
+            self._scheduled.setdefault(int(step), []).append(entry)
+        return entry
+
+    def _drain_commands(self):
+        """Apply HTTP commands queued since the last batch, at a step boundary."""
+        while True:
+            with self._commands_lock:
+                if not self._commands:
+                    return
+                entry = self._commands.popleft()
+                entry["taken"] = True
+            with self.lock:
+                try:
+                    entry["result"] = self._apply_command(entry["cmd"])
+                except Exception as exc:  # never kill the loop over one bad command
+                    entry["result"] = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            entry["done"].set()
+
+    # ------------------------------------------------------------------ publication
+    def timing_snapshot(self) -> Dict[str, Any]:
+        """Requested versus achieved speed and delivery counters (JSON-safe)."""
+        return {
+            "requested_speed": self.sim_speed,
+            "achieved_speed": 0.0 if not self._can_step() else self.sched_stats["achieved_speed"],
+            "integration_dt_s": self.dt,
+            "sim_time_s": round(self.total_steps * self.dt, 5),
+            "step": self.total_steps,
+            "snapshot_seq": self._snapshot_seq,
+            "publish_hz": self.publish_hz,
+            "overloaded": bool(self._can_step() and self.sched_stats["achieved_speed"] < 0.9 * self.sim_speed
+                               and len(self._speed_samples) > 4),
+            "schedule_rebases": self.sched_stats["rebases"],
+            "forgiven_wall_s": round(self.sched_stats["forgiven_wall_s"], 3),
+            "max_batch_hold_ms": self.sched_stats["max_batch_hold_ms"],
+            "command_latency": _percentiles_ms(list(self.command_latency)),
+        }
+
+    def _measure_achieved(self, now: float):
+        self._speed_samples.append((now, self.total_steps))
+        while len(self._speed_samples) > 2 and now - self._speed_samples[0][0] > 2.0:
+            self._speed_samples.popleft()
+        t0, s0 = self._speed_samples[0]
+        if now - t0 > 0.2:
+            self.sched_stats["achieved_speed"] = round((self.total_steps - s0) * self.dt / (now - t0), 3)
+
+    def _publish_snapshot(self):
+        """Assemble, serialize and publish one immutable telemetry frame (takes the lock)."""
+        with self.lock:
+            now = time.perf_counter()
+            if self._can_step():
+                self._measure_achieved(now)
+            else:
+                self._speed_samples.clear()
+            self._snapshot_seq += 1
+            telemetry = self._assemble_telemetry(self._last_step_result)
+            telemetry["timing"]["steps_in_frame"] = self.sched_stats["steps_since_publish"]
+            self.sched_stats["steps_since_publish"] = 0
+            self.latest_telemetry = telemetry
+            data = json.dumps(telemetry).encode("utf-8")
+            self.published = _Snapshot(self._snapshot_seq, self.total_steps, data, telemetry["timestamp"])
+            self.sched_stats["published_snapshots"] += 1
+            self._publish_due = False
+        return self.published
+
+    def step_once(self, publish: bool = True) -> Dict[str, Any]:
+        """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``.
+
+        ``publish=False`` (the scheduler) skips telemetry assembly; the snapshot is
+        assembled only when published.  Telemetry assembly is read-only, so this
+        does not change the simulated trajectory.
+        """
         step_dt = self.dt
         if self.paused or self.last_error:
-            self.latest_telemetry = self._assemble_telemetry({})
+            # Keep the last measured assay metrics visible while nothing advances.
+            self.latest_telemetry = self._assemble_telemetry(self._last_step_result)
             return {}
 
         # Teaching runs in an explicit cue chamber while the behavioral arena pauses.
         if self.active_brain.teaching:
             self.active_brain.teaching_step(step_dt)
             self.total_steps += 1
-            self.latest_telemetry = self._assemble_telemetry({})
+            self._last_step_result = {}
+            if publish:
+                self.latest_telemetry = self._assemble_telemetry({})
             return {}
 
         # 1. Step simulation arena
@@ -202,13 +508,17 @@ class ContinuousExperimentRunner:
         except Exception as step_err:
             print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
             self.last_error = str(step_err)
-            self.active_brain.log("simulation_error", error=self.last_error)
+            self.active_brain.log("simulation_error", error=self.last_error, step=self.total_steps,
+                                  run_id=self.run_id, segment_id=self.segment_id)
+            self._publish_due = True
             self.latest_telemetry = self._assemble_telemetry({})
             return {}
 
         self.total_steps += 1
         self.active_brain.steps += 1
         self.trial_sim_time += step_dt
+        pos = self.arena.fly.pos
+        self._path.append((self.total_steps, round(float(pos.x), 4), round(float(pos.y), 4)))
 
         # 2. Trial advancement: natural endpoint or time limit
         end_reason = self._trial_end_reason(step_result)
@@ -217,8 +527,10 @@ class ContinuousExperimentRunner:
             # Terminal outcomes belong to the old segment, never to the respawn pose.
             step_result = {}
 
-        # 3. Assemble telemetry snapshot
-        self.latest_telemetry = self._assemble_telemetry(step_result)
+        # 3. Assemble telemetry (the scheduler defers this to snapshot publication)
+        self._last_step_result = step_result
+        if publish:
+            self.latest_telemetry = self._assemble_telemetry(step_result)
 
         # 4. Periodic Checkpointing
         now = time.time()
@@ -264,6 +576,8 @@ class ContinuousExperimentRunner:
                 print(f"[Daemon] paradigm.reset_trial failed: {reset_err}", file=sys.stderr)
         self.arena.reset_fly_to_spawn()
         self.trial_sim_time = 0.0
+        self._path.clear()
+        self._publish_due = True
 
     def _assemble_telemetry(self, step_res: Dict[str, Any]) -> Dict[str, Any]:
         """Constructs standardized JSON telemetry packet for browser streaming."""
@@ -314,6 +628,11 @@ class ContinuousExperimentRunner:
             "paradigm": self.active_paradigm_id,
             "paradigm_title": self.active_paradigm_title,
             "sim_speed": self.sim_speed,
+            # Requested versus achieved speed, dt and delivery counters (see timing_snapshot).
+            "timing": self.timing_snapshot(),
+            # Measured positions of the most recent steps in this segment, [step, x, y]:
+            # lets a decimated display draw the path actually taken between frames.
+            "path": [list(p) for p in self._path],
             "stimuli": stim,
             "live_assay": assay_controls.describe(self.arena),
             "motor_drives": getattr(fly, "sensorimotor_drives", {}),
@@ -409,126 +728,177 @@ class ContinuousExperimentRunner:
         self.current_trial += 1
 
     def dispatch_command(self, cmd: dict) -> dict:
-        """Processes external REST intervention commands with thread-safety."""
+        """Apply an external command and acknowledge the step at which it took effect.
+
+        While the scheduler runs, the command is queued and applied by the simulation
+        thread at the next step boundary (between batches), so a command never waits
+        behind an unbounded run of steps and never lands mid-step.  The reply carries
+        ``ack.applied_step`` / ``ack.applied_sim_time_s`` and the measured latency.
+        Without a running loop (tests, tools) it is applied directly under the lock.
+        """
+        received = time.perf_counter()
+        if not isinstance(cmd, dict):
+            return {"status": "error", "message": "Command must be a JSON object"}
+        if self._loop_active():
+            entry = {"cmd": cmd, "done": threading.Event(), "result": None, "taken": False}
+            with self._commands_lock:
+                self._commands.append(entry)
+            self._wake.set()
+            if not entry["done"].wait(self.command_timeout_s):
+                with self._commands_lock:
+                    if not entry["taken"]:
+                        self._commands.remove(entry)
+                        return {"status": "error", "applied": False,
+                                "message": f"Command not applied within {self.command_timeout_s:g} s"}
+                entry["done"].wait()
+            result = entry["result"]
+        else:
+            with self.lock:
+                result = self._apply_command(cmd)
+        latency = time.perf_counter() - received
+        self.command_latency.append(latency)
+        if isinstance(result, dict) and isinstance(result.get("ack"), dict):
+            result["ack"]["latency_ms"] = round(latency * 1e3, 3)
+        return result
+
+    def _apply_command(self, cmd: dict) -> dict:
+        """Apply one command now. Caller holds ``self.lock``; adds the acknowledgement."""
+        result = self._apply_command_unacked(cmd)
+        if isinstance(result, dict):
+            result = dict(result)
+            result["ack"] = {"action": cmd.get("action", ""), "run_id": self.run_id,
+                             "applied": result.get("status") == "ok",
+                             "applied_step": self.total_steps,
+                             "applied_sim_time_s": round(self.total_steps * self.dt, 5),
+                             "paradigm": self.active_paradigm_id}
+        self._publish_due = True
+        return result
+
+    def _apply_command_unacked(self, cmd: dict) -> dict:
         action = cmd.get("action", "")
         # Allow both flat arguments and nested 'params' dictionary from client libraries
         p = cmd.get("params", {})
         if not isinstance(p, dict):
             p = {}
 
-        with self.lock:
-            if action == "switch_paradigm":
-                target = cmd.get("paradigm") or p.get("paradigm", "open-arena")
-                try:
-                    self._init_arena(target)
-                except (ValueError, OSError) as exc:
-                    return {"status": "error", "message": str(exc)}
-                return {"status": "ok", "active_paradigm": self.active_paradigm_id}
+        if action == "switch_paradigm":
+            target = cmd.get("paradigm") or p.get("paradigm", "open-arena")
+            try:
+                self._init_arena(target)
+            except (ValueError, OSError) as exc:
+                return {"status": "error", "message": str(exc)}
+            return {"status": "ok", "active_paradigm": self.active_paradigm_id}
 
-            elif action == "probe_brain":
-                probe = self.active_brain.probe()
-                self.active_brain.log("probe", probe=probe)
-                return {"status": "ok", "brain_id": self.active_brain.brain_id, "probe": probe}
+        elif action == "probe_brain":
+            probe = self.active_brain.probe()
+            self.active_brain.log("probe", probe=probe)
+            return {"status": "ok", "brain_id": self.active_brain.brain_id, "probe": probe}
 
-            elif action == "teach_brain":
-                try:
-                    self.active_brain.start_teaching(cmd.get("pairs", 8), cmd.get("reverse", False))
-                except ValueError as exc:
-                    return {"status": "error", "message": str(exc)}
-                return {"status": "ok", "brain_id": self.active_brain.brain_id}
+        elif action == "teach_brain":
+            try:
+                self.active_brain.start_teaching(cmd.get("pairs", 8), cmd.get("reverse", False))
+            except ValueError as exc:
+                return {"status": "error", "message": str(exc)}
+            return {"status": "ok", "brain_id": self.active_brain.brain_id}
 
-            elif action == "set_learning":
-                enabled = cmd.get("enabled")
-                if not isinstance(enabled, bool):
-                    return {"status": "error", "message": "enabled must be a boolean"}
-                if self.active_brain.teaching:
-                    return {"status": "error", "message": "Wait for teaching to finish before changing its control"}
-                self.active_brain.learning_enabled = enabled
-                self.arena.fly.learning_enabled = enabled
-                self.active_brain.log("learning_control", enabled=enabled)
-                self.active_brain.save()
-                return {"status": "ok", "learning_enabled": enabled}
+        elif action == "set_learning":
+            enabled = cmd.get("enabled")
+            if not isinstance(enabled, bool):
+                return {"status": "error", "message": "enabled must be a boolean"}
+            if self.active_brain.teaching:
+                return {"status": "error", "message": "Wait for teaching to finish before changing its control"}
+            self.active_brain.learning_enabled = enabled
+            self.arena.fly.learning_enabled = enabled
+            self.active_brain.log("learning_control", enabled=enabled)
+            self.active_brain.save()
+            return {"status": "ok", "learning_enabled": enabled}
 
-            elif action == "set_paused":
-                paused = cmd.get("paused", p.get("paused"))
-                if not isinstance(paused, bool):
-                    return {"status": "error", "message": "paused must be a boolean"}
-                self.paused = paused
-                self.latest_telemetry = self._assemble_telemetry({})
-                return {"status": "ok", "paused": self.paused}
+        elif action == "set_paused":
+            paused = cmd.get("paused", p.get("paused"))
+            if not isinstance(paused, bool):
+                return {"status": "error", "message": "paused must be a boolean"}
+            self.paused = paused
+            self.latest_telemetry = self._assemble_telemetry(self._last_step_result)
+            return {"status": "ok", "paused": self.paused}
 
-            elif action == "set_speed":
-                val = cmd.get("speed") if cmd.get("speed") is not None else p.get("speed", 10.0)
+        elif action == "set_speed":
+            val = cmd.get("speed") if cmd.get("speed") is not None else p.get("speed", 10.0)
+            try:
                 new_speed = float(val)
-                self.sim_speed = max(0.1, min(100.0, new_speed))
-                return {"status": "ok", "sim_speed": self.sim_speed}
+            except (TypeError, ValueError):
+                return {"status": "error", "message": "speed must be a number"}
+            if not math.isfinite(new_speed):
+                return {"status": "error", "message": "speed must be finite"}
+            self.sim_speed = max(0.1, min(100.0, new_speed))
+            return {"status": "ok", "sim_speed": self.sim_speed}
 
-            elif action in ('set_param', 'assay_action'):
-                name = cmd.get('name', p.get('name', ''))
-                try:
-                    if action == 'set_param':
-                        value = assay_controls.set_parameter(self.arena, name, cmd.get('value', p.get('value')))
-                    else:
-                        assay_controls.act(self.arena, name)
-                        value = None
-                except (ValueError, TypeError) as exc:
-                    return {'status':'error','message':str(exc)}
-                self.active_brain.log('intervention', action=action, name=name, value=value,
-                                      run_id=self.run_id, segment_id=self.segment_id, sim_time_s=self.total_steps*self.dt)
-                return {'status':'ok','applied':name,'live_assay':assay_controls.describe(self.arena)}
+        elif action in ('set_param', 'assay_action'):
+            name = cmd.get('name', p.get('name', ''))
+            try:
+                if action == 'set_param':
+                    value = assay_controls.set_parameter(self.arena, name, cmd.get('value', p.get('value')))
+                else:
+                    assay_controls.act(self.arena, name)
+                    value = None
+            except (ValueError, TypeError) as exc:
+                return {'status':'error','message':str(exc)}
+            self.active_brain.log('intervention', action=action, name=name, value=value,
+                                  run_id=self.run_id, segment_id=self.segment_id, sim_time_s=self.total_steps*self.dt)
+            return {'status':'ok','applied':name,'live_assay':assay_controls.describe(self.arena)}
 
-            elif action == 'place_stimulus':
-                if self.arena.paradigm is not None:
-                    return {'status':'error','message':'Spatial editing is only available in the open arena'}
-                from arena import Position
-                kind = cmd.get('type', p.get('type'))
-                try:
-                    x,y = float(cmd.get('x',p.get('x'))),float(cmd.get('y',p.get('y')))
-                    if not all(math.isfinite(v) for v in (x,y)) or not (2<=x<=self.arena.width-2 and 2<=y<=self.arena.height-2):
-                        raise ValueError('Place the stimulus inside the arena')
-                    if kind=='food':
-                        self.arena.food_positions.append(Position(x,y)); self.arena.odor_a.add_source(x,y,1.0)
-                    elif kind=='alarm':
-                        self.arena.hazard_positions.append(Position(x,y)); self.arena.odor_b.add_source(x,y,1.0)
-                    elif kind=='wind':
-                        angle=math.atan2(y-self.arena.height/2, x-self.arena.width/2)
-                        self.arena.wind=(-15*math.cos(angle),-15*math.sin(angle))
-                    else: raise ValueError('This spatial stimulus is not supported by the live model')
-                except (ValueError,TypeError) as exc:
-                    return {'status':'error','message':str(exc)}
-                self.active_brain.log('spatial_intervention', stimulus=kind,x=x,y=y,run_id=self.run_id,step=self.total_steps)
-                return {'status':'ok','applied':kind}
+        elif action == 'place_stimulus':
+            if self.arena.paradigm is not None:
+                return {'status':'error','message':'Spatial editing is only available in the open arena'}
+            from arena import Position
+            kind = cmd.get('type', p.get('type'))
+            try:
+                x,y = float(cmd.get('x',p.get('x'))),float(cmd.get('y',p.get('y')))
+                if not all(math.isfinite(v) for v in (x,y)) or not (2<=x<=self.arena.width-2 and 2<=y<=self.arena.height-2):
+                    raise ValueError('Place the stimulus inside the arena')
+                if kind=='food':
+                    self.arena.food_positions.append(Position(x,y)); self.arena.odor_a.add_source(x,y,1.0)
+                elif kind=='alarm':
+                    self.arena.hazard_positions.append(Position(x,y)); self.arena.odor_b.add_source(x,y,1.0)
+                elif kind=='wind':
+                    angle=math.atan2(y-self.arena.height/2, x-self.arena.width/2)
+                    self.arena.wind=(-15*math.cos(angle),-15*math.sin(angle))
+                else: raise ValueError('This spatial stimulus is not supported by the live model')
+            except (ValueError,TypeError) as exc:
+                return {'status':'error','message':str(exc)}
+            self.active_brain.log('spatial_intervention', stimulus=kind,x=x,y=y,run_id=self.run_id,step=self.total_steps)
+            return {'status':'ok','applied':kind}
 
-            elif action == 'inject_stimulus':
-                return {'status':'error','message':'This preview-only injection is not connected. Use the supported live assay controls.'}
+        elif action == 'inject_stimulus':
+            return {'status':'error','message':'This preview-only injection is not connected. Use the supported live assay controls.'}
 
-            elif action == "reset_trial":
-                advance = cmd.get("advance", p.get("advance", True))
-                keep_mem = cmd.get("keep_memory", p.get("keep_memory", True))
-                if advance:
-                    self.current_trial += 1
-                if not keep_mem and hasattr(self.arena.fly, "circuit"):
-                    self.arena.fly.circuit.reset_state(keep_memory=False)
-                    self.active_brain.log("memory_reset")
-                    self.active_brain.save()
-                # Reset paradigm trial state and return the fly to the paradigm spawn
-                paradigm = getattr(self.arena, "paradigm", None)
-                if paradigm is not None and hasattr(paradigm, "reset_trial"):
-                    paradigm.reset_trial()
-                self.arena.reset_fly_to_spawn()
-                self.trial_sim_time = 0.0
-                self.segment_id = uuid.uuid4().hex
-                self.transition = {"reason": "manual_reset", "step": self.total_steps}
-                self.active_brain.log("manual_reset", segment_id=self.segment_id)
-                self.latest_telemetry = self._assemble_telemetry({})
-                return {"status": "ok", "current_trial": self.current_trial}
+        elif action == "reset_trial":
+            advance = cmd.get("advance", p.get("advance", True))
+            keep_mem = cmd.get("keep_memory", p.get("keep_memory", True))
+            if advance:
+                self.current_trial += 1
+            if not keep_mem and hasattr(self.arena.fly, "circuit"):
+                self.arena.fly.circuit.reset_state(keep_memory=False)
+                self.active_brain.log("memory_reset")
+                self.active_brain.save()
+            # Reset paradigm trial state and return the fly to the paradigm spawn
+            paradigm = getattr(self.arena, "paradigm", None)
+            if paradigm is not None and hasattr(paradigm, "reset_trial"):
+                paradigm.reset_trial()
+            self.arena.reset_fly_to_spawn()
+            self.trial_sim_time = 0.0
+            self.segment_id = uuid.uuid4().hex
+            self.transition = {"reason": "manual_reset", "step": self.total_steps}
+            self._path.clear()
+            self.active_brain.log("manual_reset", segment_id=self.segment_id)
+            self.latest_telemetry = self._assemble_telemetry({})
+            return {"status": "ok", "current_trial": self.current_trial}
 
-            elif action == "save_checkpoint":
-                path = self.save_checkpoint(cmd.get("label", "manual"))
-                return {"status": "ok", "checkpoint": str(path)}
+        elif action == "save_checkpoint":
+            path = self.save_checkpoint(cmd.get("label", "manual"))
+            return {"status": "ok", "checkpoint": str(path)}
 
-            else:
-                return {"status": "error", "message": f"Unknown action: '{action}'"}
+        else:
+            return {"status": "error", "message": f"Unknown action: '{action}'"}
 
     def save_checkpoint(self, tag: str = "periodic") -> Path:
         """Saves current continuous synaptic weights and trial ledger to disk."""
@@ -576,7 +946,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
 
     def _status_payload(self):
         uptime = time.time() - self.runner.start_time
-        return {
+        payload = {
             "status": "error" if self.runner.last_error else "online",
             "error": self.runner.last_error,
             "paused": self.runner.paused,
@@ -594,25 +964,36 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
             "stream": self.gateway.describe()
         }
+        if hasattr(self.runner, "timing_snapshot"):
+            payload["timing"] = self.runner.timing_snapshot()
+        if hasattr(self.runner.lock, "profile"):
+            payload["lock_profile"] = self.runner.lock.profile()
+        return payload
 
     def do_GET(self):
         url = self.path.split("?")[0].rstrip("/")
 
         if url in ("", "/status", "/api/status"):
+            # Plain attribute reads only: status never waits for the simulation lock,
+            # so a busy simulation cannot make the dashboard's reconnect probe time out.
+            resp = self._status_payload()
             self.send_response(200)
             self._set_cors_headers("application/json")
             self.end_headers()
-            with self.runner.lock:
-                resp = self._status_payload()
             self.wfile.write(json.dumps(resp, indent=2).encode("utf-8"))
 
         elif url == "/api/telemetry":
+            snap = getattr(self.runner, "published", None)
+            if snap is not None:
+                body = snap.data
+            else:
+                with self.runner.lock:
+                    data = self.runner.latest_telemetry
+                body = json.dumps(data).encode("utf-8")
             self.send_response(200)
             self._set_cors_headers("application/json")
             self.end_headers()
-            with self.runner.lock:
-                data = self.runner.latest_telemetry
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+            self.wfile.write(body)
 
         elif url == "/api/observatory":
             # One lock and one response prevent mixed experiment identities during switches.
@@ -677,16 +1058,8 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             try:
-                last_send = 0.0
-                while self.runner.running:
-                    with self.runner.lock:
-                        payload = self.runner.latest_telemetry
-                    if payload:
-                        msg = f"data: {json.dumps(payload)}\n\n"
-                        self.wfile.write(msg.encode("utf-8"))
-                        self.wfile.flush()
-                    last_send = self.gateway.pace(last_send)
-            except (BrokenPipeError, ConnectionResetError):
+                self._stream_snapshots()
+            except (BrokenPipeError, ConnectionResetError, TimeoutError):
                 pass
             finally:
                 slot.release()
@@ -696,6 +1069,54 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.end_headers()
             self.wfile.write(b'{"error": "Endpoint not found"}')
+
+    def _stream_snapshots(self):
+        """SSE delivery policy: latest-value-wins, never holding the simulation lock.
+
+        Each tick (``stream_hz``) the newest published snapshot is written if it is
+        newer than the last one sent to this client; intermediate snapshots are
+        skipped, never queued, and counted as decimated.  A slow client therefore
+        receives fewer, fresher frames and cannot delay the simulation or other
+        clients.  With no new snapshot for one second a ``heartbeat`` event is sent,
+        and a ``stream`` event reports this client's delivery counters every second.
+        """
+        runner = self.runner
+        last_send = 0.0
+        last_seq = None
+        last_write = last_stats = time.monotonic()
+        sent = skipped = 0
+        while runner.running:
+            snap = getattr(runner, "published", None)
+            now = time.monotonic()
+            if snap is None and not hasattr(runner, "published"):
+                # Minimal runners (tests, tools) without snapshot publication.
+                with runner.lock:
+                    payload = runner.latest_telemetry
+                if payload:
+                    self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    last_write = now
+            elif snap is not None and snap.seq != last_seq:
+                if last_seq is not None and snap.seq > last_seq + 1:
+                    skipped += snap.seq - last_seq - 1
+                self.wfile.write(b"id: " + str(snap.seq).encode() + b"\ndata: " + snap.data + b"\n\n")
+                self.wfile.flush()
+                last_seq = snap.seq
+                sent += 1
+                last_write = now
+            elif now - last_write >= 1.0:
+                beat = {"server_time": round(time.time(), 3), "seq": last_seq}
+                self.wfile.write(f"event: heartbeat\ndata: {json.dumps(beat)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+                last_write = now
+            if now - last_stats >= 1.0 and hasattr(runner, "published"):
+                stats = {"sent": sent, "decimated_snapshots": skipped, "stream_hz": self.gateway.policy.stream_hz}
+                self.wfile.write(f"event: stream\ndata: {json.dumps(stats)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+                self.gateway.record_delivery(sent, skipped)
+                sent = skipped = 0
+                last_stats = now
+            last_send = self.gateway.pace(last_send)
 
     def do_POST(self):
         url = self.path.split("?")[0].rstrip("/")

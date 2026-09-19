@@ -1,0 +1,946 @@
+{
+  "scenarios": {
+    "load_1x": {
+      "ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "115",
+        "simTime": "2.30s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "runState": "SURGE \u00b7 TRIAL 1",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 6,
+        "lastStep": 117,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 23
+      },
+      "pass": true
+    },
+    "speed_100x": {
+      "seconds": 60.0,
+      "samples": [
+        {
+          "t": 1789848507.02,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 124,
+          "server_step": 186,
+          "status_ms": 7.9,
+          "data_age_ms": 20,
+          "achieved": "1.0x",
+          "requested": 100.0,
+          "server_achieved": 1.463
+        },
+        {
+          "t": 1789848508.03,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 1411,
+          "server_step": 1484,
+          "status_ms": 6.7,
+          "data_age_ms": 29,
+          "achieved": "13.4x",
+          "requested": 100.0,
+          "server_achieved": 13.833
+        },
+        {
+          "t": 1789848509.04,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 2725,
+          "server_step": 2792,
+          "status_ms": 3.0,
+          "data_age_ms": 35,
+          "achieved": "25.8x",
+          "requested": 100.0,
+          "server_achieved": 25.863
+        },
+        {
+          "t": 1789848510.05,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 4157,
+          "server_step": 4183,
+          "status_ms": 10.0,
+          "data_age_ms": 9,
+          "achieved": "26.9x",
+          "requested": 100.0,
+          "server_achieved": 26.875
+        },
+        {
+          "t": 1789848511.06,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 5459,
+          "server_step": 5512,
+          "status_ms": 1.5,
+          "data_age_ms": 16,
+          "achieved": "26.9x",
+          "requested": 100.0,
+          "server_achieved": 26.908
+        },
+        {
+          "t": 1789848512.06,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 6827,
+          "server_step": 6868,
+          "status_ms": 0.8,
+          "data_age_ms": 17,
+          "achieved": "26.6x",
+          "requested": 100.0,
+          "server_achieved": 26.567
+        },
+        {
+          "t": 1789848513.07,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 8149,
+          "server_step": 8217,
+          "status_ms": 2.7,
+          "data_age_ms": 26,
+          "achieved": "26.9x",
+          "requested": 100.0,
+          "server_achieved": 26.962
+        },
+        {
+          "t": 1789848514.09,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 9502,
+          "server_step": 9578,
+          "status_ms": 16.3,
+          "data_age_ms": 32,
+          "achieved": "26.8x",
+          "requested": 100.0,
+          "server_achieved": 26.746
+        },
+        {
+          "t": 1789848515.1,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 10890,
+          "server_step": 10914,
+          "status_ms": 3.1,
+          "data_age_ms": 5,
+          "achieved": "26.7x",
+          "requested": 100.0,
+          "server_achieved": 26.655
+        },
+        {
+          "t": 1789848516.12,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 12105,
+          "server_step": 12163,
+          "status_ms": 11.8,
+          "data_age_ms": 34,
+          "achieved": "25.7x",
+          "requested": 100.0,
+          "server_achieved": 25.521
+        },
+        {
+          "t": 1789848517.13,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 13393,
+          "server_step": 13428,
+          "status_ms": 9.0,
+          "data_age_ms": 18,
+          "achieved": "24.8x",
+          "requested": 100.0,
+          "server_achieved": 24.811
+        },
+        {
+          "t": 1789848518.14,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 14732,
+          "server_step": 14786,
+          "status_ms": 2.3,
+          "data_age_ms": 24,
+          "achieved": "25.9x",
+          "requested": 100.0,
+          "server_achieved": 25.973
+        },
+        {
+          "t": 1789848519.15,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 16026,
+          "server_step": 16103,
+          "status_ms": 6.9,
+          "data_age_ms": 38,
+          "achieved": "26.4x",
+          "requested": 100.0,
+          "server_achieved": 26.41
+        },
+        {
+          "t": 1789848520.16,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 17357,
+          "server_step": 17394,
+          "status_ms": 6.8,
+          "data_age_ms": 2,
+          "achieved": "25.8x",
+          "requested": 100.0,
+          "server_achieved": 25.784
+        },
+        {
+          "t": 1789848521.16,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 18754,
+          "server_step": 18781,
+          "status_ms": 4.2,
+          "data_age_ms": 3,
+          "achieved": "26.5x",
+          "requested": 100.0,
+          "server_achieved": 26.544
+        },
+        {
+          "t": 1789848522.17,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 20110,
+          "server_step": 20131,
+          "status_ms": 2.9,
+          "data_age_ms": 5,
+          "achieved": "27.3x",
+          "requested": 100.0,
+          "server_achieved": 27.262
+        },
+        {
+          "t": 1789848523.18,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 21408,
+          "server_step": 21484,
+          "status_ms": 5.5,
+          "data_age_ms": 34,
+          "achieved": "26.8x",
+          "requested": 100.0,
+          "server_achieved": 26.815
+        },
+        {
+          "t": 1789848524.2,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 22771,
+          "server_step": 22841,
+          "status_ms": 8.7,
+          "data_age_ms": 20,
+          "achieved": "26.6x",
+          "requested": 100.0,
+          "server_achieved": 26.756
+        },
+        {
+          "t": 1789848525.21,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 24101,
+          "server_step": 24184,
+          "status_ms": 5.9,
+          "data_age_ms": 34,
+          "achieved": "26.6x",
+          "requested": 100.0,
+          "server_achieved": 26.716
+        },
+        {
+          "t": 1789848526.21,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 25524,
+          "server_step": 25553,
+          "status_ms": 7.3,
+          "data_age_ms": 1,
+          "achieved": "26.8x",
+          "requested": 100.0,
+          "server_achieved": 26.836
+        },
+        {
+          "t": 1789848527.22,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 26846,
+          "server_step": 26929,
+          "status_ms": 3.3,
+          "data_age_ms": 35,
+          "achieved": "27.2x",
+          "requested": 100.0,
+          "server_achieved": 27.208
+        },
+        {
+          "t": 1789848528.23,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 28290,
+          "server_step": 28318,
+          "status_ms": 5.9,
+          "data_age_ms": 2,
+          "achieved": "27.4x",
+          "requested": 100.0,
+          "server_achieved": 27.446
+        },
+        {
+          "t": 1789848529.24,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 29695,
+          "server_step": 29737,
+          "status_ms": 4.2,
+          "data_age_ms": 5,
+          "achieved": "27.9x",
+          "requested": 100.0,
+          "server_achieved": 27.873
+        },
+        {
+          "t": 1789848530.24,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 31103,
+          "server_step": 31129,
+          "status_ms": 1.5,
+          "data_age_ms": 6,
+          "achieved": "28.0x",
+          "requested": 100.0,
+          "server_achieved": 27.967
+        },
+        {
+          "t": 1789848531.25,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 32471,
+          "server_step": 32500,
+          "status_ms": 4.5,
+          "data_age_ms": 2,
+          "achieved": "27.4x",
+          "requested": 100.0,
+          "server_achieved": 27.449
+        },
+        {
+          "t": 1789848532.25,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 33881,
+          "server_step": 33903,
+          "status_ms": 5.4,
+          "data_age_ms": 1,
+          "achieved": "27.6x",
+          "requested": 100.0,
+          "server_achieved": 27.573
+        },
+        {
+          "t": 1789848533.26,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 35267,
+          "server_step": 35292,
+          "status_ms": 2.3,
+          "data_age_ms": 5,
+          "achieved": "27.8x",
+          "requested": 100.0,
+          "server_achieved": 27.762
+        },
+        {
+          "t": 1789848534.27,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 36598,
+          "server_step": 36673,
+          "status_ms": 3.7,
+          "data_age_ms": 34,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.548
+        },
+        {
+          "t": 1789848535.34,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 38053,
+          "server_step": 38171,
+          "status_ms": 3.0,
+          "data_age_ms": 25,
+          "achieved": "27.8x",
+          "requested": 100.0,
+          "server_achieved": 27.731
+        },
+        {
+          "t": 1789848536.35,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 39472,
+          "server_step": 39526,
+          "status_ms": 3.5,
+          "data_age_ms": 23,
+          "achieved": "27.3x",
+          "requested": 100.0,
+          "server_achieved": 27.251
+        },
+        {
+          "t": 1789848537.36,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 40828,
+          "server_step": 40896,
+          "status_ms": 6.3,
+          "data_age_ms": 21,
+          "achieved": "27.0x",
+          "requested": 100.0,
+          "server_achieved": 27.0
+        },
+        {
+          "t": 1789848538.37,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 42210,
+          "server_step": 42280,
+          "status_ms": 6.6,
+          "data_age_ms": 31,
+          "achieved": "27.3x",
+          "requested": 100.0,
+          "server_achieved": 27.271
+        },
+        {
+          "t": 1789848539.38,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 43585,
+          "server_step": 43671,
+          "status_ms": 4.4,
+          "data_age_ms": 33,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.507
+        },
+        {
+          "t": 1789848540.38,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 45055,
+          "server_step": 45096,
+          "status_ms": 2.0,
+          "data_age_ms": 6,
+          "achieved": "28.0x",
+          "requested": 100.0,
+          "server_achieved": 27.982
+        },
+        {
+          "t": 1789848541.39,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 46456,
+          "server_step": 46482,
+          "status_ms": 4.5,
+          "data_age_ms": 3,
+          "achieved": "28.0x",
+          "requested": 100.0,
+          "server_achieved": 27.963
+        },
+        {
+          "t": 1789848542.4,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 47808,
+          "server_step": 47876,
+          "status_ms": 3.7,
+          "data_age_ms": 32,
+          "achieved": "27.6x",
+          "requested": 100.0,
+          "server_achieved": 27.616
+        },
+        {
+          "t": 1789848543.4,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 49186,
+          "server_step": 49252,
+          "status_ms": 1.6,
+          "data_age_ms": 31,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.528
+        },
+        {
+          "t": 1789848544.42,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 50597,
+          "server_step": 50666,
+          "status_ms": 9.6,
+          "data_age_ms": 28,
+          "achieved": "27.7x",
+          "requested": 100.0,
+          "server_achieved": 27.644
+        },
+        {
+          "t": 1789848545.42,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 51972,
+          "server_step": 52040,
+          "status_ms": 5.3,
+          "data_age_ms": 31,
+          "achieved": "27.7x",
+          "requested": 100.0,
+          "server_achieved": 27.581
+        },
+        {
+          "t": 1789848546.43,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 53385,
+          "server_step": 53440,
+          "status_ms": 7.1,
+          "data_age_ms": 20,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.492
+        },
+        {
+          "t": 1789848547.45,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 54761,
+          "server_step": 54830,
+          "status_ms": 9.7,
+          "data_age_ms": 23,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.542
+        },
+        {
+          "t": 1789848548.46,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 56129,
+          "server_step": 56209,
+          "status_ms": 6.0,
+          "data_age_ms": 32,
+          "achieved": "27.3x",
+          "requested": 100.0,
+          "server_achieved": 27.326
+        },
+        {
+          "t": 1789848549.5,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 57545,
+          "server_step": 57584,
+          "status_ms": 20.7,
+          "data_age_ms": 28,
+          "achieved": "27.5x",
+          "requested": 100.0,
+          "server_achieved": 27.198
+        },
+        {
+          "t": 1789848550.51,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 58876,
+          "server_step": 58932,
+          "status_ms": 3.6,
+          "data_age_ms": 14,
+          "achieved": "26.6x",
+          "requested": 100.0,
+          "server_achieved": 26.602
+        },
+        {
+          "t": 1789848551.52,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 60216,
+          "server_step": 60272,
+          "status_ms": 7.4,
+          "data_age_ms": 19,
+          "achieved": "26.6x",
+          "requested": 100.0,
+          "server_achieved": 26.658
+        },
+        {
+          "t": 1789848552.53,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 61594,
+          "server_step": 61636,
+          "status_ms": 9.5,
+          "data_age_ms": 9,
+          "achieved": "26.7x",
+          "requested": 100.0,
+          "server_achieved": 26.68
+        },
+        {
+          "t": 1789848553.54,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 62960,
+          "server_step": 62984,
+          "status_ms": 5.9,
+          "data_age_ms": 1,
+          "achieved": "26.8x",
+          "requested": 100.0,
+          "server_achieved": 26.816
+        },
+        {
+          "t": 1789848554.56,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 64127,
+          "server_step": 64211,
+          "status_ms": 9.7,
+          "data_age_ms": 33,
+          "achieved": "25.5x",
+          "requested": 100.0,
+          "server_achieved": 25.403
+        },
+        {
+          "t": 1789848555.57,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 65428,
+          "server_step": 65506,
+          "status_ms": 9.0,
+          "data_age_ms": 32,
+          "achieved": "24.7x",
+          "requested": 100.0,
+          "server_achieved": 24.914
+        },
+        {
+          "t": 1789848556.58,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 66740,
+          "server_step": 66809,
+          "status_ms": 5.7,
+          "data_age_ms": 31,
+          "achieved": "25.6x",
+          "requested": 100.0,
+          "server_achieved": 25.661
+        },
+        {
+          "t": 1789848557.59,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 68018,
+          "server_step": 68082,
+          "status_ms": 6.9,
+          "data_age_ms": 30,
+          "achieved": "25.5x",
+          "requested": 100.0,
+          "server_achieved": 25.468
+        },
+        {
+          "t": 1789848558.6,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 69312,
+          "server_step": 69383,
+          "status_ms": 2.1,
+          "data_age_ms": 26,
+          "achieved": "25.5x",
+          "requested": 100.0,
+          "server_achieved": 25.524
+        },
+        {
+          "t": 1789848559.61,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 70603,
+          "server_step": 70667,
+          "status_ms": 10.2,
+          "data_age_ms": 16,
+          "achieved": "25.6x",
+          "requested": 100.0,
+          "server_achieved": 25.612
+        },
+        {
+          "t": 1789848560.62,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 71923,
+          "server_step": 71961,
+          "status_ms": 3.1,
+          "data_age_ms": 5,
+          "achieved": "25.6x",
+          "requested": 100.0,
+          "server_achieved": 25.534
+        },
+        {
+          "t": 1789848561.63,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 73202,
+          "server_step": 73227,
+          "status_ms": 7.5,
+          "data_age_ms": 0,
+          "achieved": "25.4x",
+          "requested": 100.0,
+          "server_achieved": 25.407
+        },
+        {
+          "t": 1789848562.64,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 74436,
+          "server_step": 74495,
+          "status_ms": 7.3,
+          "data_age_ms": 32,
+          "achieved": "25.1x",
+          "requested": 100.0,
+          "server_achieved": 25.065
+        },
+        {
+          "t": 1789848563.65,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 75675,
+          "server_step": 75721,
+          "status_ms": 5.6,
+          "data_age_ms": 14,
+          "achieved": "24.7x",
+          "requested": 100.0,
+          "server_achieved": 24.719
+        },
+        {
+          "t": 1789848564.67,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 76974,
+          "server_step": 77013,
+          "status_ms": 10.0,
+          "data_age_ms": 6,
+          "achieved": "24.9x",
+          "requested": 100.0,
+          "server_achieved": 24.846
+        },
+        {
+          "t": 1789848565.68,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 78175,
+          "server_step": 78256,
+          "status_ms": 6.7,
+          "data_age_ms": 32,
+          "achieved": "25.0x",
+          "requested": 100.0,
+          "server_achieved": 25.072
+        },
+        {
+          "t": 1789848566.69,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 79475,
+          "server_step": 79551,
+          "status_ms": 8.9,
+          "data_age_ms": 25,
+          "achieved": "25.0x",
+          "requested": 100.0,
+          "server_achieved": 25.085
+        }
+      ],
+      "max_data_age_ms": 38,
+      "max_step_lag_ui_vs_server": 118,
+      "disconnected_samples": 0,
+      "stale_samples": 0,
+      "ui_steps_advanced": 79351,
+      "server_timing": {
+        "requested_speed": 100.0,
+        "achieved_speed": 25.43,
+        "integration_dt_s": 0.02,
+        "sim_time_s": 1616.44,
+        "step": 80822,
+        "snapshot_seq": 3234,
+        "publish_hz": 60.0,
+        "overloaded": true,
+        "schedule_rebases": 175,
+        "forgiven_wall_s": 44.398,
+        "max_batch_hold_ms": 19.973,
+        "command_latency": {
+          "count": 1,
+          "p50_ms": 2.06,
+          "p95_ms": 2.06,
+          "max_ms": 2.06
+        }
+      },
+      "errors": [],
+      "pass": true
+    },
+    "pause_resume": {
+      "paused_ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "80844",
+        "simTime": "1616.88s",
+        "speed": "100x",
+        "achieved": "paused",
+        "dataAge": "0.0s",
+        "runState": "PAUSED",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 42,
+        "lastStep": 80844,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 168
+      },
+      "after_2s": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "80844",
+        "simTime": "1616.88s",
+        "speed": "100x",
+        "achieved": "paused",
+        "dataAge": "0.5s",
+        "runState": "PAUSED",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 38,
+        "lastStep": 80844,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 168
+      },
+      "server_paused": true,
+      "server_step_vs_ui": [
+        80844,
+        80844
+      ],
+      "resumed_ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "80846",
+        "simTime": "1616.92s",
+        "speed": "100x",
+        "achieved": "25.4x",
+        "dataAge": "0.5s",
+        "runState": "SURGE \u00b7 TRIAL 81",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 33,
+        "lastStep": 80846,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 169
+      },
+      "pass": true
+    },
+    "inject_malformed": {
+      "errors": [
+        {
+          "phase": "packet-parse",
+          "message": "JSON.parse: unexpected end of data at line 1 column 28 of the JSON data",
+          "assay": "wind-tunnel",
+          "run_id": "709e812cc68c4a5db946e2f332a29979",
+          "step": 80931,
+          "count": 1
+        },
+        {
+          "phase": "packet-validate",
+          "message": "fly position is missing or not finite",
+          "assay": "wind-tunnel",
+          "run_id": "709e812cc68c4a5db946e2f332a29979",
+          "step": 80932,
+          "count": 1
+        }
+      ],
+      "banner": "PACKET-VALIDATE ERROR: fly position is missing or not finite \u2014 assay wind-tunnel \u00b7 run 709e812c \u00b7 step 80932",
+      "suspended": [],
+      "resume_button_visible": false,
+      "after_recovery": {
+        "pill": "\u25cf LIVE DAEMON",
+        "lastStep": 81094,
+        "dataAgeMs": 5,
+        "banner": "PACKET-VALIDATE ERROR: fly position is missing or not finite \u2014 assay wind-tunnel \u00b7 run 709e812c \u00b7 step 80932",
+        "suspended": []
+      },
+      "errors_after_recovery": 2,
+      "pass": true
+    },
+    "inject_apply": {
+      "errors": [
+        {
+          "phase": "packet-apply",
+          "message": "Injected packet-apply fault (test build)",
+          "assay": "wind-tunnel",
+          "run_id": "709e812cc68c4a5db946e2f332a29979",
+          "step": 81097,
+          "count": 1
+        }
+      ],
+      "banner": "PACKET-APPLY ERROR: Injected packet-apply fault (test build) \u2014 assay wind-tunnel \u00b7 run 709e812c \u00b7 step 81097",
+      "suspended": [],
+      "resume_button_visible": false,
+      "after_recovery": {
+        "pill": "\u25cf LIVE DAEMON",
+        "lastStep": 81259,
+        "dataAgeMs": 10,
+        "banner": "PACKET-APPLY ERROR: Injected packet-apply fault (test build) \u2014 assay wind-tunnel \u00b7 run 709e812c \u00b7 step 81097",
+        "suspended": []
+      },
+      "errors_after_recovery": 1,
+      "pass": true
+    },
+    "inject_render": {
+      "errors": [
+        {
+          "phase": "render",
+          "message": "Injected renderer fault (test build)",
+          "assay": "wind-tunnel",
+          "run_id": "709e812cc68c4a5db946e2f332a29979",
+          "step": 81262,
+          "count": 1
+        }
+      ],
+      "banner": "RENDER ERROR: Injected renderer fault (test build) \u2014 assay wind-tunnel \u00b7 run 709e812c \u00b7 step 81262 \u00b7 view suspended (render); last measured frame kept",
+      "suspended": [
+        "render"
+      ],
+      "resume_button_visible": true,
+      "after_recovery": {
+        "pill": "\u25cf LIVE DAEMON",
+        "lastStep": 81428,
+        "dataAgeMs": 4,
+        "banner": "",
+        "suspended": []
+      },
+      "errors_after_recovery": 1,
+      "pass": true
+    },
+    "disconnect_reconnect": {
+      "before": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "81517",
+        "simTime": "1630.34s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "runState": "SURGE \u00b7 TRIAL 82",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 13,
+        "lastStep": 81518,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 65
+      },
+      "disconnected": {
+        "pill": "\u25cb DISCONNECTED \u00b7 FROZEN VIEW",
+        "step": "81518",
+        "simTime": "1630.36s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.1s (frozen)",
+        "runState": "SURGE \u00b7 TRIAL 82",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 83,
+        "lastStep": 81518,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 65
+      },
+      "disconnected_after_3s": {
+        "pill": "\u25cb DISCONNECTED \u00b7 FROZEN VIEW",
+        "step": "81518",
+        "simTime": "1630.36s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "3.0s (frozen)",
+        "runState": "SURGE \u00b7 TRIAL 82",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 3086,
+        "lastStep": 81518,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 65
+      },
+      "reconnected": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "52",
+        "simTime": "1.04s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "runState": "SURGE \u00b7 TRIAL 1",
+        "banner": "",
+        "resumeVisible": false,
+        "dataAgeMs": 14,
+        "lastStep": 52,
+        "errors": [],
+        "suspended": [],
+        "remoteDriven": true,
+        "trail": 10
+      },
+      "pass": true
+    }
+  },
+  "note": "Headless real Firefox via geckodriver against an isolated daemon; not the final live-UI sign-off required by AGENTS.md.",
+  "daemon_script": "<repo>/neurofly_daemon.py",
+  "web_root": "<repo>/web",
+  "browser": {
+    "name": "firefox",
+    "version": "156.0",
+    "platform": "linux",
+    "headless": true,
+    "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+    "viewport": [
+      1440,
+      814,
+      1
+    ],
+    "geckodriver": "/snap/bin/geckodriver"
+  },
+  "daemon_port": 19101,
+  "web_port": 19301,
+  "pass": true
+}

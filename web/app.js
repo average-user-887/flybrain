@@ -3458,6 +3458,76 @@ function isStaleDaemonPacket(pkt, previous) {
         || (Number.isFinite(pkt.timestamp) && pkt.timestamp < previous.timestamp);
 }
 
+// -----------------------------------------------------------------------------
+// Structured error reporting. Every failure names its phase and the assay, run and
+// step it hit; repeats are counted, not re-logged, so no error loop floods the
+// console. Nothing here resets the brain or invents data: a failing view phase is
+// suspended (the last measured frame stays on screen) until the user resumes it.
+// Diagnostics: window.neuroflyDiagnostics. Test-build fault injection:
+// ?inject=malformed | apply | render (one-shot, see DaemonBridgeClient / main loop).
+// -----------------------------------------------------------------------------
+const NEUROFLY_INJECT = (() => {
+    try { return new URLSearchParams(window.location.search || '').get('inject') || ''; } catch (e) { return ''; }
+})();
+
+const NeuroflyErrors = {
+    log: [],
+    counts: new Map(),
+    suspended: new Set(),
+    report(phase, err, ctx = {}) {
+        const pkt = window.arena?.remotePacket;
+        const entry = {
+            phase,
+            message: String(err?.message ?? err),
+            assay: ctx.assay ?? window.arena?.activeParadigmId ?? null,
+            run_id: ctx.run_id ?? pkt?.run_id ?? null,
+            step: ctx.step ?? pkt?.step ?? null,
+            time: new Date().toISOString(),
+            stack: typeof err?.stack === 'string' ? err.stack.split('\n').slice(0, 4).join(' | ') : ''
+        };
+        const key = `${phase}:${entry.message}`;
+        const count = (this.counts.get(key) || 0) + 1;
+        this.counts.set(key, count);
+        entry.count = count;
+        if (count === 1 || count % 100 === 0) console.error('[NeuroFly]', phase, entry);
+        this.log.push(entry);
+        if (this.log.length > 50) this.log.shift();
+        this.show(entry);
+        return entry;
+    },
+    suspend(phase) { this.suspended.add(phase); },
+    isSuspended(phase) { return this.suspended.has(phase); },
+    resume() { this.suspended.clear(); this.hide(); },
+    show(entry) {
+        const banner = document.getElementById('errorBanner');
+        const text = document.getElementById('errorBannerText');
+        if (!banner || !text) return;
+        const where = `assay ${entry.assay || '?'} · run ${(entry.run_id || '?').slice(0, 8)} · step ${entry.step ?? '?'}`;
+        const repeat = entry.count > 1 ? ` (×${entry.count})` : '';
+        const frozen = this.suspended.size ? ` · view suspended (${[...this.suspended].join(', ')}); last measured frame kept` : '';
+        text.textContent = `${entry.phase.toUpperCase()} ERROR${repeat}: ${entry.message} — ${where}${frozen}`;
+        banner.style.display = 'flex';
+        const resume = document.getElementById('btnErrorResume');
+        if (resume) resume.hidden = this.suspended.size === 0;
+    },
+    hide() {
+        const banner = document.getElementById('errorBanner');
+        if (banner) banner.style.display = 'none';
+    }
+};
+window.neuroflyErrors = NeuroflyErrors;
+
+/** Why a parsed daemon packet cannot be applied, or null when it can. */
+function validateDaemonPacket(pkt) {
+    if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return 'packet is not an object';
+    if (pkt.type !== 'telemetry') return `unexpected packet type ${JSON.stringify(pkt.type)}`;
+    if (!Number.isFinite(pkt.step)) return 'step is missing or not a finite number';
+    if (typeof pkt.paradigm !== 'string' || !pkt.paradigm) return 'paradigm is missing';
+    if (!pkt.fly || !Number.isFinite(pkt.fly.x) || !Number.isFinite(pkt.fly.y)) return 'fly position is missing or not finite';
+    if (pkt.path !== undefined && !Array.isArray(pkt.path)) return 'path is not an array';
+    return null;
+}
+
 class DaemonBridgeClient {
     constructor(arena, hud) {
         this.arena = arena;
@@ -3469,9 +3539,18 @@ class DaemonBridgeClient {
         this.reconnectTimer = null;
         this.reconnectDelayMs = 4000;
         this.activeUrl = null;
-        this.lastPacketTime = 0;
+        this.lastPacketTime = 0;      // last SSE event of any kind (data or heartbeat)
+        this.lastValidDataTime = 0;   // last frame that passed validation and was applied
         this.lastOrderedPacket = null;
-        this.staleAfterMs = 8000;
+        // Old data is shown as STALE while the stream is open; only a stream that is
+        // completely silent (no frame, no heartbeat) for deadAfterMs is torn down.
+        // Tearing down a slow-but-alive stream froze the view at 100x (rethink audit).
+        this.staleAfterMs = 3000;
+        this.deadAfterMs = 20000;
+        this.rejectedPackets = 0;
+        this.streamStats = null;
+        this.lastAck = null;
+        this.injectPending = NEUROFLY_INJECT;
 
         if (this.statusPill) {
             this.statusPill.addEventListener('click', () => {
@@ -3480,13 +3559,22 @@ class DaemonBridgeClient {
         }
 
         // Watchdog: an EventSource that silently stops delivering (proxy timeout, daemon
-        // restart) never fires onerror, so treat a silent stream as disconnected.
+        // restart) never fires onerror, so treat a fully silent stream as disconnected.
         this.watchdogTimer = setInterval(() => {
-            if (this.connected && this.lastPacketTime > 0 && (performance.now() - this.lastPacketTime) > this.staleAfterMs) {
-                this.onDaemonDisconnected('stream stale');
+            const now = performance.now();
+            if (this.connected && this.lastPacketTime > 0 && (now - this.lastPacketTime) > this.deadAfterMs) {
+                this.onDaemonDisconnected(`stream silent for ${Math.round((now - this.lastPacketTime) / 1000)} s`);
                 this.scheduleReconnect();
             }
-        }, 2000);
+            this.updateFreshness();
+        }, 250);
+
+        window.neuroflyDiagnostics = {
+            errors: NeuroflyErrors.log,
+            bridge: this,
+            dataAgeMs: () => this.lastValidDataTime ? performance.now() - this.lastValidDataTime : null,
+            lastStep: () => this.lastOrderedPacket?.step ?? null,
+        };
 
         const researchLink = document.getElementById('researchLink');
         if (researchLink) researchLink.addEventListener('click', () => document.getElementById('tabTraining').click());
@@ -3538,7 +3626,7 @@ class DaemonBridgeClient {
             try {
                 const res = await fetch(`${url}/api/status`, {
                     method: 'GET',
-                    signal: AbortSignal.timeout(1200)
+                    signal: AbortSignal.timeout(4000)
                 });
                 if (res.ok) {
                     const status = await res.json();
@@ -3565,6 +3653,8 @@ class DaemonBridgeClient {
         this.reconnectDelayMs = 4000;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = null;
+        this.lastTrailStep = -1;
+        this.showingStale = false;
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
@@ -3593,16 +3683,21 @@ class DaemonBridgeClient {
     onDaemonDisconnected(reason = '') {
         this.connected = false;
         this.readOnly = false;
+        this.disconnectReason = reason;
         // Keep the last scientific frame still during an outage; never silently
         // substitute a locally generated trajectory into a daemon recording.
+        // remoteDriven stays as it was, so labels, units and measured metrics of the
+        // last frame remain on screen instead of switching to local preview values.
         this.arena.awaitingDaemon = !!this.activeUrl;
-        this.arena.remoteDriven = false;
+        if (!this.activeUrl) this.arena.remoteDriven = false;
         if (this.statusPill) {
             this.statusPill.textContent = this.arena.awaitingDaemon ? '○ DISCONNECTED · FROZEN VIEW' : '○ LOCAL ENGINE';
             this.statusPill.style.background = 'rgba(148, 163, 184, 0.15)';
             this.statusPill.style.border = '1px solid #64748b';
             this.statusPill.style.color = '#94a3b8';
-            this.statusPill.title = `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
+            this.statusPill.title = this.arena.awaitingDaemon
+                ? `Daemon connection lost${reason ? ' (' + reason + ')' : ''}. The last measured frame (step ${this.lastOrderedPacket?.step ?? '?'}) is kept unchanged; no local data replaces it. Click to retry now.`
+                : `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
         }
         if (this.eventSource) {
             this.eventSource.onerror = null;
@@ -3610,6 +3705,25 @@ class DaemonBridgeClient {
             this.eventSource.close();
             this.eventSource = null;
         }
+        this.updateFreshness();
+    }
+
+    /** Data-age indicator, achieved speed and the LIVE / STALE pill state (4 Hz). */
+    updateFreshness() {
+        const ageEl = document.getElementById('statDataAge');
+        const age = this.lastValidDataTime ? (performance.now() - this.lastValidDataTime) / 1000 : null;
+        if (ageEl) {
+            ageEl.textContent = age === null ? '--' : `${age < 10 ? age.toFixed(1) : Math.round(age)}s${this.connected ? '' : ' (frozen)'}`;
+            ageEl.style.color = age === null ? '' : (!this.connected ? '#f87171' : age * 1000 > this.staleAfterMs ? '#fbbf24' : '#4ade80');
+        }
+        if (!this.connected || !this.statusPill || age === null) return;
+        const stale = age * 1000 > this.staleAfterMs;
+        if (stale === !!this.showingStale) return;
+        this.showingStale = stale;
+        const ro = this.readOnly ? ' (READ-ONLY)' : '';
+        this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
+        this.statusPill.style.color = stale ? '#fbbf24' : '#4ade80';
+        this.statusPill.style.border = stale ? '1px solid #f59e0b' : '1px solid #22c55e';
     }
 
     startStreaming() {
@@ -3618,12 +3732,14 @@ class DaemonBridgeClient {
 
         try {
             this.eventSource = new EventSource(`${this.activeUrl}/api/stream`);
-            this.eventSource.onmessage = (event) => {
-                try {
-                    const pkt = JSON.parse(event.data);
-                    this.handleDaemonPacket(pkt);
-                } catch (e) {}
-            };
+            this.eventSource.onmessage = (event) => this.receive(event.data);
+            // Liveness without new data (paused or slow daemon): keeps the stream open.
+            this.eventSource.addEventListener('heartbeat', () => { this.lastPacketTime = performance.now(); });
+            this.eventSource.addEventListener('stream', (event) => {
+                this.lastPacketTime = performance.now();
+                try { this.streamStats = JSON.parse(event.data); }
+                catch (e) { NeuroflyErrors.report('packet-parse', e, {step: this.lastOrderedPacket?.step}); }
+            });
             this.eventSource.onerror = () => {
                 // EventSource retries on its own; close it and re-probe with backoff so a
                 // dead daemon does not produce a tight reconnect loop.
@@ -3631,15 +3747,54 @@ class DaemonBridgeClient {
                 this.scheduleReconnect();
             };
         } catch (e) {
-            this.onDaemonDisconnected();
+            NeuroflyErrors.report('startup', e, {});
+            this.onDaemonDisconnected('stream could not be opened');
         }
     }
 
+    /** Parse, validate and apply one SSE frame. A bad frame is rejected whole and reported. */
+    receive(raw) {
+        this.lastPacketTime = performance.now();
+        const last = this.lastOrderedPacket;
+        let pkt;
+        try {
+            pkt = JSON.parse(raw);
+        } catch (e) {
+            this.rejectedPackets++;
+            NeuroflyErrors.report('packet-parse', e, {run_id: last?.run_id, step: last?.step, assay: last?.paradigm});
+            return false;
+        }
+        const problem = validateDaemonPacket(pkt);
+        if (problem) {
+            this.rejectedPackets++;
+            NeuroflyErrors.report('packet-validate', new Error(problem),
+                {run_id: pkt?.run_id ?? last?.run_id, step: Number.isFinite(pkt?.step) ? pkt.step : last?.step, assay: pkt?.paradigm ?? last?.paradigm});
+            return false;
+        }
+        try {
+            if (this.injectPending === 'apply') { this.injectPending = ''; throw new Error('Injected packet-apply fault (test build)'); }
+            const applied = this.handleDaemonPacket(pkt);
+            if (applied !== false) this.lastValidDataTime = performance.now();
+        } catch (e) {
+            NeuroflyErrors.report('packet-apply', e, {run_id: pkt.run_id, step: pkt.step, assay: pkt.paradigm});
+            return false;
+        }
+        if (this.injectPending === 'malformed') {
+            // One-shot test-build fault: a truncated frame and a structurally invalid one,
+            // through the same path as real frames. Both must be rejected; the view keeps
+            // the last valid frame and the next real frame is applied normally.
+            this.injectPending = '';
+            this.receive('{"type":"telemetry","step":');
+            this.receive(JSON.stringify({type: 'telemetry', step: pkt.step + 1, paradigm: pkt.paradigm, run_id: pkt.run_id, fly: {x: 'NaN', y: null}}));
+        }
+        return true;
+    }
+
     handleDaemonPacket(pkt) {
-        if (!pkt || pkt.type !== 'telemetry') return;
+        if (!pkt || pkt.type !== 'telemetry') return false;
 
         // Drop stale / out-of-order packets (SSE reconnects can replay old frames).
-        if (isStaleDaemonPacket(pkt, this.lastOrderedPacket)) return;
+        if (isStaleDaemonPacket(pkt, this.lastOrderedPacket)) return false;
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = pkt;
@@ -3676,6 +3831,17 @@ class DaemonBridgeClient {
             if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
             this.hud.simSpeed = pkt.sim_speed;
             document.getElementById('statSpeed').textContent = `${pkt.sim_speed}x`;
+            const achievedEl = document.getElementById('statAchieved');
+            const timing = pkt.timing;
+            if (achievedEl && timing && Number.isFinite(timing.achieved_speed)) {
+                achievedEl.textContent = pkt.paused ? 'paused' : `${timing.achieved_speed.toFixed(1)}x`;
+                achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
+                const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
+                achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x; fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame.`
+                    + (timing.overloaded ? ' This computer cannot run the requested speed; the daemon runs slower instead of skipping steps.' : '') + dropped;
+            } else if (achievedEl) {
+                achievedEl.textContent = '--';
+            }
             document.getElementById('btnSpeedToggle').textContent = `Speed: ${pkt.sim_speed}x`;
             document.getElementById('selectSpeed').value = String(pkt.sim_speed);
             const pause = document.getElementById('btnPauseToggle');
@@ -3771,8 +3937,18 @@ class DaemonBridgeClient {
                 this.arena.fly.heading = ((pkt.fly.heading + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
             }
             if (Number.isFinite(pkt.fly.speed)) this.arena.fly.speed = pkt.fly.speed;
-            if (this.arena.fly.trail && (step === null || step % 5 === 0)) {
-                this.arena.fly.trail.push({ x: this.arena.fly.x, y: this.arena.fly.y, speed: this.arena.fly.speed, escape: !!(pkt.descending && pkt.descending.gf_escape > 0.5) });
+            if (this.arena.fly.trail) {
+                // Measured positions of every step since earlier frames ([step, x, y]); a
+                // decimated display still draws the path actually taken, every 5th step.
+                if (boundary) this.lastTrailStep = -1;
+                const escape = !!(pkt.descending && pkt.descending.gf_escape > 0.5);
+                const points = Array.isArray(pkt.path) && pkt.path.length ? pkt.path : [[step, pkt.fly.x, pkt.fly.y]];
+                for (const [s, x, y] of points) {
+                    if (!Number.isFinite(s) || s <= (this.lastTrailStep ?? -1) || s % 5 !== 0) continue;
+                    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+                    this.arena.fly.trail.push({ x: x + off[0], y: y + off[1], speed: this.arena.fly.speed, escape });
+                    this.lastTrailStep = s;
+                }
                 if (this.arena.fly.trail.length > 200) this.arena.fly.trail = this.arena.fly.trail.slice(-150);
             }
         }
@@ -3878,6 +4054,8 @@ class DaemonBridgeClient {
             if (res.ok) {
                 const data=await res.json();
                 if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
+                // The daemon acknowledges the step at which the command took effect.
+                if (data.ack) this.lastAck = {...data.ack, action};
                 return data;
             }
         } catch (e) {
@@ -5496,7 +5674,26 @@ class ScientificHUD {
 // 9. APPLICATION INITIALIZATION & 60 FPS MAIN LOOP
 // =============================================================================
 
+// Anything that escapes the handlers below is still reported with assay/run/step.
+window.addEventListener('error', (event) => {
+    NeuroflyErrors.report('uncaught', event.error || event.message);
+});
+window.addEventListener('unhandledrejection', (event) => {
+    NeuroflyErrors.report('uncaught-promise', event.reason);
+});
+
 window.addEventListener('load', () => {
+    document.getElementById('btnErrorDismiss')?.addEventListener('click', () => NeuroflyErrors.hide());
+    document.getElementById('btnErrorResume')?.addEventListener('click', () => NeuroflyErrors.resume());
+    try {
+        startNeuroflyApp();
+    } catch (e) {
+        // Startup failed: say so with context instead of leaving a blank or half-built page.
+        NeuroflyErrors.report('startup', e);
+    }
+});
+
+function startNeuroflyApp() {
     const arena = new ScientificBioArena('arenaCanvas');
     const hud = new ScientificHUD(arena);
     window.arena = arena;
@@ -5536,6 +5733,22 @@ window.addEventListener('load', () => {
     let frameCount = 0;
     let fpsTime = lastTime;
     let accumulator = 0;
+    let renderFaultPending = NEUROFLY_INJECT === 'render';
+
+    // Each frame has two phases: 'update' (local preview integration + HUD) and
+    // 'render' (canvas). A phase that throws is reported once with assay/run/step and
+    // then suspended -- not retried every frame -- so the last drawn frame stays on
+    // screen. Daemon frames keep arriving and are recorded meanwhile; "Resume view"
+    // in the error banner re-enables the phases.
+    function runPhase(phase, fn) {
+        if (NeuroflyErrors.isSuspended(phase)) return;
+        try {
+            fn();
+        } catch (e) {
+            NeuroflyErrors.suspend(phase);
+            NeuroflyErrors.report(phase, e);
+        }
+    }
 
     function loop(currentTime) {
         frameCount++;
@@ -5551,26 +5764,35 @@ window.addEventListener('load', () => {
         lastTime = currentTime;
 
         if (!isPaused) {
-            const speed = (hud && hud.simSpeed) ? hud.simSpeed : 1.0;
-            accumulator += rawDt * speed;
+            runPhase('update', () => {
+                const speed = (hud && hud.simSpeed) ? hud.simSpeed : 1.0;
+                accumulator += rawDt * speed;
 
-            // Physical timestep: 0.02s (50 Hz) for <=20x, 0.025s for >=50x to maximize throughput while preserving sliding physics
-            const stepDt = speed >= 50.0 ? 0.025 : 0.02;
-            const maxStepsPerFrame = Math.max(160, Math.ceil(speed * 1.8));
-            let stepsExecuted = 0;
+                // Fixed physical timestep for the local preview at every display speed;
+                // speed changes how many steps run per frame, never the step size.
+                const stepDt = 0.02;
+                const maxStepsPerFrame = Math.max(160, Math.ceil(speed * 1.8));
+                let stepsExecuted = 0;
 
-            while (accumulator >= stepDt && stepsExecuted < maxStepsPerFrame) {
-                arena.step(stepDt);
-                accumulator -= stepDt;
-                stepsExecuted++;
-            }
-            if (stepsExecuted >= maxStepsPerFrame) {
-                accumulator = 0; // Prevent lag buildup on tab switch or pause
-            }
-            hud.update();
+                while (accumulator >= stepDt && stepsExecuted < maxStepsPerFrame) {
+                    arena.step(stepDt);
+                    accumulator -= stepDt;
+                    stepsExecuted++;
+                }
+                if (stepsExecuted >= maxStepsPerFrame) {
+                    accumulator = 0; // Prevent lag buildup on tab switch or pause
+                }
+                hud.update();
+            });
         }
-        arena.render();
+        runPhase('render', () => {
+            if (renderFaultPending && arena.remotePacket) {
+                renderFaultPending = false;   // one-shot test-build fault (?inject=render)
+                throw new Error('Injected renderer fault (test build)');
+            }
+            arena.render();
+        });
         requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
-});
+}
