@@ -1220,7 +1220,7 @@
                 </section>
                 <section class="hud-card">
                     <h3>Measured cue memory</h3>
-                    <p>Blue: A · Pink: B. Forward probes leave weights unchanged. Valence ranges from −1 to +1.</p>
+                    <p>Blue: A · Pink: B. Forward probes leave weights unchanged. Raw valence is approach minus avoidance output; it can exceed ±1. The plot scales to the measurements.</p>
                     <svg id="trainingProbeChart" viewBox="0 0 560 215" role="img" aria-label="Recorded cue A and B valence"></svg>
                     <h4>Completed arena outcomes</h4>
                     <svg id="trainingTrialChart" viewBox="0 0 560 215" role="img" aria-label="Completed arena trial outcomes"></svg>
@@ -1239,12 +1239,12 @@
                 <section class="hud-card">
                     <h3>Background research</h3>
                     <p id="researchStatus">Checking the research worker…</p>
-                    <p>Independent cohorts train through arena experience, then undergo a fresh-start evaluation with learning frozen. Matched frozen controls receive the same seed and duration. This measures behavior, not just odor calibration.</p>
+                    <p>Each assay and seed keeps a separate trained/control brain pair across rounds. Arena experience is followed by a fresh-start evaluation with learning frozen. Matched frozen controls receive the same seed and duration. This measures behavior, not just odor calibration.</p>
                     <svg id="researchChart" viewBox="0 0 560 215" role="img" aria-label="Held-out behavior: trained and frozen controls"></svg>
                     <p id="researchOutcome">No research measurements yet.</p>
                     <details><summary>Recent cohort results &amp; protocol</summary>
                         <p id="researchProtocol"></p>
-                        <table><thead><tr><th>Assay / seed</th><th>Trained</th><th>Frozen</th></tr></thead><tbody id="researchRows"></tbody></table>
+                        <table><thead><tr><th>Assay / seed / round</th><th>Trained</th><th>Frozen</th></tr></thead><tbody id="researchRows"></tbody></table>
                         <p><a href="research-status.json" style="color:#38bdf8" download>Download research summary</a> &middot; <a href="research-latest.zip" style="color:#38bdf8" download>Shareable data bundle (ZIP)</a></p>
                     </details>
                 </section>
@@ -1461,9 +1461,9 @@
                     <div class="valence-needle" id="valNeedle"></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:8.5px; color:var(--text-dim); margin-top:-2px;">
-                    <span>Aversive (-1.0)</span>
+                    <span>Aversive (≤−1)</span>
                     <span>Net Valence: <b id="valNetValence" style="color:#f8fafc;">0.00</b></span>
-                    <span>Appetitive (+1.0)</span>
+                    <span>Appetitive (≥+1)</span>
                 </div>
             </div>
 

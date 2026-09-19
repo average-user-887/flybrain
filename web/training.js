@@ -84,9 +84,9 @@ function renderResearch() {
  $('researchStatus').textContent=`${age>120?'Worker heartbeat stale':research.state} · ${research.completed} paired cohorts recorded · ${research.active||'waiting'} · updated ${new Date(research.updated_at*1000).toLocaleTimeString()}`;
  $('researchProtocol').textContent=research.protocol;
  const rows=research.recent||[],same=rows.filter(r=>r.paradigm===snapshot?.brain.paradigm && r.status==='complete');
- lineChart('researchChart',[{color:'#38bdf8',values:same.map(r=>r.trained.metric)},{color:'#f472b6',values:same.map(r=>r.frozen.metric)}],'Independent seed cohort (blue trained, pink frozen)');
- $('researchOutcome').textContent=same.length?`${same.at(-1).metric_name} · ${same.length} recent paired seeds. Raw differences are exploratory; no learning claim or significance test is implied.`:'No held-out cohort recorded for this assay yet.';
- $('researchRows').innerHTML=rows.slice(-14).reverse().map(r=>`<tr><td>${escapeText(r.paradigm)} / ${r.seed}</td><td>${r.status==='complete'?number(r.trained.metric):'FAILED'}</td><td>${r.status==='complete'?number(r.frozen.metric):escapeText(r.error||'')}</td></tr>`).join('');
+ lineChart('researchChart',[{color:'#38bdf8',values:same.map(r=>r.trained.metric)},{color:'#f472b6',values:same.map(r=>r.frozen.metric)}],'Paired cohort in time order (blue trained, pink frozen)');
+ $('researchOutcome').textContent=same.length?`${same.at(-1).metric_name} · ${same.length} paired observations across ${new Set(same.map(r=>r.seed)).size} seeds. Later rounds retain each brain’s memory; they are repeated measures. Differences are exploratory, with no significance test or learning claim.`:'No held-out cohort recorded for this assay yet.';
+ $('researchRows').innerHTML=rows.slice(-14).reverse().map(r=>`<tr><td>${escapeText(r.paradigm)} / seed ${r.seed} / round ${r.round+1}</td><td>${r.status==='complete'?number(r.trained.metric):'FAILED'}</td><td>${r.status==='complete'?number(r.frozen.metric):escapeText(r.error||'')}</td></tr>`).join('');
 }
 async function refresh() {
  if(refreshing||busy)return;refreshing=true;
