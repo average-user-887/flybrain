@@ -35,34 +35,66 @@ except ImportError:
             Brain = None
 
 
+try:
+    from .graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, resolve_connectome_dir,
+                                 resolve_graph_dir, sha256_json, synthetic_test_graph, verify_graph)
+except ImportError:
+    from brainlab.graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, resolve_connectome_dir,
+                                         resolve_graph_dir, sha256_json, synthetic_test_graph, verify_graph)
+
+# Engineered inputs that bypass sensory pathways; reported, never hidden (WP5).
+ENGINEERED_ASSISTANCE = [
+    'looming_trigger injects 80 directly into DNp01 (not via LC4/LPLC2)',
+    'tonic drive 14.5*(1+0.5*(1-energy)) injected directly into DNb01',
+]
+MAPPING_WARNINGS = [
+    'visual_l/visual_r are the first 100 R1-R6 rows of each dataframe half; both halves mix eyes '
+    '(outputs/rethink-audit/connectome-mapping-receipt.json). Not eye-specific.',
+]
+
+
 class ConnectomeServer:
-    def __init__(self, graph_path: Optional[Path] = None, metadata_path: Optional[Path] = None):
-        self.graph_path = graph_path or (ROOT / "outputs/brainlab/malecns_v1/graph.npz")
-        self.metadata_path = metadata_path or (ROOT / "connectome_data/malecns_v1/normalized/neurons.feather")
+    """Fixed-weight graph server. Refuses to start without the verified graph.
+
+    ``allow_synthetic=True`` (CLI ``--synthetic-test-graph``) is the only way to
+    run on a synthetic graph; every status and step reply then carries
+    ``synthetic: true`` and the synthetic label.
+    """
+
+    def __init__(self, graph_path: Optional[Path] = None, metadata_path: Optional[Path] = None, *,
+                 graph_dir: Optional[Path] = None, connectome_dir: Optional[Path] = None,
+                 allow_synthetic: bool = False):
+        if graph_path is not None:
+            graph_path = Path(graph_path)
+            if graph_path.name != "graph.npz":
+                raise GraphUnavailable(f"Expected a prepared graph.npz, got {graph_path}")
+            graph_dir = graph_path.parent
+        if metadata_path is not None:
+            connectome_dir = Path(metadata_path).parent.parent
+        self.graph_dir, self.graph_dir_source = resolve_graph_dir(graph_dir)
+        self.connectome_dir, _ = resolve_connectome_dir(connectome_dir)
+        self.graph_path = self.graph_dir / "graph.npz"
+        self.metadata_path = self.connectome_dir / "normalized/neurons.feather"
+        self.allow_synthetic = allow_synthetic
         self.brain = None
+        self.identity = None
         self.n_neurons = 0
         self.n_edges = 0
         self.start_time = time.time()
         self.total_steps = 0
         self.is_synthetic = False
+        self.unmapped_channels: List[str] = []
 
-        # Node index mapping for Descending Neurons
-        self.dn_indices = {
-            "dnp01": [0, 6],                      # Giant Fiber escape
-            "dna02_l": [332],                     # Fine steering yaw (left)
-            "dna02_r": [131957],                  # Fine steering yaw (right)
-            "dna01": [406, 704],                  # Course holding
-            "dnp09": [725, 1087],                 # Pursuit forward drive
-            "dnb01": [608, 703],                  # Straight walking cadence (BPN proxy)
-            "mdn": [706, 1196, 1240, 2194]        # Moonwalker backward walking
-        }
+        # Node index mapping for Descending Neurons (verified against cell types
+        # by graph_identity.verify_graph before any step is served).
+        self.dn_indices = {name: list(indices) for name, indices in DN_CHANNELS.items()}
 
         # Sensory node index mapping
         self.sensory_indices = {
             "orn_food": [],                       # DM1/DM2 food odorants
             "orn_danger": [],                     # DA2/geosmin/acid
-            "visual_l": [],                       # Left compound eye / optic flow
-            "visual_r": [],                       # Right compound eye / optic flow
+            "visual_l": [],                       # see MAPPING_WARNINGS
+            "visual_r": [],                       # see MAPPING_WARNINGS
             "visual_looming": [],                 # LC4 / LPLC2 looming
             "jon_wind": [],                       # Johnston's organ wind mechanoreception
             "feco_proprio": []                    # Leg chordotonal organs & sensilla
@@ -70,78 +102,67 @@ class ConnectomeServer:
 
         self._load_brain()
         self._load_metadata()
+        self.sensory_map_sha256 = sha256_json(self.sensory_indices)
 
     def _load_brain(self):
-        if self.graph_path.exists():
-            print(f"[ConnectomeServer] Loading MaleCNS v1.0 graph from {self.graph_path}...", flush=True)
-            self.brain = Brain(self.graph_path)
-            self.n_neurons = self.brain.n
-            self.n_edges = len(self.brain.post)
-            print(f"[ConnectomeServer] Brain loaded: {self.n_neurons:,} neurons, {self.n_edges:,} synapses.", flush=True)
-        else:
-            print(f"[ConnectomeServer] Graph file not found at {self.graph_path}. Initializing synthetic surrogate graph...", flush=True)
+        try:
+            self.identity = verify_graph(self.graph_dir, self.connectome_dir)
+            self.identity.graph_path_source = self.graph_dir_source
+        except GraphUnavailable as error:
+            if not self.allow_synthetic:
+                raise
+            print(f"[ConnectomeServer] {error}", flush=True)
             self._init_synthetic_brain()
-
-    def _init_synthetic_brain(self):
-        """Creates a minimal synthetic graph for test environments."""
-        self.is_synthetic = True
-        n = 2500
-        np.random.seed(42)
-        k_out = 15
-        post = np.random.randint(0, n, size=n * k_out, dtype=np.int32)
-        ptr = np.arange(0, (n + 1) * k_out, k_out, dtype=np.int64)
-        weight = np.random.randn(n * k_out).astype(np.float32) * 0.35
-        ids = np.arange(n, dtype=np.int64)
-
-        synthetic_dir = ROOT / "outputs/brainlab"
-        synthetic_dir.mkdir(parents=True, exist_ok=True)
-        synth_path = synthetic_dir / "synthetic_test_graph.npz"
-        np.savez(synth_path, ptr=ptr, post=post, weight=weight, ids=ids)
-
-        self.brain = Brain(synth_path)
+            return
+        print(f"[ConnectomeServer] Loading verified MaleCNS v1.0 graph {self.identity.graph_sha256[:12]} "
+              f"from {self.graph_path} ({self.graph_dir_source})...", flush=True)
+        self.brain = Brain(self.graph_path)
         self.n_neurons = self.brain.n
         self.n_edges = len(self.brain.post)
-        self.dn_indices = {
-            "dnp01": [0, 1],
-            "dna02_l": [10],
-            "dna02_r": [11],
-            "dna01": [12, 13],
-            "dnp09": [14, 15],
-            "dnb01": [16, 17],
-            "mdn": [18, 19]
-        }
-        print(f"[ConnectomeServer] Synthetic brain initialized: {self.n_neurons} neurons, {self.n_edges} synapses.", flush=True)
+        print(f"[ConnectomeServer] Brain loaded: {self.n_neurons:,} neurons, {self.n_edges:,} synapses.", flush=True)
+
+    def _init_synthetic_brain(self):
+        """Explicit test option only: a small in-memory graph, never written to disk."""
+        self.is_synthetic = True
+        arrays, self.identity, io_map = synthetic_test_graph(n=2500, k_out=15, seed=42)
+        self.brain = Brain(arrays=arrays)
+        self.n_neurons = self.brain.n
+        self.n_edges = len(self.brain.post)
+        self.dn_indices = io_map
+        print(f"[ConnectomeServer] {SYNTHETIC_LABEL}: {self.n_neurons} neurons, {self.n_edges} synapses.", flush=True)
 
     def _load_metadata(self):
-        if self.is_synthetic or not self.metadata_path.exists():
+        if self.is_synthetic:
+            self.unmapped_channels = sorted(self.sensory_indices)
             return
-        try:
-            import pyarrow.feather as feather
-            df = feather.read_table(self.metadata_path).to_pandas()
-            # Olfactory
-            dm1_nodes = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()
-            da2_nodes = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()
-            self.sensory_indices["orn_food"] = dm1_nodes[:50] if dm1_nodes else [100, 101]
-            self.sensory_indices["orn_danger"] = da2_nodes[:50] if da2_nodes else [102, 103]
+        import pyarrow.feather as feather
+        df = feather.read_table(self.metadata_path).to_pandas()
+        # No invented fallback indices: an absent cell type leaves the channel
+        # empty and listed in unmapped_channels.
+        self.sensory_indices["orn_food"] = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()[:50]
+        self.sensory_indices["orn_danger"] = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()[:50]
+        r_nodes = df[df['cell_type'] == 'R1-R6']['node_index'].tolist()
+        if r_nodes:
+            half = len(r_nodes) // 2
+            self.sensory_indices["visual_l"] = r_nodes[:half][:100]
+            self.sensory_indices["visual_r"] = r_nodes[half:][:100]
+        self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
+        self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
+        self.unmapped_channels = sorted(k for k, v in self.sensory_indices.items() if not v)
+        print(f"[ConnectomeServer] Sensory indices mapped from {self.metadata_path.name}; "
+              f"unmapped: {self.unmapped_channels}", flush=True)
 
-            # Visual
-            r_nodes = df[df['cell_type'] == 'R1-R6']['node_index'].tolist()
-            if r_nodes:
-                half = len(r_nodes) // 2
-                self.sensory_indices["visual_l"] = r_nodes[:half][:100]
-                self.sensory_indices["visual_r"] = r_nodes[half:][:100]
-
-            # Johnston's organ
-            jo_nodes = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()
-            self.sensory_indices["jon_wind"] = jo_nodes[:50] if jo_nodes else [104, 105]
-
-            # Proprioception
-            snt_nodes = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()
-            self.sensory_indices["feco_proprio"] = snt_nodes[:50] if snt_nodes else [106, 107]
-
-            print(f"[ConnectomeServer] Annotated sensory indices mapped from {self.metadata_path.name}.", flush=True)
-        except Exception as err:
-            print(f"[ConnectomeServer] Metadata loading skipped ({err}); using default fallback index mapping.", flush=True)
+    def identity_fields(self) -> Dict[str, Any]:
+        ident = self.identity
+        return {
+            "backend": "synthetic-test-graph" if self.is_synthetic else "connectome-fixed",
+            "synthetic": self.is_synthetic,
+            "label": ident.label,
+            "graph_sha256": ident.graph_sha256,
+            "neuron_map_sha256": ident.neuron_map_sha256,
+            "io_map_sha256": ident.io_map_sha256,
+            "sensory_map_sha256": getattr(self, "sensory_map_sha256", None),
+        }
 
     def reset(self):
         """Resets membrane potentials and conductances to resting state."""
@@ -235,6 +256,8 @@ class ConnectomeServer:
 
         return {
             "status": "ok",
+            **self.identity_fields(),
+            "server_step": self.total_steps,
             "elapsed_ms": elapsed_s * 1000.0,
             "sim_ms": self.brain.sim_ms,
             "total_step_spikes": int(spike_counts.sum()),
@@ -250,7 +273,13 @@ class ConnectomeServer:
     def get_status(self) -> Dict[str, Any]:
         return {
             "status": "online",
-            "dataset": "malecns_v1" if not self.is_synthetic else "synthetic_surrogate",
+            **self.identity_fields(),
+            "graph_path": self.identity.graph_path,
+            "graph_path_source": self.identity.graph_path_source,
+            "unmapped_channels": self.unmapped_channels,
+            "mapping_warnings": MAPPING_WARNINGS,
+            "engineered_assistance": ENGINEERED_ASSISTANCE,
+            "dataset": "malecns_v1" if not self.is_synthetic else "synthetic_test_graph",
             "num_neurons": self.n_neurons,
             "num_synapses": self.n_edges,
             "uptime_s": time.time() - self.start_time,
@@ -281,7 +310,8 @@ class CoSimHTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/reset":
             self.server.connectome.reset()
-            return self.send_json(200, {"status": "reset_complete"})
+            return self.send_json(200, {"status": "reset_complete",
+                                        **self.server.connectome.identity_fields()})
 
         if self.path == "/step":
             try:
@@ -302,8 +332,10 @@ class CoSimHTTPHandler(BaseHTTPRequestHandler):
         pass
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8768):
-    connectome = ConnectomeServer()
+def run_server(host: str = "0.0.0.0", port: int = 8768, *, graph_dir: Optional[Path] = None,
+               connectome_dir: Optional[Path] = None, allow_synthetic: bool = False):
+    connectome = ConnectomeServer(graph_dir=graph_dir, connectome_dir=connectome_dir,
+                                  allow_synthetic=allow_synthetic)
     server = ThreadingHTTPServer((host, port), CoSimHTTPHandler)
     server.connectome = connectome  # type: ignore
     print(f"[ConnectomeServer] Serving on http://{host}:{port}", flush=True)
@@ -318,5 +350,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MaleCNS v1.0 Spiking Co-Simulation Server")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Binding host address")
     parser.add_argument("--port", type=int, default=8768, help="Listening port")
+    parser.add_argument("--graph-dir", type=Path, help="Directory holding graph.npz (else $NEUROFLY_GRAPH_DIR)")
+    parser.add_argument("--connectome-dir", type=Path, help="connectome_data/malecns_v1 (else $NEUROFLY_CONNECTOME_DIR)")
+    parser.add_argument("--synthetic-test-graph", action="store_true",
+                        help="TEST ONLY: serve a labelled synthetic graph if the real graph is unavailable")
     args = parser.parse_args()
-    run_server(host=args.host, port=args.port)
+    run_server(host=args.host, port=args.port, graph_dir=args.graph_dir,
+               connectome_dir=args.connectome_dir, allow_synthetic=args.synthetic_test_graph)

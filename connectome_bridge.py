@@ -23,15 +23,39 @@ Connects continuous multi-agent arena physics with whole-brain connectomic circu
 4. Compliant Biomechanics:
    - Kuramoto-Hopf coupled oscillators for 6 legs enforcing alternating tripod gait (Delta_Phi = pi).
    - Campaniform Sensilla ground force feedback enforcing Cruse's Walknet Rule 1 (stance maintenance under load).
-5. Dual-Mode Co-Simulation:
-   - In-process biophysical surrogate (default, < 1 ms / step).
-   - Remote RPC client connecting to a brainlab co-simulation server (full connectome graph).
+5. Controller backends (see provenance.BACKENDS):
+   - mode="surrogate" -> backend "bridge-surrogate": the in-process hand-built
+     controller. It runs no connectome graph despite this module's name.
+   - mode="rpc" -> backend "hybrid-bridge-rpc-experimental": the hand-built
+     controller whose descending-neuron rates are replaced by remote graph
+     readouts (including zero values).
+   An RPC failure never silently hands control to the surrogate.  The policy
+   ``on_rpc_fault`` is "halt" (default: zero motor output, reported as
+   ``controller_fault``), "raise" (RpcControllerFault), or "surrogate-test"
+   (explicit test option; every affected step is labelled
+   ``motor_source="surrogate-fallback-TEST"``).
 """
 
 import math
 import time
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
+
+try:
+    from connectome_client import ConnectomeClient
+except ImportError:
+    try:
+        from .connectome_client import ConnectomeClient
+    except ImportError:
+        ConnectomeClient = None
+
+RPC_FAULT_POLICIES = ("halt", "raise", "surrogate-test")
+BACKEND_FOR_MODE = {"surrogate": "bridge-surrogate", "rpc": "hybrid-bridge-rpc-experimental"}
+
+
+class RpcControllerFault(RuntimeError):
+    """The remote graph controller is unavailable or reported a wrong identity."""
+
 
 try:
     from circuit import MushroomBodyCircuit
@@ -67,8 +91,22 @@ class ConnectomeBridge:
         base_stepping_freq: float = 8.0,
         max_stepping_freq: float = 14.0,
         seed: Optional[int] = 42,
+        on_rpc_fault: str = "halt",
+        rpc_client: Optional[Any] = None,
     ):
+        if mode not in BACKEND_FOR_MODE:
+            raise ValueError(f"Unknown ConnectomeBridge mode {mode!r}; use 'surrogate' or 'rpc'")
+        if on_rpc_fault not in RPC_FAULT_POLICIES:
+            raise ValueError(f"on_rpc_fault must be one of {RPC_FAULT_POLICIES}")
         self.mode = mode
+        self.backend = BACKEND_FOR_MODE[mode]
+        self.on_rpc_fault = on_rpc_fault
+        # Every reset, disconnect, reconnect and fallback step is recorded here.
+        self.controller_events: List[Dict[str, Any]] = []
+        self.controller_fault: Optional[str] = None
+        self.rpc_ok_steps = 0
+        self.rpc_fault_steps = 0
+        self.motor_source = "surrogate" if mode == "surrogate" else "graph-rpc"
         self.rpc_host = rpc_host
         self.rpc_port = rpc_port
         self.num_ommatidia = num_ommatidia
@@ -244,14 +282,18 @@ class ConnectomeBridge:
             leg: {"ctr": 0.0, "fti": 60.0, "phase": "STANCE"} for leg in self.leg_names
         }
 
-        # RPC Client handle (if enabled)
-        self.rpc_client = None
-        if self.mode == "rpc":
-            try:
-                from .connectome_client import ConnectomeClient
-                self.rpc_client = ConnectomeClient(host=self.rpc_host, port=self.rpc_port)
-            except Exception:
-                self.mode = "surrogate"
+        # RPC Client handle (if enabled).  No silent downgrade to the surrogate.
+        self.rpc_client = rpc_client
+        if self.mode == "rpc" and self.rpc_client is None:
+            if ConnectomeClient is None:
+                raise RpcControllerFault("connectome_client is not importable; cannot run mode='rpc'")
+            self.rpc_client = ConnectomeClient(
+                host=self.rpc_host, port=self.rpc_port,
+                allow_synthetic=(on_rpc_fault == "surrogate-test"))
+        if self.mode == "rpc" and not self.rpc_client.is_connected:
+            self._record_fault(self.rpc_client.last_error or "not connected at start", step_time=0.0)
+            if self.on_rpc_fault == "raise":
+                raise RpcControllerFault(self.controller_fault)
 
     def reset(self, keep_memory: bool = True):
         """Reset internal biophysical states to resting baseline.
@@ -320,8 +362,38 @@ class ConnectomeBridge:
         self.lc_features.clear()
         for leg in self.leg_names:
             self.joint_angles[leg] = {"ctr": 0.0, "fti": 60.0, "phase": "STANCE"}
+        self.controller_events.append(dict(kind="reset", keep_memory=keep_memory, wall_time=time.time()))
         if self.rpc_client:
-            self.rpc_client.reset()
+            ok = self.rpc_client.reset()
+            if not ok:
+                self._record_fault(self.rpc_client.last_error or "remote reset failed", step_time=0.0)
+
+    def _record_fault(self, reason: str, step_time: float):
+        """Record a fault transition once; ongoing fault steps are counted."""
+        if self.controller_fault is None:
+            self.controller_events.append(dict(kind="rpc_fault", reason=reason, policy=self.on_rpc_fault,
+                                               simulation_time=step_time, wall_time=time.time()))
+        self.controller_fault = reason
+
+    def _clear_fault(self, step_time: float):
+        if self.controller_fault is not None:
+            self.controller_events.append(dict(kind="rpc_recovered", previous=self.controller_fault,
+                                               simulation_time=step_time, wall_time=time.time()))
+        self.controller_fault = None
+
+    def controller_identity(self) -> Dict[str, Any]:
+        """Identity for manifests and telemetry: backend, fault state and remote graph."""
+        return {
+            "backend": self.backend,
+            "mode": self.mode,
+            "on_rpc_fault": self.on_rpc_fault,
+            "controller_fault": self.controller_fault,
+            "motor_source": self.motor_source,
+            "rpc_ok_steps": self.rpc_ok_steps,
+            "rpc_fault_steps": self.rpc_fault_steps,
+            "rpc_server_identity": getattr(self.rpc_client, "server_identity", None),
+            "events": list(self.controller_events),
+        }
 
     # -------------------------------------------------------------------------
     # INTERNAL BIOPHYSICAL ROUTINES
@@ -837,23 +909,41 @@ class ConnectomeBridge:
             self.escape_timer = 0.30  # 300 ms ballistic jump takeoff flight
             self.total_escapes += 1
 
-        # Remote RPC connectome integration
-        if self.mode == "rpc" and self.rpc_client:
+        # Remote RPC connectome integration.  Graph readouts replace the
+        # hand-built DN rates entirely, zero included.  A failed step never
+        # leaves unreported surrogate commands driving the body.
+        halted = False
+        if self.mode == "rpc":
             remote_res = self.rpc_client.step(sensory, duration_ms=dt * 1000.0)
             if remote_res and remote_res.get("status") == "ok":
-                dna02_diff = remote_res.get("dna02_diff", dna02_diff)
-                self.dna02_rate_l = remote_res.get("dna02_rate_l", self.dna02_rate_l)
-                self.dna02_rate_r = remote_res.get("dna02_rate_r", self.dna02_rate_r)
-                if "dnp09_rate" in remote_res and remote_res["dnp09_rate"] > 0.0:
-                    self.dnp09_rate = remote_res["dnp09_rate"]
-                if "bpn_rate" in remote_res and remote_res["bpn_rate"] > 0.0:
-                    self.bpn_rate = remote_res["bpn_rate"]
-                if "mdn_rate" in remote_res and remote_res["mdn_rate"] > 0.0:
-                    self.mdn_rate = remote_res["mdn_rate"]
-                if remote_res.get("dnp01_gf_spikes", 0) > 0:
+                self._clear_fault(self.simulation_time)
+                self.rpc_ok_steps += 1
+                self.motor_source = "graph-rpc"
+                dna02_diff = float(remote_res["dna02_diff"])
+                self.dna02_rate_l = float(remote_res["dna02_rate_l"])
+                self.dna02_rate_r = float(remote_res["dna02_rate_r"])
+                self.dnp09_rate = float(remote_res["dnp09_rate"])
+                self.bpn_rate = float(remote_res["bpn_rate"])
+                self.mdn_rate = float(remote_res["mdn_rate"])
+                if remote_res.get("dnp01_gf_spikes", 0) > 0 and not self.gf_lesioned:
                     self.dnp01_gf_spikes += remote_res["dnp01_gf_spikes"]
                     self.escape_active = True
                     self.escape_timer = 0.30
+            else:
+                self.rpc_fault_steps += 1
+                self._record_fault(getattr(self.rpc_client, "last_error", None) or "rpc step failed",
+                                   self.simulation_time)
+                if self.on_rpc_fault == "raise":
+                    raise RpcControllerFault(self.controller_fault)
+                if self.on_rpc_fault == "surrogate-test":
+                    self.motor_source = "surrogate-fallback-TEST"
+                else:
+                    halted = True
+                    self.motor_source = "halted-rpc-fault"
+                    self.dna02_rate_l = self.dna02_rate_r = 0.0
+                    self.dnp09_rate = self.bpn_rate = self.mdn_rate = 0.0
+                    dna02_diff = 0.0
+                    self.escape_active = False
 
         # 6. Compliant Biomechanical Locomotion Actuation (Kuramoto-Hopf CPG)
         if self.escape_active:
@@ -915,6 +1005,12 @@ class ConnectomeBridge:
             self.joint_angles = cpg_out["joint_angles"]
             self.cs_ground_forces = cpg_out["cs_loads"]
 
+        if halted:
+            # No controller: no propulsion and no steering this step.
+            self.forward_speed = 0.0
+            self.yaw_rate = 0.0
+            self.stepping_freq = 0.0
+
         # Update previous temperature for next step's delta T
         self.prev_temperature = self.temperature
 
@@ -938,6 +1034,10 @@ class ConnectomeBridge:
             "ppl1_dopamine": self.ppl1_dopamine,
             "energy_reserve": self.energy_reserve,
             "mode": self.mode,
+            "controller_backend": self.backend,
+            "motor_source": self.motor_source,
+            "controller_fault": self.controller_fault,
+            "rpc_fault_steps": self.rpc_fault_steps,
             # Mushroom Body Learning Telemetry
             "mb_valence": self.mb_valence,
             "mb_approach_bias": self.mb_approach_bias,
