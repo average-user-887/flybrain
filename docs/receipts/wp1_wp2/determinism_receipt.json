@@ -1,0 +1,111 @@
+{
+  "declared_tolerance": "exact equality (atol=0, rtol=0), declared before running; see module docstring",
+  "paradigm": "wind-tunnel",
+  "check_steps": [
+    60,
+    120,
+    180
+  ],
+  "speeds": [
+    1.0,
+    20.0,
+    100.0
+  ],
+  "schedule": [
+    {
+      "step": 5,
+      "cmd": {
+        "action": "teach_brain",
+        "pairs": 1
+      }
+    },
+    {
+      "step": 130,
+      "cmd": {
+        "action": "set_param",
+        "name": "windVelocity",
+        "value": 30
+      }
+    },
+    {
+      "step": 150,
+      "cmd": {
+        "action": "assay_action",
+        "name": "shift_plume"
+      }
+    }
+  ],
+  "runs": {
+    "1x": {
+      "wall_s": 3.612,
+      "acks": [
+        {
+          "scheduled_step": 5,
+          "status": "ok",
+          "applied_step": 5
+        },
+        {
+          "scheduled_step": 130,
+          "status": "ok",
+          "applied_step": 130
+        },
+        {
+          "scheduled_step": 150,
+          "status": "ok",
+          "applied_step": 150
+        }
+      ],
+      "divergent_fields_vs_1x": []
+    },
+    "20x": {
+      "wall_s": 0.187,
+      "acks": [
+        {
+          "scheduled_step": 5,
+          "status": "ok",
+          "applied_step": 5
+        },
+        {
+          "scheduled_step": 130,
+          "status": "ok",
+          "applied_step": 130
+        },
+        {
+          "scheduled_step": 150,
+          "status": "ok",
+          "applied_step": 150
+        }
+      ],
+      "divergent_fields_vs_1x": []
+    },
+    "100x": {
+      "wall_s": 0.114,
+      "acks": [
+        {
+          "scheduled_step": 5,
+          "status": "ok",
+          "applied_step": 5
+        },
+        {
+          "scheduled_step": 130,
+          "status": "ok",
+          "applied_step": 130
+        },
+        {
+          "scheduled_step": 150,
+          "status": "ok",
+          "applied_step": 150
+        }
+      ],
+      "divergent_fields_vs_1x": []
+    }
+  },
+  "mb_w_l2_at_180": 9.655999582490487,
+  "fly_at_180": [
+    22.68781280360581,
+    30.017524041583645,
+    0.034153418897105305,
+    1.3904191570567743
+  ],
+  "pass": true
+}

@@ -1,0 +1,331 @@
+{
+  "scenarios": {
+    "load_1x": {
+      "ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "step": "109",
+        "simTime": "2.18s",
+        "speed": "1x",
+        "achieved": null,
+        "dataAge": null,
+        "runState": "SURGE \u00b7 TRIAL 1",
+        "banner": null,
+        "resumeVisible": true,
+        "dataAgeMs": null,
+        "lastStep": null,
+        "errors": [],
+        "suspended": null,
+        "remoteDriven": true,
+        "trail": 0
+      },
+      "pass": true
+    },
+    "speed_100x": {
+      "seconds": 60.0,
+      "samples": [
+        {
+          "t": 1789848428.58,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 118,
+          "server_step": 249,
+          "status_ms": 113.9,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848431.18,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 1239,
+          "server_step": 3589,
+          "status_ms": 1592.9,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848437.02,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 4605,
+          "server_step": 11107,
+          "status_ms": 4833.3,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848442.13,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 11905,
+          "server_step": 17581,
+          "status_ms": 4112.8,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848444.59,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 17581,
+          "server_step": 20709,
+          "status_ms": 1452.7,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848448.34,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 20963,
+          "server_step": 25459,
+          "status_ms": 2738.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848450.34,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 25459,
+          "server_step": 27570,
+          "status_ms": 997.5,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848452.45,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 28349,
+          "server_step": 30707,
+          "status_ms": 1111.2,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848453.52,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 30707,
+          "server_step": 32022,
+          "status_ms": 67.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848455.89,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 32022,
+          "server_step": 34914,
+          "status_ms": 1368.4,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848458.22,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 35951,
+          "server_step": 37247,
+          "status_ms": 1272.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848459.69,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 37747,
+          "server_step": 39537,
+          "status_ms": 462.0,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848461.79,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 40106,
+          "server_step": 42127,
+          "status_ms": 1093.6,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848463.4,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 42127,
+          "server_step": 44142,
+          "status_ms": 604.0,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848466.16,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 44754,
+          "server_step": 47605,
+          "status_ms": 1762.3,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848468.06,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 47605,
+          "server_step": 49132,
+          "status_ms": 895.5,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848470.57,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 49132,
+          "server_step": 53080,
+          "status_ms": 1506.7,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848472.93,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 53403,
+          "server_step": 55158,
+          "status_ms": 1352.7,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848475.33,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 55158,
+          "server_step": 58248,
+          "status_ms": 1394.8,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848478.06,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 59069,
+          "server_step": 62473,
+          "status_ms": 1729.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848479.9,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 63451,
+          "server_step": 64762,
+          "status_ms": 830.9,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848481.73,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 65430,
+          "server_step": 66018,
+          "status_ms": 827.8,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848484.18,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 68073,
+          "server_step": 69031,
+          "status_ms": 1442.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848486.5,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 70480,
+          "server_step": 72272,
+          "status_ms": 1320.5,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        },
+        {
+          "t": 1789848489.9,
+          "pill": "\u25cf LIVE DAEMON",
+          "ui_step": 72272,
+          "server_step": 77080,
+          "status_ms": 2398.1,
+          "data_age_ms": null,
+          "achieved": null,
+          "requested": 100.0,
+          "server_achieved": null
+        }
+      ],
+      "max_data_age_ms": null,
+      "max_step_lag_ui_vs_server": 6502,
+      "disconnected_samples": 0,
+      "stale_samples": 0,
+      "ui_steps_advanced": 72154,
+      "server_timing": null,
+      "errors": [],
+      "pass": false
+    }
+  },
+  "note": "Headless real Firefox via geckodriver against an isolated daemon; not the final live-UI sign-off required by AGENTS.md.",
+  "daemon_script": "<job-tmp>/baseline_1dfa7f7/neurofly_daemon.py",
+  "web_root": "<job-tmp>/baseline_1dfa7f7/web",
+  "browser": {
+    "name": "firefox",
+    "version": "156.0",
+    "platform": "linux",
+    "headless": true,
+    "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+    "viewport": [
+      1440,
+      814,
+      1
+    ],
+    "geckodriver": "/snap/bin/geckodriver"
+  },
+  "daemon_port": 19100,
+  "web_port": 19300,
+  "pass": false
+}

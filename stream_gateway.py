@@ -218,6 +218,8 @@ class StreamGateway:
         self._active_streams = 0
         self._rejected_streams = 0
         self._rejected_commands = 0
+        self._delivered_snapshots = 0
+        self._decimated_snapshots = 0
 
     # ---- commands ---------------------------------------------------------
     @staticmethod
@@ -294,6 +296,13 @@ class StreamGateway:
             time.sleep(remaining)
         return time.monotonic()
 
+    # ---- delivery accounting ----------------------------------------------
+    def record_delivery(self, sent: int, decimated: int) -> None:
+        """Accumulate SSE delivery counters (latest-value-wins decimation policy)."""
+        with self._lock:
+            self._delivered_snapshots += int(sent)
+            self._decimated_snapshots += int(decimated)
+
     # ---- reporting --------------------------------------------------------
     def stats(self) -> dict:
         with self._lock:
@@ -301,6 +310,8 @@ class StreamGateway:
                 "active_stream_clients": self._active_streams,
                 "rejected_stream_clients": self._rejected_streams,
                 "rejected_commands": self._rejected_commands,
+                "delivered_snapshots": self._delivered_snapshots,
+                "decimated_snapshots": self._decimated_snapshots,
             }
 
     def describe(self) -> dict:

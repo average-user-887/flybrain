@@ -1,0 +1,196 @@
+{
+  "title": "WP2 simulation-lock and GIL profile, requested 100x, wind-tunnel",
+  "recorded": "2026-09-19T22:12:14+0200",
+  "source": {
+    "head": "f1395b13f092139ab8339ecdf78630eba78d7581",
+    "baseline": "1dfa7f7 neurofly_daemon.py (unchanged copy, same instrumentation)",
+    "working_tree_dirty": [
+      " M arena.py",
+      " M brainlab/cosim_server.py",
+      " M brainlab/graph_identity.py",
+      " M maze.py",
+      " M neurofly_daemon.py",
+      " M scripts/containment_audit.py",
+      " M stream_gateway.py",
+      " M web/app.js",
+      " M web/index.html",
+      "?? brainlab/io_map.py",
+      "?? docs/wp5_optomotor_prereg.json",
+      "?? scripts/browser_firefox_check.py",
+      "?? scripts/dashboard_headless_check.py",
+      "?? scripts/gil_starvation_probe.py",
+      "?? scripts/timing_stress.py",
+      "?? scripts/wp5_optomotor.py",
+      "?? tests/fixtures/",
+      "?? tests/test_timing_determinism.py",
+      "?? tests/test_timing_scheduler.py",
+      "?? tests/test_wp5_optomotor.py"
+    ],
+    "note": "arena.py/maze.py were being edited concurrently by other agents; both runs used the same on-disk physics."
+  },
+  "host": {
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 12,
+    "machine": "x86_64"
+  },
+  "method": "scripts/timing_stress.py: own daemon child process on 127.0.0.1:>=19000, all outputs under a job tmp dir; one raw SSE client; POST /api/command every ~0.25 s (set_speed / set_param alternating) plus GET /api/status; RecorderThread polling as in run_daemon(); runner.lock replaced by TimedLock in both runs. 60 wall seconds each.",
+  "baseline_1dfa7f7": {
+    "achieved_speed": 25.71,
+    "command_p50_p95_max_ms": [
+      1060.81,
+      2341.12,
+      3604.09
+    ],
+    "command_gate_pass": false,
+    "status_get_p95_max_ms": [
+      2114.17,
+      4009.4
+    ],
+    "sse_frames": 88,
+    "sse_gap_p95_max_ms": [
+      2114.1,
+      3761.2
+    ],
+    "lock_wait_by_role": {
+      "simulation": {
+        "acquisitions": 80867,
+        "mean_wait_ms": 0.001,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 7.718,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 26,
+        "mean_wait_ms": 553.912,
+        "p50_wait_ms": 315.186,
+        "p95_wait_ms": 2018.582,
+        "p99_wait_ms": 2791.561,
+        "max_wait_ms": 2791.561,
+        "window": 26
+      },
+      "http": {
+        "acquisitions": 142,
+        "mean_wait_ms": 557.126,
+        "p50_wait_ms": 351.07,
+        "p95_wait_ms": 1926.754,
+        "p99_wait_ms": 3550.287,
+        "max_wait_ms": 3550.443,
+        "window": 142
+      }
+    }
+  },
+  "current": {
+    "achieved_speed": 29.847,
+    "command_p50_p95_max_ms": [
+      14.81,
+      19.63,
+      26.18
+    ],
+    "command_gate_pass": true,
+    "status_get_p95_max_ms": [
+      9.71,
+      10.27
+    ],
+    "sse_frames": 1566,
+    "sse_gap_p95_max_ms": [
+      40.4,
+      42.5
+    ],
+    "lock_wait_by_role": {
+      "simulation": {
+        "acquisitions": 10115,
+        "mean_wait_ms": 0.0,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 0.0,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 62,
+        "mean_wait_ms": 0.094,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 4.455,
+        "max_wait_ms": 4.455,
+        "window": 62
+      }
+    }
+  },
+  "current_yield_0_30s": {
+    "achieved_speed": 30.681,
+    "command_p50_p95_max_ms": [
+      30.85,
+      44.73,
+      53.59
+    ],
+    "command_gate_pass": true,
+    "status_get_p95_max_ms": [
+      44.54,
+      52.43
+    ],
+    "sse_frames": 848,
+    "sse_gap_p95_max_ms": [
+      40.4,
+      46.3
+    ],
+    "lock_wait_by_role": {
+      "simulation": {
+        "acquisitions": 5752,
+        "mean_wait_ms": 0.0,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 0.0,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 31,
+        "mean_wait_ms": 0.144,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 4.459,
+        "max_wait_ms": 4.459,
+        "window": 31
+      }
+    }
+  },
+  "gil_probe": [
+    {
+      "yield_wall_s": null,
+      "requested_speed": 100.0,
+      "achieved_speed": 31.796,
+      "sleep_33ms_actual_p50_ms": 623.2,
+      "sleep_33ms_actual_max_ms": 676.1,
+      "command_ack_p50_ms": 507.0,
+      "command_ack_max_ms": 640.1
+    },
+    {
+      "yield_wall_s": 0.0,
+      "requested_speed": 100.0,
+      "achieved_speed": 32.415,
+      "sleep_33ms_actual_p50_ms": 34.5,
+      "sleep_33ms_actual_max_ms": 39.8,
+      "command_ack_p50_ms": 8.9,
+      "command_ack_max_ms": 15.3
+    },
+    {
+      "yield_wall_s": 0.001,
+      "requested_speed": 100.0,
+      "achieved_speed": 26.242,
+      "sleep_33ms_actual_p50_ms": 38.4,
+      "sleep_33ms_actual_max_ms": 40.2,
+      "command_ack_p50_ms": 9.8,
+      "command_ack_max_ms": 10.3
+    }
+  ],
+  "findings": [
+    "Baseline: every HTTP request and the recorder waited for the simulation lock (http p95 1927 ms, max 3550 ms; recorder max 2792 ms). The loop re-acquired the unfair lock after every 0.75 ms step and never slept above ~23x, so SSE frames were seconds apart and GET /api/status took up to 4.0 s -- longer than the dashboard's 1.2 s reconnect-probe timeout, so a dropped stream could not reconnect while overloaded.",
+    "Lock contention was only half of it: with the lock removed from delivery, a loop that never blocks still starved other threads of the GIL (33 ms sleep took ~623 ms; command ack ~507 ms). Any blocking call between batches fixes it; 1 ms is the default (see gil_probe and current_yield_0_30s).",
+    "Throughput ceiling: arena.step costs ~0.57-0.62 ms and per-step telemetry assembly ~0.17 ms on this host (measured in-process), i.e. <=~27x with per-step telemetry and ~32x without. 100x is not attainable here without faster physics; the daemon now reports achieved speed and 'overloaded'.",
+    "20x previously overshot to ~23.7x because the old pacing skipped sleeps under 0.5 ms; deadline scheduling now achieves 20.0x (tests/test_timing_scheduler.py)."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "kind": "GIL starvation probe (in-process, isolated)",
+  "paradigm": "wind-tunnel",
+  "rows": [
+    {
+      "yield_wall_s": null,
+      "requested_speed": 100.0,
+      "achieved_speed": 31.796,
+      "sleep_33ms_actual_p50_ms": 623.2,
+      "sleep_33ms_actual_max_ms": 676.1,
+      "command_ack_p50_ms": 507.0,
+      "command_ack_max_ms": 640.1
+    },
+    {
+      "yield_wall_s": 0.0,
+      "requested_speed": 100.0,
+      "achieved_speed": 32.415,
+      "sleep_33ms_actual_p50_ms": 34.5,
+      "sleep_33ms_actual_max_ms": 39.8,
+      "command_ack_p50_ms": 8.9,
+      "command_ack_max_ms": 15.3
+    },
+    {
+      "yield_wall_s": 0.001,
+      "requested_speed": 100.0,
+      "achieved_speed": 26.242,
+      "sleep_33ms_actual_p50_ms": 38.4,
+      "sleep_33ms_actual_max_ms": 40.2,
+      "command_ack_p50_ms": 9.8,
+      "command_ack_max_ms": 10.3
+    }
+  ]
+}

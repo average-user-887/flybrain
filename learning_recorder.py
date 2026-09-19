@@ -276,6 +276,8 @@ def summarise_runner(runner: Any) -> Dict[str, Any]:
         "paradigm": runner.active_paradigm_id,
         "step": runner.total_steps,
         "sim_speed": runner.sim_speed,
+        # Measured by the scheduler; differs from the requested sim_speed under overload.
+        "achieved_speed": (telem.get("timing") or {}).get("achieved_speed"),
         "current_trial": runner.current_trial,
         "trials_completed": len(getattr(runner, "trial_history", []) or []),
         "fly": {k: fly.get(k) for k in ("x", "y", "heading", "speed", "state") if k in fly},

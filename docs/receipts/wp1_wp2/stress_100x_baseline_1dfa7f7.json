@@ -1,0 +1,79 @@
+{
+  "kind": "isolated daemon stress check",
+  "module": "<job-tmp>/baseline_1dfa7f7/neurofly_daemon.py",
+  "paradigm": "wind-tunnel",
+  "requested_speed": 100.0,
+  "wall_seconds": 60.0,
+  "port": 19001,
+  "host": {
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 12,
+    "machine": "x86_64"
+  },
+  "achieved_speed_server_timestamps": 25.71,
+  "achieved_speed_reported_last": null,
+  "sse": {
+    "frames": 88,
+    "events": 88,
+    "frame_gap_p50_ms": 554.0,
+    "frame_gap_p95_ms": 2114.1,
+    "frame_gap_max_ms": 3761.2,
+    "any_event_gap_max_ms": 3761.2,
+    "client_error": null,
+    "stale_threshold_s": 8.0,
+    "stale_disconnect_would_fire": false,
+    "first_step": 3047,
+    "last_step": 80481
+  },
+  "commands": {
+    "count": 27,
+    "failures": [],
+    "p50_ms": 1060.81,
+    "p95_ms": 2341.12,
+    "max_ms": 3604.09,
+    "acks_with_applied_step": 0,
+    "gate": {
+      "p95_lt_ms": 250.0,
+      "max_lt_ms": 1000.0,
+      "pass": false
+    }
+  },
+  "status_get": {
+    "p95_ms": 2114.17,
+    "max_ms": 4009.4
+  },
+  "child_profile": {
+    "lock_profile": {
+      "simulation": {
+        "acquisitions": 80867,
+        "mean_wait_ms": 0.001,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 7.718,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 26,
+        "mean_wait_ms": 553.912,
+        "p50_wait_ms": 315.186,
+        "p95_wait_ms": 2018.582,
+        "p99_wait_ms": 2791.561,
+        "max_wait_ms": 2791.561,
+        "window": 26
+      },
+      "http": {
+        "acquisitions": 142,
+        "mean_wait_ms": 557.126,
+        "p50_wait_ms": 351.07,
+        "p95_wait_ms": 1926.754,
+        "p99_wait_ms": 3550.287,
+        "max_wait_ms": 3550.443,
+        "window": 142
+      }
+    },
+    "total_steps": 80867,
+    "timing": null
+  }
+}
