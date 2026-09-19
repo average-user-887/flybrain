@@ -8,6 +8,10 @@ the code does. Everything else is roadmap.
 
 ## What this simulates today
 
+The [September behavior review](docs/BEHAVIOR_REVIEW.md) records repaired stimulus
+responses, all-assay checks, and which tasks still lack a learning mechanism.
+Continuous movement alone is not evidence of task learning.
+
 | Layer | What runs | Where |
 | --- | --- | --- |
 | **Arena and paradigms** | A 2D continuous arena with one fly (optionally predators), swept-circle collision detection, corner resolution and per-paradigm containment. 13 registered assays plus an open arena: T-maze, Y-maze, heat-maze, Buridan, visual operant, wind tunnel, looming escape, optomotor, gap crossing, circadian DAM, courtship, corridor labyrinth, multisensory benchmark. | `arena.py`, `maze.py` |

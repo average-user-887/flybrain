@@ -84,6 +84,8 @@ def test_grating_contrast_is_a_motor_input():
         observed=[]
         for _ in range(100):
             a.step(.02);observed.append(a.fly.angular_velocity)
+        if not visible:
+            assert a.paradigm.hs_firing_history[-1] == 40.0
         turns.append(sum(observed)/len(observed))
     assert turns[1]>turns[0]+.1
 

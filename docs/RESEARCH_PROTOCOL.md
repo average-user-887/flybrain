@@ -56,12 +56,16 @@ and are excluded from comparisons. Missing endpoints are `null`, not zero or
 success. Frozen weights, brain identities, initial/final probes, elapsed time,
 rest durations, and all raw metric keys are retained.
 
-Outputs are append-only cohort attempts under `outputs/research-live/cohorts/`,
+Outputs are append-only cohort attempts under `outputs/research-sensorimotor-v2/cohorts/`,
 with `cohorts.jsonl` and a manifest. The web tab reads the atomic
 `web/research-status.json`; `web/research-latest.zip` contains the latest batch's
 raw phase records, initial/final checkpoint snapshots, protocol, source revision,
 Python/NumPy versions, source hashes and file checksums. The download is suitable
 for sharing as an exploratory simulation dataset. It is not uploaded publicly.
+
+The older `outputs/research-live` lineage is preserved separately. Its motor and
+choice statistics predate the [behavior corrections](BEHAVIOR_REVIEW.md); do not
+pool them with the sensorimotor-v2 results.
 
 ```bash
 # Managed worker only; interactive UI/brain remain running.

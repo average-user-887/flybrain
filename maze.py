@@ -1722,8 +1722,8 @@ class OptomotorParadigm(ExperimentParadigm):
             efference_copy_active = False
 
         # Baseline HS cell firing rate ~ 40 Hz
-        hs_firing = float(np.clip(40.0 + 1.2 * effective_slip, 0.0, 150.0))
-        hs_raw = float(np.clip(40.0 + 1.2 * retinal_slip, 0.0, 150.0))
+        hs_firing = float(np.clip(40.0 + 1.2 * effective_slip * self.contrast, 0.0, 150.0))
+        hs_raw = float(np.clip(40.0 + 1.2 * retinal_slip * self.contrast, 0.0, 150.0))
 
         self.hs_firing_history.append(hs_firing)
         self.retinal_slip_history.append(effective_slip)

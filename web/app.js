@@ -928,7 +928,8 @@ class ScientificBioArena {
             case 'circadian-dam':
                 this.activeParadigmTitle = 'Circadian Locomotor Sleep/Wake DAM Monitor';
                 this.activeParadigmRef = 'Konopka & Benzer (1971); Allada & Siegel (2010)';
-                this.worldBounds = { minX: 0, maxX: 65, minY: -5, maxY: 30 };
+                // Fit all monitor tubes; only tube 1 contains the simulated animal.
+                this.worldBounds = { minX: -10, maxX: 75, minY: -10, maxY: 172 };
                 this.fly.x = 15.0; this.fly.y = 5.0; this.fly.heading = 0.0; this.fly.speed = 6.0;
                 this.paradigmStatus = 'LOCOMOTING [AWAKE]';
                 this.currentWalls = [
@@ -2493,8 +2494,11 @@ class ScientificBioArena {
                 'wind-tunnel':'upwind_progress_mm','looming-escape':'time_to_collision_at_jump_ms','optomotor':'optomotor_gain',
                 'gap-crossing':'crossing_success','circadian-dam':'total_sleep_minutes','courtship':'courtship_index',
                 'labyrinth':'path_tortuosity','multisensory-sandbox':'composite_benchmark_score'};
-            const key=keys[this.activeParadigmId],value=this.remotePacket.metrics?.[key];
-            return {label:key ? key.replace(/_/g,' ') : 'Continuous foraging', value:Number.isFinite(value)?value.toFixed(3):typeof value==='boolean'?String(value):'Awaiting outcome',sub:'Daemon measurement'};
+            const key=keys[this.activeParadigmId],value=key ? this.remotePacket.metrics?.[key] : this.remotePacket.neural?.net_valence;
+            const units={'escape_latency_ms':' ms','time_to_collision_at_jump_ms':' ms','upwind_progress_mm':' mm','total_sleep_minutes':' min','composite_benchmark_score':' /100'};
+            const rawValue=typeof value==='boolean'?Number(value):Number.isFinite(value)?value:null;
+            if(this.activeParadigmId==='gap-crossing') return {label:'Gap width / outcome',rawValue,unit:'crossed 0/1',value:`${this.remotePacket.metrics?.gap_width_mm ?? '—'} mm · ${value?'CROSSED':this.remotePacket.metrics?.decision_outcome||'APPROACH'}`,sub:'Daemon measurement'};
+            return {label:key ? key.replace(/_/g,' ') : 'Odor value',rawValue,unit:units[key]||'',value:rawValue!==null?rawValue.toFixed(2)+(units[key]||''):'Not observed',sub:'Daemon measurement'};
         }
         const p = this.paradigmState;
         switch (this.activeParadigmId) {
@@ -2911,11 +2915,17 @@ class ScientificBioArena {
         ctx.fillStyle = '#22c55e';
         ctx.beginPath(); ctx.arc(sn.x, sn.y, 6, 0, 2 * Math.PI); ctx.fill();
 
-        const gradPuff = ctx.createRadialGradient(sn.x, sn.y, 2, sn.x - 90, sn.y, 110);
-        gradPuff.addColorStop(0, 'rgba(34, 197, 94, 0.45)');
-        gradPuff.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
-        ctx.fillStyle = gradPuff;
-        ctx.fillRect(sn.x - 140, sn.y - 20, 140, 40);
+        // Show the Gaussian field actually sampled by the daemon across the tunnel.
+        const sigma=this.remotePacket?.scene?.filament_sigma || p.filamentSigma || 3.5;
+        for(let y=0;y<60;y+=2){
+            const c=Math.exp(-((y+1-p.nozzlePos[1])**2)/(2*sigma*sigma));
+            if(c<.005)continue;
+            const left=this.worldToScreen(0,y+2),right=this.worldToScreen(p.nozzlePos[0]+5,y);
+            const grad=ctx.createLinearGradient(left.x,0,right.x,0);
+            grad.addColorStop(0,`rgba(34,197,94,${.45*c*Math.exp(-p.nozzlePos[0]/250)})`);
+            grad.addColorStop(1,`rgba(34,197,94,${.45*c})`);
+            ctx.fillStyle=grad;ctx.fillRect(left.x,left.y,right.x-left.x,right.y-left.y);
+        }
 
         ctx.font = 'bold 11px monospace';
         ctx.fillStyle = p.behavioralState === 'SURGE' ? '#22c55e' : '#f59e0b';
@@ -2950,7 +2960,10 @@ class ScientificBioArena {
         const sc = this.worldToScreen(45.0, 45.0);
 
         const numStripes = 24;
-        for (let i = 0; i < numStripes; i++) {
+        if (p.contrast===0) {
+            ctx.fillStyle='#64748b';ctx.beginPath();ctx.arc(sc.x,sc.y,85,0,Math.PI*2);ctx.fill();
+        }
+        for (let i = 0; p.contrast!==0 && i < numStripes; i++) {
             const a1 = ((p.drumAngleDeg + i * (360 / numStripes)) * Math.PI) / 180;
             const a2 = a1 + (Math.PI / numStripes);
             ctx.fillStyle = p.contrast === 0 ? '#64748b' : (i % 2 === 0 ? '#020617' : '#e2e8f0');
@@ -2962,7 +2975,7 @@ class ScientificBioArena {
 
         ctx.font = '10px monospace';
         ctx.fillStyle = '#38bdf8';
-        ctx.fillText(`HS Rate: ${p.hsFiringRate.toFixed(1)} Hz | Efference Shunt: 85%`, sc.x - 75, sc.y + 95);
+        ctx.fillText(`HS proxy: ${p.hsFiringRate.toFixed(1)} Hz | Shunt model: 85%`, sc.x - 75, sc.y + 95);
     }
 
     renderGapCrossing(ctx) {
@@ -2986,6 +2999,10 @@ class ScientificBioArena {
 
     renderCircadianDAM(ctx) {
         const p = this.paradigmState;
+        const label = this.worldToScreen(0, 165);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px monospace';
+        ctx.fillText('Tube 1 active · 1 simulated fly', label.x, label.y);
         for (let i = 0; i < 16; i++) {
             const sTopL = this.worldToScreen(0.0, (i + 1) * 10.0);
             const sBotR = this.worldToScreen(65.0, i * 10.0);
@@ -3389,7 +3406,7 @@ const EXPERIMENT_GUIDES = {
     },
     'multisensory-sandbox': {
         title: "Multisensory Ingress & Limb Biomechanics Sandbox",
-        ref: "Project NeuroFly v1.0 Benchmark (FlyWire & MaleCNS v1.0 Architecture)",
+        ref: "Project NeuroFly compact modular sensorimotor model",
         whatToWatch: [
             "Full multi-sensory cue integration: Food Odor A, Repellent Odor B, cVA Pheromone, Thermal Gradient, and Vector Wind.",
             "Inspect 6 articulated tripod legs with real-time Coxa, Femur, and Tibia joint angle flexions.",
@@ -3425,6 +3442,13 @@ function daemonFrameOffset(pkt) {
     return DAEMON_FRAME_OFFSET[pkt.paradigm] || [0, 0];
 }
 
+function isStaleDaemonPacket(pkt, previous) {
+    // A restarted daemon begins a new run at step zero, even in the same assay.
+    if (!previous || pkt.run_id !== previous.run_id || pkt.paradigm !== previous.paradigm) return false;
+    return (Number.isFinite(pkt.step) && pkt.step < previous.step)
+        || (Number.isFinite(pkt.timestamp) && pkt.timestamp < previous.timestamp);
+}
+
 class DaemonBridgeClient {
     constructor(arena, hud) {
         this.arena = arena;
@@ -3437,8 +3461,7 @@ class DaemonBridgeClient {
         this.reconnectDelayMs = 4000;
         this.activeUrl = null;
         this.lastPacketTime = 0;
-        this.lastPacketStep = -1;
-        this.lastPacketTimestamp = 0;
+        this.lastOrderedPacket = null;
         this.staleAfterMs = 8000;
 
         if (this.statusPill) {
@@ -3532,8 +3555,7 @@ class DaemonBridgeClient {
         this.readOnly = false;
         this.reconnectDelayMs = 4000;
         this.lastPacketTime = performance.now();
-        this.lastPacketStep = -1;
-        this.lastPacketTimestamp = 0;
+        this.lastOrderedPacket = null;
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
@@ -3608,15 +3630,10 @@ class DaemonBridgeClient {
         if (!pkt || pkt.type !== 'telemetry') return;
 
         // Drop stale / out-of-order packets (SSE reconnects can replay old frames).
+        if (isStaleDaemonPacket(pkt, this.lastOrderedPacket)) return;
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
-        const ts = Number.isFinite(pkt.timestamp) ? pkt.timestamp : null;
-        const sameRun = pkt.paradigm === this.lastPacketParadigm;
-        if (sameRun && step !== null && step < this.lastPacketStep) return;
-        if (sameRun && ts !== null && ts < this.lastPacketTimestamp) return;
         this.lastPacketTime = performance.now();
-        if (step !== null) this.lastPacketStep = step;
-        if (ts !== null) this.lastPacketTimestamp = ts;
-        this.lastPacketParadigm = pkt.paradigm;
+        this.lastOrderedPacket = pkt;
 
         // Synchronize fly pose from the daemon ONLY when the paradigms match; the daemon
         // then owns locomotion and the local engine stops integrating position.
@@ -3664,6 +3681,9 @@ class DaemonBridgeClient {
             this.arena.cpg.phaseB = this.arena.cpg.phaseA + Math.PI;
             this.arena.dn.dna02Diff = pkt.descending?.dna02_yaw || 0;
             this.arena.fly.yawRate = pkt.descending?.dna02_yaw || 0;
+            if (Number.isFinite(pkt.sensory?.wind_x) && Number.isFinite(pkt.sensory?.wind_y)) {
+                this.arena.windVector = [pkt.sensory.wind_x, pkt.sensory.wind_y];
+            }
             this.arena.dn.dnp09 = pkt.descending?.dnp09_thrust || 0;
             this.arena.dn.mdn = pkt.descending?.mdn_reverse || 0;
             this.arena.dn.escapeActive = !!pkt.descending?.gf_escape;
@@ -3703,6 +3723,7 @@ class DaemonBridgeClient {
                 if (stimulus.laser_active !== undefined) state.laserActive=stimulus.laser_active;
                 if (pkt.scene?.drum_angle_deg !== undefined) state.drumAngleDeg=pkt.scene.drum_angle_deg;
                 if (assay.yaw_torque !== undefined) state.yawTorque=assay.yaw_torque;
+                if (assay.hs_firing_rate !== undefined) state.hsFiringRate=assay.hs_firing_rate;
                 if (stimulus.looming_angle_deg !== undefined) state.thetaDeg=stimulus.looming_angle_deg;
                 if (stimulus.theta_deg !== undefined) state.thetaDeg=stimulus.theta_deg;
                 if (activeParadigm==='optomotor') state.drumAngleDeg=(stimulus.drum_velocity_deg_s||0)*pkt.trial_elapsed_s%360;
@@ -5034,6 +5055,7 @@ class ScientificHUD {
 
     renderLearningCurve() {
         if (!this.curveCanvas || !this.curveCtx) return;
+        if (this.arena.remoteDriven) { this.renderLiveOutcome(); return; }
         const w = this.curveWidth || this.curveCanvas.clientWidth || 300;
         const h = this.curveHeight || this.curveCanvas.clientHeight || 105;
         const ctx = this.curveCtx;
@@ -5117,6 +5139,37 @@ class ScientificHUD {
         if (curPiEl && n > 0) {
             curPiEl.textContent = pts[pts.length - 1].item.formatted;
         }
+    }
+
+    renderLiveOutcome() {
+        const t=this.arena.remotePacket, metric=this.arena.getCanonicalMetricInfo();
+        if(this.liveOutcomeSegment!==t.segment_id){
+            this.liveOutcomeSegment=t.segment_id;this.liveOutcomeHistory=[];this.liveOutcomeStep=null;
+        }
+        if(this.liveOutcomeStep!==t.step){
+            this.liveOutcomeHistory.push({time:t.sim_time_s,value:metric.rawValue});
+            this.liveOutcomeHistory=this.liveOutcomeHistory.slice(-300);this.liveOutcomeStep=t.step;
+        }
+        const ctx=this.curveCtx,w=this.curveWidth||this.curveCanvas.clientWidth,h=this.curveHeight||this.curveCanvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        const rows=this.liveOutcomeHistory, values=rows.map(r=>r.value).filter(Number.isFinite);
+        ctx.fillStyle='#94a3b8';ctx.font='8px monospace';ctx.textAlign='center';
+        ctx.fillText('Repeated measures · sim s',w/2,10);
+        if(!values.length){ctx.fillText('Outcome not observed',w/2,h/2);return;}
+        let lo=Math.min(...values),hi=Math.max(...values);
+        const pad=Math.max((hi-lo)*.1,.05);lo-=pad;hi+=pad;
+        const left=38,right=w-8,top=23,bottom=h-18;
+        ctx.textAlign='right';ctx.fillText(hi.toFixed(2),left-4,top+3);ctx.fillText(lo.toFixed(2),left-4,bottom);
+        ctx.strokeStyle='#334155';ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,bottom);ctx.lineTo(right,bottom);ctx.stroke();
+        const start=rows[0].time,end=rows[rows.length-1].time,span=Math.max(.02,end-start);
+        ctx.strokeStyle='#38bdf8';ctx.lineWidth=1.5;ctx.beginPath();let connected=false;
+        for(const row of rows){
+            if(!Number.isFinite(row.value)){connected=false;continue;}
+            const x=left+(right-left)*(row.time-start)/span,y=bottom-(bottom-top)*(row.value-lo)/(hi-lo);
+            connected?ctx.lineTo(x,y):ctx.moveTo(x,y);connected=true;
+        }
+        ctx.stroke();ctx.textAlign='left';ctx.fillText(start.toFixed(1),left,h-4);
+        ctx.textAlign='right';ctx.fillText(end.toFixed(1),right,h-4);
     }
 
     update() {
@@ -5226,18 +5279,20 @@ class ScientificHUD {
         if (headingBumpEl) headingBumpEl.textContent = `${((this.arena.cx.headingBump * 180) / Math.PI).toFixed(0)}°`;
         const windGlobal = Math.atan2(-this.arena.windVector[1], -this.arena.windVector[0]);
         if (upwindAngleEl) upwindAngleEl.textContent = `${((windGlobal * 180) / Math.PI).toFixed(0)}°`;
-        if (pfl3ErrorEl) pfl3ErrorEl.textContent = (this.arena.cx.pfl3ErrorR - this.arena.cx.pfl3ErrorL).toFixed(2);
-        if (antennaDeflectEl) antennaDeflectEl.textContent = `${(Math.hypot(this.arena.windVector[0], this.arena.windVector[1]) * 0.12).toFixed(1)} μN`;
+        if (pfl3ErrorEl) pfl3ErrorEl.textContent = this.arena.remoteDriven ? 'Not streamed' : (this.arena.cx.pfl3ErrorR - this.arena.cx.pfl3ErrorL).toFixed(2);
+        if (antennaDeflectEl) antennaDeflectEl.textContent = this.arena.remoteDriven ? 'Not streamed' : `${(Math.hypot(this.arena.windVector[0], this.arena.windVector[1]) * 0.12).toFixed(1)} μN`;
         this.renderCompass();
 
         // Oscilloscope Channels
-        this.scopeHistory.push({
+        const scopeKey=this.arena.remoteDriven ? `${this.arena.remoteSegment}:${this.arena.stepCount}` : null;
+        if(!scopeKey || scopeKey!==this.lastScopeKey) this.scopeHistory.push({
             dna02: this.arena.dn.dna02Diff,
             dnp09: this.arena.dn.dnp09,
             bpn: this.arena.dn.bpn,
             mdn: this.arena.dn.mdn,
             dnp01: this.arena.dn.escapeActive ? 50.0 : 0.0
         });
+        this.lastScopeKey=scopeKey;
         if (this.scopeHistory.length > 150) this.scopeHistory.shift();
         this.renderOscilloscope();
 
@@ -5367,8 +5422,8 @@ class ScientificHUD {
 
     renderOscilloscope() {
         if (!this.scopeCanvas || !this.scopeCtx) return;
-        const w = this.scopeCanvas.width;
-        const h = this.scopeCanvas.height;
+        const w = this.scopeWidth || this.scopeCanvas.clientWidth;
+        const h = this.scopeHeight || this.scopeCanvas.clientHeight;
         this.scopeCtx.clearRect(0, 0, w, h);
 
         this.scopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -5385,11 +5440,12 @@ class ScientificHUD {
         ];
 
         for (const ch of channels) {
+            if(this.arena.remoteDriven && ch.key==='bpn')continue; // Not supplied by the daemon.
             this.scopeCtx.strokeStyle = ch.color;
             this.scopeCtx.lineWidth = 1.4;
             this.scopeCtx.beginPath();
             for (let i = 0; i < this.scopeHistory.length; i++) {
-                const x = (i / (this.scopeHistory.length - 1)) * w;
+                const x = (i / Math.max(1,this.scopeHistory.length - 1)) * w;
                 const val = this.scopeHistory[i][ch.key];
                 const range = this.arena.remoteDriven ? ({dna02:4, dnp09:3.5, bpn:60, mdn:1, dnp01:50}[ch.key]) : 60;
                 const y = h / 2 - (val / range) * (h / 2) * ch.scale;
