@@ -1,0 +1,83 @@
+{
+  "schema": "neurofly.wp5-live-integration.v1",
+  "generated_utc": "2026-09-19T21:27:28Z",
+  "note": "End-to-end wiring check of the WP5 optomotor loop in the live path. SYNTHETIC TEST GRAPH only: this is a software integration receipt, not a scientific or behavioural result.",
+  "ports": {
+    "cosim_server": 19201,
+    "daemon_http": 19202,
+    "host": "127.0.0.1"
+  },
+  "checks": {
+    "cosim_status": {
+      "backend": "synthetic-test-graph",
+      "synthetic": true,
+      "engineered_assistance_enabled": false,
+      "optomotor_io_map_sha256": null
+    },
+    "rpc_path": {
+      "steps": 10,
+      "motor_source": "graph-unmapped-io",
+      "motor_halted": true,
+      "commanded_speed": 0.0,
+      "commanded_yaw_rad_s": 0.0,
+      "realized_speed": 0.0,
+      "optomotor_block": null,
+      "optomotor_unsupported": "the graph server returned no optomotor block: no verified WP5 sensory encoder / motor decoder on this graph",
+      "engineered_assistance_enabled": false,
+      "engineered_assistance_applied": [],
+      "server_probe_optomotor_block": null,
+      "server_probe_assistance_applied": [],
+      "expected": "synthetic graph has no WP5 map, so the server returns optomotor=null and the bridge reports graph-unmapped-io with no motion"
+    },
+    "daemon_unmapped": {
+      "identity_backend": "connectome-fixed",
+      "synthetic": true,
+      "paradigm": "optomotor",
+      "motor_source": "graph-unmapped-io",
+      "motor_source_normal": false,
+      "optomotor": {
+        "engineered_assistance_enabled": false,
+        "engineered_assistance_applied": [],
+        "optomotor_io_map_sha256": null,
+        "optomotor_yaw_rad_s": null,
+        "optomotor_slip_rad_s": null,
+        "optomotor_unsupported": "The WP5 optomotor map could not be resolved on this graph (GraphUnavailable: synthetic test graph: the WP5 optomotor map is never faked on one); no motor command.",
+        "forward_drive": "no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0"
+      },
+      "fly_speed": 0.0,
+      "timing_achieved_sim_s_per_wall_s": 0.0,
+      "api_status_motor_source": "graph-unmapped-io",
+      "measured_sim_s_per_wall_s_over_25_steps": 48.5125
+    },
+    "daemon_loop_with_stub_map": {
+      "motor_source": "graph",
+      "motor_source_normal": true,
+      "state": "OPTOMOTOR-TETHERED",
+      "commanded_speed": 0.0,
+      "commanded_yaw_rad_s": 0.0,
+      "fly_speed": 0.0,
+      "optomotor": {
+        "engineered_assistance_enabled": false,
+        "engineered_assistance_applied": [],
+        "optomotor_io_map_sha256": "synthetic-test-optomotor-map",
+        "optomotor_yaw_rad_s": 0.0,
+        "optomotor_slip_rad_s": 0.5235987755982988,
+        "optomotor_unsupported": null,
+        "forward_drive": "no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0"
+      },
+      "timing_achieved_sim_s_per_wall_s": 0.0,
+      "measured_sim_s_per_wall_s_over_25_steps": 54.2903,
+      "note": "Stub 64-neuron map on the synthetic graph: wiring only. The real graph measured about 0.1 simulated s per wall s (docs/WP5_OPTOMOTOR.md section 7)."
+    }
+  },
+  "source_sha256": {
+    "arena.py": "98b7dbbc10a8ed3fb7e3d789f76a75dadba1347d51c975d1327a18d7ec724c41",
+    "connectome_bridge.py": "0da216f1fa3200413feb1e1dcafdd9a9d095d70f4ce9ab5e65c0a79f9438b9c0",
+    "connectome_client.py": "41b52de0524b9ef2bc13b656506e4555896659c170f8227ac4a935f01008e049",
+    "neurofly_daemon.py": "7106ff698f584f53685aeed4c449610313545273f0157987861acdeeb4993cee",
+    "web/app.js": "4d7d358213ce02966bb7dcf87e607e9a51c6edc0e18f1124d61731910b879360",
+    "web/index.html": "fd3c53e3acad56d3a540b372af15ebb482fcb4a6127fd7f290140af440e76549",
+    "tests/test_wp5_live_loop.py": "5cf34329d9f148f5c2c23f61c3375b9f59c1d4739c37990e5d1ba16916a1cac2"
+  },
+  "git_head": "2659907fb7b12e6fc6b555e9d19bf52305511613"
+}

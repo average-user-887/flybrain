@@ -81,6 +81,10 @@ except ImportError:
 
 
 class ConnectomeBridge:
+    # Reported when the graph server has no verified WP5 sensory/motor map for a
+    # stimulus we actually delivered (same name the daemon's graph controller uses).
+    UNMAPPED_IO = "graph-unmapped-io"
+
     def __init__(
         self,
         mode: str = "surrogate",          # "surrogate" or "rpc"
@@ -107,6 +111,15 @@ class ConnectomeBridge:
         self.rpc_ok_steps = 0
         self.rpc_fault_steps = 0
         self.motor_source = "surrogate" if mode == "surrogate" else "graph-rpc"
+        # WP5 optomotor telemetry from the graph server.  ``optomotor`` is the
+        # reply's decoded block (yaw_rad_s, contributions, rates, io_map_sha256);
+        # ``optomotor_unsupported`` names the reason when a stimulus was delivered
+        # and the server has no resolved map, so the caller can refuse to move
+        # rather than read a missing block as zero yaw.
+        self.optomotor: Optional[Dict[str, Any]] = None
+        self.optomotor_unsupported: Optional[str] = None
+        self.engineered_assistance_applied: List[str] = []
+        self.engineered_assistance_enabled: Optional[bool] = None
         self.rpc_host = rpc_host
         self.rpc_port = rpc_port
         self.num_ommatidia = num_ommatidia
@@ -375,6 +388,34 @@ class ConnectomeBridge:
                                                simulation_time=step_time, wall_time=time.time()))
         self.controller_fault = reason
 
+    def _ingest_optomotor(self, reply: Dict[str, Any], stimulus_sent: bool):
+        """Record the reply's WP5 optomotor block and engineered-assistance flags.
+
+        A reply with no ``optomotor`` block after an optomotor stimulus was sent
+        means the server holds no resolved WP5 map (synthetic graph, unresolved
+        annotations).  That is an explicitly unsupported state, reported as
+        ``motor_source='graph-unmapped-io'`` -- never read as zero yaw.
+        """
+        self.engineered_assistance_applied = list(reply.get("engineered_assistance_applied") or [])
+        enabled = reply.get("engineered_assistance_enabled")
+        if enabled is None:
+            enabled = (getattr(self.rpc_client, "server_identity", None) or {}).get(
+                "engineered_assistance_enabled")
+        self.engineered_assistance_enabled = None if enabled is None else bool(enabled)
+        block = reply.get("optomotor")
+        if block:
+            self.optomotor = dict(block)
+            self.optomotor_unsupported = None
+            return
+        self.optomotor = None
+        if stimulus_sent:
+            self.optomotor_unsupported = (
+                "the graph server returned no optomotor block: no verified WP5 sensory encoder / "
+                "motor decoder on this graph")
+            self.motor_source = self.UNMAPPED_IO
+        else:
+            self.optomotor_unsupported = None
+
     def _clear_fault(self, step_time: float):
         if self.controller_fault is not None:
             self.controller_events.append(dict(kind="rpc_recovered", previous=self.controller_fault,
@@ -392,6 +433,8 @@ class ConnectomeBridge:
             "rpc_ok_steps": self.rpc_ok_steps,
             "rpc_fault_steps": self.rpc_fault_steps,
             "rpc_server_identity": getattr(self.rpc_client, "server_identity", None),
+            "engineered_assistance_enabled": self.engineered_assistance_enabled,
+            "optomotor_io_map_sha256": (self.optomotor or {}).get("io_map_sha256"),
             "events": list(self.controller_events),
         }
 
@@ -641,7 +684,7 @@ class ConnectomeBridge:
             0.0, 1.0
         ))
 
-        return {
+        packet = {
             "delta_hs": delta_hs,
             "hs_left_raw": hs_left_raw,
             "hs_right_raw": hs_right_raw,
@@ -672,6 +715,17 @@ class ConnectomeBridge:
             "wing_extension_command": self.wing_extension_command,
             "mb_gamma_dopamine": self.mb_gamma_dopamine
         }
+
+        # WP5 optomotor input (docs/WP5_OPTOMOTOR.md).  Retinal slip in rad/s
+        # (+ = pattern rotating counter-clockwise seen from above) and contrast in
+        # [0, 1], forwarded verbatim to the graph server's eye-specific T4/T5
+        # encoder.  The keys are sent only when the caller supplies a slip: their
+        # absence means "no optomotor stimulus this step", never zero slip.
+        slip = kwargs.get("optomotor_slip_rad_s")
+        if slip is not None:
+            packet["optomotor_slip_rad_s"] = float(slip)
+            packet["optomotor_contrast"] = float(kwargs.get("optomotor_contrast", 1.0))
+        return packet
 
     def step(
         self,
@@ -919,6 +973,7 @@ class ConnectomeBridge:
                 self._clear_fault(self.simulation_time)
                 self.rpc_ok_steps += 1
                 self.motor_source = "graph-rpc"
+                self._ingest_optomotor(remote_res, "optomotor_slip_rad_s" in sensory)
                 dna02_diff = float(remote_res["dna02_diff"])
                 self.dna02_rate_l = float(remote_res["dna02_rate_l"])
                 self.dna02_rate_r = float(remote_res["dna02_rate_r"])
@@ -931,6 +986,8 @@ class ConnectomeBridge:
                     self.escape_timer = 0.30
             else:
                 self.rpc_fault_steps += 1
+                self.optomotor = None
+                self.optomotor_unsupported = None
                 self._record_fault(getattr(self.rpc_client, "last_error", None) or "rpc step failed",
                                    self.simulation_time)
                 if self.on_rpc_fault == "raise":
@@ -1038,6 +1095,12 @@ class ConnectomeBridge:
             "motor_source": self.motor_source,
             "controller_fault": self.controller_fault,
             "rpc_fault_steps": self.rpc_fault_steps,
+            # WP5 optomotor loop and engineered-assistance provenance (graph server).
+            "optomotor": self.optomotor,
+            "optomotor_unsupported": self.optomotor_unsupported,
+            "optomotor_io_map_sha256": (self.optomotor or {}).get("io_map_sha256"),
+            "engineered_assistance_applied": list(self.engineered_assistance_applied),
+            "engineered_assistance_enabled": self.engineered_assistance_enabled,
             # Mushroom Body Learning Telemetry
             "mb_valence": self.mb_valence,
             "mb_approach_bias": self.mb_approach_bias,

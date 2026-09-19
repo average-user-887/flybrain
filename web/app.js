@@ -3491,6 +3491,14 @@ const MOTOR_SOURCE_NOTES = {
     'halted-no-instance': 'no active graph instance: the fly is halted',
 };
 
+// Graph controller backends (provenance.GRAPH_BACKENDS). On these the optomotor
+// assay runs the WP5 loop (166,700-neuron LIF at 2-20 ms steps), measured at about
+// 0.1 simulated seconds per wall second: 1x is unattainable on this hardware and the
+// UI says so rather than letting the display pretend otherwise (docs/WP5_OPTOMOTOR.md
+// section 7). The daemon runs slower than requested; it never drops simulation steps.
+const GRAPH_BACKENDS = ['connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout'];
+const OPTOMOTOR_SIM_S_PER_WALL_S = 0.1;
+
 /** Identity bar + conspicuous banner for synthetic/test runs, abnormal motor sources and faults. */
 function renderIdentity(pkt) {
     const id = pkt?.identity || {}, motor = pkt?.motor || {};
@@ -3501,6 +3509,15 @@ function renderIdentity(pkt) {
     const on = Object.keys(assists).filter(k => assists[k]);
     set('identAssists', motor.motor_assists_enabled ? `ON (${on.join(', ')})` : 'OFF', 'Engineered motor assists: they turn the fly away from walls on the controller\'s behalf and are not credited to any brain.');
     set('identMotor', motor.motor_source || '--');
+    // WP5 provenance: the engineered-assistance gate and the resolved optomotor IO map.
+    const opto = motor.optomotor || {};
+    const assistance = opto.engineered_assistance_enabled;
+    set('identAssistance', assistance === undefined || assistance === null ? '--' : (assistance ? 'ON' : 'OFF'),
+        assistance ? `Engineered assistance ON: ${(opto.engineered_assistance_applied || []).join('; ') || 'inputs that bypass the sensory pathways'}`
+                   : 'Engineered assistance OFF: only the verified sensory encoder drives the graph.');
+    const ioMap = opto.optomotor_io_map_sha256;
+    set('identOptoMap', ioMap ? String(ioMap).slice(0, 12) : '--',
+        ioMap ? `optomotor_io_map_sha256 ${ioMap}` : 'No optomotor IO map resolved for this run.');
     const fault = pkt?.controller_fault ?? motor.controller_fault ?? null;
     set('identFault', fault || 'none');
     set('identRun', `run ${(id.run_id || '--').slice(-12)}`, `run_id ${id.run_id || '?'}\ninstance_id ${id.instance_id || '?'}\ngraph_sha256 ${id.graph_sha256 || 'none (modular)'}\nactivation ${id.activation ?? '?'}`);
@@ -3511,6 +3528,15 @@ function renderIdentity(pkt) {
     else if (id.test_mode) lines.push(`TEST MODE · ${id.label || id.backend} · not a scientific result`);
     if (motor.motor_source && motor.motor_source_normal === false) {
         lines.push(`MOTOR SOURCE ${motor.motor_source}: ${MOTOR_SOURCE_NOTES[motor.motor_source] || 'not a normal controller source'}`);
+    }
+    if (opto.optomotor_unsupported) lines.push(`OPTOMOTOR MAPPING UNSUPPORTED: ${opto.optomotor_unsupported}`);
+    if (pkt?.paradigm === 'optomotor' && GRAPH_BACKENDS.includes(id.backend)) {
+        const achieved = pkt?.timing?.achieved_speed;
+        const measured = Number.isFinite(achieved) ? `${achieved} sim s per wall s measured` : 'measuring';
+        lines.push(`OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer `
+            + `(about ${OPTOMOTOR_SIM_S_PER_WALL_S} simulated s per wall s; ${measured}). `
+            + `The daemon runs slower than requested instead of dropping simulation steps.`);
+        if (opto.forward_drive) lines.push(`FORWARD DRIVE: ${opto.forward_drive}`);
     }
     if (fault) lines.push(`CONTROLLER FAULT: ${fault}`);
     const banner = document.getElementById('identityBanner');
@@ -3915,7 +3941,9 @@ class DaemonBridgeClient {
                 achievedEl.textContent = pkt.paused ? 'paused' : `${timing.achieved_speed.toFixed(1)}x`;
                 achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
                 const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
-                achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x; fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame.`
+                achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x `
+                    + `(= ${timing.achieved_speed} simulated seconds per wall-clock second); `
+                    + `fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame.`
                     + (timing.overloaded ? ' This computer cannot run the requested speed; the daemon runs slower instead of skipping steps.' : '') + dropped;
             } else if (achievedEl) {
                 achievedEl.textContent = '--';
