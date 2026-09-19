@@ -280,28 +280,56 @@ class WallSegment {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    resolveCircleCollision(x, y, vx, vy, radius) {
+    resolveCircleCollisionWithPrev(prevX, prevY, x, y, vx, vy, radius) {
+        if (this.lengthSq < 1e-12) {
+            return { x, y, vx, vy, collided: false, normal: [0.0, 0.0], t: 0.0 };
+        }
+
+        const s0 = (prevX - this.p1[0]) * this.nx + (prevY - this.p1[1]) * this.ny;
+        const s1 = (x - this.p1[0]) * this.nx + (y - this.p1[1]) * this.ny;
+        let crossed = false;
+        if (s0 * s1 < 0.0) {
+            const denom = s0 - s1;
+            if (Math.abs(denom) > 1e-12) {
+                const alpha = s0 / denom;
+                const qx = prevX + alpha * (x - prevX);
+                const qy = prevY + alpha * (y - prevY);
+                const tCross = ((qx - this.p1[0]) * this.dx + (qy - this.p1[1]) * this.dy) / this.lengthSq;
+                if (tCross >= 0.0 && tCross <= 1.0) {
+                    crossed = true;
+                }
+            }
+        }
+
         const [cx, cy, t] = this.projectPoint(x, y);
         const dx = x - cx;
         const dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dist = Math.hypot(dx, dy);
 
-        if (dist >= radius) {
+        if (dist >= radius && !crossed) {
             return { x, y, vx, vy, collided: false, normal: [0.0, 0.0], t };
         }
 
-        const penetration = radius - dist;
+        // Contact normal: always retain the side the fly originated from
         let cnx, cny;
-        if (dist > 1e-8) {
-            cnx = dx / dist;
-            cny = dy / dist;
-        } else {
+        if (s0 > 0.0) {
             cnx = this.nx;
             cny = this.ny;
+        } else if (s0 < 0.0) {
+            cnx = -this.nx;
+            cny = -this.ny;
+        } else {
+            cnx = s1 >= 0.0 ? this.nx : -this.nx;
+            cny = s1 >= 0.0 ? this.ny : -this.ny;
         }
 
-        const resolvedX = x + cnx * penetration;
-        const resolvedY = y + cny * penetration;
+        if ((t === 0.0 || t === 1.0) && !crossed && dist > 1e-8) {
+            cnx = dx / dist;
+            cny = dy / dist;
+        }
+
+        const resolvedX = cx + cnx * (radius + 0.001);
+        const resolvedY = cy + cny * (radius + 0.001);
 
         const vDotN = vx * cnx + vy * cny;
         let newVx = vx;
@@ -319,6 +347,12 @@ class WallSegment {
         }
 
         return { x: resolvedX, y: resolvedY, vx: newVx, vy: newVy, collided: true, normal: [cnx, cny], t };
+    }
+
+    resolveCircleCollision(x, y, vx, vy, radius) {
+        const prevX = x - vx * 0.02;
+        const prevY = y - vy * 0.02;
+        return this.resolveCircleCollisionWithPrev(prevX, prevY, x, y, vx, vy, radius);
     }
 }
 
@@ -478,10 +512,16 @@ class ScientificBioArena {
             case 'open-arena':
                 this.activeParadigmTitle = 'Open Arena Multi-Modal Assay';
                 this.activeParadigmRef = 'General Neuroethology Open Arena with multi-sensory foraging';
-                this.worldBounds = { minX: -150, maxX: 150, minY: -110, maxY: 110 };
+                this.worldBounds = { minX: -140, maxX: 140, minY: -100, maxY: 100 };
                 this.fly.x = 0; this.fly.y = 0; this.fly.heading = 0; this.fly.speed = 0;
                 this.windVector = [-15.0, 0.0];
                 this.paradigmStatus = 'FORAGING';
+                this.currentWalls = [
+                    new WallSegment([-140.0, -100.0], [140.0, -100.0]),
+                    new WallSegment([140.0, -100.0], [140.0, 100.0]),
+                    new WallSegment([140.0, 100.0], [-140.0, 100.0]),
+                    new WallSegment([-140.0, 100.0], [-140.0, -100.0])
+                ];
                 this.paradigmState = {};
                 break;
 
@@ -580,12 +620,22 @@ class ScientificBioArena {
             case 'buridan':
                 this.activeParadigmTitle = "Buridan's Visual Landmark Fixation & Centrophobism";
                 this.activeParadigmRef = "Götz (1980); Colomb & Brembs (2012)";
-                this.worldBounds = { minX: 0, maxX: 120, minY: 0, maxY: 120 };
+                this.worldBounds = { minX: 10, maxX: 110, minY: 10, maxY: 110 };
                 this.fly.x = 60.0; this.fly.y = 60.0; this.fly.heading = 0.0; this.fly.speed = 10.0;
                 this.paradigmStatus = 'STRIPE FIXATION';
+                const buridanWalls = [];
+                for (let i = 0; i < 32; i++) {
+                    const a1 = (2 * Math.PI * i) / 32;
+                    const a2 = (2 * Math.PI * (i + 1)) / 32;
+                    buridanWalls.push(new WallSegment(
+                        [60.0 + 47.0 * Math.cos(a1), 60.0 + 47.0 * Math.sin(a1)],
+                        [60.0 + 47.0 * Math.cos(a2), 60.0 + 47.0 * Math.sin(a2)]
+                    ));
+                }
+                this.currentWalls = buridanWalls;
                 this.paradigmState = {
                     center: [60.0, 60.0],
-                    platformRadius: 50.0,
+                    platformRadius: 47.0,
                     stripes: [{ x: 110.0, y: 60.0, deg: 0 }, { x: 10.0, y: 60.0, deg: 180 }],
                     timeCenterMs: 0.0,
                     timePerimeterMs: 0.0,
@@ -682,6 +732,12 @@ class ScientificBioArena {
                 this.worldBounds = { minX: 0, maxX: 100, minY: 0, maxY: 20 };
                 this.fly.x = 12.0; this.fly.y = 10.0; this.fly.heading = 0.0; this.fly.speed = 8.0;
                 this.paradigmStatus = 'APPROACHING CHASM';
+                this.currentWalls = [
+                    new WallSegment([5.0, 7.0], [95.0, 7.0]),
+                    new WallSegment([5.0, 13.0], [95.0, 13.0]),
+                    new WallSegment([5.0, 7.0], [5.0, 13.0]),
+                    new WallSegment([95.0, 7.0], [95.0, 13.0])
+                ];
                 this.paradigmState = {
                     gapWidthMm: 3.5,
                     reachabilityThreshMm: 3.8,
@@ -695,9 +751,15 @@ class ScientificBioArena {
             case 'circadian-dam':
                 this.activeParadigmTitle = 'Circadian Locomotor Sleep/Wake DAM Monitor';
                 this.activeParadigmRef = 'Konopka & Benzer (1971); Allada & Siegel (2010)';
-                this.worldBounds = { minX: 0, maxX: 65, minY: 0, maxY: 160 };
+                this.worldBounds = { minX: 0, maxX: 65, minY: 65, maxY: 85 };
                 this.fly.x = 10.0; this.fly.y = 75.0; this.fly.heading = 0.0; this.fly.speed = 6.0;
                 this.paradigmStatus = 'LOCOMOTING [AWAKE]';
+                this.currentWalls = [
+                    new WallSegment([5.0, 71.0], [60.0, 71.0]),
+                    new WallSegment([5.0, 79.0], [60.0, 79.0]),
+                    new WallSegment([5.0, 71.0], [5.0, 79.0]),
+                    new WallSegment([60.0, 71.0], [60.0, 79.0])
+                ];
                 this.paradigmState = {
                     activeTube: 7,
                     beamCrossings: 0,
@@ -716,9 +778,19 @@ class ScientificBioArena {
                 this.worldBounds = { minX: 0, maxX: 20, minY: 0, maxY: 20 };
                 this.fly.x = 7.0; this.fly.y = 9.0; this.fly.heading = 0.2; this.fly.speed = 6.0;
                 this.paradigmStatus = 'SEARCHING FOR FEMALE';
+                const chamberWalls = [];
+                for (let i = 0; i < 24; i++) {
+                    const a1 = (2 * Math.PI * i) / 24;
+                    const a2 = (2 * Math.PI * (i + 1)) / 24;
+                    chamberWalls.push(new WallSegment(
+                        [10.0 + 8.5 * Math.cos(a1), 10.0 + 8.5 * Math.sin(a1)],
+                        [10.0 + 8.5 * Math.cos(a2), 10.0 + 8.5 * Math.sin(a2)]
+                    ));
+                }
+                this.currentWalls = chamberWalls;
                 this.paradigmState = {
                     chamberCenter: [10.0, 10.0],
-                    chamberRadius: 5.0,
+                    chamberRadius: 8.5,
                     femalePos: [11.5, 11.0],
                     femaleType: 'mated',
                     courtshipActiveSteps: 0,
@@ -1084,9 +1156,7 @@ class ScientificBioArena {
                         this.alarms.push({ x: this.fly.x, y: this.fly.y, radius: 25.0, strength: 1.0, life: 1.0 });
                     }
                 }
-                if (this.paradigmElapsedSec >= 25.0) {
-                    this.resetTrial(true, true);
-                }
+                // Continuous free foraging (no forced timeout snap)
                 break;
             }
 
@@ -1159,7 +1229,7 @@ class ScientificBioArena {
                         }
                     }
                 }
-                if (this.paradigmElapsedSec >= 20.0) {
+                if (this.paradigmElapsedSec >= 60.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1264,8 +1334,8 @@ class ScientificBioArena {
                     punishmentSignal = Math.max(0.0, (p.temp - 25.0) / 11.5);
                     p.cumulativeDose += Math.max(0.0, p.temp - 25.0) * dt;
                     this.paradigmStatus = `HOT FLOOR (${p.temp.toFixed(1)}°C)`;
-                    if (this.paradigmElapsedSec >= 25.0) {
-                        p.escapeLatencyMs = 25000;
+                    if (this.paradigmElapsedSec >= 60.0) {
+                        p.escapeLatencyMs = 60000;
                         this.resetTrial(true, true);
                     }
                 }
@@ -1329,7 +1399,7 @@ class ScientificBioArena {
                 if (p.lastSide !== null && p.lastSide !== side) p.stripeCrossings++;
                 p.lastSide = side;
                 this.paradigmStatus = distC < 25.0 ? 'OPEN CENTER' : `STRIPE FIXATION (${p.targetStripe.toUpperCase()})`;
-                if (this.paradigmElapsedSec >= 15.0) {
+                if (this.paradigmElapsedSec >= 120.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1358,7 +1428,7 @@ class ScientificBioArena {
 
                 const totOperant = Math.max(1, p.timeSafeMs + p.timePunishedMs);
                 p.learningIndex = (p.timeSafeMs - p.timePunishedMs) / totOperant;
-                if (this.paradigmElapsedSec >= 15.0) {
+                if (this.paradigmElapsedSec >= 90.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1402,7 +1472,7 @@ class ScientificBioArena {
                     }
                     rewardSignal = 1.0;
                 }
-                if (this.paradigmElapsedSec >= 25.0) {
+                if (this.paradigmElapsedSec >= 60.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1468,7 +1538,10 @@ class ScientificBioArena {
 
                 p.hsFiringRate = Math.min(150.0, Math.max(0.0, 40.0 + 1.2 * p.effectiveSlip));
                 this.paradigmStatus = isSaccade ? 'SACCADIC EFFERENCE SHUNT' : 'OPTO-STABILIZATION';
-                if (this.paradigmElapsedSec >= 15.0) {
+                if (this.paradigmElapsedSec >= 90.0) {
+                    this.resetTrial(true, true);
+                }
+                if (this.paradigmElapsedSec >= 60.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1512,7 +1585,7 @@ class ScientificBioArena {
                         }
                     }
                 }
-                if (this.paradigmElapsedSec >= 15.0) {
+                if (this.paradigmElapsedSec >= 45.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1543,7 +1616,12 @@ class ScientificBioArena {
                 if (this.fly.x < 5.0) this.fly.heading = 0.0;
 
                 this.paradigmStatus = p.inSleepBout ? 'SLEEP BOUT (>=5m)' : 'LOCOMOTING [AWAKE]';
-                if (this.paradigmElapsedSec >= 20.0) {
+                if (this.fly.x <= 7.5 && Math.cos(this.fly.heading) < 0) {
+                    this.fly.heading = 0.0;
+                } else if (this.fly.x >= 57.5 && Math.cos(this.fly.heading) > 0) {
+                    this.fly.heading = Math.PI;
+                }
+                if (this.paradigmElapsedSec >= 180.0) {
                     this.resetTrial(true, true);
                 }
                 break;
@@ -1594,7 +1672,7 @@ class ScientificBioArena {
                     }
                     rewardSignal = 1.0;
                 }
-                if (this.paradigmElapsedSec >= 35.0) {
+                if (this.paradigmElapsedSec >= 60.0) {
                     this.resetTrial(true, true);
                 }
 
@@ -1745,38 +1823,53 @@ class ScientificBioArena {
             let vy = this.fly.speed * Math.sin(this.fly.heading);
             let proposedX = this.fly.x + vx * dt;
             let proposedY = this.fly.y + vy * dt;
+            const prevX = this.fly.x;
+            const prevY = this.fly.y;
 
             if (this.currentWalls && this.currentWalls.length > 0) {
-                for (const wall of this.currentWalls) {
-                    const col = wall.resolveCircleCollision(proposedX, proposedY, vx, vy, this.fly.radius);
-                    if (col.collided) {
-                        proposedX = col.x;
-                        proposedY = col.y;
-                        vx = col.vx;
-                        vy = col.vy;
-                        this.collisionNormals.push({
-                            x: proposedX,
-                            y: proposedY,
-                            nx: col.normal[0],
-                            ny: col.normal[1]
-                        });
-                        if (this.paradigmState && this.paradigmState.wallCollisions !== undefined) {
-                            this.paradigmState.wallCollisions += 1;
+                for (let iter = 0; iter < 3; iter++) {
+                    let anyCol = false;
+                    for (const wall of this.currentWalls) {
+                        const col = wall.resolveCircleCollisionWithPrev(prevX, prevY, proposedX, proposedY, vx, vy, this.fly.radius);
+                        if (col.collided) {
+                            proposedX = col.x;
+                            proposedY = col.y;
+                            vx = col.vx;
+                            vy = col.vy;
+                            anyCol = true;
+                            if (iter === 0) {
+                                this.collisionNormals.push({
+                                    x: proposedX,
+                                    y: proposedY,
+                                    nx: col.normal[0],
+                                    ny: col.normal[1]
+                                });
+                                if (this.paradigmState && this.paradigmState.wallCollisions !== undefined) {
+                                    this.paradigmState.wallCollisions += 1;
+                                }
+                            }
                         }
                     }
+                    if (!anyCol) break;
                 }
-                this.fly.x = proposedX;
-                this.fly.y = proposedY;
-                this.fly.speed = Math.hypot(vx, vy);
-            } else if (this.activeParadigmId === 'open-arena') {
-                this.fly.x = proposedX;
-                this.fly.y = proposedY;
-                if (Math.abs(this.fly.x) > 150) this.fly.x *= -0.98;
-                if (Math.abs(this.fly.y) > 110) this.fly.y *= -0.98;
-            } else {
-                this.fly.x = proposedX;
-                this.fly.y = proposedY;
             }
+
+            // Universal hard containment to prevent escaping to infinity
+            if (this.worldBounds) {
+                const pad = this.fly.radius + 0.1;
+                const minX = this.worldBounds.minX + pad;
+                const maxX = this.worldBounds.maxX - pad;
+                const minY = this.worldBounds.minY + pad;
+                const maxY = this.worldBounds.maxY - pad;
+                if (proposedX < minX) { proposedX = minX; vx = Math.abs(vx) * 0.2; }
+                if (proposedX > maxX) { proposedX = maxX; vx = -Math.abs(vx) * 0.2; }
+                if (proposedY < minY) { proposedY = minY; vy = Math.abs(vy) * 0.2; }
+                if (proposedY > maxY) { proposedY = maxY; vy = -Math.abs(vy) * 0.2; }
+            }
+
+            this.fly.x = proposedX;
+            this.fly.y = proposedY;
+            this.fly.speed = Math.hypot(vx, vy);
         }
 
         // Subsample trail to preserve long visible history even at ultra-high speeds up to 100x

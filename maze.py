@@ -103,14 +103,17 @@ class WallSegment:
         y: float,
         vx: float,
         vy: float,
-        radius: float
+        radius: float,
+        prev_x: Optional[float] = None,
+        prev_y: Optional[float] = None
     ) -> Tuple[float, float, float, float, bool, Tuple[float, float]]:
         """Resolve continuous circle collision against this wall segment.
 
         Args:
-            x, y: Center coordinates of circle.
+            x, y: Center coordinates of circle (proposed).
             vx, vy: Incoming velocity vector.
             radius: Radius of colliding circle.
+            prev_x, prev_y: Prior valid coordinates before step.
 
         Returns:
             (new_x, new_y, new_vx, new_vy, collided, (normal_x, normal_y))
@@ -120,23 +123,44 @@ class WallSegment:
         dy = y - cy
         dist = math.sqrt(dx * dx + dy * dy)
 
-        if dist >= radius:
+        if prev_x is None or prev_y is None:
+            if math.hypot(vx, vy) > 1e-8:
+                prev_x = x - vx * 0.02
+                prev_y = y - vy * 0.02
+            else:
+                prev_x = x
+                prev_y = y
+
+        s0 = (prev_x - self.p1[0]) * self.nx + (prev_y - self.p1[1]) * self.ny
+        s1 = (x - self.p1[0]) * self.nx + (y - self.p1[1]) * self.ny
+        crossed = False
+        if s0 * s1 < 0.0 and self.length_sq > 1e-12:
+            denom = s0 - s1
+            if abs(denom) > 1e-12:
+                alpha = s0 / denom
+                qx = prev_x + alpha * (x - prev_x)
+                qy = prev_y + alpha * (y - prev_y)
+                t_cross = ((qx - self.p1[0]) * self.dx + (qy - self.p1[1]) * self.dy) / self.length_sq
+                if 0.0 <= t_cross <= 1.0:
+                    crossed = True
+
+        if dist >= radius and not crossed:
             return x, y, vx, vy, False, (0.0, 0.0)
 
-        # Collision detected!
-        penetration = radius - dist
+        # Contact normal keeps circle on its original side of the wall
+        if s0 > 0.0:
+            cn_x, cn_y = self.nx, self.ny
+        elif s0 < 0.0:
+            cn_x, cn_y = -self.nx, -self.ny
+        else:
+            cn_x, cn_y = (self.nx, self.ny) if s1 >= 0.0 else (-self.nx, -self.ny)
 
-        # Contact normal pointing from closest point to circle center
-        if dist > 1e-8:
+        if (t == 0.0 or t == 1.0) and not crossed and dist > 1e-8:
             cn_x = dx / dist
             cn_y = dy / dist
-        else:
-            cn_x = self.nx
-            cn_y = self.ny
 
-        # Push circle center out along contact normal to eliminate penetration
-        resolved_x = x + cn_x * penetration
-        resolved_y = y + cn_y * penetration
+        resolved_x = cx + cn_x * radius
+        resolved_y = cy + cn_y * radius
 
         # Velocity resolution: decompose into normal and tangential components
         v_dot_n = vx * cn_x + vy * cn_y
@@ -372,7 +396,9 @@ class CollisionEngine:
         vx: float,
         vy: float,
         radius: float = 1.5,
-        max_iterations: int = 4
+        max_iterations: int = 4,
+        prev_x: Optional[float] = None,
+        prev_y: Optional[float] = None
     ) -> Tuple[float, float, float, float, bool, List[Tuple[float, float]]]:
         """Continuously resolve circle-wall collisions with zero tunneling across multiple walls.
 
@@ -384,6 +410,8 @@ class CollisionEngine:
         """
         cur_x, cur_y = x, y
         cur_vx, cur_vy = vx, vy
+        p_x = prev_x if prev_x is not None else (x - vx * 0.02)
+        p_y = prev_y if prev_y is not None else (y - vy * 0.02)
         collided_any = False
         normals: List[Tuple[float, float]] = []
 
@@ -391,7 +419,7 @@ class CollisionEngine:
             collision_in_pass = False
             for wall in self.walls:
                 cx, cy, cvx, cvy, collided, norm = wall.resolve_circle_collision(
-                    cur_x, cur_y, cur_vx, cur_vy, radius
+                    cur_x, cur_y, cur_vx, cur_vy, radius, prev_x=p_x, prev_y=p_y
                 )
                 if collided:
                     collision_in_pass = True
