@@ -1,0 +1,81 @@
+{
+  "schema": "neurofly.registry-resources-receipt.v1",
+  "generator": "NEUROFLY_GRAPH_DIR=<root>/outputs/brainlab/malecns_v1 /usr/bin/time -v python -m brainlab.measure_registry",
+  "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "peak_rss_kib_time_v": 596040,
+  "wall_s_time_v": 3.7,
+  "free_memory_before_mib": {
+    "total": 31988,
+    "available": 20945
+  },
+  "conditions": "Single run on a shared desktop with other NeuroFly services resident; not a calibrated benchmark. Drive = all 3377 R1-R6 at 20 units (validation stimulus), 2 ms steps, 1000 ms.",
+  "measurements": {
+    "host": "avg-usr-B550-GAMING-X",
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "started_at": "2026-09-19T21:56:34+0200",
+    "rss_mib_start": 120.0078125,
+    "graph_verify_and_load_s": 0.43939986600889824,
+    "rss_mib_after_graph_load": 403.13671875,
+    "graph_array_bytes": {
+      "ptr": 1333608,
+      "post": 102331752,
+      "weight": 102331752,
+      "ids": 1333600
+    },
+    "drive": {
+      "cells": "R1-R6",
+      "count": 3377,
+      "current": 20.0,
+      "step_ms": 2.0
+    },
+    "backends": {
+      "connectome-fixed": {
+        "activate_fresh_s": 0.010250683000776917,
+        "sustained_sim_ms": 1000.0,
+        "sustained_wall_s": 0.4025222249911167,
+        "sim_ms_per_wall_s": 2484.334871253554,
+        "realtime_factor": 2.4843348712535542,
+        "spikes": 310684,
+        "rss_mib_while_active": 448.25,
+        "checkpoint_write_s": 0.0708597989869304,
+        "checkpoint_bytes": 15843014,
+        "checkpoint_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/outputs/wp4-measure/registry-20260919/optomotor/connectome-fixed/3aa24a4540f14fb8acd98d2c8b55a1ee/checkpoints/ckpt-000001.npz",
+        "switch_to_fresh_other_s": 0.0792884640104603,
+        "switch_back_restore_s": 0.0963027130055707,
+        "restored_step_index": 501,
+        "checkpoint_read_verify_s": 0.014497717987978831
+      },
+      "connectome-with-trained-readout": {
+        "activate_fresh_s": 0.07455781899625435,
+        "sustained_sim_ms": 1000.0,
+        "sustained_wall_s": 1.7593620179977734,
+        "sim_ms_per_wall_s": 568.3878529661799,
+        "realtime_factor": 0.5683878529661799,
+        "spikes": 310684,
+        "rss_mib_while_active": 453.55078125,
+        "checkpoint_write_s": 0.09125727901118807,
+        "checkpoint_bytes": 17176940,
+        "checkpoint_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/outputs/wp4-measure/registry-20260919/optomotor/connectome-with-trained-readout/7e8a79faaf694ebf98ca5d113ed1750a/checkpoints/ckpt-000001.npz",
+        "switch_to_fresh_other_s": 0.08325887197861448,
+        "switch_back_restore_s": 0.10204469299060293,
+        "restored_step_index": 501,
+        "checkpoint_read_verify_s": 0.015427789010573179
+      }
+    },
+    "plastic_working_copy": {
+      "bytes": 102331752,
+      "copy_s": 0.009664798009907827,
+      "note": "connectome-plastic materializes one dense working weight copy for the ACTIVE instance only"
+    },
+    "plastic_delta_storage": {
+      "dense_bytes": 102331752,
+      "sparse_bytes_per_edge": 12,
+      "sparse_breakeven_edges": 8527646,
+      "note": "Sparse (int64 index + float32 delta) is smaller only below the break-even edge count."
+    },
+    "rss_mib_end": 484.83984375,
+    "ru_maxrss_mib": 582.0703125
+  },
+  "raw_output": "outputs/wp4-measure/measure-20260919.json (ignored by git)"
+}

@@ -1,0 +1,172 @@
+{
+  "schema": "neurofly.graph-identity-receipt.v1",
+  "generated_at": "2026-09-19T21:57:09+0200",
+  "generator": "python -m brainlab.graph_identity (brainlab/graph_identity.py:verify_graph)",
+  "resolution": {
+    "worktree_default_graph_dir": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/outputs/brainlab/malecns_v1",
+    "worktree_default_exists": false,
+    "resolved_graph_dir": "/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1",
+    "resolved_via": "env:NEUROFLY_GRAPH_DIR",
+    "policy": "Graph is referenced read-only in the root checkout; not copied. Order: --graph-dir, NEUROFLY_GRAPH_DIR, <checkout>/outputs/brainlab/malecns_v1. No search of other checkouts. Missing or mismatching graph raises GraphUnavailable; synthetic only with an explicit test option.",
+    "neuron_map_dir": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/connectome_data/malecns_v1"
+  },
+  "identity": {
+    "dataset": "malecns_v1",
+    "synthetic": false,
+    "graph_path": "/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path_source": "env:NEUROFLY_GRAPH_DIR",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "f64f8a2168f764a38f4eed4ad0e4b1702a32196ae73ed51a50685f94853e0bb7",
+    "neurons": 166700,
+    "edges": 25582938,
+    "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
+    "data_sha256": {
+      "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "edges.feather (pinned, not rehashed)": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+    },
+    "label": "MaleCNS v1.0 prepared graph"
+  },
+  "pins_file": "brainlab/graph_pins.json",
+  "pins": {
+    "dataset": "MaleCNS v1.0",
+    "prepared_by": "brainlab.prepare (synaptic_scale 0.275)",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
+    "neurons": 166700,
+    "edges": 25582938,
+    "source_sha256": {
+      "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "edges.feather": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+    },
+    "evidence": [
+      "outputs/rethink-audit/connectome-mapping-receipt.json",
+      "docs/receipts/graph_identity.json"
+    ]
+  },
+  "checks": {
+    "graph_sha256_matches_pin": true,
+    "neuron_map_sha256_matches_pin": true,
+    "ids_equal_neurons_feather_source_id": true,
+    "node_index_is_arange": true,
+    "neuron_count": 166700,
+    "edge_count": 25582938,
+    "dn_cell_types_match": true,
+    "small_source_tables_rehashed": true,
+    "raw_edges_feather_rehashed": false
+  },
+  "cross_references": {
+    "root_validation_json_graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "rethink_audit_receipt_graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01"
+  },
+  "descending_neuron_map": [
+    {
+      "channel": "dnp01",
+      "node_index": 0,
+      "source_id": 10001,
+      "cell_type": "DNp01",
+      "soma_side": "R"
+    },
+    {
+      "channel": "dnp01",
+      "node_index": 6,
+      "source_id": 10010,
+      "cell_type": "DNp01",
+      "soma_side": "L"
+    },
+    {
+      "channel": "dna02_l",
+      "node_index": 332,
+      "source_id": 10360,
+      "cell_type": "DNa02",
+      "soma_side": "R"
+    },
+    {
+      "channel": "dna02_r",
+      "node_index": 131957,
+      "source_id": 523769,
+      "cell_type": "DNa02",
+      "soma_side": "L"
+    },
+    {
+      "channel": "dna01",
+      "node_index": 406,
+      "source_id": 10442,
+      "cell_type": "DNa01",
+      "soma_side": "L"
+    },
+    {
+      "channel": "dna01",
+      "node_index": 704,
+      "source_id": 10760,
+      "cell_type": "DNa01",
+      "soma_side": "R"
+    },
+    {
+      "channel": "dnp09",
+      "node_index": 725,
+      "source_id": 10783,
+      "cell_type": "DNp09",
+      "soma_side": "L"
+    },
+    {
+      "channel": "dnp09",
+      "node_index": 1087,
+      "source_id": 11177,
+      "cell_type": "DNp09",
+      "soma_side": "R"
+    },
+    {
+      "channel": "dnb01",
+      "node_index": 608,
+      "source_id": 10654,
+      "cell_type": "DNb01",
+      "soma_side": "L"
+    },
+    {
+      "channel": "dnb01",
+      "node_index": 703,
+      "source_id": 10759,
+      "cell_type": "DNb01",
+      "soma_side": "R"
+    },
+    {
+      "channel": "mdn",
+      "node_index": 706,
+      "source_id": 10763,
+      "cell_type": "MDN",
+      "soma_side": "R"
+    },
+    {
+      "channel": "mdn",
+      "node_index": 1196,
+      "source_id": 11288,
+      "cell_type": "MDN",
+      "soma_side": "L"
+    },
+    {
+      "channel": "mdn",
+      "node_index": 1240,
+      "source_id": 11332,
+      "cell_type": "MDN",
+      "soma_side": "R"
+    },
+    {
+      "channel": "mdn",
+      "node_index": 2194,
+      "source_id": 12348,
+      "cell_type": "MDN",
+      "soma_side": "L"
+    }
+  ],
+  "verification_cost": {
+    "wall_s": 0.52,
+    "peak_rss_kib": 147784,
+    "tool": "/usr/bin/time -v"
+  },
+  "limitations": "DN cell types verified; physiological side/role of each DN and all sensory channels are NOT verified here (WP5). Visual channels still mix eyes; see cosim_server.MAPPING_WARNINGS."
+}

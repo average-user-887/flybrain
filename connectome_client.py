@@ -1,22 +1,31 @@
 """
 Drosophila Connectome RPC Co-Simulation Client
 ==============================================
-Provides high-throughput HTTP/JSON communication with the remote
-166,700-neuron MaleCNS v1.0 spiking engine (brainlab/cosim_server.py).
+HTTP/JSON client for the MaleCNS v1.0 spiking server (brainlab/cosim_server.py).
 
-Features:
-- Automatic fallback to local biophysical surrogate if remote server is unreachable.
-- Round-trip latency tracking & health diagnostics.
-- Batch packet transmission (20 sub-steps per 2.0 ms physics tick).
+The client never substitutes a surrogate.  ``step`` returns ``None`` when the
+server is unreachable, errors, or reports a graph identity other than the one
+expected; the reason is kept in ``last_error`` and every transition is kept in
+``events`` so the caller can report it.  What the caller does next (halt,
+raise, or an explicitly labelled test fallback) is the bridge's decision.
 """
 
-import os
 import json
+import os
 import time
-import urllib.request
 import urllib.error
-from typing import Dict, Any, Optional
-import numpy as np
+import urllib.request
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+PINS_PATH = Path(__file__).resolve().parent / "brainlab/graph_pins.json"
+
+
+def pinned_graph_sha256() -> Optional[str]:
+    try:
+        return json.loads(PINS_PATH.read_text())["graph_sha256"]
+    except (OSError, ValueError, KeyError):
+        return None
 
 
 class ConnectomeClient:
@@ -25,35 +34,70 @@ class ConnectomeClient:
         host: Optional[str] = None,
         port: int = 8768,
         timeout: float = 0.20,           # 200 ms timeout per step
-        fallback_enabled: bool = True
+        fallback_enabled: bool = False,  # retained for signature compatibility; the client never falls back
+        expected_graph_sha256: Optional[str] = "pinned",
+        allow_synthetic: bool = False,
     ):
         self.host = host or os.environ.get("NEUROFLY_CONNECTOME_HOST", "127.0.0.1")
         self.port = port
-        self.base_url = f"http://{host}:{port}"
+        self.base_url = f"http://{self.host}:{port}"
         self.timeout = timeout
         self.fallback_enabled = fallback_enabled
+        self.expected_graph_sha256 = pinned_graph_sha256() if expected_graph_sha256 == "pinned" else expected_graph_sha256
+        self.allow_synthetic = allow_synthetic
         self.is_connected = False
+        self.server_identity: Optional[Dict[str, Any]] = None
         self.last_latency_ms = 0.0
         self.consecutive_errors = 0
+        self.last_error: Optional[str] = None
+        self.events: List[Dict[str, Any]] = []
 
         # Check initial connection
         self.check_health()
 
+    def _event(self, kind: str, **fields):
+        self.events.append(dict(kind=kind, wall_time=time.time(), **fields))
+
+    def _identity_problem(self, payload: Dict[str, Any]) -> Optional[str]:
+        if payload.get("synthetic") and not self.allow_synthetic:
+            return "server is running a synthetic test graph"
+        sha = payload.get("graph_sha256")
+        if self.expected_graph_sha256 and not payload.get("synthetic") and sha != self.expected_graph_sha256:
+            return f"server graph {sha} differs from expected {self.expected_graph_sha256}"
+        if self.server_identity and sha != self.server_identity.get("graph_sha256"):
+            return f"server graph changed from {self.server_identity.get('graph_sha256')} to {sha}"
+        return None
+
+    def _mark_down(self, reason: str):
+        self.last_error = reason
+        if self.is_connected:
+            self._event("disconnect", reason=reason)
+        self.is_connected = False
+
     def check_health(self) -> bool:
-        """Ping the remote co-simulation server."""
+        """Ping the server and verify the graph identity it reports."""
         url = f"{self.base_url}/status"
         try:
             req = urllib.request.Request(url, method="GET")
             with urllib.request.urlopen(req, timeout=1.0) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    self.is_connected = True
-                    self.consecutive_errors = 0
-                    return True
-        except Exception:
-            self.is_connected = False
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as error:
+            self._mark_down(f"unreachable: {error}")
             return False
-        return False
+        problem = self._identity_problem(data)
+        if problem:
+            self._event("identity_mismatch", reason=problem)
+            self._mark_down(problem)
+            return False
+        if not self.is_connected:
+            self._event("connect", graph_sha256=data.get("graph_sha256"), backend=data.get("backend"))
+        self.server_identity = {k: data.get(k) for k in
+                                ("backend", "graph_sha256", "neuron_map_sha256", "io_map_sha256",
+                                 "sensory_map_sha256", "synthetic", "label")}
+        self.is_connected = True
+        self.consecutive_errors = 0
+        self.last_error = None
+        return True
 
     def reset(self) -> bool:
         """Reset remote connectome membrane potentials to resting state."""
@@ -63,18 +107,21 @@ class ConnectomeClient:
         try:
             req = urllib.request.Request(url, method="POST", data=b"{}")
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                return resp.status == 200
-        except Exception:
+                ok = resp.status == 200
+        except Exception as error:
+            self._mark_down(f"reset failed: {error}")
             return False
+        self._event("remote_reset", ok=ok)
+        return ok
 
     def step(
         self,
         sensory_packet: Dict[str, Any],
         duration_ms: float = 2.0
     ) -> Optional[Dict[str, Any]]:
-        """
-        Transmits sensory drive vector to the remote connectome and returns descending neuron activity.
-        Returns None if remote server fails, prompting client to use local surrogate.
+        """Send sensory drive; return descending-neuron readouts or ``None``.
+
+        ``None`` always comes with ``last_error`` set.  The caller must report it.
         """
         if not self.is_connected and not self.check_health():
             return None
@@ -95,15 +142,23 @@ class ConnectomeClient:
         clock = time.perf_counter()
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                if resp.status == 200:
-                    result = json.loads(resp.read().decode("utf-8"))
-                    self.last_latency_ms = (time.perf_counter() - clock) * 1000.0
-                    self.consecutive_errors = 0
-                    return result
-        except Exception:
+                result = json.loads(resp.read().decode("utf-8"))
+        except Exception as error:
             self.consecutive_errors += 1
+            self.last_error = f"step failed: {error}"
             if self.consecutive_errors >= 3:
-                self.is_connected = False
+                self._mark_down(self.last_error)
             return None
-
-        return None
+        if result.get("status") != "ok":
+            self.consecutive_errors += 1
+            self.last_error = f"server replied {result.get('status')!r}: {result.get('error')}"
+            return None
+        problem = self._identity_problem(result)
+        if problem:
+            self._event("identity_mismatch", reason=problem)
+            self._mark_down(problem)
+            return None
+        self.last_latency_ms = (time.perf_counter() - clock) * 1000.0
+        self.consecutive_errors = 0
+        self.last_error = None
+        return result

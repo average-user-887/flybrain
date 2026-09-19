@@ -300,10 +300,12 @@ class TestConnectomeClientFallback:
 
 
 class TestCoSimulationServer:
-    def test_server_synthetic_instantiation(self):
-        server = ConnectomeServer()
+    def test_server_synthetic_instantiation(self, tmp_path):
+        # Explicit test option: the real graph is deliberately absent here.
+        server = ConnectomeServer(graph_dir=tmp_path, allow_synthetic=True)
         status = server.get_status()
         assert status["status"] == "online"
+        assert status["synthetic"] is True and "SYNTHETIC" in status["label"]
         assert status["num_neurons"] > 0
         assert status["num_synapses"] > 0
 
