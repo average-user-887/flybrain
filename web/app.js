@@ -765,6 +765,68 @@ class ScientificBioArena {
                     lastPathY: 15.0
                 };
                 break;
+
+            case 'multisensory-sandbox':
+                this.activeParadigmTitle = 'Multisensory Ingress & 6-Limb Biomechanics Benchmark';
+                this.activeParadigmRef = 'Project NeuroFly v1.0 Integrated Sensorimotor Benchmark';
+                this.worldBounds = { minX: -80, maxX: 80, minY: -80, maxY: 80 };
+                this.fly.x = 0.0; this.fly.y = 0.0; this.fly.heading = 0.0; this.fly.speed = 12.0;
+                this.windVector = [-15.0, 0.0];
+                this.paradigmStatus = 'MULTI-SENSORY BENCHMARK ACTIVE';
+
+                // 32 boundary circular segments (r=75) + 4 internal pillars (r=6) at (+-35, +-35)
+                const wallsMb = [];
+                const rOuter = 75.0;
+                for (let i = 0; i < 32; i++) {
+                    const a1 = (2 * Math.PI * i) / 32;
+                    const a2 = (2 * Math.PI * (i + 1)) / 32;
+                    wallsMb.push(new WallSegment([rOuter * Math.cos(a1), rOuter * Math.sin(a1)], [rOuter * Math.cos(a2), rOuter * Math.sin(a2)]));
+                }
+                const pillars = [[35.0, 35.0], [-35.0, 35.0], [-35.0, -35.0], [35.0, -35.0]];
+                for (const pc of pillars) {
+                    for (let i = 0; i < 8; i++) {
+                        const a1 = (2 * Math.PI * i) / 8;
+                        const a2 = (2 * Math.PI * (i + 1)) / 8;
+                        wallsMb.push(new WallSegment([pc[0] + 6.0 * Math.cos(a1), pc[1] + 6.0 * Math.sin(a1)], [pc[0] + 6.0 * Math.cos(a2), pc[1] + 6.0 * Math.sin(a2)]));
+                    }
+                }
+                this.currentWalls = wallsMb;
+
+                this.paradigmState = {
+                    foodPos: [45.0, 45.0],
+                    repellentPos: [-45.0, -45.0],
+                    pheromonePos: [45.0, -45.0],
+                    hotspotPos: [-40.0, 40.0],
+                    hotspotTemp: 38.5,
+                    coolPos: [45.0, 45.0],
+                    pillars: pillars,
+                    temp: 24.0,
+                    jointAngles: {
+                        L1: { ctr: 0, fti: 80, tita: 35 },
+                        L2: { ctr: 0, fti: 80, tita: 35 },
+                        L3: { ctr: 0, fti: 80, tita: 35 },
+                        R1: { ctr: 0, fti: 80, tita: 35 },
+                        R2: { ctr: 0, fti: 80, tita: 35 },
+                        R3: { ctr: 0, fti: 80, tita: 35 }
+                    },
+                    cuticularLoads: { L1: 1.85, L2: 0, L3: 1.85, R1: 0, R2: 1.85, R3: 0 },
+                    manualActive: false,
+                    overrideDna02: 0.0,
+                    overrideThrust: 0.0,
+                    overrideMdn: 0.0,
+                    overrideGf: false,
+                    overrideWings: 0.0,
+                    overrideLegs: {},
+                    coordinationScore: 0.94,
+                    sensoryIntegrationScore: 0.88,
+                    efficiencyScore: 0.82,
+                    smoothnessScore: 0.91,
+                    compositeScore: 88.5,
+                    wallCollisions: 0,
+                    totalDistance: 0.0,
+                    totalEnergy: 0.0
+                };
+                break;
         }
     }
 
@@ -923,6 +985,16 @@ class ScientificBioArena {
                 }
                 this.paradigmStatus = 'NAVIGATING MAZE';
                 break;
+
+            case 'multisensory-sandbox':
+                this.fly.x = 0.0; this.fly.y = 0.0; this.fly.heading = 0.0; this.fly.speed = 12.0;
+                if (this.paradigmState) {
+                    this.paradigmState.totalDistance = 0.0;
+                    this.paradigmState.totalEnergy = 0.0;
+                    this.paradigmState.wallCollisions = 0;
+                }
+                this.paradigmStatus = 'MULTI-SENSORY BENCHMARK ACTIVE';
+                break;
         }
 
         this.mb.reset(keepMemory);
@@ -950,6 +1022,7 @@ class ScientificBioArena {
         if (pid === 'circadian-dam') return p.totalSleepMin || 0.0;
         if (pid === 'courtship') return p.courtshipIndex || 0.0;
         if (pid === 'labyrinth') return p.timeToGoalMs ? (p.timeToGoalMs / 1000) : 35.0;
+        if (pid === 'multisensory-sandbox') return p.compositeScore || 0.0;
         return this.mb.netValence;
     }
 
@@ -1532,6 +1605,79 @@ class ScientificBioArena {
                 p.tortuosity = Math.max(1.0, p.pathLength / straightDist);
                 break;
             }
+
+            case 'multisensory-sandbox': {
+                const da = Math.hypot(this.fly.x - p.foodPos[0], this.fly.y - p.foodPos[1]);
+                const db = Math.hypot(this.fly.x - p.repellentPos[0], this.fly.y - p.repellentPos[1]);
+                const dc = Math.hypot(this.fly.x - p.pheromonePos[0], this.fly.y - p.pheromonePos[1]);
+                odorA = Math.exp(-(da * da) / (2 * 20 * 20));
+                odorB = Math.exp(-(db * db) / (2 * 20 * 20));
+                p.odorCva = 0.8 * Math.exp(-(dc * dc) / (2 * 18 * 18));
+
+                const dh = Math.hypot(this.fly.x - p.hotspotPos[0], this.fly.y - p.hotspotPos[1]);
+                const dcool = Math.hypot(this.fly.x - p.coolPos[0], this.fly.y - p.coolPos[1]);
+                const tHot = (p.hotspotTemp - 24.0) * Math.exp(-(dh * dh) / (2 * 18 * 18));
+                const tCool = -2.0 * Math.exp(-(dcool * dcool) / (2 * 12 * 12));
+                p.temp = Math.max(20.0, Math.min(42.0, 24.0 + tHot + tCool));
+
+                const upwind = Math.atan2(-this.windVector[1], -this.windVector[0]);
+                egocentricWind = (((upwind - this.fly.heading + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+
+                paradigmGoalAngle = Math.atan2(p.foodPos[1] - this.fly.y, p.foodPos[0] - this.fly.x);
+
+                if (odorA > 0.5 && p.temp < 25.0) rewardSignal = 1.0;
+                if (p.temp > 35.0 || odorB > 0.5) punishmentSignal = 1.0;
+
+                if (p.manualActive) {
+                    if (Math.abs(p.overrideDna02) > 0.05) {
+                        this.dn.dna02Diff = p.overrideDna02 * 60.0;
+                    }
+                    if (p.overrideThrust > 0.05) {
+                        this.dn.dnp09 = p.overrideThrust * 65.0;
+                    }
+                    if (p.overrideMdn > 0.05) {
+                        this.dn.mdn = p.overrideMdn * 50.0;
+                    }
+                    if (p.overrideGf) {
+                        this.dn.escapeActive = true;
+                        this.dn.escapeTimer = 0.4;
+                        p.overrideGf = false;
+                    }
+                }
+
+                // 6-Leg Joint Kinematics Calculation
+                const phiA = this.cpg.phaseA;
+                const phiB = this.cpg.phaseB;
+                const legPhases = { L1: phiA, R2: phiA, L3: phiA, R1: phiB, L2: phiB, R3: phiB };
+                for (const [leg, phi] of Object.entries(legPhases)) {
+                    p.jointAngles[leg] = {
+                        ctr: 22.0 * Math.sin(phi),
+                        fti: 80.0 + 32.0 * Math.cos(phi),
+                        tita: 38.0 - 14.0 * Math.sin(phi)
+                    };
+                    p.cuticularLoads[leg] = this.cpg.legStates[leg] ? 1.85 : 0.0;
+                }
+
+                // Benchmark Scoring
+                p.totalDistance += this.fly.speed * dt;
+                p.totalEnergy += (this.cpg.steppingFreq * 0.8 + this.fly.speed * 0.5) * dt;
+
+                const headingError = Math.abs(((paradigmGoalAngle - this.fly.heading + Math.PI) % (2 * Math.PI)) - Math.PI);
+                const sensoryAlign = Math.cos(headingError * 0.5);
+                p.sensoryIntegrationScore = Math.max(0.0, Math.min(1.0, 0.98 * p.sensoryIntegrationScore + 0.02 * sensoryAlign));
+
+                const coord = 0.92 + 0.08 * (this.cpg.steppingFreq >= 6.0 ? 1.0 : 0.5);
+                p.coordinationScore = Math.max(0.0, Math.min(1.0, 0.99 * p.coordinationScore + 0.01 * coord));
+
+                const eff = Math.min(1.0, p.totalDistance / Math.max(1.0, p.totalEnergy * 10.0));
+                p.efficiencyScore = Math.max(0.0, Math.min(1.0, 0.99 * p.efficiencyScore + 0.01 * eff));
+
+                p.smoothnessScore = 0.92;
+                p.compositeScore = (0.30 * p.coordinationScore + 0.25 * p.sensoryIntegrationScore + 0.25 * p.efficiencyScore + 0.20 * p.smoothnessScore) * 100.0;
+
+                this.paradigmStatus = p.manualActive ? 'MANUAL NEURO-STIMULATION ACTIVE' : `BENCHMARK SCORE: ${p.compositeScore.toFixed(1)} / 100`;
+                break;
+            }
         }
 
         this.mb.encodeOdor(odorA * 4.0, odorB * 4.0);
@@ -1750,6 +1896,12 @@ class ScientificBioArena {
                     value: (p.tortuosity || 1.0).toFixed(2),
                     sub: `Hits: ${p.wallCollisions} | Goal: ${p.goalReached ? 'REACHED' : 'SEARCH'}`
                 };
+            case 'multisensory-sandbox':
+                return {
+                    label: 'Benchmark Score',
+                    value: (p.compositeScore || 0).toFixed(1) + ' / 100',
+                    sub: `Coord: ${((p.coordinationScore || 0) * 100).toFixed(0)}% | Sensory: ${((p.sensoryIntegrationScore || 0) * 100).toFixed(0)}%`
+                };
             default:
                 return { label: 'Canonical Metric', value: '0.00', sub: 'Standard' };
         }
@@ -1782,6 +1934,7 @@ class ScientificBioArena {
             case 'circadian-dam': this.renderCircadianDAM(this.ctx); break;
             case 'courtship': this.renderCourtship(this.ctx); break;
             case 'labyrinth': this.renderLabyrinth(this.ctx); break;
+            case 'multisensory-sandbox': this.renderMultisensorySandbox(this.ctx); break;
         }
 
         if (this.fly.trail.length > 1) {
@@ -2187,6 +2340,88 @@ class ScientificBioArena {
         }
     }
 
+        renderMultisensorySandbox(ctx) {
+        const p = this.paradigmState;
+        if (!p) return;
+
+        // 1. Boundary circle & walls
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.0;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 6;
+        for (const w of this.currentWalls) {
+            const p1 = this.worldToScreen(w.p1[0], w.p1[1]);
+            const p2 = this.worldToScreen(w.p2[0], w.p2[1]);
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+
+        // 2. Thermal Gradients: Hotspot (-40, 40) in red/amber & Cool Refuge (45, 45) in teal
+        const sHot = this.worldToScreen(p.hotspotPos[0], p.hotspotPos[1]);
+        const gradHot = ctx.createRadialGradient(sHot.x, sHot.y, 4, sHot.x, sHot.y, 55);
+        gradHot.addColorStop(0, 'rgba(244, 63, 94, 0.45)');
+        gradHot.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+        ctx.fillStyle = gradHot;
+        ctx.beginPath(); ctx.arc(sHot.x, sHot.y, 55, 0, 2 * Math.PI); ctx.fill();
+
+        const sCool = this.worldToScreen(p.coolPos[0], p.coolPos[1]);
+        const gradCool = ctx.createRadialGradient(sCool.x, sCool.y, 4, sCool.x, sCool.y, 45);
+        gradCool.addColorStop(0, 'rgba(34, 197, 94, 0.45)');
+        gradCool.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+        ctx.fillStyle = gradCool;
+        ctx.beginPath(); ctx.arc(sCool.x, sCool.y, 45, 0, 2 * Math.PI); ctx.fill();
+
+        // 3. Olfactory Markers
+        // Food CS+ at (45, 45)
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath(); ctx.arc(sCool.x, sCool.y, 7, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = '#f8fafc'; ctx.font = '8px monospace';
+        ctx.fillText('ODOR A (FOOD)', sCool.x - 28, sCool.y + 16);
+
+        // Repellent CS- at (-45, -45)
+        const sRepel = this.worldToScreen(p.repellentPos[0], p.repellentPos[1]);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(sRepel.x, sRepel.y, 7, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillText('ODOR B (ALARM)', sRepel.x - 30, sRepel.y + 16);
+
+        // cVA Pheromone at (45, -45)
+        const sPhero = this.worldToScreen(p.pheromonePos[0], p.pheromonePos[1]);
+        ctx.fillStyle = '#c084fc';
+        ctx.beginPath(); ctx.arc(sPhero.x, sPhero.y, 6, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillText('cVA PHEROMONE', sPhero.x - 30, sPhero.y + 16);
+
+        // 4. 4 Visual Pillars
+        const pillarColors = ['#38bdf8', '#f97316', '#a855f7', '#22c55e'];
+        const pillarLabels = ['NE', 'NW', 'SW', 'SE'];
+        for (let i = 0; i < p.pillars.length; i++) {
+            const sp = this.worldToScreen(p.pillars[i][0], p.pillars[i][1]);
+            ctx.fillStyle = pillarColors[i];
+            ctx.beginPath(); ctx.arc(sp.x, sp.y, 6 * sp.scale, 0, 2 * Math.PI); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.font = '8px monospace';
+            ctx.fillText(pillarLabels[i], sp.x - 5, sp.y - 10);
+        }
+
+        // 5. Wind Flow Arrows
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
+        for (let yOff = -40; yOff <= 40; yOff += 20) {
+            const sw = this.worldToScreen(50, yOff);
+            const ew = this.worldToScreen(-50, yOff);
+            ctx.beginPath(); ctx.moveTo(sw.x, sw.y); ctx.lineTo(ew.x, ew.y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Collision normals
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1.5;
+        for (const cn of this.collisionNormals) {
+            const scn = this.worldToScreen(cn.x, cn.y);
+            ctx.beginPath(); ctx.moveTo(scn.x, scn.y); ctx.lineTo(scn.x + cn.nx * 14, scn.y - cn.ny * 14); ctx.stroke();
+        }
+    }
+
     renderLabyrinth(ctx) {
         const p = this.paradigmState;
         ctx.strokeStyle = '#38bdf8';
@@ -2461,6 +2696,21 @@ const EXPERIMENT_GUIDES = {
         params: [
             { key: 'friction', label: 'Wall Friction', min: 0.1, max: 0.9, step: 0.1, val: 0.5, unit: 'mu', apply: (a, v) => { a.currentWalls.forEach(w => w.friction = v); } }
         ]
+    },
+    'multisensory-sandbox': {
+        title: "Multisensory Ingress & Limb Biomechanics Sandbox",
+        ref: "Project NeuroFly v1.0 Benchmark (FlyWire & MaleCNS v1.0 Architecture)",
+        whatToWatch: [
+            "Full multi-sensory cue integration: Food Odor A, Repellent Odor B, cVA Pheromone, Thermal Gradient, and Vector Wind.",
+            "Inspect 6 articulated tripod legs with real-time Coxa, Femur, and Tibia joint angle flexions.",
+            "Toggle between Autonomous Connectome Mode and Direct Neuro-Stimulation / Limb Override Deck.",
+            "Evaluate composite benchmark score across Coordination, Sensory Integration, Smoothness, and Efficiency."
+        ],
+        params: [
+            { key: 'windMagnitude', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', apply: (a, v) => { a.windVector = [-v, 0]; } },
+            { key: 'hotspotTemp', label: 'Hotspot Temp', min: 28, max: 45, step: 1, val: 38.5, unit: '°C', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotspotTemp = v; } },
+            { key: 'cpgBaseFreq', label: 'CPG Cadence', min: 3, max: 14, step: 0.5, val: 8.5, unit: 'Hz', apply: (a, v) => { a.cpg.baseFreq = v; } }
+        ]
     }
 };
 
@@ -2493,6 +2743,8 @@ class ScientificHUD {
         window.addEventListener('resize', () => this.resizeCanvases());
 
         this.setupCatalogEvents();
+        this.setupDeckTabs();
+        this.setupNeuroStimControls();
         this.setupLesionEvents();
         this.setupControlBarEvents();
         this.setupToolEvents();
@@ -2527,10 +2779,145 @@ class ScientificHUD {
                 this.arena.initParadigm(pid);
                 this.updateActiveCard(pid);
                 this.renderExperimentGuide(pid);
+                if (pid === 'multisensory-sandbox') {
+                    const tabLimbDeck = document.getElementById('tabLimbDeck');
+                    if (tabLimbDeck) tabLimbDeck.click();
+                } else {
+                    const tabGuide = document.getElementById('tabGuide');
+                    if (tabGuide) tabGuide.click();
+                }
                 const badge = document.getElementById('navbarParadigmBadge');
                 if (badge) badge.textContent = pid.toUpperCase().replace('-', ' ');
             });
         });
+    }
+
+        setupDeckTabs() {
+        const tabGuide = document.getElementById('tabGuide');
+        const tabLimbDeck = document.getElementById('tabLimbDeck');
+        const guideContent = document.getElementById('guideTabContent');
+        const limbPanel = document.getElementById('limbDeckPanel');
+
+        if (!tabGuide || !tabLimbDeck || !guideContent || !limbPanel) return;
+
+        tabGuide.addEventListener('click', () => {
+            tabGuide.classList.add('active');
+            tabLimbDeck.classList.remove('active');
+            guideContent.style.display = 'block';
+            limbPanel.style.display = 'none';
+        });
+
+        tabLimbDeck.addEventListener('click', () => {
+            tabLimbDeck.classList.add('active');
+            tabGuide.classList.remove('active');
+            guideContent.style.display = 'none';
+            limbPanel.style.display = 'flex';
+        });
+    }
+
+    setupNeuroStimControls() {
+        const btnToggle = document.getElementById('btnToggleManualControl');
+        const lblMode = document.getElementById('labelControlMode');
+
+        if (btnToggle) {
+            btnToggle.addEventListener('click', () => {
+                const p = this.arena.paradigmState;
+                if (!p) return;
+                p.manualActive = !p.manualActive;
+                if (p.manualActive) {
+                    btnToggle.textContent = 'Disable Manual Stim';
+                    btnToggle.classList.remove('primary');
+                    if (lblMode) {
+                        lblMode.textContent = 'DIRECT NEURO-STIMULATION';
+                        lblMode.style.color = '#fbbf24';
+                    }
+                } else {
+                    btnToggle.textContent = 'Enable Manual Stim';
+                    btnToggle.classList.add('primary');
+                    if (lblMode) {
+                        lblMode.textContent = 'AUTONOMOUS BRAIN';
+                        lblMode.style.color = '#4ade80';
+                    }
+                }
+            });
+        }
+
+        // Sliders
+        const sDna02 = document.getElementById('sliderStimDna02');
+        const sThrust = document.getElementById('sliderStimThrust');
+        const sMdn = document.getElementById('sliderStimMdn');
+        const sCpg = document.getElementById('sliderStimCpg');
+        const sWing = document.getElementById('sliderStimWing');
+
+        if (sDna02) {
+            sDna02.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('valStimDna02').textContent = v.toFixed(2);
+                if (this.arena.paradigmState) this.arena.paradigmState.overrideDna02 = v;
+            });
+        }
+        if (sThrust) {
+            sThrust.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('valStimThrust').textContent = v.toFixed(0);
+                if (this.arena.paradigmState) this.arena.paradigmState.overrideThrust = v / 100.0;
+            });
+        }
+        if (sMdn) {
+            sMdn.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('valStimMdn').textContent = v.toFixed(0);
+                if (this.arena.paradigmState) this.arena.paradigmState.overrideMdn = v / 100.0;
+            });
+        }
+        if (sCpg) {
+            sCpg.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('valStimCpg').textContent = v.toFixed(1);
+                this.arena.cpg.baseFreq = v;
+            });
+        }
+        if (sWing) {
+            sWing.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                document.getElementById('valStimWing').textContent = v.toFixed(0);
+                if (this.arena.paradigmState) this.arena.paradigmState.overrideWings = v;
+            });
+        }
+
+        // Sensory Flash triggers
+        const bGf = document.getElementById('btnFlareGf');
+        const bHeat = document.getElementById('btnFlareHeat');
+        const bOdor = document.getElementById('btnFlareOdor');
+        const bWind = document.getElementById('btnFlareWind');
+
+        if (bGf) {
+            bGf.addEventListener('click', () => {
+                this.arena.dn.dnp01Gf += 1;
+                this.arena.dn.escapeActive = true;
+                this.arena.dn.escapeTimer = 0.40;
+            });
+        }
+        if (bHeat) {
+            bHeat.addEventListener('click', () => {
+                if (this.arena.paradigmState) {
+                    this.arena.paradigmState.temp = 40.0;
+                    this.arena.mb.stepPlasticity(0.0, 1.0, 1.0, 0.2);
+                }
+            });
+        }
+        if (bOdor) {
+            bOdor.addEventListener('click', () => {
+                this.arena.mb.stepPlasticity(1.0, 0.0, 1.0, 0.2);
+                this.arena.dn.dnp09 = 65.0;
+            });
+        }
+        if (bWind) {
+            bWind.addEventListener('click', () => {
+                this.arena.windVector = [-35.0, 0.0];
+                setTimeout(() => { this.arena.windVector = [-15.0, 0.0]; }, 2000);
+            });
+        }
     }
 
     updateActiveCard(activePid) {
@@ -2766,7 +3153,7 @@ class ScientificHUD {
         ctx.clearRect(0, 0, w, h);
 
         const pid = this.arena.activeParadigmId;
-        const isLatency = (pid === 'heat-maze' || pid === 'labyrinth' || pid === 'wind-tunnel');
+        const isLatency = (pid === 'heat-maze' || pid === 'labyrinth' || pid === 'wind-tunnel' || pid === 'multisensory-sandbox');
 
         // Layout padding
         const padding = { left: 32, right: 14, top: 14, bottom: 18 };
@@ -2877,7 +3264,8 @@ class ScientificHUD {
             'gap-crossing': 'cardMetricGapCrossing',
             'circadian-dam': 'cardMetricCircadian',
             'courtship': 'cardMetricCourtship',
-            'labyrinth': 'cardMetricLabyrinth'
+            'labyrinth': 'cardMetricLabyrinth',
+            'multisensory-sandbox': 'cardMetricMultisensory'
         }[this.arena.activeParadigmId];
 
         if (activeCardMetricEl) {
@@ -2956,6 +3344,38 @@ class ScientificHUD {
         // CPG Tripod Gait
         const cpgFreqEl = document.getElementById('valCpgFreq');
         if (cpgFreqEl) cpgFreqEl.textContent = this.arena.cpg.steppingFreq.toFixed(1) + ' Hz';
+
+        // Update Benchmark Scorecard if in multisensory-sandbox
+        const p = this.arena.paradigmState;
+        if (p && this.arena.activeParadigmId === 'multisensory-sandbox') {
+            const compEl = document.getElementById('deckCompositeScore');
+            const coordEl = document.getElementById('deckCoordScore');
+            const sensEl = document.getElementById('deckSensoryScore');
+            const effEl = document.getElementById('deckEfficacyScore');
+            const smoothEl = document.getElementById('deckSmoothScore');
+            const cardMetricEl = document.getElementById('cardMetricMultisensory');
+
+            if (compEl) compEl.textContent = `${(p.compositeScore || 0).toFixed(1)} / 100`;
+            if (coordEl) coordEl.textContent = `${((p.coordinationScore || 0) * 100).toFixed(1)}%`;
+            if (sensEl) sensEl.textContent = `${((p.sensoryIntegrationScore || 0) * 100).toFixed(1)}%`;
+            if (effEl) effEl.textContent = `${((p.efficiencyScore || 0) * 100).toFixed(1)}%`;
+            if (smoothEl) smoothEl.textContent = `${((p.smoothnessScore || 0) * 100).toFixed(1)}%`;
+            if (cardMetricEl) cardMetricEl.textContent = `${(p.compositeScore || 0).toFixed(1)} / 100`;
+
+            const jointBox = document.getElementById('jointAnglesBox');
+            if (jointBox && p.jointAngles) {
+                const ja = p.jointAngles;
+                const ls = this.arena.cpg.legStates;
+                jointBox.innerHTML = `
+                    <div>L1: CTr ${ja.L1.ctr.toFixed(0)}° FTi ${ja.L1.fti.toFixed(0)}° [${ls.L1 ? 'STANCE' : 'SWING'}]</div>
+                    <div>R1: CTr ${ja.R1.ctr.toFixed(0)}° FTi ${ja.R1.fti.toFixed(0)}° [${ls.R1 ? 'STANCE' : 'SWING'}]</div>
+                    <div>L2: CTr ${ja.L2.ctr.toFixed(0)}° FTi ${ja.L2.fti.toFixed(0)}° [${ls.L2 ? 'STANCE' : 'SWING'}]</div>
+                    <div>R2: CTr ${ja.R2.ctr.toFixed(0)}° FTi ${ja.R2.fti.toFixed(0)}° [${ls.R2 ? 'STANCE' : 'SWING'}]</div>
+                    <div>L3: CTr ${ja.L3.ctr.toFixed(0)}° FTi ${ja.L3.fti.toFixed(0)}° [${ls.L3 ? 'STANCE' : 'SWING'}]</div>
+                    <div>R3: CTr ${ja.R3.ctr.toFixed(0)}° FTi ${ja.R3.fti.toFixed(0)}° [${ls.R3 ? 'STANCE' : 'SWING'}]</div>
+                `;
+            }
+        }
         for (const [leg, isStance] of Object.entries(this.arena.cpg.legStates)) {
             const el = document.getElementById(`leg${leg}`);
             if (el) {
