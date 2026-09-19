@@ -683,6 +683,89 @@ class Arena:
 
         return dheading, new_speed, state, compass_heading, goal_angle
 
+    def enforce_containment(self, fly: FlyState) -> bool:
+        """Absolute geometric bounding enforcement preventing any out-of-bounds clipping across all paradigms."""
+        if not fly or not fly.alive:
+            return False
+
+        r = getattr(fly, 'radius', 1.5)
+        clamped = False
+        p_name = getattr(self.paradigm, 'name', '').lower().replace('-', '_') if self.paradigm else ''
+
+        if 't_maze' in p_name:
+            # Stem: x in [63+r, 77-r], y in [10+r, 43.0]
+            # Arms: x in [10+r, 130-r], y in [43.0, 57-r]
+            # Junction: x in [63+r, 77-r], y in [43.0, 57-r]
+            in_stem = (63.0 + r <= fly.pos.x <= 77.0 - r) and (10.0 + r <= fly.pos.y <= 43.0)
+            in_arms = (10.0 + r <= fly.pos.x <= 130.0 - r) and (43.0 <= fly.pos.y <= 57.0 - r)
+            if not (in_stem or in_arms):
+                clamped = True
+                if fly.pos.y < 43.0:
+                    fly.pos.x = max(63.0 + r, min(77.0 - r, fly.pos.x))
+                    fly.pos.y = max(10.0 + r, min(43.0, fly.pos.y))
+                else:
+                    fly.pos.x = max(10.0 + r, min(130.0 - r, fly.pos.x))
+                    fly.pos.y = max(43.0, min(57.0 - r, fly.pos.y))
+
+        elif 'y_maze' in p_name:
+            # Distance from hub (60, 60) max 50mm
+            cx, cy, max_r = 60.0, 60.0, 48.0 - r
+            d = math.hypot(fly.pos.x - cx, fly.pos.y - cy)
+            if d > max_r:
+                clamped = True
+                fly.pos.x = cx + (fly.pos.x - cx) * (max_r / d)
+                fly.pos.y = cy + (fly.pos.y - cy) * (max_r / d)
+
+        elif any(k in p_name for k in ['heat_maze', 'buridan', 'courtship', 'optomotor', 'visual_operant']):
+            # Circular platform
+            cx = self.width / 2.0
+            cy = self.height / 2.0
+            max_r = min(self.width, self.height) * 0.48 - r
+            d = math.hypot(fly.pos.x - cx, fly.pos.y - cy)
+            if d > max_r:
+                clamped = True
+                fly.pos.x = cx + (fly.pos.x - cx) * (max_r / d)
+                fly.pos.y = cy + (fly.pos.y - cy) * (max_r / d)
+
+        elif 'wind_tunnel' in p_name:
+            orig_x, orig_y = fly.pos.x, fly.pos.y
+            fly.pos.x = max(r, min(200.0 - r, fly.pos.x))
+            fly.pos.y = max(r, min(60.0 - r, fly.pos.y))
+            if fly.pos.x != orig_x or fly.pos.y != orig_y:
+                clamped = True
+
+        elif 'gap_crossing' in p_name:
+            orig_x, orig_y = fly.pos.x, fly.pos.y
+            fly.pos.x = max(r, min(100.0 - r, fly.pos.x))
+            fly.pos.y = max(7.5 + r, min(12.5 - r, fly.pos.y))
+            if fly.pos.x != orig_x or fly.pos.y != orig_y:
+                clamped = True
+
+        elif 'circadian_dam' in p_name:
+            # Active tube 0: y in [0, 10], x in [0, 65]
+            orig_x, orig_y = fly.pos.x, fly.pos.y
+            fly.pos.x = max(r, min(65.0 - r, fly.pos.x))
+            fly.pos.y = max(r, min(10.0 - r, fly.pos.y))
+            if fly.pos.x != orig_x or fly.pos.y != orig_y:
+                clamped = True
+
+        elif 'labyrinth' in p_name:
+            orig_x, orig_y = fly.pos.x, fly.pos.y
+            fly.pos.x = max(r, min(140.0 - r, fly.pos.x))
+            fly.pos.y = max(r, min(100.0 - r, fly.pos.y))
+            if fly.pos.x != orig_x or fly.pos.y != orig_y:
+                clamped = True
+
+        else:
+            # Default rectangular arena containment
+            orig_x, orig_y = fly.pos.x, fly.pos.y
+            fly.pos.x = max(r, min(self.width - r, fly.pos.x))
+            fly.pos.y = max(r, min(self.height - r, fly.pos.y))
+            if fly.pos.x != orig_x or fly.pos.y != orig_y:
+                clamped = True
+
+        return clamped
+
     def step(self, dt: float = 1.0) -> Dict:
         """Execute one simulation tick for all flies and predators."""
         self.time_step += 1
@@ -712,9 +795,7 @@ class Arena:
                 fly.pos.x = col_x
                 fly.pos.y = col_y
                 if collided:
-                    fly.speed = math.sqrt(new_vx * new_vx + new_vy * new_vy)
-                    if fly.speed > 1e-4:
-                        fly.heading = math.atan2(new_vy, new_vx)
+                    fly.speed = math.hypot(new_vx, new_vy)
 
                 # 2. Query paradigm step
                 paradigm_res = self.paradigm.step(fly, dt)
@@ -810,18 +891,73 @@ class Arena:
                 fly.behavioral_state = state
                 fly.compass_heading = compass_h
                 fly.goal_angle = goal_a
-                fly.update(dheading, dt)
 
-                # Collision resolution after update
-                vx_after = fly.speed * math.cos(fly.heading)
-                vy_after = fly.speed * math.sin(fly.heading)
-                col_res2 = self.paradigm.check_collisions(fly.pos.x, fly.pos.y, vx_after, vy_after, radius=radius)
-                fly.pos.x = col_res2[0]
-                fly.pos.y = col_res2[1]
-                if col_res2[4]:
-                    fly.speed = math.sqrt(col_res2[2] * col_res2[2] + col_res2[3] * col_res2[3])
-                    if fly.speed > 1e-4:
-                        fly.heading = math.atan2(col_res2[3], col_res2[2])
+                # Save pre-update position for true continuous swept trajectory
+                prev_x = fly.pos.x
+                prev_y = fly.pos.y
+
+                # Advance heading from brain yaw
+                fly.angular_velocity = dheading
+                fly.heading = (fly.heading + dheading * dt) % (2.0 * math.pi)
+
+                # Proposed position step
+                vx_step = fly.speed * math.cos(fly.heading)
+                vy_step = fly.speed * math.sin(fly.heading)
+                prop_x = prev_x + vx_step * dt
+                prop_y = prev_y + vy_step * dt
+
+                # Simulation-grade continuous swept collision resolution
+                if hasattr(self.paradigm, 'check_collisions_advanced'):
+                    res_x, res_y, res_vx, res_vy, collided, normals = self.paradigm.check_collisions_advanced(
+                        prop_x, prop_y, vx_step, vy_step, radius=radius,
+                        prev_x=prev_x, prev_y=prev_y, dt=dt
+                    )
+                else:
+                    col_res = self.paradigm.check_collisions(
+                        prop_x, prop_y, vx_step, vy_step, radius=radius,
+                        prev_x=prev_x, prev_y=prev_y, dt=dt
+                    )
+                    res_x, res_y, res_vx, res_vy, collided = col_res
+                    normals = []
+
+                fly.pos.x = res_x
+                fly.pos.y = res_y
+                fly.speed = math.hypot(res_vx, res_vy)
+                self.enforce_containment(fly)
+
+                if collided and normals:
+                    # Continuous physical contact torque steering (zero angular teleportation)
+                    net_nx = sum(n[0] for n in normals)
+                    net_ny = sum(n[1] for n in normals)
+                    n_mag = math.hypot(net_nx, net_ny)
+                    if n_mag > 1e-6:
+                        net_nx /= n_mag
+                        net_ny /= n_mag
+
+                        if fly.speed > 0.05:
+                            # Align body smoothly with sliding velocity
+                            slide_angle = math.atan2(res_vy, res_vx)
+                            dtheta = (slide_angle - fly.heading + math.pi) % (2.0 * math.pi) - math.pi
+                            fly.heading = (fly.heading + dtheta * min(1.0, 15.0 * dt)) % (2.0 * math.pi)
+                        else:
+                            # Head-on or wedged in corner: gentle repulsion torque away from wall
+                            h_cross_n = math.cos(fly.heading) * net_ny - math.sin(fly.heading) * net_nx
+                            turn_dir = 1.0 if h_cross_n >= 0.0 else -1.0
+                            fly.heading = (fly.heading + turn_dir * 4.0 * dt) % (2.0 * math.pi)
+
+                        # Cuticular mechanosensory ingress: antennal deflection
+                        if hasattr(fly, 'mechanosensory') and fly.mechanosensory is not None:
+                            h_cross_n = math.cos(fly.heading) * net_ny - math.sin(fly.heading) * net_nx
+                            if h_cross_n > 0:
+                                fly.mechanosensory.deflect_left = min(
+                                    fly.mechanosensory.max_deflect,
+                                    getattr(fly.mechanosensory, 'deflect_left', 0.0) + 0.35
+                                )
+                            else:
+                                fly.mechanosensory.deflect_right = min(
+                                    fly.mechanosensory.max_deflect,
+                                    getattr(fly.mechanosensory, 'deflect_right', 0.0) + 0.35
+                                )
 
             self.total_distance += self.fly.speed * dt
             metrics = self.paradigm.get_metrics()
@@ -931,21 +1067,31 @@ class Arena:
             fly.goal_angle = goal_a
             fly.update(dheading, dt)
 
-            # Soft boundary reflection
+            # Smooth physical boundary steering
             margin = 2.0
+            wall_nx, wall_ny = 0.0, 0.0
             if fly.pos.x < margin:
                 fly.pos.x = margin
-                fly.heading = math.pi - fly.heading
+                wall_nx += 1.0
             elif fly.pos.x > self.width - margin:
                 fly.pos.x = self.width - margin
-                fly.heading = math.pi - fly.heading
+                wall_nx -= 1.0
 
             if fly.pos.y < margin:
                 fly.pos.y = margin
-                fly.heading = -fly.heading
+                wall_ny += 1.0
             elif fly.pos.y > self.height - margin:
                 fly.pos.y = self.height - margin
-                fly.heading = -fly.heading
+                wall_ny -= 1.0
+
+            if wall_nx != 0.0 or wall_ny != 0.0:
+                n_mag = math.hypot(wall_nx, wall_ny)
+                wall_nx /= n_mag
+                wall_ny /= n_mag
+                # Smooth continuous contact torque steering away from boundary
+                h_cross_n = math.cos(fly.heading) * wall_ny - math.sin(fly.heading) * wall_nx
+                turn_dir = 1.0 if h_cross_n >= 0.0 else -1.0
+                fly.heading = (fly.heading + turn_dir * 4.0 * dt) % (2.0 * math.pi)
 
         self.total_distance += self.fly.speed * dt
 

@@ -41,6 +41,20 @@ except ImportError:
     except ImportError:
         MushroomBodyCircuit = None
 
+try:
+    from vision import LobulaFeatureExtractor
+    from mechanosensory import WedgeProjectionNeurons
+    from locomotion import BioKuramotoHopfCPG
+except ImportError:
+    try:
+        from .vision import LobulaFeatureExtractor
+        from .mechanosensory import WedgeProjectionNeurons
+        from .locomotion import BioKuramotoHopfCPG
+    except ImportError:
+        LobulaFeatureExtractor = None
+        WedgeProjectionNeurons = None
+        BioKuramotoHopfCPG = None
+
 
 class ConnectomeBridge:
     def __init__(
@@ -221,6 +235,15 @@ class ConnectomeBridge:
         self.escape_timer = 0.0
         self.escape_cooldown = 0.0
 
+        # Specialized Modular Feature Extractors
+        self.lobula = LobulaFeatureExtractor(num_ommatidia=num_ommatidia) if LobulaFeatureExtractor else None
+        self.wedge = WedgeProjectionNeurons(n_wedges=self.num_compass_wedges) if WedgeProjectionNeurons else None
+        self.bio_cpg = BioKuramotoHopfCPG(base_freq_hz=base_stepping_freq, max_freq_hz=max_stepping_freq) if BioKuramotoHopfCPG else None
+        self.lc_features: Dict[str, float] = {}
+        self.joint_angles = {
+            leg: {"ctr": 0.0, "fti": 60.0, "phase": "STANCE"} for leg in self.leg_names
+        }
+
         # RPC Client handle (if enabled)
         self.rpc_client = None
         if self.mode == "rpc":
@@ -288,6 +311,15 @@ class ConnectomeBridge:
         self.total_escapes = 0
         self.total_damage_events = 0
         self.simulation_time = 0.0
+        if self.lobula:
+            self.lobula.reset()
+        if self.wedge:
+            self.wedge.reset()
+        if self.bio_cpg:
+            self.bio_cpg.reset()
+        self.lc_features.clear()
+        for leg in self.leg_names:
+            self.joint_angles[leg] = {"ctr": 0.0, "fti": 60.0, "phase": "STANCE"}
         if self.rpc_client:
             self.rpc_client.reset()
 
@@ -870,6 +902,19 @@ class ConnectomeBridge:
             "R1": is_stance_b, "L2": is_stance_b, "R3": is_stance_b
         }
 
+        # 8. Biomechanical 6-Leg Kuramoto-Hopf CPG & Proprioceptive Closed-Loop
+        if self.bio_cpg:
+            cpg_drive_l = lal_drive_l + (self.dnp09_rate + self.bpn_rate) / 50.0
+            cpg_drive_r = lal_drive_r + (self.dnp09_rate + self.bpn_rate) / 50.0
+            cpg_out = self.bio_cpg.step(
+                dn_drive_left=cpg_drive_l,
+                dn_drive_right=cpg_drive_r,
+                mdn_backward_drive=(self.mdn_rate / 45.0),
+                dt=dt
+            )
+            self.joint_angles = cpg_out["joint_angles"]
+            self.cs_ground_forces = cpg_out["cs_loads"]
+
         # Update previous temperature for next step's delta T
         self.prev_temperature = self.temperature
 
@@ -916,6 +961,10 @@ class ConnectomeBridge:
             "er2_er4d_profile": self.er2_er4d_activity,
             "visual_landmark_bearing": self.visual_landmark_bearing,
             "efference_copy_active": self.efference_copy_active,
+            "joint_angles": self.joint_angles,
+            "cuticular_loads": self.cs_ground_forces,
+            "lc_features": self.lc_features,
+            "wpn_differential": sensory.get("wpn_differential", 0.0),
             "shunt_factor": self.shunt_factor,
             "vs_shunted": self.vs_shunted,
             "cva_rate": self.cva_rate,
