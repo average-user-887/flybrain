@@ -1,0 +1,119 @@
+# Learning observatory — 2026-09-19
+
+The current development branch is `worktree-neurofly-openready`, under
+`.claude/worktrees/neurofly-openready`. The main checkout is an earlier snapshot.
+No Git remote is configured; commits are local.
+
+## Run the lab
+
+From this worktree, in two terminals:
+
+```bash
+.venv/bin/python neurofly_daemon.py --host 127.0.0.1 --port 8781 \
+  --speed 3 --trial-seconds 20 --output-dir outputs/observatory-live \
+  --data-dir outputs/observatory-live/learning \
+  --pid-file outputs/observatory-live/daemon.pid
+.venv/bin/python -m http.server 8780 --bind 127.0.0.1 --directory web
+```
+
+Open <http://127.0.0.1:8780/research.html>. For another daemon, append
+`?daemon=http://localhost:PORT`. The UI uses that explicit endpoint only.
+The original arena instrument remains available from the header. Its neural
+animations are an independent browser model; the observatory's weights and
+readouts come from the Python daemon.
+
+## Each experiment owns its memory
+
+`ExperimentBrains` lazily creates one seeded `ExperimentBrain` per paradigm.
+Each owns a distinct Arena, mushroom-body circuit, central-complex working
+memory, trial counter, learning curve and event history. Switching suspends the
+old instance and resumes the selected instance. Only the selected experiment
+runs; this is not simultaneous training of fourteen brains.
+
+Checkpoints under `<output-dir>/brains/<paradigm>.json` contain all PN tuning,
+PN→KC connectivity, KC→MBON baselines, efficacy deviations, filtered weights,
+eligibility traces, CX bump/vector, brain ID, counters, controls and recent
+history. Saves use fsync and atomic replacement. An invalid checkpoint is
+rejected without overwriting it or silently substituting a fresh brain.
+Teaching can resume at its saved phase after restart. Behavioral arenas restart
+at spawn: these are learning-state checkpoints, not exact trajectory replays.
+
+`<paradigm>.events.jsonl` is an append-only, fsync'd ledger of teaching pairs,
+probes, controls and completed trials. The UI shows bounded recent history;
+the full ledger remains on disk. Existing global recorder events keep their
+session-wide monotonic `trial`, and additionally carry `brain_id` and
+`brain_trial`. Unknown scalar outcome metrics are null, not fabricated 0.5s.
+
+## Controlled teaching and probing
+
+A calibration protocol exposes the selected brain to A→reward and B→punishment.
+Each cue lasts 600 ms; reinforcement starts after 300 ms; 400 ms washout follows.
+A complete A/B pair takes 2 simulated seconds, integrated in 10 ms bins.
+The behavioral arena pauses during this protocol. Reversal swaps contingencies.
+The frozen control blocks both teaching and arena synaptic updates. Pure probes
+call encoding and forward readout without changing weights, traces or RNG.
+
+This is **odor-association calibration**, shared across experiment instances.
+It does **not** prove learning of visual place memory, courtship, reflexes,
+maze solving, or multi-step planning. The UI provides specific interpretation
+and control suggestions for all 14 environments. Some arena trials time out
+without a choice; they must not be presented as successful learning trials.
+
+## API
+
+- `GET /api/brains`: catalog, active/paused/saved/not-started states and summaries.
+- `GET /api/brain`: active brain details, 240 actual weights and arena walls.
+- Telemetry includes `brain_id` and brain summary; plasticity statistics now
+  read `get_effective_weights()` instead of the nonexistent `.weights` field.
+- `POST /api/command`: `switch_paradigm`, `teach_brain` (`pairs`: 1–50,
+  `reverse`: boolean), `probe_brain`, `set_learning` (`enabled`: boolean),
+  `save_checkpoint`. Existing commands remain available.
+- Public-stream authorization applies to all new commands. The observatory
+  acts as a read-only viewer when public commands need an admin token.
+
+## Verification
+
+```bash
+PYTHONPATH=. .venv/bin/python -m pytest -q tests/
+PYTHONPATH=. .venv/bin/python scripts/learning_battery.py
+# Requires gjs (SpiderMonkey); no browser or DOM dependencies:
+gjs scripts/containment_harness.js web/app.js 12 3000 --stress
+```
+
+On 2026-09-19, all 257 Python tests passed. The learning battery passed all 14 experiments: positive paired
+readouts, negative reversed readouts, zero frozen-control change and exact
+weight/identity restoration. Output:
+`outputs/resume-20260919/learning-battery/report.json`.
+These are matched seeded controls, not population-level biological evidence.
+
+The dashboard physics passed 504,000 stressed steps across 14 paradigms with
+no escapes, penetrations above the harness tolerance, teleports or wall freezes.
+The local browser was used to verify actual teaching, isolated brain switching,
+the frozen control, all 14 live experiment views, and restoration of the same
+trained brain identity after a real daemon restart. The earlier standalone dashboard remains a separate
+artifact; it is not automatically rebuilt from the newer `web/` source.
+
+## Scientific corrections in this update
+
+- Preserve A/B cue identities and bilateral antenna differences independently.
+  Reward-contingency reversal no longer implicitly relabels physical cues.
+- Integrate arena plasticity over actual elapsed seconds in legal ≤10 ms bins.
+- Both MBON pathways use the same prior KC eligibility trace. Previously PAM
+  advanced the shared trace and PPL1 advanced it again, creating an artificial
+  timing asymmetry. The bridge regression test now uses forward conditioning
+  with a 500 ms cue lead, washout and a frozen held-out readout.
+- Browser collision correction projects overlap without snapping separating
+  motion back into a corner. Translational collision impulses no longer add a
+  heading torque that cancels wall avoidance. Departing walls cannot cancel an
+  approaching wall's reflex at a junction.
+
+## Next research milestones
+
+1. Quantify held-out behavioral learning against frozen controls across seeds.
+   The current calibration proves memory mechanics, not improved navigation.
+2. Audit remaining timing conventions in vision, CX, metabolism and locomotion;
+   the plasticity clock is fixed, but other modules retain legacy fixed bins.
+3. Add task-specific sensory representations and teaching contingencies for
+   non-olfactory assays, then validate them independently.
+4. Align Python and browser mechanics, rebuild the standalone instrument, and
+   finish the release hygiene audit. Full-connectome RPC remains separate.

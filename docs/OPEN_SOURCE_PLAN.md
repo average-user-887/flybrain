@@ -33,3 +33,13 @@ wall. It is clamped against the boundary by the containment failsafe instead of 
 
 ## Phase 5 — Research development
 - Whole-connectome sparse kernel, multi-fly social behaviour, plasticity checkpoints (HDF5/Zarr).
+
+## 2026-09-19 continuation
+
+- Dashboard collision fixes committed as `8cc4412`; all 14 paradigms pass a
+  12-seed × 3,000-step stress harness (504,000 total steps).
+- Separate persistent experiment brains, controlled teaching/reversal, frozen
+  controls, read-only probes, and a live research observatory are implemented.
+- See `LEARNING_OBSERVATORY.md` for commands, scope, evidence and remaining
+  scientific limitations. Public release and full-connectome closed-loop work
+  remain separate milestones.

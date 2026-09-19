@@ -111,9 +111,15 @@ last telemetry packet:
 ## Relation to the older checkpoint files
 
 `outputs/checkpoints/checkpoint_<paradigm>_<tag>_<epoch>.json` are the
-pre-existing rolling checkpoints (last 50 kept). They remain unchanged and are
-a convenience snapshot, not the durable record. The JSONL files above are the
-source of truth for a run's history.
+run-summary snapshots. New snapshots also point to the active brain checkpoint;
+they are no longer deleted by the daemon. Actual MB weights, traces and CX state
+are atomically saved per experiment under `<output-dir>/brains/<paradigm>.json`.
+The adjacent `<paradigm>.events.jsonl` keeps teaching, probes and trial records.
+See `LEARNING_OBSERVATORY.md` for the learning-state schema and its scope.
+
+Global trial records now additionally include `brain_id` and `brain_trial`.
+The session-wide `trial` stays monotonic across switches for recorder compatibility.
+An unavailable scalar `metric` is null; it is never synthesized as 0.5.
 
 ## Reading in Python
 
