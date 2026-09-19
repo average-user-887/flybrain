@@ -1,0 +1,54 @@
+name: tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-lock.txt
+
+      - name: Run test suite
+        env:
+          PYTHONPATH: .
+          NUMBA_CACHE_DIR: ${{ runner.temp }}/numba-cache
+        run: python -m pytest -q -p no:cacheprovider tests/
+
+      - name: Release hygiene grep (no private infrastructure)
+        run: |
+          set -euo pipefail
+          # Fail if LAN/overlay addresses, SSH key names or container ids reappear
+          # in shipped files. Directories with archived upstream material are excluded.
+          if grep -rnIE \
+               --exclude-dir=.git --exclude-dir=.venv --exclude-dir=upstream \
+               --exclude-dir=runs --exclude-dir=outputs --exclude-dir=connectome_data \
+               --exclude-dir=licenses --exclude-dir=experiment_data --exclude-dir=.github \
+               -e '192\.168\.[0-9]+\.[0-9]+' -e 'repo_audit_linux' -e '65dcff428c87' \
+               . ; then
+            echo "Private infrastructure references found (see docs/RELEASE_AUDIT.md)." >&2
+            exit 1
+          fi

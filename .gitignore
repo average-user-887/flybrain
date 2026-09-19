@@ -1,9 +1,25 @@
+# Python
 __pycache__/
-.venv
-upstream/
-outputs/
-connectome_data/
-.pytest_cache/
+*.py[cod]
 *.egg-info/
+.pytest_cache/
+.venv/
+.venv
 
+# Reference checkouts kept on developer machines only (see NOTICE).
+# Anchored so that licenses/upstream/ (CC BY 4.0 and MIT notice texts) stays tracked.
+/upstream/
+
+# Downloaded MaleCNS source tables (~1.4 GB, CC BY 4.0; fetched by brainlab.download)
+connectome_data/
+
+# Generated run state: daemon checkpoints, learning records, brainlab graphs, experiments
+outputs/
 runs/
+experiment_data/battery/
+
+# Local secrets and machine-specific settings
+.env
+.env.*
+*.pid
+*.log

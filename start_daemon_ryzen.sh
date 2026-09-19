@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Project NeuroFly — Start Continuous Learning Daemon (Headless 24/7)
-# Runs portably in any Linux / remote workstation environment.
+# Runs portably on any Linux host with a local .venv (or python3 on PATH).
+#
+# Environment:
+#   NEUROFLY_PORT / NEUROFLY_SPEED / NEUROFLY_PARADIGM   launch parameters
+#   NEUROFLY_PUBLIC=1                                    read-only public mode (see docs/PUBLIC_STREAMING.md)
+#   NEUROFLY_ADMIN_TOKEN                                 bearer token that re-enables commands in public mode
+#   NEUROFLY_DATA_DIR                                    where trials.jsonl / telemetry_summary.jsonl go
+# Extra daemon flags can be appended: ./start_daemon_ryzen.sh --public --stream-hz 5
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR"
@@ -34,12 +41,15 @@ fi
 
 echo "[NeuroFly] Launching Continuous Learning Daemon in background..."
 echo "[NeuroFly] Interpreter: $PYTHON_BIN | Port: $PORT | Speed: ${SPEED}x | Assay: $PARADIGM"
+if [ "${NEUROFLY_PUBLIC:-0}" != "0" ]; then
+    echo "[NeuroFly] Public mode requested via NEUROFLY_PUBLIC (commands need NEUROFLY_ADMIN_TOKEN)."
+fi
 
 nohup "$PYTHON_BIN" neurofly_daemon.py \
     --port "$PORT" \
     --speed "$SPEED" \
     --paradigm "$PARADIGM" \
-    --pid-file "$PID_FILE" > "$LOG_FILE" 2>&1 &
+    --pid-file "$PID_FILE" "$@" > "$LOG_FILE" 2>&1 &
 
 DAEMON_PID=$!
 echo "$DAEMON_PID" > "$PID_FILE"

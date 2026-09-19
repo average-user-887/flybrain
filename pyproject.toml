@@ -3,17 +3,44 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flybrain-lab"
-version = "0.1.0"
-description = "Game-independent MaleCNS simulator extracted from DOOMFLY"
+name = "neurofly"
+version = "0.2.0"
+description = "Embodied Drosophila behavioural simulation with a MaleCNS-derived spiking substrate (brainlab) and a streaming learning daemon"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = ["numpy", "numba", "pandas", "pyarrow"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 
 [project.optional-dependencies]
 test = ["pytest", "brian2"]
 
 [tool.setuptools]
-packages = ["brainlab"]
+packages = ["brainlab", "experiments"]
+py-modules = [
+    "arena",
+    "central_complex",
+    "circuit",
+    "connectome_bridge",
+    "connectome_client",
+    "data_logger",
+    "env_adapter",
+    "learning_recorder",
+    "locomotion",
+    "maze",
+    "mechanosensory",
+    "metabolic",
+    "neurofly_daemon",
+    "stream_gateway",
+    "surge_cast",
+    "vision",
+]
 
 [tool.setuptools.package-data]
 brainlab = ["datasets.json"]
