@@ -55,6 +55,7 @@ except ImportError as e:
 # and docs/DATA_SCHEMA.md).  They never touch the simulation loop.
 from stream_gateway import MAX_COMMAND_BYTES, StreamGateway, StreamPolicy
 from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
+from experiment_brains import ExperimentBrains
 
 
 class ContinuousExperimentRunner:
@@ -81,7 +82,8 @@ class ContinuousExperimentRunner:
         output_dir: Optional[Path] = None,
         trial_length_s: float = 60.0
     ):
-        self.output_dir = output_dir or (PROJECT_ROOT / "outputs")
+        self.output_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "outputs")
+        self.brains = ExperimentBrains(self.output_dir / "brains")
         self.checkpoints_dir = self.output_dir / "checkpoints"
         self.telemetry_dir = self.output_dir / "telemetry"
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
@@ -124,23 +126,19 @@ class ContinuousExperimentRunner:
         self._init_arena(self.active_paradigm_id)
 
     def _init_arena(self, paradigm_name: str):
-        """Initializes the arena for the given paradigm."""
-        print(f"[Daemon] Initializing Arena with paradigm: {paradigm_name}...", flush=True)
-        try:
-            self.arena = Arena(
-                paradigm=paradigm_name,
-                brain_type="modular",
-                num_flies=1,
-                num_predators=0
-            )
-            self.active_paradigm_id = paradigm_name
-            self.active_paradigm_title = getattr(self.arena.paradigm, "name", paradigm_name)
-        except Exception as err:
-            print(f"[Daemon] Failed to initialize paradigm '{paradigm_name}': {err}. Falling back to default open-arena.", flush=True)
-            self.arena = Arena(paradigm=None)
-            self.active_paradigm_id = "open-arena"
-            self.active_paradigm_title = "Open Arena Assay"
-        self.trial_sim_time = 0.0
+        """Activate an experiment's own arena and learned state; never share weights."""
+        # Resolve first so an invalid request cannot disturb the active experiment.
+        brain = self.brains.get(paradigm_name)
+        if hasattr(self, "active_brain"):
+            self.active_brain.elapsed = self.trial_sim_time
+            self.active_brain.save()
+        self.active_brain = brain
+        self.arena = brain.arena
+        self.active_paradigm_id = paradigm_name
+        self.active_paradigm_title = getattr(self.arena.paradigm, "name", "Open Arena Assay")
+        self.trial_sim_time = brain.elapsed
+        self.learning_curve = brain.curve
+        self.latest_telemetry = self._assemble_telemetry({})
 
     def start(self):
         """Starts background continuous execution thread."""
@@ -178,6 +176,13 @@ class ContinuousExperimentRunner:
         """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``."""
         step_dt = self.dt
 
+        # Teaching runs in an explicit cue chamber while the behavioral arena pauses.
+        if self.active_brain.teaching:
+            self.active_brain.teaching_step(step_dt)
+            self.total_steps += 1
+            self.latest_telemetry = self._assemble_telemetry({})
+            return {}
+
         # 1. Step simulation arena
         try:
             step_result = self.arena.step(step_dt)
@@ -186,6 +191,7 @@ class ContinuousExperimentRunner:
             step_result = {}
 
         self.total_steps += 1
+        self.active_brain.steps += 1
         self.trial_sim_time += step_dt
 
         # 2. Trial advancement: natural endpoint or time limit
@@ -241,13 +247,9 @@ class ContinuousExperimentRunner:
         stim = step_res.get("stimuli", {})
         p_metrics = step_res.get("paradigm_metrics", {})
 
-        # Extract Mushroom Body weight summary
-        weights_mean = 0.5
-        weights_std = 0.05
-        if hasattr(fly, "circuit") and getattr(fly.circuit, "weights", None) is not None:
-            w = fly.circuit.weights
-            weights_mean = float(np.mean(w))
-            weights_std = float(np.std(w))
+        # Read actual effective KC→MBON weights (the old .weights field did not exist).
+        w = fly.circuit.get_effective_weights()
+        weights_mean, weights_std = float(np.mean(w)), float(np.std(w))
 
         # Joint flexions & cuticular loads (real-time 6-limb biomechanics)
         c_bridge = getattr(fly, "connectome_bridge", getattr(self.arena, "bridge", None))
@@ -271,6 +273,8 @@ class ContinuousExperimentRunner:
 
         return {
             "type": "telemetry",
+            "brain_id": self.active_brain.brain_id,
+            "brain": self.active_brain.summary(),
             "timestamp": round(time.time(), 3),
             "step": self.total_steps,
             "paradigm": self.active_paradigm_id,
@@ -311,7 +315,7 @@ class ContinuousExperimentRunner:
             "plasticity": {
                 "mb_weights_mean": round(weights_mean, 4),
                 "mb_weights_std": round(weights_std, 4),
-                "learning_curve": self.learning_curve[-30:] if self.learning_curve else [0.5]
+                "learning_curve": self.learning_curve[-30:]
             },
             "metrics": p_metrics
         }
@@ -322,20 +326,27 @@ class ContinuousExperimentRunner:
             val = metrics.get(key)
             if isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val):
                 return float(val) * scale
-        return 0.5
+        return None
 
     def _record_trial_milestone(self, step_res: Dict[str, Any], reason: str = "milestone"):
         """Records end of trial or adaptation milestone in continuous memory."""
         metrics = step_res.get("paradigm_metrics", {}) or {}
         metric_val = self._trial_metric(metrics)
-        self.learning_curve.append(float(metric_val))
+        self.learning_curve.append(metric_val)
+        self.active_brain.trials += 1
+        self.active_brain.log("trial", trial=self.active_brain.trials, metric=metric_val,
+                              metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
+                              reason=reason, metrics=metrics, probe=self.active_brain.probe())
+        self.active_brain.save()
         self.trial_history.append({
+            "brain_id": self.active_brain.brain_id,
+            "brain_trial": self.active_brain.trials,
             "trial": self.current_trial,
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
             "sim_seconds": round(self.trial_sim_time, 3),
             "reason": reason,
-            "metric": float(metric_val),
+            "metric": metric_val,
             "timestamp": time.time()
         })
         self.current_trial += 1
@@ -351,8 +362,35 @@ class ContinuousExperimentRunner:
         with self.lock:
             if action == "switch_paradigm":
                 target = cmd.get("paradigm") or p.get("paradigm", "open-arena")
-                self._init_arena(target)
+                try:
+                    self._init_arena(target)
+                except (ValueError, OSError) as exc:
+                    return {"status": "error", "message": str(exc)}
                 return {"status": "ok", "active_paradigm": self.active_paradigm_id}
+
+            elif action == "probe_brain":
+                probe = self.active_brain.probe()
+                self.active_brain.log("probe", probe=probe)
+                return {"status": "ok", "brain_id": self.active_brain.brain_id, "probe": probe}
+
+            elif action == "teach_brain":
+                try:
+                    self.active_brain.start_teaching(cmd.get("pairs", 8), cmd.get("reverse", False))
+                except ValueError as exc:
+                    return {"status": "error", "message": str(exc)}
+                return {"status": "ok", "brain_id": self.active_brain.brain_id}
+
+            elif action == "set_learning":
+                enabled = cmd.get("enabled")
+                if not isinstance(enabled, bool):
+                    return {"status": "error", "message": "enabled must be a boolean"}
+                if self.active_brain.teaching:
+                    return {"status": "error", "message": "Wait for teaching to finish before changing its control"}
+                self.active_brain.learning_enabled = enabled
+                self.arena.fly.learning_enabled = enabled
+                self.active_brain.log("learning_control", enabled=enabled)
+                self.active_brain.save()
+                return {"status": "ok", "learning_enabled": enabled}
 
             elif action == "set_speed":
                 val = cmd.get("speed") if cmd.get("speed") is not None else p.get("speed", 10.0)
@@ -391,7 +429,9 @@ class ContinuousExperimentRunner:
                 if advance:
                     self.current_trial += 1
                 if not keep_mem and hasattr(self.arena.fly, "circuit"):
-                    self.arena.fly.circuit.reset(preserve_weights=False)
+                    self.arena.fly.circuit.reset_state(keep_memory=False)
+                    self.active_brain.log("memory_reset")
+                    self.active_brain.save()
                 # Reset paradigm trial state and return the fly to the paradigm spawn
                 paradigm = getattr(self.arena, "paradigm", None)
                 if paradigm is not None and hasattr(paradigm, "reset_trial"):
@@ -409,10 +449,15 @@ class ContinuousExperimentRunner:
 
     def save_checkpoint(self, tag: str = "periodic") -> Path:
         """Saves current continuous synaptic weights and trial ledger to disk."""
-        filename = f"checkpoint_{self.active_paradigm_id}_{tag}_{int(time.time())}.json"
+        self.brains.save_all()
+        # Labels are display text, never path fragments supplied by an API client.
+        safe_tag = "".join(c for c in str(tag) if c.isalnum() or c in "_-")[:60] or "manual"
+        filename = f"checkpoint_{self.active_paradigm_id}_{safe_tag}_{time.time_ns()}.json"
         target_file = self.checkpoints_dir / filename
         data = {
-            "tag": tag,
+            "tag": str(tag),
+            "brain_id": self.active_brain.brain_id,
+            "brain_checkpoint": str(self.active_brain.path),
             "timestamp": time.time(),
             "uptime_sec": time.time() - self.start_time,
             "paradigm": self.active_paradigm_id,
@@ -423,15 +468,6 @@ class ContinuousExperimentRunner:
         }
         with open(target_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-
-        # Keep only latest 50 checkpoints to conserve disk space
-        checkpoints = sorted(self.checkpoints_dir.glob("*.json"), key=os.path.getmtime)
-        if len(checkpoints) > 50:
-            for old in checkpoints[:-50]:
-                try:
-                    old.unlink()
-                except OSError:
-                    pass
 
         return target_file
 
@@ -486,6 +522,16 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             with self.runner.lock:
                 data = self.runner.latest_telemetry
+            self.wfile.write(json.dumps(data).encode("utf-8"))
+
+        elif url in ("/api/brains", "/api/brain"):
+            with self.runner.lock:
+                data = (self.runner.active_brain.summary(details=True) if url == "/api/brain"
+                        else {"active": self.runner.active_paradigm_id,
+                              "brains": self.runner.brains.catalog(self.runner.active_paradigm_id)})
+            self.send_response(200)
+            self._set_cors_headers()
+            self.end_headers()
             self.wfile.write(json.dumps(data).encode("utf-8"))
 
         elif url == "/api/paradigms":
@@ -605,6 +651,7 @@ def run_daemon():
     parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
     parser.add_argument("--trial-seconds", type=float, default=60.0,
                         help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
+    parser.add_argument("--output-dir", default=None, help="Brain checkpoints and run outputs directory")
     parser.add_argument("--pid-file", default="", help="Optional path to write daemon PID file")
 
     public_group = parser.add_argument_group(
@@ -662,7 +709,8 @@ def run_daemon():
         initial_paradigm=args.paradigm,
         sim_speed=args.speed,
         checkpoint_interval=args.checkpoint_interval,
-        trial_length_s=args.trial_seconds
+        trial_length_s=args.trial_seconds,
+        output_dir=Path(args.output_dir) if args.output_dir else None
     )
     runner.start()
 
