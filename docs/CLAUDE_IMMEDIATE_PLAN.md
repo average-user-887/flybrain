@@ -1,9 +1,10 @@
-# Claude handoff: stabilize NeuroFly and make brain identity auditable
+# Claude remediation plan: independent learning connectome experiments
 
 Prepared 19 September 2026 against implementation revision `355f50e`.
-Read [NEUROFLY_RETHINK.md](NEUROFLY_RETHINK.md) first. This is a proposed work
-sequence. The user has requested a stop and a grilling interview; do not treat
-this document as approval to begin a redesign before the open decisions are answered.
+Read [NEUROFLY_RETHINK.md](NEUROFLY_RETHINK.md) first. The user accepted the six
+recommendations from the grilling interview and requested this remediation plan.
+This document records the agreed direction and implementation gates. This turn
+prepares the plan only; no implementation or research restart is included.
 
 ## Workspace and non-negotiable constraints
 
@@ -33,20 +34,29 @@ paused after a service restart or login. Do not silently resume research while
 the user is reviewing the direction. The temporary port-18784 audit process was
 stopped. Existing API/web ports are 8781/8780.
 
-## First: establish the decision contract
+## Agreed decision contract
 
-Await answers to the current interview frontier:
+1. Research first. A failed run is a retained experimental result, not a reason
+   to insert a hidden controller that makes the fly succeed.
+2. Use open released connectome data and this computer only. No paid compute or
+   real-time performance promise. Measure memory and throughput before scaling.
+3. Internal synaptic plasticity is the learning target. A trained external
+   decoder and the existing modular brains remain separately labeled baselines.
+   Released anatomy does not establish that our dynamics or plasticity are biological.
+4. Physics enforces physical constraints without steering toward task success.
+   Preserve immobility or wall pushing as a behavioral outcome within predefined
+   trial limits; distinguish that outcome from a faulty collision solver.
+5. Every assay gets its own neural state, learning state and random state. Run
+   one full-brain experiment at a time initially; share only immutable data.
+6. Preserve all 14 experiments and their visual style. First validate one causal
+   sensory–brain–motor pathway, then internal learning, then extend to every assay.
 
-1. Is the first deliverable a connectome research platform, a reliable robot
-   controller, or an educational simulator?
-2. Is the initial resource budget this computer, funded compute, or a longer
-   contributor-driven effort?
-
-Recommended direction: a connectome-controller research toolkit with explicit
-modular baselines, initially measured on this computer. Subsequent questions must
-settle acceptable decoding/engineered assistance, where learning must occur,
-the first causal assay and the robotics target. Keep those decisions separate
-from facts the code can establish.
+The target is a learning-capable full-connectome instance in every experiment,
+not guaranteed successful learning in every task. Unsupported sensory mappings
+must be visible and block scientific claims, rather than trigger a surrogate.
+Optomotor yaw is the initial engineering candidate; verify its mapping before
+committing to a learning protocol. A physical robot target is deferred until the
+simulation interface and measured compute budget support that decision.
 
 The work packages below are ordered by dependency, not calendar promises.
 
@@ -122,8 +132,10 @@ Do not disguise a locomotion policy failure as a collision-engine failure.
 
 Acceptance:
 
-* Tests explicitly fail on a motionless non-exempt agent, repeated wall-pushing
-  loops and unexplained jumps. A step-count assertion is insufficient.
+* Physics fixtures using known escape commands fail on numerical trapping or
+  unexplained jumps. Behavioral trials report immobility and repeated wall
+  pushing as failed task outcomes, not automatically as physics defects.
+  A step-count assertion is insufficient for either claim.
 * Each fixture declares its expected physical constraint and progress criterion
   in advance. Arena containment, controller task success and biological validity
   are reported separately.
@@ -132,8 +144,8 @@ Acceptance:
 
 ## Work package 4 — make controller provenance impossible to confuse
 
-Define explicit backends such as `modular`, `connectome-fixed`, and
-`connectome-with-trained-readout`. An experimental hybrid, if retained, must be
+Define explicit backends such as `modular`, `connectome-fixed`,
+`connectome-plastic`, and `connectome-with-trained-readout`. An experimental hybrid, if retained, must be
 named separately. Do not represent any of these as interchangeable.
 
 Every run needs graph/data hashes, neuron-map hash, controller version, dynamics
@@ -150,9 +162,28 @@ Acceptance:
 * Disconnecting RPC does not leave unreported surrogate commands driving the fly.
 * Same snapshot and same input sequence replay to the documented tolerance.
 
+Create an experiment registry with separate instance IDs and checkpoint paths
+for all 14 assays. Share the immutable graph and stable neuron map; keep membrane
+state, refractory state, synaptic traces, plastic weight changes, learning-rule
+state, RNG and world state per instance. Profile whether sparse plastic deltas
+save memory; do not assume sparse storage is always smaller. Inactive instances
+are checkpointed and do not train in the background.
+
+Isolation acceptance:
+
+* Train instance A and verify B's saved mutable state is unchanged. Switch A→B→A
+  and compare A's continuation against an uninterrupted reference at equal steps.
+* Switching acknowledges the newly active instance only after its world and brain
+  snapshot are ready. Packets carry instance/run IDs; stale packets are rejected.
+* Checkpoint writes are atomic and versioned. Interrupted writes retain the last
+  valid checkpoint. Never reinterpret old modular weights as graph weights.
+* Record peak RAM, checkpoint size/load time and sustained throughput on this
+  machine. If the graph exceeds the budget, report the blocker; any reduced
+  circuit is a separately named experiment requiring an explicit scope decision.
+
 ## Work package 5 — prove one causal full-graph control loop
 
-Recommended first candidate, subject to the interview: optomotor yaw. Keep every
+Initial candidate: optomotor yaw. Keep every
 other assay in the roster with an honest capability status.
 
 Relevant files: `brainlab/cosim_server.py`, `connectome_client.py`,
@@ -179,10 +210,64 @@ Acceptance:
   rule and present it as graph-mediated success.
 * Establish sustained compute cost before promising real-time operation.
 
-## Work package 6 — community release and robotics adapter
+## Work package 6 — implement and evaluate internal learning
 
-Only after provenance and the first causal loop are credible, define a minimal
-interface: timestamped `SensorPacket`, `Brain.step(dt)`, `MotorCommand`,
+Before coding a rule, write a short model specification with primary sources:
+which anatomically identified connections are plastic, what local signals and
+reward/modulatory signals update them, update units and timestep, bounds/sign
+constraints, initial values, and what remains an engineering assumption. Do not
+apply arbitrary plasticity to every edge or claim that the release supplied the
+learning rule. Keep the full graph while restricting learning to declared edges.
+
+Select the first learning assay by verified sensory and modulatory mappings.
+Odor conditioning is a candidate, not an established capability. Freeze the
+encoder and motor decoder for the main internal-learning comparison so changes
+in behavior cannot be explained by simultaneous decoder training.
+
+Acceptance:
+
+* Verify updates against the declared mathematical rule on a small circuit,
+  including no-update conditions, bounds, sign handling and checkpoint recovery.
+* Predeclare task outcome, trial duration, training budget, retention interval,
+  seed list and analysis before confirmatory runs. Use a separate pilot to estimate
+  runtime/variability and choose a feasible sample count on this computer.
+* Compare matched instances with plasticity enabled, plasticity disabled and
+  shuffled/yoked reward; include a relevant pathway intervention. Keep initial
+  state and exposure budgets matched and separate training from frozen-weight tests.
+* Record the actual internal weight changes, acquisition, held-out performance,
+  retention and uncertainty. A changing weight or increasing training reward alone
+  is not evidence of useful learning. Retain null and negative outcomes.
+* Do not mark biological learning validated: this is learning in a model constrained
+  by released connectivity, with an explicit hypothesis about plasticity.
+
+## Work package 7 — extend the learning backend across the roster
+
+Create a 14-row capability matrix, one row per existing assay: sensory encoder,
+verified neuron IDs, motor outputs/units, reward protocol, plastic subset, instance
+ID, checkpoint, outcome metric, controls, and evidence links. Use statuses such as
+unmapped, integrated, causally tested and learning evaluated; report positive/null/
+negative learning results separately from software readiness.
+
+Integrate assays in batches according to shared validated input/output pathways.
+Each row must use its own full-connectome learning instance, pass isolation and
+physics checks, and complete its declared evaluation before its status advances.
+An assay with an unresolved input pathway stays visible but explicitly unsupported
+for scientific graph runs. Do not invent a neural mapping to finish the checklist.
+
+Store a machine-readable run manifest, step-indexed stimuli/actions/rewards,
+neural summaries, contact events, reset reasons and checkpoint hashes. Capture
+targeted spike/weight traces with a declared sampling policy and bounded storage;
+do not attempt to save every neuron at every timestep by default. Exports include
+failed/aborted runs and link each result to its instance and source revision.
+Test replay/export on representative runs and verify no cross-assay data mixing.
+
+The roster gate is complete when every assay has an independent learning-capable
+graph backend and an honest evaluated outcome, not when every fly solves its task.
+
+## Work package 8 — community release and robotics adapter
+
+Define these contracts during the earlier integration work and package them once
+provenance and the first causal loop are credible: timestamped `SensorPacket`, `Brain.step(dt)`, `MotorCommand`,
 `World.step(dt)`, checkpoint and recorder contracts. Include units and coordinate
 frames, controller capabilities, errors and stale-data semantics.
 
@@ -210,7 +295,23 @@ Release acceptance:
 3. Wall-progress fixtures and targeted physical corrections supported by them.
 4. Explicit controller identity, validated mapping and failure semantics.
 5. One graph-mediated assay with causal controls and reproducible traces.
-6. Portable packaging and a simulation-first robotics interface.
+6. Declared internal plasticity and matched learning evaluations.
+7. Per-assay integration, capability matrix and reproducible run exports.
+8. Portable packaging and a simulation-first robotics interface.
+
+## First implementation session and stop conditions
+
+Start with work package 1: confirm the checkout/revision, preserve checkpoints,
+reproduce Firefox and acceleration failures, and capture a baseline receipt.
+Then fix observable transport/rendering failures before changing neural dynamics.
+Make small commits with evidence and keep the current dashboard layout intact.
+
+Do not progress past a gate by hiding a missing graph, substituting a controller,
+changing the declared metric after seeing results, or treating an untested browser
+as passed. If local resources or missing anatomical annotations block a stage,
+report the measured constraint and proposed alternatives. Timing/browser fixes
+can proceed independently of plasticity model research; scientific claims cannot
+precede mapping, provenance and causal validation.
 
 Report after each work package: problem, evidence, change, tests, browser result,
 remaining uncertainty and next dependency. Do not close the broad project goal

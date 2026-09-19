@@ -2,9 +2,10 @@
 
 19 September 2026 · implementation audited at `355f50e`.
 
-This is an evidence report and a **provisional recommendation**, not an approved
-redesign. Development changes are paused while the grilling interview establishes
-the intended product. All 14 experiments and the existing dashboard style stay.
+This is the audit evidence report. Following the interview, the user accepted the
+recommendations summarized in the decision record below and requested a remediation
+plan. Implementation remains paused during this planning turn. All 14 experiments
+and the existing dashboard style stay.
 The main experiment is paused, and the background research worker is stopped;
 existing brains, checkpoints and datasets have been retained. The services remain
 installed: these are operational pauses, not a permanent shutdown configuration.
@@ -253,26 +254,25 @@ includes a canonical entry point, clean-clone reproducibility, portable startup,
 browser evidence and clear capability claims. No Git remote is configured; this
 audit does not publish anything.
 
-## Decision tree for the grilling interview
+## Decision record following the grilling interview
 
 Settled: preserve the roster and visual style; pursue more real connectivity;
 make the repository useful to others; stop implementing patches during review.
 
-Current frontier, awaiting your answers:
+The user explicitly chose research first, preserving failed experiments, open
+released connectome data and this machine only. They then accepted the next four
+recommendations: target internal synaptic plasticity rather than only decoder
+training; preserve behavioral failures without hidden rescue steering; run one
+active full-brain instance at a time while retaining independent state for each
+assay; and prove one causal neural pathway before broad learning claims.
 
-* **Primary success criterion:** connectome research, reliable robot behavior,
-  or educational simulation? Recommendation: connectome-controller research with
-  engineered controllers explicitly retained as comparison baselines.
-* **Resource envelope:** prove a baseline on this computer before spending,
-  available GPU/cloud budget, or a longer collaborative effort? Recommendation:
-  profile locally before choosing hardware.
+The end target is a learning-capable connectome instance in all 14 experiments.
+Successful learning is an experimental outcome, not a requirement to manufacture.
+The particular plasticity rule needs a sourced model specification and evaluation;
+it is not supplied by the connectivity release. A physical robot choice is deferred
+until the simulation interface and compute budget have been validated.
 
-Those decisions unlock the next round: acceptable engineered motor decoding,
-what “learning” must mean, the first causal assay, fidelity versus throughput,
-target robot interfaces and the public release gate. We have not silently settled
-those branches. A credible failure is a valid research result; it is not necessarily
-an acceptable robot-control product. You need to choose which result comes first.
-
-The executable handoff is [CLAUDE_IMMEDIATE_PLAN.md](CLAUDE_IMMEDIATE_PLAN.md).
-Implementation of the proposed architecture remains on hold until the interview
-reaches a shared understanding.
+The implementation handoff is [CLAUDE_IMMEDIATE_PLAN.md](CLAUDE_IMMEDIATE_PLAN.md).
+It records the accepted direction, eight ordered work packages, measurable gates
+and the first implementation session. Preparing this plan does not resume services
+or change the current controllers.
