@@ -34,14 +34,19 @@ DEFAULT_CONNECTOME_DIR = ROOT / 'connectome_data/malecns_v1'
 SYNTHETIC_LABEL = 'SYNTHETIC TEST GRAPH - not MaleCNS; no scientific claim'
 
 # Descending-neuron channels used by brainlab.cosim_server (node indices into
-# the pinned graph).  They are verified here against cell types; side labels
-# are recorded from annotations, not inferred from row order.
+# the pinned graph).  They are verified here against cell types and, for
+# lateralised channels, against the released somaSide annotation.
+# WP5 correction: until f1395b1, dna02_l held node 332 (DNa02_R, soma R) and
+# dna02_r held node 131957 (DNa02_L, soma L).  DNa02 steers ipsilaterally
+# (Rayshubskiy et al. 2020) and each DNa02's MaleCNS output synapses are >90 %
+# on its soma side, so the channels are now named by soma side.
 DN_CHANNELS: Dict[str, List[int]] = {
-    'dnp01': [0, 6], 'dna02_l': [332], 'dna02_r': [131957], 'dna01': [406, 704],
+    'dnp01': [0, 6], 'dna02_l': [131957], 'dna02_r': [332], 'dna01': [406, 704],
     'dnp09': [725, 1087], 'dnb01': [608, 703], 'mdn': [706, 1196, 1240, 2194],
 }
 DN_EXPECTED_TYPES = {'dnp01': 'DNp01', 'dna02_l': 'DNa02', 'dna02_r': 'DNa02',
                      'dna01': 'DNa01', 'dnp09': 'DNp09', 'dnb01': 'DNb01', 'mdn': 'MDN'}
+DN_EXPECTED_SIDES = {'dna02_l': 'L', 'dna02_r': 'R'}
 
 # Constants of brainlab/engine.py, with units, so manifests never guess them.
 LIF_DYNAMICS = {
@@ -167,6 +172,16 @@ def verify_graph(graph_dir: Optional[os.PathLike] = None,
             if ctype != DN_EXPECTED_TYPES[channel]:
                 raise GraphUnavailable(f'DN channel {channel} node {index} is {ctype}')
             dn.append(dict(channel=channel, node_index=index, source_id=int(ids[index]), cell_type=ctype))
+    annotations_path = cdir / 'annotations.feather'
+    if not annotations_path.is_file():
+        raise GraphUnavailable(f'{annotations_path} missing: DN soma sides cannot be verified')
+    ann = feather.read_table(annotations_path, columns=['bodyId', 'somaSide']).to_pandas()
+    soma_side = dict(zip(ann.bodyId.astype('int64'), ann.somaSide))
+    for channel, expected in DN_EXPECTED_SIDES.items():
+        for index in DN_CHANNELS[channel]:
+            actual = soma_side.get(int(ids[index]))
+            if actual != expected:
+                raise GraphUnavailable(f'DN channel {channel} node {index} has somaSide {actual}, expected {expected}')
     # Small source tables are rehashed; the 1 GB raw edge table is recorded from
     # source.lock.json (the prepared graph hash already pins what was derived from it).
     data_sha = {}

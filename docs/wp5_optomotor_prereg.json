@@ -1,0 +1,75 @@
+{
+  "schema": "neurofly.wp5-preregistration.v1",
+  "title": "WP5 optomotor yaw: causal test of one full-graph sensory-brain-motor loop",
+  "declared_at": "2026-09-19, before any confirmatory run; the script records this file's sha256 in every output",
+  "backend": "connectome-fixed (ExperimentRegistry), MaleCNS v1.0 graph 4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "io_map": {
+    "module": "brainlab/io_map.py",
+    "pinned_sha256": "228c1b69251e73a3ec34d551202b98f8b6afddf723a77c89e3203053d2366c7b",
+    "encoder_cells": "T4a+T5a (front-to-back) and T4b+T5b (back-to-front) per eye, eye = annotated somaSide; 835 T4 + 826 T5 per population (lowest source IDs)",
+    "decoder_cells": "DNa02_L (body 523769, node 131957) and DNa02_R (body 10360, node 332), by instance and somaSide",
+    "no_other_inputs": "No tonic, looming, olfactory or DN drive of any kind. The cosim_server ENGINEERED_ASSISTANCE paths are not used."
+  },
+  "hypothesis": "If the fixed-weight full graph carries a syndirectional optomotor pathway from eye-specific T4/T5 to DNa02, rotation to the left (s=+1) raises DNa02_L relative to DNa02_R and the decoded yaw follows the stimulus (turning index > 0).",
+  "sign_convention": "s=+1: pattern rotates counter-clockwise seen from above (leftward); left eye sees front-to-back, right eye back-to-front. Yaw + = counter-clockwise (leftward) turn = arena heading increase. Syndirectional following = sign(yaw) == s.",
+  "stimulus": {
+    "angular_velocity_rad_s": 0.7853981633974483,
+    "spatial_period_deg": 30.0,
+    "temporal_frequency_hz": 1.5,
+    "i_max": 20.0,
+    "i_max_rationale": "equal to the WP4 validation stimulus amplitude; not tuned",
+    "noise_sd": 0.1,
+    "contrasts": [1.0, 0.5],
+    "step_ms": 2.0,
+    "initial_gray_ms": 500,
+    "block_ms": 1000,
+    "gray_between_ms": 500,
+    "blocks": [[1, 1.0], [-1, 1.0], [-1, 0.5], [1, 0.5], [-1, 1.0], [1, 1.0], [1, 0.5], [-1, 0.5]],
+    "blocks_format": "[direction s, contrast]; counterbalanced order, fixed for every condition and seed",
+    "mode": "open loop (tethered): slip = s * angular_velocity during a block, 0 in gray"
+  },
+  "decoder": {
+    "gain_rad_s_per_hz": 0.02,
+    "tau_ms": 50.0,
+    "rule": "yaw = gain * (filtered rate DNa02_L - filtered rate DNa02_R); unclipped, no rectification, no fallback"
+  },
+  "seeds": [0, 1, 2, 3, 4, 5],
+  "amendment_after_pilot": {
+    "original_sha256": "b05f48c6e7288168625038b6be4c2166ce1181783f48c31b6626b97e2eaa49c6",
+    "original_seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "pilot": "outputs/wp5/pilot-20260919/pilot.json: seed 999, 3.5 s simulated in 29.4 s wall (0.119 sim s per wall s); driven encoder populations fired 13-18 Hz per cell, undriven 0 Hz; projected confirmatory runtime 69.9 min > 60 min",
+    "change": "Seeds cut from [0..9] to [0..5] exactly as the pilot clause prescribes. No other parameter changed. The pilot's DN outputs were not inspected (the script drops them before printing or saving)."
+  },
+  "seed_role": "Seed sets the encoder's per-cell phases and per-step noise (numpy default_rng(seed)). The LIF graph itself is deterministic given its input.",
+  "conditions": {
+    "intact": "real graph, sensory delivered",
+    "dna02_silenced": "real graph, sensory delivered, DNa02_L and DNa02_R clamped with drive -200 every step",
+    "sham_no_input": "real graph, encoder runs with identical RNG stream but its output is not delivered",
+    "shuffled_graph": "CONTROL GRAPH, labelled: the real graph's post (target) array permuted once with numpy default_rng(777); preserves every neuron's out-degree, in-degree and per-source weights; destroys wiring specificity. Run in registry test mode because it is not the released graph.",
+    "modular_baseline": "vision.CompoundEyeVision open loop, dt 0.02 s, external_yaw_rad_s = s*angular_velocity, contrast c, fly at rest; yaw = get_optomotor_yaw_bias() (the modular arena adds this directly to dheading, rad/s)"
+  },
+  "outcomes": {
+    "primary": "Turning index TI (rad/s) per seed = mean over the 8 stimulus blocks of s_b * mean decoded yaw within block b.",
+    "neural_response": [
+      "A_DNa02 (Hz) = mean over blocks of s_b * (spike rate DNa02_L - spike rate DNa02_R)",
+      "dV_DNa02 (mV) = mean over blocks of s_b * (end-of-step v DNa02_L - v DNa02_R)",
+      "eye asymmetry of monitored populations (HS, H2, VS, LLPC1, PFL3, DNa01, DNa03) as s_b-aligned L-R spike rate, and spike rates for s=+1 vs s=-1 separately",
+      "encoder population spike rates (sanity: driven cells fire)"
+    ],
+    "motor_dependence": "(i) intact vs dna02_silenced paired difference in TI; (ii) across blocks of the intact condition, Pearson r between s_b-aligned eye asymmetry of HS and A_DNa02 per block, and between A_DNa02 and s_b*yaw",
+    "secondary": "TI separately at contrast 1.0 and 0.5; DNa01 asymmetry (not decoded)"
+  },
+  "analysis": {
+    "summary": "mean over seeds, SD, 95% percentile bootstrap CI (10000 resamples, numpy default_rng(20260919))",
+    "paired": "intact - {dna02_silenced, sham_no_input, shuffled_graph} per seed, bootstrap CI, Cohen dz when SD > 0",
+    "modular": "reported alongside; deterministic, no CI"
+  },
+  "decision_rule": {
+    "POSITIVE": "intact TI CI entirely > 0 AND intact-sham_no_input CI > 0 AND intact-shuffled_graph CI > 0 AND dna02_silenced yaw identically 0",
+    "NEGATIVE": "intact TI CI entirely < 0 AND intact-sham_no_input CI < 0 (graph-mediated but anti-directional)",
+    "NULL": "anything else, including DNa02 never spiking; subthreshold dV is reported but is not a motor effect"
+  },
+  "pilot": "One pilot run (seed 999, 2 blocks of 1 s, intact) measures runtime and encoder T4/T5 firing only. DN outputs of the pilot are not inspected. If projected confirmatory runtime exceeds 60 min, seeds are cut to [0..5] and this is recorded before confirmatory runs. No parameter above is changed by the pilot.",
+  "conditional_secondary": "Only if the primary result is POSITIVE: intact closed loop with slip = s*angular_velocity - yaw, same schedule, seeds 0-4, report mean |slip| reduction. Otherwise not run.",
+  "compute_cost": "simulated seconds per wall second of the whole intact loop (encoder + graph + decoder + logging), all seeds, plus peak RSS"
+}

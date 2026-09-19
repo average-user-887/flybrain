@@ -43,13 +43,16 @@ except ImportError:
                                          resolve_graph_dir, sha256_json, synthetic_test_graph, verify_graph)
 
 # Engineered inputs that bypass sensory pathways; reported, never hidden (WP5).
+# Gated by ConnectomeServer(engineered_assistance=...) / --no-engineered-assistance;
+# every /step reply lists the ones actually applied on that step.
 ENGINEERED_ASSISTANCE = [
     'looming_trigger injects 80 directly into DNp01 (not via LC4/LPLC2)',
     'tonic drive 14.5*(1+0.5*(1-energy)) injected directly into DNb01',
 ]
 MAPPING_WARNINGS = [
-    'visual_l/visual_r are the first 100 R1-R6 rows of each dataframe half; both halves mix eyes '
-    '(outputs/rethink-audit/connectome-mapping-receipt.json). Not eye-specific.',
+    'visual_l/visual_r drive R1-R6 photoreceptors of one eye each (annotated rootSide, 100 lowest body IDs); '
+    'this is a non-directional luminance drive, not HS/optic-flow input. The eye-specific optomotor '
+    'pathway is the optional optomotor_slip_rad_s input (brainlab/io_map.py, docs/WP5_OPTOMOTOR.md).',
 ]
 
 
@@ -63,7 +66,8 @@ class ConnectomeServer:
 
     def __init__(self, graph_path: Optional[Path] = None, metadata_path: Optional[Path] = None, *,
                  graph_dir: Optional[Path] = None, connectome_dir: Optional[Path] = None,
-                 allow_synthetic: bool = False):
+                 allow_synthetic: bool = False, engineered_assistance: bool = True,
+                 optomotor_seed: int = 0):
         if graph_path is not None:
             graph_path = Path(graph_path)
             if graph_path.name != "graph.npz":
@@ -76,6 +80,9 @@ class ConnectomeServer:
         self.graph_path = self.graph_dir / "graph.npz"
         self.metadata_path = self.connectome_dir / "normalized/neurons.feather"
         self.allow_synthetic = allow_synthetic
+        self.engineered_assistance = bool(engineered_assistance)
+        self.optomotor_seed = int(optomotor_seed)
+        self.optomotor = None          # (io map, encoder, decoder) on the real graph only
         self.brain = None
         self.identity = None
         self.n_neurons = 0
@@ -141,11 +148,26 @@ class ConnectomeServer:
         # empty and listed in unmapped_channels.
         self.sensory_indices["orn_food"] = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()[:50]
         self.sensory_indices["orn_danger"] = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()[:50]
-        r_nodes = df[df['cell_type'] == 'R1-R6']['node_index'].tolist()
-        if r_nodes:
-            half = len(r_nodes) // 2
-            self.sensory_indices["visual_l"] = r_nodes[:half][:100]
-            self.sensory_indices["visual_r"] = r_nodes[half:][:100]
+        # Eye-specific photoreceptors by annotated rootSide (R1-R6 have no soma
+        # side), 100 lowest body IDs per eye; never dataframe halves.
+        ann_path = self.connectome_dir / "annotations.feather"
+        if ann_path.is_file():
+            ann = feather.read_table(ann_path, columns=['bodyId', 'rootSide']).to_pandas()
+            root_side = dict(zip(ann.bodyId.astype('int64'), ann.rootSide))
+            retina = df[df['cell_type'] == 'R1-R6'].sort_values('source_id')
+            sides = retina['source_id'].map(root_side)
+            self.sensory_indices["visual_l"] = retina[sides == 'L']['node_index'].tolist()[:100]
+            self.sensory_indices["visual_r"] = retina[sides == 'R']['node_index'].tolist()[:100]
+        try:
+            from .io_map import DNa02YawDecoder, OptomotorEncoder, resolve_optomotor_io
+        except ImportError:
+            from brainlab.io_map import DNa02YawDecoder, OptomotorEncoder, resolve_optomotor_io
+        try:
+            io = resolve_optomotor_io(self.connectome_dir)
+            self.optomotor = (io, OptomotorEncoder(io, np.random.default_rng(self.optomotor_seed)),
+                              DNa02YawDecoder(io))
+        except GraphUnavailable as error:
+            print(f"[ConnectomeServer] optomotor IO map unavailable: {error}", flush=True)
         self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
         self.unmapped_channels = sorted(k for k, v in self.sensory_indices.items() if not v)
@@ -162,6 +184,8 @@ class ConnectomeServer:
             "neuron_map_sha256": ident.neuron_map_sha256,
             "io_map_sha256": ident.io_map_sha256,
             "sensory_map_sha256": getattr(self, "sensory_map_sha256", None),
+            "engineered_assistance_enabled": self.engineered_assistance,
+            "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
         }
 
     def reset(self):
@@ -178,6 +202,8 @@ class ConnectomeServer:
         self.brain.cursor = 0
         self.brain.total_spikes = 0
         self.brain.sim_ms = 0.0
+        if self.optomotor is not None:
+            self.optomotor[2].reset()
 
     def step(self, sensory: Dict[str, Any], duration_ms: float = 2.0) -> Dict[str, Any]:
         """
@@ -204,8 +230,18 @@ class ConnectomeServer:
             if idx < self.n_neurons:
                 currents[idx] += float(max(0.0, hs_r * 12.0))
 
+        applied_assistance: List[str] = []
+
+        # 2b. Eye-specific optomotor input (WP5): retinal slip -> T4/T5 by eye.
+        optomotor_slip = sensory.get("optomotor_slip_rad_s")
+        if optomotor_slip is not None and self.optomotor is not None:
+            io, encoder, _ = self.optomotor
+            encoder.encode(currents, self.brain.sim_ms, float(optomotor_slip),
+                           float(sensory.get("optomotor_contrast", 1.0)))
+
         # 3. Visual Looming (LC4/LPLC2 -> Giant Fiber)
-        if sensory.get("looming_trigger", False):
+        if self.engineered_assistance and sensory.get("looming_trigger", False):
+            applied_assistance.append(ENGINEERED_ASSISTANCE[0])
             for idx in self.dn_indices["dnp01"]:
                 if idx < self.n_neurons:
                     currents[idx] += 80.0  # Supra-threshold escape trigger
@@ -220,10 +256,12 @@ class ConnectomeServer:
 
         # 5. Baseline tonic peduncular current (BPN straight walking drive)
         # Keeps Drosophila motor system in active exploration state
-        bpn_tonic = 14.5 * (1.0 + 0.5 * (1.0 - float(sensory.get("energy_reserve", 1.0))))
-        for idx in self.dn_indices["dnb01"]:
-            if idx < self.n_neurons:
-                currents[idx] += bpn_tonic
+        if self.engineered_assistance:
+            applied_assistance.append(ENGINEERED_ASSISTANCE[1])
+            bpn_tonic = 14.5 * (1.0 + 0.5 * (1.0 - float(sensory.get("energy_reserve", 1.0))))
+            for idx in self.dn_indices["dnb01"]:
+                if idx < self.n_neurons:
+                    currents[idx] += bpn_tonic
 
         # 6. Step the LIF connectome kernel
         spike_counts, elapsed_s = self.brain.step(currents, duration_ms)
@@ -254,6 +292,17 @@ class ConnectomeServer:
         # DNp01 Giant Fiber spikes
         dnp01_gf_spikes = int(sum(spike_counts[i] for i in self.dn_indices["dnp01"] if i < self.n_neurons))
 
+        optomotor_reply = None
+        if self.optomotor is not None:
+            motor = self.optomotor[2].decode(spike_counts, duration_ms)
+            optomotor_reply = {
+                "slip_rad_s": None if optomotor_slip is None else float(optomotor_slip),
+                "yaw_rad_s": motor["yaw_rad_s"], "contributions": motor["contributions"],
+                "rate_l": motor["rate_l"], "rate_r": motor["rate_r"],
+                "io_map_sha256": self.optomotor[0].sha256,
+                "decoder": "yaw = 0.02*(rate DNa02_L - rate DNa02_R), + = counter-clockwise; unclipped",
+            }
+
         return {
             "status": "ok",
             **self.identity_fields(),
@@ -267,7 +316,9 @@ class ConnectomeServer:
             "dnp09_rate": dnp09_rate,
             "bpn_rate": bpn_rate,
             "mdn_rate": mdn_rate,
-            "dnp01_gf_spikes": dnp01_gf_spikes
+            "dnp01_gf_spikes": dnp01_gf_spikes,
+            "engineered_assistance_applied": applied_assistance,
+            "optomotor": optomotor_reply,
         }
 
     def get_status(self) -> Dict[str, Any]:
@@ -333,9 +384,10 @@ class CoSimHTTPHandler(BaseHTTPRequestHandler):
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8768, *, graph_dir: Optional[Path] = None,
-               connectome_dir: Optional[Path] = None, allow_synthetic: bool = False):
+               connectome_dir: Optional[Path] = None, allow_synthetic: bool = False,
+               engineered_assistance: bool = True):
     connectome = ConnectomeServer(graph_dir=graph_dir, connectome_dir=connectome_dir,
-                                  allow_synthetic=allow_synthetic)
+                                  allow_synthetic=allow_synthetic, engineered_assistance=engineered_assistance)
     server = ThreadingHTTPServer((host, port), CoSimHTTPHandler)
     server.connectome = connectome  # type: ignore
     print(f"[ConnectomeServer] Serving on http://{host}:{port}", flush=True)
@@ -354,6 +406,9 @@ if __name__ == "__main__":
     parser.add_argument("--connectome-dir", type=Path, help="connectome_data/malecns_v1 (else $NEUROFLY_CONNECTOME_DIR)")
     parser.add_argument("--synthetic-test-graph", action="store_true",
                         help="TEST ONLY: serve a labelled synthetic graph if the real graph is unavailable")
+    parser.add_argument("--no-engineered-assistance", action="store_true",
+                        help="Disable the direct DNp01 looming injection and tonic DNb01 drive (causal tests)")
     args = parser.parse_args()
     run_server(host=args.host, port=args.port, graph_dir=args.graph_dir,
-               connectome_dir=args.connectome_dir, allow_synthetic=args.synthetic_test_graph)
+               connectome_dir=args.connectome_dir, allow_synthetic=args.synthetic_test_graph,
+               engineered_assistance=not args.no_engineered_assistance)

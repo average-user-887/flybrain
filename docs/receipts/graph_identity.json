@@ -18,7 +18,7 @@
     "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
     "neuron_map_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/connectome_data/malecns_v1/normalized/neurons.feather",
     "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
-    "io_map_sha256": "f64f8a2168f764a38f4eed4ad0e4b1702a32196ae73ed51a50685f94853e0bb7",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
     "neurons": 166700,
     "edges": 25582938,
     "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
@@ -57,7 +57,8 @@
     "edge_count": 25582938,
     "dn_cell_types_match": true,
     "small_source_tables_rehashed": true,
-    "raw_edges_feather_rehashed": false
+    "raw_edges_feather_rehashed": false,
+    "dn_soma_sides_match_channel_names": true
   },
   "cross_references": {
     "root_validation_json_graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
@@ -80,17 +81,17 @@
     },
     {
       "channel": "dna02_l",
-      "node_index": 332,
-      "source_id": 10360,
-      "cell_type": "DNa02",
-      "soma_side": "R"
-    },
-    {
-      "channel": "dna02_r",
       "node_index": 131957,
       "source_id": 523769,
       "cell_type": "DNa02",
       "soma_side": "L"
+    },
+    {
+      "channel": "dna02_r",
+      "node_index": 332,
+      "source_id": 10360,
+      "cell_type": "DNa02",
+      "soma_side": "R"
     },
     {
       "channel": "dna01",
@@ -168,5 +169,16 @@
     "peak_rss_kib": 147784,
     "tool": "/usr/bin/time -v"
   },
-  "limitations": "DN cell types verified; physiological side/role of each DN and all sensory channels are NOT verified here (WP5). Visual channels still mix eyes; see cosim_server.MAPPING_WARNINGS."
+  "limitations": "DN cell types and DNa02 soma sides verified. Other DN roles and the olfactory/wind sensory channels are NOT verified. visual_l/visual_r are now eye-specific R1-R6 by rootSide (WP5).",
+  "amendments": [
+    {
+      "date": "2026-09-19",
+      "work_package": "WP5",
+      "change": "dna02_l/dna02_r swapped to match annotated somaSide (dna02_l = node 131957 body 523769 DNa02_L; dna02_r = node 332 body 10360 DNa02_R). verify_graph now also checks DN_EXPECTED_SIDES against annotations.feather somaSide.",
+      "evidence": "DNa02 steers ipsilaterally (Rayshubskiy et al. 2020); in this graph each DNa02 sends 92% of its absolute output weight to neurons on its soma side (docs/WP5_OPTOMOTOR.md).",
+      "io_map_sha256_before": "f64f8a2168f764a38f4eed4ad0e4b1702a32196ae73ed51a50685f94853e0bb7",
+      "io_map_sha256_after": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+      "consequence": "Checkpoints written under the old io_map_sha256 are refused by ExperimentRegistry.read_checkpoint (by design); the hybrid RPC dna02_diff sign is corrected on next server start."
+    }
+  ]
 }
