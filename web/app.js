@@ -672,6 +672,12 @@ class ScientificBioArena {
     }
 
     initParadigm(paradigmId) {
+        // Never render a new scene using the previous assay's telemetry schema.
+        if (this.remotePacket && this.remotePacket.paradigm !== paradigmId) {
+            this.remotePacket = null;
+            this.remoteDriven = false;
+            this.awaitingDaemon = true;
+        }
         this.activeParadigmId = paradigmId;
         this.currentTrial = 1;
         this.paradigmElapsedSec = 0.0;
@@ -2843,7 +2849,10 @@ class ScientificBioArena {
         ctx.beginPath(); ctx.arc(sCenter.x, sCenter.y, 25.0 * sCenter.scale, 0, 2 * Math.PI); ctx.stroke();
         ctx.setLineDash([]);
 
-        const stripes=this.remotePacket?.scene?.landmarks || [[110,60],[10,60]];
+        const streamedStripes=this.remotePacket?.paradigm==='buridan' ? this.remotePacket.scene?.landmarks : null;
+        const stripes=Array.isArray(streamedStripes) && streamedStripes.length>=2
+            && streamedStripes.slice(0,2).every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite))
+            ? streamedStripes : [[110,60],[10,60]];
         const s1 = this.worldToScreen(...stripes[0]);
         const s2 = this.worldToScreen(...stripes[1]);
         ctx.globalAlpha=this.remotePacket?.scene?.stripe_contrast === 0 ? 0 : 1;
@@ -3577,7 +3586,7 @@ class DaemonBridgeClient {
         }
         if (status.public === true || status.read_only === true
                 || status.stream?.read_only || status.stream?.commands_require_token) this.markReadOnly();
-        this.arena.awaitingDaemon = false;
+        this.arena.awaitingDaemon = true; // First telemetry frame supplies the authoritative pose.
         this.startStreaming();
     }
 
@@ -3638,9 +3647,8 @@ class DaemonBridgeClient {
         // Synchronize fly pose from the daemon ONLY when the paradigms match; the daemon
         // then owns locomotion and the local engine stops integrating position.
         const daemonParadigm = (pkt.paradigm || '').toLowerCase().replace(/_/g, '-');
-        if (!this.readOnly && daemonParadigm !== this.arena.activeParadigmId
-                && Object.prototype.hasOwnProperty.call(EXPERIMENT_GUIDES, daemonParadigm)
-                && !this.switchPending) {
+        if (daemonParadigm !== this.arena.activeParadigmId
+                && Object.prototype.hasOwnProperty.call(EXPERIMENT_GUIDES, daemonParadigm)) {
             this.arena.initParadigm(daemonParadigm);
             this.hud.updateActiveCard(daemonParadigm);
             this.hud.renderExperimentGuide(daemonParadigm);
@@ -3653,6 +3661,7 @@ class DaemonBridgeClient {
         this.arena.remoteDriven = poseMatch;
 
         if (poseMatch) {
+            this.arena.awaitingDaemon = false;
             const segment = pkt.segment_id || `${pkt.brain_id}:${pkt.trial}`;
             const boundary = this.arena.remoteSegment !== segment;
             if (boundary) { this.arena.fly.trail = []; this.hud.scopeHistory = []; }
@@ -3831,6 +3840,25 @@ class DaemonBridgeClient {
             this.statusPill.textContent = '● LIVE DAEMON (READ-ONLY)';
             this.statusPill.title = `Connected to a public learning daemon at ${this.activeUrl}: the stream is live, but commands (paradigm switches, speed, stimuli) are only applied to the in-browser engine.`;
         }
+    }
+
+    async requestParadigmSwitch(paradigm) {
+        // Serialize requests; while one is in flight retain the latest click.
+        // Only incoming telemetry changes the visible arena, never the click.
+        this.queuedParadigm = paradigm;
+        if (this.switchQueueRunning) return;
+        this.switchQueueRunning = true;
+        try {
+            while (this.queuedParadigm) {
+                const target = this.queuedParadigm;
+                this.queuedParadigm = null;
+                const result = await this.sendCommand('switch_paradigm', {paradigm:target});
+                if (result?.status !== 'ok') {
+                    const label=document.getElementById('arenaRunState');
+                    if(label)label.textContent='Switch not applied: '+(result?.message||'daemon unavailable or read only');
+                }
+            }
+        } finally { this.switchQueueRunning = false; }
     }
 
     async sendCommand(action, params = {}) {
@@ -4493,23 +4521,22 @@ class ScientificHUD {
             card.addEventListener('click', () => {
                 const pid = card.dataset.paradigm;
                 if (!pid) return;
-                this.arena.initParadigm(pid);
-                this.updateActiveCard(pid);
-                this.renderExperimentGuide(pid);
-                this.renderAssayTools(pid);
-                if (pid === 'multisensory-sandbox') {
-                    const tabLimbDeck = document.getElementById('tabLimbDeck');
-        const tabTraining = document.getElementById('tabTraining');
-        const trainingPanel = document.getElementById('trainingPanel');
-                    if (tabLimbDeck) tabLimbDeck.click();
-                }
-                const badge = document.getElementById('navbarParadigmBadge');
-                if (badge) badge.textContent = pid.toUpperCase().replace('-', ' ');
-                if (this.daemonBridge && this.daemonBridge.connected) {
-                    this.daemonBridge.sendCommand('switch_paradigm', { paradigm: pid });
-                }
+                this.selectParadigm(pid);
             });
         });
+    }
+
+    selectParadigm(pid) {
+        if (this.daemonBridge?.connected || this.arena.remoteDriven || this.arena.awaitingDaemon) {
+            return this.daemonBridge?.requestParadigmSwitch(pid);
+        }
+        this.arena.initParadigm(pid);
+        this.updateActiveCard(pid);
+        this.renderExperimentGuide(pid);
+        this.renderAssayTools(pid);
+        if (pid === 'multisensory-sandbox') document.getElementById('tabLimbDeck')?.click();
+        const badge = document.getElementById('navbarParadigmBadge');
+        if (badge) badge.textContent = pid.toUpperCase().replace(/-/g, ' ');
     }
 
     setupDeckTabs() {
@@ -5493,13 +5520,7 @@ window.addEventListener('load', () => {
     window.app = {
         arena,
         hud,
-        selectParadigm: (pid) => {
-            arena.initParadigm(pid);
-            hud.updateActiveCard(pid);
-            hud.renderExperimentGuide(pid);
-            const badge = document.getElementById('navbarParadigmBadge');
-            if (badge) badge.textContent = pid.toUpperCase().replace('-', ' ');
-        },
+        selectParadigm: (pid) => hud.selectParadigm(pid),
         setSpeed: (spd) => hud.setSpeed(spd),
         togglePause: () => {
             isPaused = !isPaused;
