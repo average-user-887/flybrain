@@ -1,5 +1,5 @@
 __pycache__/
-.venv/
+.venv
 upstream/
 outputs/
 connectome_data/
