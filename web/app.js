@@ -5165,7 +5165,11 @@ class ScientificHUD {
         const needleEl = document.getElementById('valNeedle');
         const curPiEl = document.getElementById('currentPiVal');
         if (valNetEl) valNetEl.textContent = (valence >= 0 ? '+' : '') + valence.toFixed(2);
-        if (needleEl) needleEl.style.left = `${((valence + 1.0) / 2.0) * 100}%`;
+        if (needleEl) {
+            // The gauge saturates at its endpoints; the numeric readout stays raw.
+            needleEl.style.left = `${((Math.max(-1, Math.min(1, valence)) + 1) / 2) * 100}%`;
+            needleEl.title = `Raw valence: ${valence.toFixed(4)} (gauge spans -1 to +1)`;
+        }
         if (curPiEl) curPiEl.textContent = (valence >= 0 ? '+' : '') + valence.toFixed(2);
         this.renderKcMatrix();
         this.renderLearningCurve();
