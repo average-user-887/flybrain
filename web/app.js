@@ -75,7 +75,7 @@ class MushroomBodyCircuit {
                 this.w[i][0] = 0.0;
                 this.w[i][1] = 0.0;
                 this.u[i][0] = 0.0;
-                this.u[i][0] = 0.0;
+                this.u[i][1] = 0.0;
             }
         }
     }
@@ -3410,6 +3410,8 @@ class DaemonBridgeClient {
             }
         }, 2000);
 
+        const researchLink = document.getElementById('researchLink');
+        if (researchLink) researchLink.href = `research.html${window.location.search || ''}`;
         this.initConnection(false);
     }
 
@@ -3428,7 +3430,9 @@ class DaemonBridgeClient {
             const loc = window.location;
             try {
                 const param = new URLSearchParams(loc.search || '').get('daemon');
-                if (param) add(param.replace(/\/+$/, ''));
+                if (param === 'off') return [];
+                // An explicit endpoint must never fall through to a different live lab.
+                if (param) return [param.replace(/\/+$/, '')];
             } catch (e) {}
             const httpLike = loc.protocol === 'http:' || loc.protocol === 'https:';
             if (httpLike && loc.origin && loc.origin !== 'null') add(loc.origin);
@@ -3483,6 +3487,7 @@ class DaemonBridgeClient {
         this.reconnectDelayMs = 4000;
         this.lastPacketTime = performance.now();
         this.lastPacketStep = -1;
+        this.lastPacketTimestamp = 0;
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';

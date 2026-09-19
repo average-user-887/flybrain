@@ -16,7 +16,7 @@ the code does. Everything else is roadmap.
 | **What learns** | Online: KC→MBON weights in the mushroom-body module change with dopamine during trials, in the arena, the daemon and the dashboard. Offline: `brainlab.learning` trains an *external* linear readout on spikes from the full graph with fixed synaptic weights. | `circuit.py`, `brainlab/learning.py` |
 | **Full-scale connectome substrate (`brainlab/`)** | Downloads MaleCNS v1.0 (CC BY 4.0), keeps every released edge among 166,700 annotated neurons (25,582,938 directed connections), builds a CSR graph and steps a fixed-weight leaky integrate-and-fire model in a Numba kernel validated against Brian2. 100 ms of activity takes about 0.3 s on one CPU. It has **no plasticity, no calibrated sensory input and no motor output**; stimulation targets are chosen by hand. | `brainlab/`, `FULL_BRAIN_TEST.md`, `RUNS.md` |
 | **Bridging the two (optional RPC mode)** | `brainlab/cosim_server.py` can expose the full graph over HTTP and `connectome_client.py` can drive it from the arena. Sensory node groups are looked up by cell type; the *descending-neuron read-out indices are hard-coded integers whose mapping to real DN types has not been verified*. This path is exercised only by unit tests against a 2,500-neuron synthetic graph; the daemon does not use it. | `brainlab/cosim_server.py`, `connectome_client.py` |
-| **Continuous daemon** | Steps the modular fly 24/7, streams telemetry over SSE, accepts intervention commands, writes rolling checkpoints and append-only learning records (`docs/DATA_SCHEMA.md`). Has an opt-in read-only public mode (`docs/PUBLIC_STREAMING.md`). | `neurofly_daemon.py`, `stream_gateway.py`, `learning_recorder.py` |
+| **Continuous daemon** | Steps the modular fly 24/7, streams telemetry over SSE, accepts intervention commands, writes per-experiment weight checkpoints and append-only learning records (`docs/DATA_SCHEMA.md`). Has an opt-in read-only public mode (`docs/PUBLIC_STREAMING.md`). | `neurofly_daemon.py`, `stream_gateway.py`, `learning_recorder.py` |
 | **Browser dashboard** | `web/app.js` is an independent JavaScript re-implementation of the arena and the modular brain that runs at 60 FPS in the browser, with knockout switches and sliders. When a daemon is reachable it overlays the daemon's fly. The physics must be kept in step with the Python by hand. | `web/` |
 | **Data logging and batteries** | Per-step CSV, per-trial JSON, occupancy NPZ, cohort statistics and Markdown reports; a headless battery runner and a lesion study script. | `data_logger.py`, `experiments/` |
 
@@ -45,6 +45,17 @@ In rough order (see `docs/OPEN_SOURCE_PLAN.md`):
    closed loop between the arena and the full graph at reduced real-time factor.
 4. Plasticity inside the full graph with HDF5/Zarr weight checkpoints.
 5. Multi-fly social behaviour.
+
+## Learning observatory
+
+The new `web/research.html` shows actual daemon weights, cue probes, trial
+measurements and per-experiment teaching records. Every experiment now retains
+its own seeded brain when you switch away or restart. Start and verification
+instructions: [Learning observatory](docs/LEARNING_OBSERVATORY.md).
+
+The controlled teaching battery checks paired, reversed and frozen-learning
+conditions in all 14 brain instances. This demonstrates cue memory and isolation;
+improved navigation and multi-step planning still require behavioral evidence.
 
 ## Quick start
 
@@ -143,7 +154,7 @@ working directories.
 
 ## Status
 
-At the time of writing the suite has 247 tests and passes on Python 3.12
+The suite is exercised on Python 3.12
 (`PYTHONPATH=. pytest -q tests/`). CI runs the same command on every pull
 request. Test counts in older documents (116, 140, 156, 180) refer to earlier
 snapshots.

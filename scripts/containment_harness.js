@@ -73,8 +73,18 @@ globalThis.URLSearchParams = globalThis.URLSearchParams || class { get() { retur
 
 // ---------------------------------------------------------------- load app.js
 const src = new TextDecoder().decode(GLib.file_get_contents(appPath)[1]);
-new Function(src + '\nglobalThis.__NF = { ScientificBioArena, WallSegment };')();
-const { ScientificBioArena } = globalThis.__NF;
+new Function(src + '\nglobalThis.__NF = { ScientificBioArena, WallSegment, MushroomBodyCircuit };')();
+const { ScientificBioArena, MushroomBodyCircuit } = globalThis.__NF;
+// Reset must clear both long-term efficacy pathways, while keepMemory retains them.
+const resetCircuit = new MushroomBodyCircuit();
+resetCircuit.u[0] = [0.3, -0.4];
+resetCircuit.w[0] = [0.2, -0.1];
+resetCircuit.reset(true);
+if (resetCircuit.u[0][1] !== -0.4) throw new Error('keepMemory discarded efficacy');
+resetCircuit.reset(false);
+if (resetCircuit.u[0].some(v => v !== 0) || resetCircuit.w[0].some(v => v !== 0)) {
+    throw new Error('memory reset left a plasticity pathway uncleared');
+}
 
 // ---------------------------------------------------------------- seeded RNG
 function seededRandom(seed) {
