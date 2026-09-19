@@ -141,6 +141,9 @@ class FlyState:
             self.connectome_bridge.motor_source if self.connectome_bridge is not None else 'none')
         self.controller_fault: Optional[str] = None
         self.motor_halted = False
+        # WP5: reason the optomotor loop is unsupported on this backend (None when it
+        # is supported or the assay is not running); never silently a zero yaw.
+        self.optomotor_unsupported: Optional[str] = None
 
         # Telemetry
         self.behavioral_state: str = 'WANDER'
@@ -830,6 +833,30 @@ class Arena:
                 'controller_fault': getattr(f, 'controller_fault', None),
                 'assist_totals': dict(getattr(f, 'assist_totals', None) or self._empty_assist_totals())}
 
+    def optomotor_provenance(self, fly: Optional[FlyState] = None) -> Dict[str, Any]:
+        """WP5 provenance from the last graph reply: assistance gate, IO map pin, yaw.
+
+        Empty for the modular controller, which has no graph reply and is unchanged.
+        """
+        f = fly or self.fly
+        telemetry = getattr(f, 'last_connectome_telemetry', None)
+        if not isinstance(telemetry, dict):
+            return {}
+        block = telemetry.get('optomotor') or {}
+        out: Dict[str, Any] = {
+            'engineered_assistance_enabled': telemetry.get('engineered_assistance_enabled'),
+            'engineered_assistance_applied': list(telemetry.get('engineered_assistance_applied') or []),
+            'optomotor_io_map_sha256': (block.get('io_map_sha256')
+                                        or telemetry.get('optomotor_io_map_sha256')),
+            'optomotor_yaw_rad_s': block.get('yaw_rad_s'),
+            'optomotor_slip_rad_s': block.get('slip_rad_s'),
+            'optomotor_unsupported': (getattr(f, 'optomotor_unsupported', None)
+                                      or telemetry.get('optomotor_unsupported')),
+        }
+        if self.paradigm_key(self.paradigm) == 'optomotor' and self.graph_controller is not None:
+            out['forward_drive'] = self.OPTOMOTOR_NO_FORWARD_DRIVE
+        return out
+
     # ------------------------------------------------------------------ world snapshots
     def snapshot_world(self) -> Dict[str, Any]:
         """JSON-safe snapshot of the whole world, for replay and per-assay checkpoints.
@@ -1198,6 +1225,36 @@ class Arena:
             'diff_b': left_b - right_b
         }
 
+    # WP5 (docs/WP5_OPTOMOTOR.md): under a graph backend the optomotor assay has no
+    # graph-derived forward drive -- the DNb01/DNp09 tonic drive is engineered
+    # assistance and is gated off -- so the tethered fly runs at speed 0 and says so.
+    OPTOMOTOR_NO_FORWARD_DRIVE = (
+        'no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is '
+        'engineered assistance and is gated off): the tethered optomotor assay runs at speed 0')
+
+    def _graph_optomotor_command(self, f: FlyState, telemetry: Optional[Dict[str, Any]]) -> Tuple[float, float, str]:
+        """Yaw (rad/s), forward speed and state for the optomotor assay from a graph reply.
+
+        The graph's DNa02 yaw command REPLACES the modular
+        ``vision.get_optomotor_yaw_bias()``; the two are never added.  A reply with
+        no ``optomotor`` block means the backend has no verified WP5 sensory encoder
+        and motor decoder: that is reported as an unsupported mapping and the fly is
+        halted, never read as a zero yaw command.
+        """
+        reply = telemetry or {}
+        block = reply.get('optomotor')
+        if not block:
+            f.motor_source = str(reply.get('motor_source') or 'graph-unmapped-io')
+            f.motor_halted = True
+            f.optomotor_unsupported = str(
+                reply.get('optomotor_unsupported')
+                or 'no verified optomotor sensory encoder / motor decoder on this backend; no motor command')
+            return 0.0, 0.0, 'NO-MOTOR-MAP'
+        f.optomotor_unsupported = None
+        f.motor_halted = False
+        # Tethered: speed 0, reported, never the modular walking drive (WP5 section 8).
+        return float(block.get('yaw_rad_s', 0.0)), 0.0, 'OPTOMOTOR-TETHERED'
+
     def compute_steering(
         self,
         sensory: Dict[str, float],
@@ -1219,17 +1276,34 @@ class Arena:
         pred_vel_list = [p.get_velocity() for p in self.predators]
         w_vec = wind_vector if wind_vector is not None else np.array(self.wind, dtype=np.float64)
 
+        # WP5 optomotor sensory keys for the connectome packet (docs/WP5_OPTOMOTOR.md).
+        # Retinal slip is what the eye sees: drum rotation minus the fly's own yaw,
+        # in rad/s (+ = pattern rotating counter-clockwise seen from above).  They are
+        # sent only for the optomotor assay, the one validated mapping; no other assay
+        # gets an invented one.
+        optomotor_assay = self.paradigm_key(self.paradigm) == 'optomotor'
+        optomotor_sensory: Dict[str, float] = {}
+        if optomotor_assay:
+            optomotor_sensory = {
+                'optomotor_slip_rad_s': (math.radians(float(kwargs.get('drum_velocity_deg_s', 0.0)))
+                                         - float(getattr(f, 'angular_velocity', 0.0))),
+                'optomotor_contrast': float(kwargs.get('visual_contrast', 1.0)),
+            }
+
         # Graph backend dispatch (connectome-fixed / -plastic / -with-trained-readout).
         # The controller returns body-frame commands in arena units: forward_speed in
         # mm/s and yaw_rate in rad/s (+ = counter-clockwise).  They are applied as
         # given: no floor, no clipping and no substitute command when the graph is silent.
         if self.graph_controller is not None:
             out = self.graph_controller(fly=f, sensory=sensory, dt=dt, temperature=temperature,
-                                        wind_vector=w_vec, **kwargs)
+                                        wind_vector=w_vec, **optomotor_sensory, **kwargs)
             f.last_connectome_telemetry = out
             f.motor_source = str(out.get('motor_source', 'graph'))
             f.controller_fault = out.get('controller_fault')
             f.motor_halted = bool(out.get('halted', False))
+            if optomotor_assay:
+                yaw, speed, state = self._graph_optomotor_command(f, out)
+                return yaw, speed, state, float(f.heading), float(f.heading)
             if f.motor_halted:
                 return 0.0, 0.0, str(out.get('state', 'HALTED')), float(f.heading), float(f.heading)
             return (float(out.get('yaw_rate', 0.0)), float(out.get('forward_speed', 0.0)),
@@ -1257,6 +1331,7 @@ class Arena:
                 bitter_pheromone=bitter_pheromone,
                 female_aphrodisiac=female_aphrodisiac,
                 is_saccade=is_saccade,
+                **optomotor_sensory,
                 **kwargs
             )
             f.last_connectome_telemetry = bridge_out
@@ -1267,6 +1342,11 @@ class Arena:
                 # RPC fault under on_rpc_fault='halt': no controller, so no propulsion
                 # and no steering.  The legacy 0.1 speed floor below must not apply.
                 return 0.0, 0.0, 'HALTED', float(f.heading), float(f.heading)
+            if optomotor_assay and f.connectome_bridge.mode == 'rpc':
+                # The graph's DNa02 command, not the bridge's hand-built yaw.
+                yaw, speed, state = self._graph_optomotor_command(f, bridge_out)
+                return (yaw, speed, state, float(bridge_out.get('compass_bump_heading', f.heading)),
+                        float(f.heading))
             dheading = float(np.clip(bridge_out['yaw_rate'] * 0.01, -0.45, 0.45))
             new_speed = float(np.clip(bridge_out['forward_speed'] * 0.1, 0.1, 3.5))
             if bridge_out.get('escape_active'):

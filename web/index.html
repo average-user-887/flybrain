@@ -1144,6 +1144,8 @@
                 <span>Assists: <b id="identAssists">--</b></span>
                 <span title="Which controller produced the current motor command">Motor: <b id="identMotor">--</b></span>
                 <span title="Controller fault reported by the daemon">Fault: <b id="identFault">none</b></span>
+                <span title="Engineered assistance inside the graph controller (WP5: the direct DNp01 looming injection and the tonic DNb01 walking drive). OFF means nothing but the verified sensory encoder reaches the graph.">Assistance: <b id="identAssistance">--</b></span>
+                <span title="sha256 of the resolved WP5 optomotor IO map (brainlab/io_map.py, docs/WP5_OPTOMOTOR.md); -- when this run has no optomotor mapping">Opto IO map: <b id="identOptoMap">--</b></span>
                 <span id="identRun" style="cursor:help">run --</span>
                 <label title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist</label>
             </div>

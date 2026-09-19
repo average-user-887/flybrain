@@ -102,39 +102,118 @@ class GraphArenaController:
     """Arena motor controller for graph backends (connectome-fixed/-plastic/-readout).
 
     Each arena step advances the active registry instance by ``step_ms`` of
-    simulated brain time.  No assay yet has a verified sensory encoder and motor
-    decoder wired into the live arena (WP5 validates optomotor offline, WP7 extends
-    the roster), so no sensory drive is delivered and no motor command is decoded:
-    the fly receives zero speed and zero yaw, reported as
-    ``motor_source='graph-unmapped-io'``.  That is the honest outcome; no surrogate
+    simulated brain time.
+
+    The optomotor assay is the one assay with a verified sensory encoder and motor
+    decoder (WP5, ``brainlab/io_map.py``, docs/WP5_OPTOMOTOR.md): eye-specific
+    retinal slip drives T4/T5, and the DNa02 rate difference decodes to a yaw
+    command that is applied as given.  Nothing else is injected -- no engineered
+    assistance, so there is no graph-derived forward drive and the tethered assay
+    runs at speed 0.
+
+    Every other assay has no verified mapping, so no sensory drive is delivered and
+    no motor command is decoded: the fly receives zero speed and zero yaw, reported
+    as ``motor_source='graph-unmapped-io'``.  The same applies when the optomotor
+    map cannot be resolved (synthetic test graph, missing annotations): the state is
+    named and the fly is halted, never read as a zero yaw command.  No surrogate
     controller or engineered assist moves the fly instead.
     """
 
     UNMAPPED = "graph-unmapped-io"
+    OPTOMOTOR_ASSAY = "optomotor"
 
     def __init__(self, runner: "ContinuousExperimentRunner", step_ms: float):
         self.runner = runner
         self.step_ms = float(step_ms)
         self._currents = None
         self.last_total_spikes = 0
+        # WP5 optomotor loop, resolved once: an OptomotorIOMap, or False when this
+        # graph has none (the reason is kept in ``optomotor_unavailable``).
+        self._optomotor_io = None
+        self._optomotor_loop = None          # (instance_id, OptomotorLoop)
+        self.optomotor_unavailable = None
 
-    def __call__(self, fly=None, sensory=None, dt=0.02, **_):
+    @property
+    def optomotor_io_map_sha256(self):
+        return getattr(self._optomotor_io, "sha256", None) if self._optomotor_io else None
+
+    # The live graph loop injects nothing but the WP5 encoder's drive: the DNp01
+    # looming injection and the tonic DNb01 drive of the RPC server are engineered
+    # assistance and are not used here (WP5 section 8).
+    ENGINEERED_ASSISTANCE_ENABLED = False
+
+    def _loop_for(self, instance):
+        """The WP5 optomotor loop for ``instance``, or None with a recorded reason."""
+        held = self._optomotor_loop
+        if held is not None and held[0] == instance.instance_id:
+            return held[1]
+        if self._optomotor_io is False:
+            return None
+        try:
+            from brainlab.graph_identity import GraphUnavailable
+            from brainlab.io_map import DNa02YawDecoder, OptomotorEncoder, OptomotorLoop, resolve_optomotor_io
+            if self._optomotor_io is None:
+                if getattr(getattr(self.runner.shared_graph, "identity", None), "synthetic", False):
+                    raise GraphUnavailable(
+                        "synthetic test graph: the WP5 optomotor map is never faked on one")
+                self._optomotor_io = resolve_optomotor_io()
+            io_map = self._optomotor_io
+            loop = OptomotorLoop(instance, io_map,
+                                 OptomotorEncoder(io_map, np.random.default_rng(instance.seed)),
+                                 DNa02YawDecoder(io_map), step_ms=self.step_ms)
+        except Exception as error:                      # unresolved map: unsupported, not zero
+            self._optomotor_io = False
+            self.optomotor_unavailable = f"{type(error).__name__}: {error}"
+            print(f"[GraphArenaController] optomotor loop unavailable: {self.optomotor_unavailable}",
+                  flush=True)
+            return None
+        self._optomotor_loop = (instance.instance_id, loop)
+        return loop
+
+    def __call__(self, fly=None, sensory=None, dt=0.02, **kwargs):
         registry = self.runner.registry
         instance = registry.active if registry is not None else None
         if instance is None or instance.assay != self.runner.active_paradigm_id:
             return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": "halted-no-instance",
                     "controller_fault": "no active graph instance for this assay", "state": "HALTED"}
+        if self.runner.active_paradigm_id == self.OPTOMOTOR_ASSAY:
+            loop = self._loop_for(instance)
+            if loop is not None:
+                record = loop.step(float(kwargs.get("optomotor_slip_rad_s", 0.0)),
+                                   float(kwargs.get("optomotor_contrast", 1.0)))
+                self.last_total_spikes = int(record["total_spikes"])
+                return {"halted": False, "forward_speed": 0.0, "yaw_rate": float(record["yaw_rad_s"]),
+                        "motor_source": "graph", "controller_fault": None, "state": "OPTOMOTOR-TETHERED",
+                        "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
+                        "total_spikes": self.last_total_spikes,
+                        "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
+                        "engineered_assistance_applied": [],
+                        "optomotor": {
+                            "slip_rad_s": record["slip_rad_s"], "contrast": record["contrast"],
+                            "yaw_rad_s": record["yaw_rad_s"], "contributions": record["contributions"],
+                            "rate_l": record["rate_l"], "rate_r": record["rate_r"],
+                            "spikes_l": record["spikes_l"], "spikes_r": record["spikes_r"],
+                            "io_map_sha256": self.optomotor_io_map_sha256,
+                            "decoder": "yaw = 0.02*(rate DNa02_L - rate DNa02_R), + = counter-clockwise; unclipped",
+                        }}
         n = instance.brain.n
         if self._currents is None or len(self._currents) != n:
             self._currents = np.zeros(n, dtype=np.float32)
         result = instance.step(self._currents, self.step_ms)
         self.last_total_spikes = int(result.counts.sum())
+        unsupported = (f"No verified sensory encoder or motor decoder for assay "
+                       f"{self.runner.active_paradigm_id!r} in the live arena; no motor command.")
+        if self.runner.active_paradigm_id == self.OPTOMOTOR_ASSAY:
+            unsupported = (f"The WP5 optomotor map could not be resolved on this graph "
+                           f"({self.optomotor_unavailable}); no motor command.")
         return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": self.UNMAPPED,
                 "controller_fault": None, "state": "NO-MOTOR-MAP",
                 "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
                 "total_spikes": self.last_total_spikes,
-                "unsupported": f"No verified sensory encoder or motor decoder for assay "
-                               f"{self.runner.active_paradigm_id!r} in the live arena; no motor command."}
+                "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
+                "engineered_assistance_applied": [],
+                "optomotor": None, "optomotor_unsupported": unsupported,
+                "unsupported": unsupported}
 
 
 class TimedLock:
@@ -459,6 +538,12 @@ class ContinuousExperimentRunner:
             summary[key] = value
         summary["contacts"] = len(record.get("contact_normals") or [])
         prov["record"] = summary
+        # WP5 provenance (empty for the modular controller): whether the graph run's
+        # engineered assistance is on, which optomotor IO map it resolved, and the
+        # decoded yaw or the named reason the mapping is unsupported.
+        optomotor = self.arena.optomotor_provenance(fly)
+        if optomotor:
+            prov["optomotor"] = optomotor
         return prov
 
     def start(self):

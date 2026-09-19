@@ -21,6 +21,19 @@ from typing import Any, Dict, List, Optional
 PINS_PATH = Path(__file__).resolve().parent / "brainlab/graph_pins.json"
 
 
+def _json_safe(value: Any):
+    """Encode numpy arrays and scalars in a sensory packet as plain JSON data.
+
+    The bridge's packet carries numpy state (e.g. the E-PG ring profile) next to the
+    scalar channels.  Without this the whole request fails to serialize, so no
+    sensory key reaches the server at all -- including the WP5 optomotor keys.
+    """
+    tolist = getattr(value, "tolist", None)
+    if callable(tolist):
+        return tolist()
+    raise TypeError(f"{type(value).__name__} is not JSON serializable in a sensory packet")
+
+
 def pinned_graph_sha256() -> Optional[str]:
     try:
         return json.loads(PINS_PATH.read_text())["graph_sha256"]
@@ -91,9 +104,13 @@ class ConnectomeClient:
             return False
         if not self.is_connected:
             self._event("connect", graph_sha256=data.get("graph_sha256"), backend=data.get("backend"))
+        # Identity plus the WP5 provenance the dashboard must show: whether the
+        # server's engineered assistance is gated on, and which optomotor IO map
+        # (brainlab/io_map.py) it resolved.  ``None`` means the server has none.
         self.server_identity = {k: data.get(k) for k in
                                 ("backend", "graph_sha256", "neuron_map_sha256", "io_map_sha256",
-                                 "sensory_map_sha256", "synthetic", "label")}
+                                 "sensory_map_sha256", "synthetic", "label",
+                                 "engineered_assistance_enabled", "optomotor_io_map_sha256")}
         self.is_connected = True
         self.consecutive_errors = 0
         self.last_error = None
@@ -122,6 +139,13 @@ class ConnectomeClient:
         """Send sensory drive; return descending-neuron readouts or ``None``.
 
         ``None`` always comes with ``last_error`` set.  The caller must report it.
+
+        ``sensory_packet`` is forwarded verbatim, including the WP5 keys
+        ``optomotor_slip_rad_s`` and ``optomotor_contrast``.  So is the reply,
+        including its ``optomotor`` block, ``engineered_assistance_applied`` and
+        ``engineered_assistance_enabled``.  A reply without an ``optomotor``
+        block is passed on as it came: the caller decides what that means and
+        must not read the absence as zero yaw.
         """
         if not self.is_connected and not self.check_health():
             return None
@@ -130,7 +154,7 @@ class ConnectomeClient:
         payload = json.dumps({
             "sensory": sensory_packet,
             "duration_ms": duration_ms
-        }).encode("utf-8")
+        }, default=_json_safe).encode("utf-8")
 
         req = urllib.request.Request(
             url,

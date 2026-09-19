@@ -205,6 +205,12 @@ dashboard is unsupported for this loop today.
 
 ## 8. Integration hooks needed to run this live
 
+**Status: landed in the live path (see the commit that follows `ca7b71b`).** The arena
+sends slip and contrast for the optomotor assay only, the graph yaw replaces (never
+adds to) the modular bias, the tethered assay runs at speed 0, and a missing
+`optomotor` block reports `graph-unmapped-io` instead of a silent zero. Receipt:
+`docs/receipts/integration/wp5_live_loop.json`. The live-UI sign-off is still pending.
+
 Server side is done: `brainlab/cosim_server.py` accepts
 `sensory["optomotor_slip_rad_s"]` (+ optional `optomotor_contrast`) and returns
 `reply["optomotor"] = {yaw_rad_s, contributions, rate_l, rate_r, io_map_sha256}`,
