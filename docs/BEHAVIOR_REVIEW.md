@@ -36,6 +36,14 @@ stimulus-response wiring, and actual task learning.
 * Some visible fields were stale/default values: stripe fixation, path length,
   source progress, courtship wings and scene changes now follow their daemon data.
   Open-arena neural telemetry now describes the inputs used for the recorded step.
+* A restarted daemon's step-zero packet could be rejected as stale. Ordering now
+  includes run identity. The live outcome chart uses actual simulation timestamps,
+  missing outcomes and segment boundaries, rather than waiting indefinitely for
+  trial completions in continuous mode. Motor traces sample distinct ticks.
+* The DAM viewport clipped 13 of its 16 drawn tubes. The entire monitor is visible
+  and explicitly labels its single simulated animal. Optomotor zero contrast now
+  removes the visible grating and returns the HS proxy to its baseline; the wind
+  display shows the field sampled by the fly. Unstreamed neural readouts are labeled.
 
 ## What each experiment currently establishes
 
@@ -77,6 +85,33 @@ not a population result, generalization claim or proof of learning in other task
 stimuli, reflex drives and maximum step displacement. Motion validity is separate
 from successful task performance. The baseline is in
 `outputs/behavior-review/before.json`; final runs are recorded separately.
+
+### Completed validation receipt
+
+* Core sensorimotor revision: `da7d4bc`. The final behavior audit is
+  `outputs/behavior-review/final.json`: **42 runs, 126,000 integration steps**,
+  maximum displacement **0.070 mm per 20 ms**, no nonfinite poses or jumps.
+* All three heat-maze runs reached the refuge (13.1–29.1 simulated seconds), and
+  all three wind-tunnel runs reached the source (58.7 seconds). All three
+  labyrinth runs failed to reach the goal within 60 seconds; their missing
+  latencies remain `null`. These outcomes are retained, not turned into passes.
+* `outputs/behavior-review/containment-final.txt`: **84 starts, 151,200 steps**,
+  all 14 arenas contained, zero teleports; maximum continuous wall pinning 1.12 s
+  against the audit's 2-s threshold. Tethered assays intentionally stay in place.
+* Browser review covered every assay on an isolated daemon. Connected actions
+  were exercised for landmarks, heat sectors, plume location, looming, grating
+  direction/contrast and social cues without altering the user's saved brains.
+* The 316-test Python suite passed after the motor repairs. After the final HS
+  contrast correction, all 45 assay/maze tests passed again. The JavaScript
+  harness verifies live ownership for all 14 assays, restart packet handling,
+  measured chart samples, missing data and segment boundaries, plus arena stress.
+
+The trajectories validate software continuity, not biological realism. The
+multisensory composite/limb scores and several legacy assay-specific counters
+remain model proxies; use the raw trajectories and explicit cue-response tests
+for movement analysis. In particular, odor-presence classifications in the wind
+tunnel are not an independent measurement of motor-state occupancy, and the
+labyrinth's internal collision counter is not the arena integrator's contact log.
 
 The persistent research worker now starts a separate
 `outputs/research-sensorimotor-v2` cohort lineage. Older cohorts are preserved in

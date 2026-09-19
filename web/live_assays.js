@@ -10,6 +10,7 @@ window.mountLiveAssay = function(hud, panel) {
  +card('Live interventions',capability.actions.map(a=>`<button class="stim-btn" id="live_action_${a.name}">${esc(a.label)}</button>`).join('')+`<p id="liveCommandStatus" role="status">Applied interventions are recorded with brain ID and simulation time. Unconnected preview controls are unavailable here.</p>`)
  +card('Measured motor response','<p>Blue: speed (mm/s) · Pink: yaw (rad/s). Samples from the current segment; these curves are measurements.</p><canvas id="liveMotorChart" width="380" height="130" style="width:100%;height:130px"></canvas>')
  +card('Actual assay measurements','<div id="liveMetrics"></div>');
+ panel.scrollTop=0;
  const status=panel.querySelector('#liveCommandStatus');
  const send=async(action,params)=>{
   status.textContent='Applying…';

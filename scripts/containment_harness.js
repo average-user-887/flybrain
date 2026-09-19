@@ -73,8 +73,47 @@ globalThis.URLSearchParams = globalThis.URLSearchParams || class { get() { retur
 
 // ---------------------------------------------------------------- load app.js
 const src = new TextDecoder().decode(GLib.file_get_contents(appPath)[1]);
-new Function(src + '\nglobalThis.__NF = { ScientificBioArena, WallSegment, MushroomBodyCircuit, daemonFrameOffset };')();
-const { ScientificBioArena, MushroomBodyCircuit, daemonFrameOffset } = globalThis.__NF;
+new Function(src + '\nglobalThis.__NF = { ScientificBioArena, ScientificHUD, WallSegment, MushroomBodyCircuit, DaemonBridgeClient, daemonFrameOffset, isStaleDaemonPacket };')();
+const { ScientificBioArena, ScientificHUD, MushroomBodyCircuit, DaemonBridgeClient, daemonFrameOffset, isStaleDaemonPacket } = globalThis.__NF;
+const lastFrame = {run_id:'old',paradigm:'wind-tunnel',step:1000,timestamp:100};
+if (!isStaleDaemonPacket({...lastFrame,step:999},lastFrame)) throw new Error('Out-of-order step accepted');
+if (!isStaleDaemonPacket({...lastFrame,timestamp:99},lastFrame)) throw new Error('Out-of-order time accepted');
+if (isStaleDaemonPacket({...lastFrame,run_id:'new',step:0,timestamp:0},lastFrame)) throw new Error('Restarted daemon rejected');
+if (isStaleDaemonPacket({...lastFrame,paradigm:'heat-maze',step:0},lastFrame)) throw new Error('Assay switch rejected');
+if (isStaleDaemonPacket({...lastFrame,step:1001,timestamp:101},lastFrame)) throw new Error('Next valid frame rejected');
+print('PASS frame ordering: reject stale packets, accept a new run at step zero');
+const streamedArena = new ScientificBioArena('arenaCanvas');
+streamedArena.initParadigm('open-arena');
+const bridge = Object.assign(Object.create(DaemonBridgeClient.prototype), {
+    arena:streamedArena, hud:{scopeHistory:[],learningTrials:[]}
+});
+const frame = {type:'telemetry',run_id:'first',segment_id:'first:0',brain_id:'brain',
+    paradigm:'open-arena',step:1000,timestamp:100,trial:1,trial_elapsed_s:20,sim_time_s:20,
+    sim_speed:1,continuous:true,fly:{x:10,y:10,heading:0,speed:1,state:'WANDER'}};
+bridge.handleDaemonPacket(frame);
+bridge.handleDaemonPacket({...frame,step:999,fly:{...frame.fly,x:99}});
+if (streamedArena.fly.x !== 10) throw new Error('Stale frame changed rendered pose');
+bridge.handleDaemonPacket({...frame,run_id:'restarted',segment_id:'restarted:0',step:0,
+    timestamp:101,sim_time_s:0,fly:{...frame.fly,x:20}});
+if (streamedArena.fly.x !== 20 || streamedArena.stepCount !== 0
+        || streamedArena.telemetryBuffer.length !== 2 || streamedArena.fly.trail.length !== 1) {
+    throw new Error('Restart frame failed to update pose, recording or trail boundary');
+}
+print('PASS live packet handling: same-assay daemon restart resumes immediately');
+const chartHud=Object.assign(Object.create(ScientificHUD.prototype), {
+    arena:streamedArena,curveCanvas:makeEl('outcome'),curveCtx:makeCtx()
+});
+chartHud.renderLiveOutcome();chartHud.renderLiveOutcome();
+if(chartHud.liveOutcomeHistory.length!==1 || chartHud.liveOutcomeHistory[0].value!==null) {
+    throw new Error('Chart invented an outcome or duplicated a simulation tick');
+}
+streamedArena.remotePacket={...streamedArena.remotePacket,step:1,sim_time_s:.02,neural:{net_valence:-.4}};
+chartHud.renderLiveOutcome();
+if(chartHud.liveOutcomeHistory[1].value!==-.4 || chartHud.liveOutcomeHistory[1].time!==.02) throw new Error('Chart lost measured value/time');
+streamedArena.remotePacket={...streamedArena.remotePacket,segment_id:'new-segment'};
+chartHud.renderLiveOutcome();
+if(chartHud.liveOutcomeHistory.length!==1) throw new Error('Chart connected different trajectory segments');
+print('PASS live outcome chart: measured ticks, missing data and segment boundaries');
 if (String(daemonFrameOffset({paradigm:'multisensory-sandbox',world_bounds:[-75,-75,75,75]})) !== '0,0') throw new Error('Modern multisensory frame shifted outside arena');
 if (String(daemonFrameOffset({paradigm:'open-arena',world_bounds:[0,0,100,100]})) !== '-50,-50') throw new Error('Foraging frame not centered');
 // Reset must clear both long-term efficacy pathways, while keepMemory retains them.
