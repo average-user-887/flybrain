@@ -1959,7 +1959,7 @@ class CircadianDAMParadigm(ExperimentParadigm):
 class CourtshipParadigm(ExperimentParadigm):
     """Paradigm 11: Courtship Conditioning & Pheromone Memory (Siegel & Hall 1979; Keleman 2007).
 
-    Circular courtship chamber (R=5mm), male and female fly (virgin or mated).
+    Circular courtship chamber (R=8.5mm, as drawn by the dashboard), male and female fly (virgin or mated).
     Mated female emits cVA anti-aphrodisiac and delivers rejection kicks,
     inducing dopaminergic suppression of male courtship song and wing extension.
     """
@@ -1968,11 +1968,11 @@ class CourtshipParadigm(ExperimentParadigm):
         dimensions = (20.0, 20.0)
         cx, cy = 10.0, 10.0
         self.chamber_center = (cx, cy)
-        self.chamber_radius = 5.0
+        self.chamber_radius = 8.5
         self.female_type = female_type  # 'virgin' or 'mated'
         self.female_pos = (cx + 1.5, cy + 1.0)
 
-        moat = CircularMoat(center=(cx, cy), radius=self.chamber_radius)
+        self.moat = CircularMoat(center=(cx, cy), radius=self.chamber_radius)
 
         super().__init__(
             name="courtship",
@@ -2380,6 +2380,7 @@ class MultisensoryLimbBenchmark(ExperimentParadigm):
 
     def step(self, fly: Any, dt: float = 0.02, **kwargs) -> Dict[str, Any]:
         self.time_elapsed_ms += dt * 1000.0
+        self.trial_manager.step()
         fx, fy, fheading, fspeed, fang_vel = self._extract_fly_pose(fly)
 
         # Check for direct manual control overrides
