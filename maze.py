@@ -518,17 +518,34 @@ class CollisionEngine:
                 contacts.append((wall, (proj_x, proj_y), (nx, ny), d))
 
         if not contacts:
-            # Fallback to single-wall resolution
-            return x, y, vx, vy, True, []
+            # The overlap was found at p1 but nothing touches the start pose: never
+            # return the overlapping pose itself, push it out of the walls instead.
+            fx, fy = self._project_out(x, y, radius, self.walls)
+            return fx, fy, vx, vy, True, []
 
+        # Position resolution: push the body out of only those walls it actually
+        # overlaps, by iterated projection. The former 2x2 wedge solve placed the body
+        # on the intersection of both offset lines whenever a second wall was merely
+        # inside the 0.05 mm contact band, snapping it up to ~0.2 mm along a wall
+        # (further at shallow polygon vertices) in a single step: an unexplained jump.
+        res_x, res_y = self._project_out(cx, cy, radius, [c[0] for c in contacts])
+
+        # Velocity constraints come from walls actually touched at the resolved pose;
+        # a wall still 0.05 mm away must not zero the motion toward it.
+        touching = []
+        for wall, _cp, _n, _d in contacts:
+            proj_x, proj_y, _ = wall.project_point(res_x, res_y)
+            d = math.hypot(res_x - proj_x, res_y - proj_y)
+            if d <= radius + self.CONTACT_SKIN:
+                if d > 1e-8:
+                    n = ((res_x - proj_x) / d, (res_y - proj_y) / d)
+                else:
+                    n = (wall.nx, wall.ny)
+                touching.append((wall, (proj_x, proj_y), n, d))
+        if touching:
+            contacts = touching
         best_pair = (contacts[0], contacts[0])
-        # Position resolution
-        if len(contacts) == 1:
-            w1, c1, n1, d1 = contacts[0]
-            res_x = c1[0] + n1[0] * (radius + 1e-4)
-            res_y = c1[1] + n1[1] * (radius + 1e-4)
-        else:
-            # 2+ walls: Simultaneous 2x2 corner wedge solver
+        if len(contacts) > 1:
             best_pair = (contacts[0], contacts[1])
             max_cross = abs(contacts[0][2][0] * contacts[1][2][1] - contacts[0][2][1] * contacts[1][2][0])
             for i in range(len(contacts)):
@@ -537,18 +554,6 @@ class CollisionEngine:
                     if cross > max_cross:
                         max_cross = cross
                         best_pair = (contacts[i], contacts[j])
-
-            c1, n1 = best_pair[0][1], best_pair[0][2]
-            c2, n2 = best_pair[1][1], best_pair[1][2]
-            det = n1[0] * n2[1] - n1[1] * n2[0]
-            if abs(det) > 1e-4:
-                d1 = c1[0] * n1[0] + c1[1] * n1[1] + radius + 1e-4
-                d2 = c2[0] * n2[0] + c2[1] * n2[1] + radius + 1e-4
-                res_x = (n2[1] * d1 - n1[1] * d2) / det
-                res_y = (-n2[0] * d1 + n1[0] * d2) / det
-            else:
-                res_x = (c1[0] + n1[0] * radius + c2[0] + n2[0] * radius) * 0.5
-                res_y = (c1[1] + n1[1] * radius + c2[1] + n2[1] * radius) * 0.5
 
         # Velocity resolution
         if len(contacts) == 1:
@@ -586,16 +591,30 @@ class CollisionEngine:
         if rem_dt > 1e-5 and math.hypot(res_vx, res_vy) > 1e-5:
             slide_x = res_x + res_vx * rem_dt
             slide_y = res_y + res_vy * rem_dt
-            # Clamp slide against contacts to prevent penetrating adjacent walls
-            for w, c, n, _ in contacts:
-                cp_x, cp_y, _ = w.project_point(slide_x, slide_y)
-                d = math.hypot(slide_x - cp_x, slide_y - cp_y)
-                if d < radius:
-                    slide_x = cp_x + n[0] * (radius + 1e-4)
-                    slide_y = cp_y + n[1] * (radius + 1e-4)
-            res_x, res_y = slide_x, slide_y
+            # Keep the slide out of every wall, including one first reached while sliding
+            res_x, res_y = self._project_out(slide_x, slide_y, radius, self.walls)
 
         return res_x, res_y, res_vx, res_vy, True, [c[2] for c in contacts]
+
+    CONTACT_SKIN = 1e-3   # mm: a wall this close to the body edge is being touched
+
+    @staticmethod
+    def _project_out(x: float, y: float, radius: float, walls, iterations: int = 8) -> Tuple[float, float]:
+        """Move (x, y) the minimum distance out of every overlapped wall (iterated projection)."""
+        target = radius + 1e-4
+        for _ in range(iterations):
+            moved = False
+            for wall in walls:
+                cp_x, cp_y, _ = wall.project_point(x, y)
+                dx, dy = x - cp_x, y - cp_y
+                d = math.hypot(dx, dy)
+                if d < target - 1e-12:
+                    nx, ny = (dx / d, dy / d) if d > 1e-8 else (wall.nx, wall.ny)
+                    x, y = cp_x + nx * target, cp_y + ny * target
+                    moved = True
+            if not moved:
+                break
+        return x, y
 
 
 class TrialManager:

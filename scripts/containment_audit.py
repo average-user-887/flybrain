@@ -3,27 +3,35 @@
 
 Steps the headless simulation (the same ``Arena.step(dt)`` loop the 24/7 daemon
 runs) for every paradigm the daemon exposes, over many seeds, start positions and
-headings, and checks four invariants against an *independent* description of each
-paradigm's legal region (defined in this file, not read back from ``arena.py``):
+headings, against an *independent* description of each paradigm's legal region
+(defined in this file, not read back from ``arena.py``). Two verdicts are kept apart
+(decision contract item 4: physics constrains, it does not steer toward success).
 
+Arena containment (physics; any failure is a solver defect):
   (a) escape   - the fly body is never outside the paradigm's legal region and never
                  penetrates or tunnels through a wall segment;
-  (b) teleport - no per-step displacement larger than the physical maximum;
-  (c) pinned   - the fly is never wall-pinned: in contact with a boundary while pushing
-                 into it (commanded motion absorbed by the boundary, or travel direction
-                 pointing into the wall) for longer than ``--pinned-seconds`` of
-                 continuous simulated time. Sliding parallel to a wall at full speed is
-                 thigmotaxis and is allowed;
-  (d) stuck    - the fly never sits clamped at one coordinate (x or y bit-identical
-                 across steps) while its commanded motion is absorbed by that boundary.
+  (b) teleport - no per-step displacement larger than the physical maximum, and no
+                 step longer than the attempted motor step (``unexplained_jump``);
+  (e) trapping - attempted motion is never absorbed without a touching boundary, or
+                 while it points away from every touching boundary, for longer than
+                 ``NUMERICAL_TRAP_LIMIT_S`` (``numerical_trapping``).
+
+Controller outcome (behaviour; reported, never a physics verdict):
+  (c) pinned   - in contact with a boundary while pushing into it (commanded motion
+                 absorbed, or travel direction pointing into the wall), longest run;
+  (d) stuck    - clamped at one coordinate while commanded motion is absorbed;
+  plus wall-pushing time, rest/tethered/feeding/gap-probing time, time near walls,
+  rolling progress and repeated stall episodes (see ``MotionProbe``).
 
 Usage:
-    ./.venv/bin/python scripts/containment_audit.py            # full audit
-    ./.venv/bin/python scripts/containment_audit.py --quick    # short smoke run
+    ./.venv/bin/python scripts/containment_audit.py               # full audit, default assists
+    ./.venv/bin/python scripts/containment_audit.py --no-assists  # engineered assists disabled
+    ./.venv/bin/python scripts/containment_audit.py --quick       # short smoke run
     ./.venv/bin/python scripts/containment_audit.py --paradigm multisensory-sandbox
 
-Exit status is 1 when any paradigm fails, so the script doubles as a CI gate. The
-pytest wrapper ``tests/test_containment_all_paradigms.py`` runs a reduced matrix.
+Exit status is 1 when any paradigm fails arena containment (add ``--strict-behaviour``
+to also fail on wall pushing). The pytest wrapper
+``tests/test_containment_all_paradigms.py`` runs a reduced matrix.
 """
 
 from __future__ import annotations
@@ -254,10 +262,199 @@ def spawn_region(paradigm_id: str) -> Region:
     return legal_region(paradigm_id)
 
 
-def make_arena(paradigm_id: str, seed: int) -> Arena:
+ASSISTS_OFF = {name: False for name in Arena.MOTOR_ASSISTS}
+
+
+def make_arena(paradigm_id: str, seed: int, assists: bool = True) -> Arena:
+    motor_assists = None if assists else dict(ASSISTS_OFF)
     if paradigm_id == "open-arena":
-        return Arena(paradigm=None, seed=seed, num_predators=0)
-    return Arena(paradigm=paradigm_id, brain_type="modular", num_flies=1, num_predators=0, seed=seed)
+        return Arena(paradigm=None, seed=seed, num_predators=0, motor_assists=motor_assists)
+    return Arena(paradigm=paradigm_id, brain_type="modular", num_flies=1, num_predators=0, seed=seed,
+                 motor_assists=motor_assists)
+
+
+# ---------------------------------------------------------------------------
+# Motion probe: per-step instrumentation that separates physics from behaviour
+# ---------------------------------------------------------------------------
+# Thresholds are declared here, before any fixture runs, and are not tuned to results.
+STALL_WINDOW_S = 1.0        # rolling window for net progress
+STALL_NET_MM = 0.2          # net displacement over the window below this = stalled
+ABSORBED_RATIO = 0.25       # realized < 25 % of the attempted step = motion absorbed
+REST_SPEED_MM_S = 0.05      # |commanded speed| below this is an intentional rest
+JUMP_SLACK_MM = 0.001       # realized step may exceed the attempted step by this much (solver skin 1e-4 mm)
+NUMERICAL_TRAP_LIMIT_S = 0.2  # absorbed escape-direction motion tolerated this long
+STATE_KINDS = {"FEED": "feeding", "PROBE": "gap_probing", "COURTSHIP": "courtship_rest"}
+
+# Step kinds. Physics defects: numerical_trapping, unexplained_jump, escape.
+# Everything else is a controller/task outcome, reported but never a physics failure.
+PHYSICS_DEFECT_KINDS = ("numerical_trapping", "unexplained_jump")
+
+
+def classify_step(rec: Dict, dt: float) -> str:
+    """Classify one ``fly.motor_record`` (see ``Arena._finish_motor_record``).
+
+    * tethered / feeding / gap_probing / courtship_rest / rest: intentional immobility;
+    * free, sliding: the attempted step was (mostly) realized;
+    * wall_pushing: motion absorbed while the attempted step points into a boundary
+      the body touches - a behavioural outcome, not a solver defect;
+    * numerical_trapping: motion absorbed with no touching boundary, or while the
+      attempt points away from every touching boundary - a solver defect;
+    * unexplained_jump: the body moved further than it attempted - a solver defect.
+    """
+    attempted = float(rec.get("attempted_mm", 0.0))
+    realized = float(rec.get("realized_mm", 0.0))
+    # A pose set from outside (reset, restore, test) that overlaps geometry is pushed
+    # out by the static overlap check; that correction is logged and explained.
+    overlap = float(rec.get("overlap_correction_mm", 0.0))
+    if rec.get("tethered"):
+        return "unexplained_jump" if realized > overlap + 1e-9 else "tethered"
+    if realized > attempted + overlap + JUMP_SLACK_MM:
+        return "unexplained_jump"
+    kind = STATE_KINDS.get(str(rec.get("state", "")))
+    if kind:
+        return kind
+    if abs(float(rec.get("controller_speed", 0.0))) < REST_SPEED_MM_S or attempted < 1e-9:
+        return "rest"
+    normals = rec.get("contact_normals") or []
+    in_contact = bool(rec.get("in_contact")) or bool(normals)
+    if realized >= ABSORBED_RATIO * attempted:
+        return "sliding" if in_contact else "free"
+    if not normals and rec.get("in_contact"):
+        normals = [tuple(rec.get("wall_normal", (0.0, 0.0)))]
+    ax, ay = float(rec.get("attempted_dx", 0.0)), float(rec.get("attempted_dy", 0.0))
+    into = any(ax * n[0] + ay * n[1] < -1e-6 * max(attempted, 1e-9) for n in normals)
+    if in_contact and into:
+        return "wall_pushing"
+    return "numerical_trapping"
+
+
+@dataclass
+class MotionProbe:
+    """Accumulates motor records into separate containment / controller summaries.
+
+    ``region`` and ``walls`` are an independent legal-region description (this file's
+    ``legal_region``) used for the escape check; pass ``region=None`` to skip it.
+    """
+    dt: float
+    region: Optional[Region] = None
+    walls: List[WallSegment] = field(default_factory=list)
+    radius: float = FLY_RADIUS
+    kinds: Dict[str, int] = field(default_factory=dict)
+    escapes: int = 0
+    first_defect: Optional[str] = None
+    max_step_mm: float = 0.0
+    path_mm: float = 0.0
+    attempted_path_mm: float = 0.0
+    near_wall_steps: int = 0
+    contact_steps: int = 0
+    overlap_corrections: int = 0
+    max_run: Dict[str, int] = field(default_factory=dict)
+    stall_episodes: Dict[str, int] = field(default_factory=dict)
+    min_rolling_progress_mm: Optional[float] = None
+    steps: int = 0
+    _run_kind: Optional[str] = None
+    _run_len: int = 0
+    _positions: List[Tuple[float, float]] = field(default_factory=list)
+    _window_kinds: List[str] = field(default_factory=list)
+    _stalled: bool = False
+    start: Optional[Tuple[float, float]] = None
+    end: Optional[Tuple[float, float]] = None
+
+    def observe(self, rec: Dict, x: float, y: float) -> str:
+        if self.start is None:
+            self.start = (x - float(rec.get("realized_dx", 0.0)), y - float(rec.get("realized_dy", 0.0)))
+            self._positions.append(self.start)
+        self.steps += 1
+        kind = classify_step(rec, self.dt)
+        self.kinds[kind] = self.kinds.get(kind, 0) + 1
+        realized = float(rec.get("realized_mm", 0.0))
+        self.path_mm += realized
+        self.attempted_path_mm += float(rec.get("attempted_mm", 0.0))
+        self.max_step_mm = max(self.max_step_mm, realized)
+        self.near_wall_steps += int(bool(rec.get("near_wall")))
+        self.contact_steps += int(bool(rec.get("in_contact")))
+        self.overlap_corrections += int(float(rec.get("overlap_correction_mm", 0.0)) > 0.0)
+
+        if self.region is not None:
+            outside = self.region.gap(x, y) < self.radius - WALL_TOLERANCE_MM
+            penetrated = any(w.distance_to_point(x, y) < self.radius - WALL_TOLERANCE_MM for w in self.walls)
+            if outside or penetrated:
+                self.escapes += 1
+                self._note(f"step {rec.get('step')}: escape at ({x:.3f}, {y:.3f})")
+        if kind in PHYSICS_DEFECT_KINDS:
+            self._note(f"step {rec.get('step')}: {kind} attempted={rec.get('attempted_mm', 0.0):.4f} "
+                       f"realized={realized:.4f} at ({x:.3f}, {y:.3f})")
+
+        # Longest continuous run of each kind
+        if kind == self._run_kind:
+            self._run_len += 1
+        else:
+            self._run_kind, self._run_len = kind, 1
+        self.max_run[kind] = max(self.max_run.get(kind, 0), self._run_len)
+
+        # Rolling progress and stall episodes
+        window = max(1, int(round(STALL_WINDOW_S / self.dt)))
+        self._positions.append((x, y))
+        self._window_kinds.append(kind)
+        if len(self._positions) > window + 1:
+            self._positions.pop(0)
+            self._window_kinds.pop(0)
+        if len(self._positions) == window + 1:
+            net = math.dist(self._positions[0], self._positions[-1])
+            self.min_rolling_progress_mm = net if self.min_rolling_progress_mm is None else min(self.min_rolling_progress_mm, net)
+            moving = [k for k in self._window_kinds if k not in ("rest", "tethered", "feeding", "gap_probing", "courtship_rest")]
+            stalled = net < STALL_NET_MM and len(moving) == len(self._window_kinds)
+            if stalled and not self._stalled:
+                cause = max(set(moving), key=moving.count)
+                if cause in ("free", "sliding"):
+                    cause = "low_net_progress"   # moving but circling/oscillating in place
+                self.stall_episodes[cause] = self.stall_episodes.get(cause, 0) + 1
+            self._stalled = stalled
+        self.end = (x, y)
+        return kind
+
+    def _note(self, msg: str) -> None:
+        if self.first_defect is None:
+            self.first_defect = msg
+
+    def seconds(self, kind: str) -> float:
+        return self.kinds.get(kind, 0) * self.dt
+
+    def max_seconds(self, kind: str) -> float:
+        return self.max_run.get(kind, 0) * self.dt
+
+    @property
+    def physics_ok(self) -> bool:
+        return (self.escapes == 0 and self.kinds.get("unexplained_jump", 0) == 0
+                and self.max_seconds("numerical_trapping") <= NUMERICAL_TRAP_LIMIT_S)
+
+    def containment_report(self) -> Dict:
+        return {
+            "ok": self.physics_ok,
+            "escapes": self.escapes,
+            "unexplained_jumps": self.kinds.get("unexplained_jump", 0),
+            "numerical_trapping_steps": self.kinds.get("numerical_trapping", 0),
+            "max_numerical_trapping_s": round(self.max_seconds("numerical_trapping"), 3),
+            "max_step_mm": round(self.max_step_mm, 5),
+            "overlap_corrections": self.overlap_corrections,
+            "first_defect": self.first_defect,
+        }
+
+    def controller_report(self) -> Dict:
+        net = math.dist(self.start, self.end) if self.start and self.end else 0.0
+        return {
+            "sim_seconds": round(self.steps * self.dt, 3),
+            "path_mm": round(self.path_mm, 3),
+            "attempted_path_mm": round(self.attempted_path_mm, 3),
+            "realized_fraction": round(self.path_mm / self.attempted_path_mm, 4) if self.attempted_path_mm > 0 else None,
+            "net_displacement_mm": round(net, 3),
+            "min_rolling_progress_mm_per_s": None if self.min_rolling_progress_mm is None else round(self.min_rolling_progress_mm / STALL_WINDOW_S, 4),
+            "time_s": {k: round(v * self.dt, 3) for k, v in sorted(self.kinds.items())},
+            "max_continuous_s": {k: round(v * self.dt, 3) for k, v in sorted(self.max_run.items())},
+            "near_wall_s": round(self.near_wall_steps * self.dt, 3),
+            "contact_s": round(self.contact_steps * self.dt, 3),
+            "stall_episodes": dict(sorted(self.stall_episodes.items())),
+        }
 
 
 def _segments_cross(ax, ay, bx, by, cx, cy, dx, dy) -> bool:
@@ -298,10 +495,26 @@ class RunResult:
 
     @property
     def failed(self) -> bool:
-        return self.escapes > 0 or self.teleports > 0 or self.pinned_failed or self.stuck_failed
+        # Physics only. Wall pushing is reported (pushing_exceeded) but is a controller
+        # outcome; see the decision contract, item 4.
+        return self.physics_failed
 
     pinned_failed: bool = False
     stuck_failed: bool = False
+    probe: Optional["MotionProbe"] = None
+    assists: bool = True
+
+    @property
+    def physics_failed(self) -> bool:
+        """Arena containment defects only: escape, unexplained jump, numerical trapping."""
+        return (self.escapes > 0 or self.teleports > 0
+                or (self.probe is not None and not self.probe.physics_ok))
+
+    @property
+    def pushing_exceeded(self) -> bool:
+        """Controller outcome: pushed into a boundary longer than the limit. Under the
+        decision contract (item 4) this is a task outcome, not a physics defect."""
+        return self.pinned_failed or self.stuck_failed
 
 
 def run_case(
@@ -312,8 +525,9 @@ def run_case(
     dt: float,
     pinned_seconds: float,
     keep_trace: bool = False,
+    assists: bool = True,
 ) -> RunResult:
-    arena = make_arena(paradigm_id, seed)
+    arena = make_arena(paradigm_id, seed, assists=assists)
     region = legal_region(paradigm_id)
     walls: List[WallSegment] = list(getattr(arena.paradigm, "walls", []) or []) if arena.paradigm else []
     fly = arena.fly
@@ -335,7 +549,8 @@ def run_case(
 
     arena.compute_steering = tapped_steering  # type: ignore[assignment]
 
-    res = RunResult(paradigm_id, seed, start, steps, dt)
+    res = RunResult(paradigm_id, seed, start, steps, dt, assists=assists)
+    res.probe = MotionProbe(dt, region=region, walls=walls, radius=r)
     teleport_mm = MAX_FLY_SPEED_MM_S * dt + TELEPORT_SLACK_MM
     pinned_run = 0
     stuck_run = 0
@@ -356,6 +571,7 @@ def run_case(
     for i in range(steps):
         arena.step(dt)
         x, y = fly.pos.x, fly.pos.y
+        res.probe.observe(fly.motor_record, x, y)
         disp = math.hypot(x - prev_x, y - prev_y)
         res.path_length_mm += disp
         res.max_step_mm = max(res.max_step_mm, disp)
@@ -446,15 +662,27 @@ def start_matrix(paradigm_id: str, seed: int, random_starts: int) -> List[Tuple[
 @dataclass
 class ParadigmSummary:
     paradigm: str
+    assists: bool = True
     runs: int = 0
     steps: int = 0
     escapes: int = 0
     teleports: int = 0
+    unexplained_jumps: int = 0
+    numerical_trapping_steps: int = 0
+    max_numerical_trapping_s: float = 0.0
     max_step_mm: float = 0.0
     max_pinned_s: float = 0.0
     max_stuck_s: float = 0.0
+    wall_pushing_s: float = 0.0
+    max_wall_pushing_s: float = 0.0
+    rest_s: float = 0.0
+    near_wall_s: float = 0.0
+    path_mm: float = 0.0
     contact_steps: int = 0
+    stall_episodes: Dict[str, int] = field(default_factory=dict)
+    assist_totals: Dict[str, float] = field(default_factory=dict)
     failed_runs: int = 0
+    pushing_runs: int = 0
     notes: List[str] = field(default_factory=list)
 
     @property
@@ -463,6 +691,7 @@ class ParadigmSummary:
 
     @property
     def ok(self) -> bool:
+        """Arena containment only (escape, unexplained jump, numerical trapping)."""
         return self.failed_runs == 0
 
 
@@ -474,42 +703,62 @@ def audit(
     dt: float,
     pinned_seconds: float,
     progress: Optional[Callable[[str], None]] = None,
+    assists: bool = True,
 ) -> Dict[str, ParadigmSummary]:
     out: Dict[str, ParadigmSummary] = {}
     for pid in paradigms:
-        summary = ParadigmSummary(pid)
+        summary = ParadigmSummary(pid, assists=assists)
         for seed in seeds:
             for start in start_matrix(pid, seed, random_starts):
-                res = run_case(pid, seed, start, steps, dt, pinned_seconds)
+                res = run_case(pid, seed, start, steps, dt, pinned_seconds, assists=assists)
+                probe = res.probe
                 summary.runs += 1
                 summary.steps += res.steps
                 summary.escapes += res.escapes
                 summary.teleports += res.teleports
+                summary.unexplained_jumps += probe.kinds.get("unexplained_jump", 0)
+                summary.numerical_trapping_steps += probe.kinds.get("numerical_trapping", 0)
+                summary.max_numerical_trapping_s = max(summary.max_numerical_trapping_s, probe.max_seconds("numerical_trapping"))
                 summary.max_step_mm = max(summary.max_step_mm, res.max_step_mm)
                 summary.max_pinned_s = max(summary.max_pinned_s, res.max_pinned_s)
                 summary.max_stuck_s = max(res.max_stuck_coord_s, summary.max_stuck_s)
+                summary.wall_pushing_s += probe.seconds("wall_pushing")
+                summary.max_wall_pushing_s = max(summary.max_wall_pushing_s, probe.max_seconds("wall_pushing"))
+                summary.rest_s += sum(probe.seconds(k) for k in ("rest", "feeding", "gap_probing", "courtship_rest"))
+                summary.near_wall_s += probe.near_wall_steps * dt
+                summary.path_mm += probe.path_mm
                 summary.contact_steps += res.contact_steps
+                for cause, n in probe.stall_episodes.items():
+                    summary.stall_episodes[cause] = summary.stall_episodes.get(cause, 0) + n
+                summary.pushing_runs += int(res.pushing_exceeded)
                 if res.failed:
                     summary.failed_runs += 1
-                    for note in (res.first_escape, res.first_teleport, res.first_pinned):
+                    for note in (res.first_escape, res.first_teleport, probe.first_defect):
                         if note and len(summary.notes) < 6:
                             summary.notes.append(f"seed {seed} start ({start[0]:.1f},{start[1]:.1f},{start[2]:.2f}) -> {note}")
         out[pid] = summary
         if progress:
-            progress(f"{pid:22s} {'OK ' if summary.ok else 'FAIL'} escapes={summary.escapes} teleports={summary.teleports} "
-                     f"max_pinned={summary.max_pinned_s:.2f}s contact={summary.contact_pct:.1f}%")
+            progress(f"{pid:22s} physics {'OK ' if summary.ok else 'FAIL'} escapes={summary.escapes} "
+                     f"jumps={summary.unexplained_jumps} trap_steps={summary.numerical_trapping_steps} | "
+                     f"outcome: max_push={summary.max_wall_pushing_s:.2f}s max_pinned={summary.max_pinned_s:.2f}s "
+                     f"contact={summary.contact_pct:.1f}% stalls={summary.stall_episodes}")
     return out
 
 
 def format_table(results: Dict[str, ParadigmSummary], pinned_seconds: float) -> str:
-    head = f"{'paradigm':22s} {'runs':>4s} {'steps':>7s} {'escapes':>7s} {'teleport':>8s} {'max_step':>8s} {'max_pin_s':>9s} {'stuck_s':>7s} {'contact%':>8s}  result"
-    lines = [head, "-" * len(head)]
+    head = (f"{'paradigm':22s} {'runs':>4s} {'steps':>7s} | {'escapes':>7s} {'teleport':>8s} {'jumps':>5s} "
+            f"{'trap_s':>6s} {'max_step':>8s} {'physics':>7s} | {'push_s':>7s} {'max_push':>8s} {'max_pin':>7s} "
+            f"{'stuck_s':>7s} {'contact%':>8s} {'stalls':>6s}")
+    lines = ["ARENA CONTAINMENT (physics) | CONTROLLER OUTCOME (behaviour, not a physics verdict)", head, "-" * len(head)]
     for pid, s in results.items():
         lines.append(
-            f"{pid:22s} {s.runs:4d} {s.steps:7d} {s.escapes:7d} {s.teleports:8d} {s.max_step_mm:8.3f} "
-            f"{s.max_pinned_s:9.2f} {s.max_stuck_s:7.2f} {s.contact_pct:8.1f}  {'OK' if s.ok else 'FAIL'}"
+            f"{pid:22s} {s.runs:4d} {s.steps:7d} | {s.escapes:7d} {s.teleports:8d} {s.unexplained_jumps:5d} "
+            f"{s.max_numerical_trapping_s:6.2f} {s.max_step_mm:8.3f} {'OK' if s.ok else 'FAIL':>7s} | "
+            f"{s.wall_pushing_s:7.1f} {s.max_wall_pushing_s:8.2f} {s.max_pinned_s:7.2f} {s.max_stuck_s:7.2f} "
+            f"{s.contact_pct:8.1f} {sum(s.stall_episodes.values()):6d}"
         )
-    lines.append(f"(pinned/stuck limit {pinned_seconds:.1f} s of continuous contact with absorbed motion)")
+    lines.append(f"(physics fails on escape, teleport, unexplained jump or numerical trapping > {NUMERICAL_TRAP_LIMIT_S:.1f} s;"
+                 f" pushing longer than {pinned_seconds:.1f} s is reported as a controller outcome)")
     return "\n".join(lines)
 
 
@@ -520,7 +769,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--starts", type=int, default=3, help="random legal start poses per seed (plus the default spawn)")
     ap.add_argument("--steps", type=int, default=2000, help="simulation steps per run (2000 x 0.02 s = 40 s)")
     ap.add_argument("--dt", type=float, default=0.02, help="simulation tick in seconds (daemon uses 0.02)")
-    ap.add_argument("--pinned-seconds", type=float, default=2.0, help="max tolerated continuous wall-pinned time")
+    ap.add_argument("--pinned-seconds", type=float, default=2.0, help="continuous wall-pushing time reported as a controller outcome")
+    ap.add_argument("--no-assists", action="store_true",
+                    help="disable the engineered motor assists (wall_avoidance_reflex, contact_turn)")
+    ap.add_argument("--strict-behaviour", action="store_true",
+                    help="also exit 1 when pushing exceeds --pinned-seconds (a controller outcome, not physics)")
     ap.add_argument("--quick", action="store_true", help="1 seed, 1 random start, 500 steps")
     args = ap.parse_args(argv)
 
@@ -530,16 +783,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     paradigms = args.paradigm or DAEMON_PARADIGMS
     seeds = list(range(1, args.seeds + 1))
     t0 = time.perf_counter()
+    print(f"motor assists: {'OFF' if args.no_assists else 'ON (default)'}")
     results = audit(paradigms, seeds, args.starts, args.steps, args.dt, args.pinned_seconds,
-                    progress=lambda msg: print(msg, flush=True))
+                    progress=lambda msg: print(msg, flush=True), assists=not args.no_assists)
     print()
     print(format_table(results, args.pinned_seconds))
     failures = [s for s in results.values() if not s.ok]
     for s in failures:
         for note in s.notes:
             print(f"  [{s.paradigm}] {note}")
-    print(f"\n{len(results) - len(failures)}/{len(results)} paradigms pass  ({time.perf_counter() - t0:.1f} s)")
-    return 1 if failures else 0
+    pushing = [s for s in results.values() if s.pushing_runs]
+    print(f"\n{len(results) - len(failures)}/{len(results)} paradigms pass arena containment; "
+          f"{len(pushing)} with wall pushing > {args.pinned_seconds:.1f} s (controller outcome)  "
+          f"({time.perf_counter() - t0:.1f} s)")
+    return 1 if failures or (args.strict_behaviour and pushing) else 0
 
 
 if __name__ == "__main__":

@@ -450,6 +450,19 @@ class Arena:
     WALL_PERCEPTION_MM = 4.0
     WALL_AVOID_YAW_RAD_S = 4.0
 
+    # Engineered motor assists (decision contract item 4). Neither is a physical
+    # constraint: both rotate the fly away from boundaries on the controller's behalf,
+    # so a wall escape they produce must not be credited to any brain. They stay on by
+    # default to preserve the established modular behaviour; every use is logged per
+    # step in ``fly.motor_record`` and cumulatively in ``fly.assist_totals``.
+    #   wall_avoidance_reflex - pre-contact yaw added from perceived boundaries, which
+    #       also discards the controller's own yaw when the body is at contact.
+    #   contact_turn - heading rotation applied when the containment failsafe (or the
+    #       open-arena edge clamp) resolves a contact. Without it contact only removes
+    #       the into-wall speed, as a physical constraint should.
+    MOTOR_ASSISTS = ('wall_avoidance_reflex', 'contact_turn')
+    NEAR_WALL_MM = 1.0   # body-edge gap counted as "near a wall" in motor records
+
     def __init__(
         self,
         width: float = 100.0,
@@ -465,8 +478,15 @@ class Arena:
         connectome_mode: str = 'surrogate',
         connectome_host: str = '192.168.194.227',
         connectome_port: int = 8768,
-        paradigm: Optional[Union[Any, str]] = None
+        paradigm: Optional[Union[Any, str]] = None,
+        motor_assists: Optional[Dict[str, bool]] = None
     ):
+        self.motor_assists: Dict[str, bool] = {name: True for name in self.MOTOR_ASSISTS}
+        for name, enabled in (motor_assists or {}).items():
+            if name not in self.motor_assists:
+                raise ValueError(f'Unknown motor assist {name!r}; expected one of {self.MOTOR_ASSISTS}')
+            self.motor_assists[name] = bool(enabled)
+        self.last_failsafe = (0.0, 0.0, 0.0, 0.0)
         self.width = width
         self.height = height
         self.wind = wind
@@ -537,6 +557,8 @@ class Arena:
                 connectome_host=connectome_host,
                 connectome_port=connectome_port
             )
+            fly.motor_record = {}
+            fly.assist_totals = self._empty_assist_totals()
             self.flies.append(fly)
 
         # Predators
@@ -567,6 +589,68 @@ class Arena:
         self.total_distance = 0.0
         self.time_to_food_history: List[int] = []
         self.last_food_step = 0
+
+    @staticmethod
+    def _empty_assist_totals() -> Dict[str, float]:
+        return {
+            'steps': 0, 'near_wall_steps': 0, 'contact_steps': 0,
+            'wall_reflex_steps': 0, 'wall_reflex_abs_yaw_rad': 0.0,
+            'controller_yaw_suppressed_steps': 0,
+            'contact_turn_events': 0, 'contact_turn_abs_rad': 0.0,
+            'solver_contact_steps': 0, 'solver_correction_mm': 0.0,
+            'overlap_correction_steps': 0, 'overlap_correction_mm': 0.0,
+            'failsafe_corrections': 0, 'failsafe_correction_mm': 0.0,
+        }
+
+    def motor_provenance(self, fly: Optional[FlyState] = None) -> Dict[str, Any]:
+        """Which engineered assists are enabled and how much each acted on ``fly``."""
+        f = fly or self.fly
+        return {'motor_assists': dict(self.motor_assists),
+                'assist_totals': dict(getattr(f, 'assist_totals', None) or self._empty_assist_totals())}
+
+    def nearest_boundary_gap(self, x: float, y: float, radius: float) -> Tuple[float, float, float]:
+        """(gap, nx, ny) of the closest boundary: body-edge clearance and away-normal."""
+        g = self.containment.signed_gap(x, y) - radius
+        nx, ny = self.containment.inward_normal(x, y)
+        for wall in (getattr(self.paradigm, 'walls', None) or []):
+            px, py, _ = wall.project_point(x, y)
+            d = math.hypot(x - px, y - py)
+            if d - radius < g:
+                g = d - radius
+                nx, ny = ((x - px) / d, (y - py) / d) if d > 1e-8 else (wall.nx, wall.ny)
+        return g, nx, ny
+
+    def _finish_motor_record(self, fly: FlyState, rec: Dict[str, Any], start: Tuple[float, float], dt: float) -> None:
+        """Complete and store one step's motor record and add it to the totals."""
+        gap, nx, ny = self.nearest_boundary_gap(fly.pos.x, fly.pos.y, getattr(fly, 'radius', 1.5))
+        rec['realized_dx'] = fly.pos.x - start[0]
+        rec['realized_dy'] = fly.pos.y - start[1]
+        rec['realized_mm'] = math.hypot(rec['realized_dx'], rec['realized_dy'])
+        rec['wall_gap_mm'] = gap
+        rec['wall_normal'] = (nx, ny)
+        rec['near_wall'] = gap <= self.NEAR_WALL_MM
+        rec['in_contact'] = gap <= 0.05 or bool(rec.get('contact_normals'))
+        fly.motor_record = rec
+        t = fly.assist_totals
+        t['steps'] += 1
+        t['near_wall_steps'] += int(rec['near_wall'])
+        t['contact_steps'] += int(rec['in_contact'])
+        if rec.get('wall_reflex_yaw', 0.0) != 0.0:
+            t['wall_reflex_steps'] += 1
+            t['wall_reflex_abs_yaw_rad'] += abs(rec['wall_reflex_yaw']) * dt
+        t['controller_yaw_suppressed_steps'] += int(rec.get('controller_yaw_suppressed', False))
+        if rec.get('contact_turn_rad', 0.0) != 0.0:
+            t['contact_turn_events'] += 1
+            t['contact_turn_abs_rad'] += abs(rec['contact_turn_rad'])
+        if rec.get('contact_normals'):
+            t['solver_contact_steps'] += 1
+        t['solver_correction_mm'] += rec.get('solver_correction_mm', 0.0)
+        if rec.get('overlap_correction_mm', 0.0) > 0.0:
+            t['overlap_correction_steps'] += 1
+            t['overlap_correction_mm'] += rec['overlap_correction_mm']
+        if rec.get('failsafe_correction_mm', 0.0) > 0.0:
+            t['failsafe_corrections'] += 1
+            t['failsafe_correction_mm'] += rec['failsafe_correction_mm']
 
     @staticmethod
     def paradigm_key(paradigm: Any) -> str:
@@ -707,7 +791,14 @@ class Arena:
         that rotates the heading away from the wall; the side is remembered in
         ``fly.wall_turn_dir`` so a head-on approach does not dither. Sliding parallel
         to a wall (thigmotaxis) is untouched because the approach term is zero.
+
+        This is an engineered assist, not physics: it is skipped entirely when
+        ``motor_assists['wall_avoidance_reflex']`` is False, and ``fly.wall_reflex_suppressed``
+        records whether the controller's own yaw was discarded at contact.
         """
+        fly.wall_reflex_suppressed = False
+        if not self.motor_assists.get('wall_avoidance_reflex', True):
+            return dheading
         radius = getattr(fly, 'radius', 1.5)
         sensed = self.sense_boundaries(fly.pos.x, fly.pos.y, radius)
         if not sensed:
@@ -742,6 +833,7 @@ class Arena:
         # At contact, sensory attraction must not cancel the avoidance torque
         # and hold the body against a wall. Resume taxis once facing away.
         if proximity > .9:
+            fly.wall_reflex_suppressed = dheading != 0.0
             dheading = 0.0
         # Rate limit; with legacy whole-second ticks never rotate more than a quarter turn per step
         limit = min(self.WALL_AVOID_YAW_RAD_S, (math.pi / 2.0) / max(float(dt), 1e-6))
@@ -1015,8 +1107,12 @@ class Arena:
         component driving into the boundary is removed, and the heading receives the
         same away-from-wall torque as a real collision, so the fly can never be left
         pushing into an invisible boundary step after step.
+        That torque is the engineered ``contact_turn`` assist: with it disabled the
+        failsafe only projects the body inside and removes the into-wall speed.
+        ``self.last_failsafe`` holds (correction_mm, nx, ny, turn_rad) of the last call.
         Returns True when the position had to be corrected.
         """
+        self.last_failsafe = (0.0, 0.0, 0.0, 0.0)
         if not fly or not fly.alive:
             return False
 
@@ -1027,6 +1123,7 @@ class Arena:
 
         nx, ny = self.containment.inward_normal(x, y)
         fly.pos.x, fly.pos.y = self.containment.clamp(x, y, r)
+        turn_applied = 0.0
 
         travel = fly.heading if fly.speed >= 0.0 else fly.heading + math.pi
         hx, hy = math.cos(travel), math.sin(travel)
@@ -1037,8 +1134,10 @@ class Arena:
             # Retain the direction selected from all nearby boundaries. The
             # nearest face alternates at a corner and otherwise reverses this
             # torque every tick, trapping the fly against the same corner.
-            turn = min(self.WALL_AVOID_YAW_RAD_S * dt, math.pi / 2.0)
-            fly.heading = (fly.heading + fly.wall_turn_dir * turn) % (2.0 * math.pi)
+            if self.motor_assists.get('contact_turn', True):
+                turn_applied = fly.wall_turn_dir * min(self.WALL_AVOID_YAW_RAD_S * dt, math.pi / 2.0)
+                fly.heading = (fly.heading + turn_applied) % (2.0 * math.pi)
+        self.last_failsafe = (math.hypot(fly.pos.x - x, fly.pos.y - y), nx, ny, turn_applied)
         return True
 
     def step(self, dt: float = 1.0) -> Dict:
@@ -1062,15 +1161,24 @@ class Arena:
                 radius = getattr(fly, 'radius', 1.5)
                 vx = fly.speed * math.cos(fly.heading)
                 vy = fly.speed * math.sin(fly.heading)
+                step_start = (fly.pos.x, fly.pos.y)
+                rec: Dict[str, Any] = {'step': self.time_step, 'dt': dt}
 
-                # 1. Collision check against paradigm geometry with sliding physics
+                # 1. Static overlap check against paradigm geometry. The position is
+                # already resolved by the previous step, so this only acts when a pose
+                # was set from outside (reset, test, restore). The swept start is the
+                # current pose itself: inventing prev = pos - v*dt pushed a fly in
+                # contact an extra v*dt away from the wall, and |v| flipped reverse speed.
+                # dt=0: resolve the overlap only; the step's motion happens once, below.
                 col_x, col_y, new_vx, new_vy, collided = self.paradigm.check_collisions(
-                    fly.pos.x, fly.pos.y, vx, vy, radius=radius
+                    fly.pos.x, fly.pos.y, vx, vy, radius=radius,
+                    prev_x=fly.pos.x, prev_y=fly.pos.y, dt=0.0
                 )
+                rec['overlap_correction_mm'] = math.hypot(col_x - fly.pos.x, col_y - fly.pos.y)
                 fly.pos.x = col_x
                 fly.pos.y = col_y
                 if collided:
-                    fly.speed = math.hypot(new_vx, new_vy)
+                    fly.speed = math.copysign(math.hypot(new_vx, new_vy), fly.speed)
 
                 # 2. Query paradigm step
                 paradigm_res = self.paradigm.step(fly, dt)
@@ -1177,9 +1285,15 @@ class Arena:
                 fly.behavioral_state = state
                 fly.compass_heading = compass_h
                 fly.goal_angle = goal_a
+                rec['state'] = state
+                rec['controller_yaw'] = float(dheading)
+                rec['controller_speed'] = float(new_speed)
 
                 # Wall perception: turn away from boundaries before touching them
+                # (engineered assist, logged separately from the controller's yaw)
                 dheading = self.wall_avoidance_turn(fly, dheading, dt)
+                rec['wall_reflex_yaw'] = float(dheading) - rec['controller_yaw']
+                rec['controller_yaw_suppressed'] = bool(getattr(fly, 'wall_reflex_suppressed', False))
 
                 # Save pre-update position for true continuous swept trajectory
                 prev_x = fly.pos.x
@@ -1197,6 +1311,10 @@ class Arena:
                 prop_y = prev_y if tethered else prev_y + vy_step * dt
                 if tethered:
                     vx_step = vy_step = 0.0
+                rec['tethered'] = tethered
+                rec['attempted_dx'] = prop_x - prev_x
+                rec['attempted_dy'] = prop_y - prev_y
+                rec['attempted_mm'] = math.hypot(rec['attempted_dx'], rec['attempted_dy'])
 
                 # Simulation-grade continuous swept collision resolution
                 if hasattr(self.paradigm, 'check_collisions_advanced'):
@@ -1215,7 +1333,15 @@ class Arena:
                 fly.pos.x = res_x
                 fly.pos.y = res_y
                 fly.speed = math.copysign(math.hypot(res_vx, res_vy), new_speed)
+                rec['solver_correction_mm'] = math.hypot(res_x - prop_x, res_y - prop_y)
+                rec['contact_normals'] = [(float(n[0]), float(n[1])) for n in normals] if collided else []
                 self.enforce_containment(fly, dt)
+                fs_mm, fs_nx, fs_ny, fs_turn = self.last_failsafe
+                rec['failsafe_correction_mm'] = fs_mm
+                rec['contact_turn_rad'] = fs_turn
+                if fs_mm > 0.0:
+                    rec['contact_normals'].append((fs_nx, fs_ny))
+                self._finish_motor_record(fly, rec, step_start, dt)
 
                 if collided and normals:
                     # Continuous physical contact torque steering (zero angular teleportation)
@@ -1262,7 +1388,8 @@ class Arena:
                 'active_zones': zone_names,
                 'stimuli': stimuli,
                 'reward': reward,
-                'punishment': punishment
+                'punishment': punishment,
+                'motor': dict(getattr(self.fly, 'motor_record', None) or {}),
             }
 
         # -----------------------------------------------------------------
@@ -1347,7 +1474,15 @@ class Arena:
             fly.behavioral_state = state
             fly.compass_heading = compass_h
             fly.goal_angle = goal_a
+            step_start = (fly.pos.x, fly.pos.y)
+            rec = {'step': self.time_step, 'dt': dt, 'state': state, 'controller_yaw': float(dheading),
+                   'controller_speed': float(new_speed), 'wall_reflex_yaw': 0.0,
+                   'controller_yaw_suppressed': False, 'tethered': False, 'overlap_correction_mm': 0.0}
             fly.update(dheading, dt)
+            rec['attempted_dx'] = fly.pos.x - step_start[0]
+            rec['attempted_dy'] = fly.pos.y - step_start[1]
+            rec['attempted_mm'] = math.hypot(rec['attempted_dx'], rec['attempted_dy'])
+            unclamped = (fly.pos.x, fly.pos.y)
 
             # Smooth physical boundary steering
             margin = 2.0
@@ -1366,14 +1501,22 @@ class Arena:
                 fly.pos.y = self.height - margin
                 wall_ny -= 1.0
 
+            rec['solver_correction_mm'] = 0.0
+            rec['contact_normals'] = []
+            rec['contact_turn_rad'] = 0.0
+            rec['failsafe_correction_mm'] = math.hypot(fly.pos.x - unclamped[0], fly.pos.y - unclamped[1])
             if wall_nx != 0.0 or wall_ny != 0.0:
                 n_mag = math.hypot(wall_nx, wall_ny)
                 wall_nx /= n_mag
                 wall_ny /= n_mag
-                # Smooth continuous contact torque steering away from boundary
-                h_cross_n = math.cos(fly.heading) * wall_ny - math.sin(fly.heading) * wall_nx
-                turn_dir = 1.0 if h_cross_n >= 0.0 else -1.0
-                fly.heading = (fly.heading + turn_dir * 4.0 * dt) % (2.0 * math.pi)
+                rec['contact_normals'] = [(wall_nx, wall_ny)]
+                # Engineered contact_turn assist: continuous torque away from the edge
+                if self.motor_assists.get('contact_turn', True):
+                    h_cross_n = math.cos(fly.heading) * wall_ny - math.sin(fly.heading) * wall_nx
+                    turn_dir = 1.0 if h_cross_n >= 0.0 else -1.0
+                    rec['contact_turn_rad'] = turn_dir * 4.0 * dt
+                    fly.heading = (fly.heading + rec['contact_turn_rad']) % (2.0 * math.pi)
+            self._finish_motor_record(fly, rec, step_start, dt)
 
         self.total_distance += self.fly.speed * dt
 
@@ -1391,5 +1534,6 @@ class Arena:
             'hazard_encounters': self.hazard_encounters,
             'predator_kills': self.total_predator_kills,
             'escapes': self.total_escapes,
-            'connectome': getattr(self.fly, 'last_connectome_telemetry', None)
+            'connectome': getattr(self.fly, 'last_connectome_telemetry', None),
+            'motor': dict(getattr(self.fly, 'motor_record', None) or {}),
         }

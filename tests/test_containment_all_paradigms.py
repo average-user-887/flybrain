@@ -28,20 +28,36 @@ DT = 0.02
 PINNED_LIMIT_S = 2.0
 
 
+TETHERED = {"visual-operant", "optomotor"}
+
+
+@pytest.mark.parametrize("assists", [True, False], ids=["assists-on", "assists-off"])
 @pytest.mark.parametrize("paradigm_id", audit.DAEMON_PARADIGMS)
-def test_paradigm_containment_invariants(paradigm_id):
-    """No escapes, no teleports, no wall-pinning, no coordinate clamping, for the
-    paradigm's own spawn and random legal start poses."""
+def test_paradigm_containment_invariants(paradigm_id, assists):
+    """Arena containment (physics) for the paradigm's own spawn and random legal
+    start poses, with and without the engineered motor assists: no escapes, no
+    teleports or unexplained jumps, no numerical trapping."""
     results = audit.audit([paradigm_id], list(range(1, AUDIT_SEEDS + 1)), AUDIT_STARTS,
-                          AUDIT_STEPS, DT, PINNED_LIMIT_S)
+                          AUDIT_STEPS, DT, PINNED_LIMIT_S, assists=assists)
     summary = results[paradigm_id]
     detail = "\n".join(summary.notes)
+    assert summary.steps == summary.runs * AUDIT_STEPS
     assert summary.escapes == 0, f"{paradigm_id}: {summary.escapes} escapes\n{detail}"
     assert summary.teleports == 0, f"{paradigm_id}: {summary.teleports} teleports (max step {summary.max_step_mm:.3f} mm)\n{detail}"
-    assert summary.max_pinned_s <= PINNED_LIMIT_S, f"{paradigm_id}: wall-pinned for {summary.max_pinned_s:.2f} s\n{detail}"
-    assert summary.max_stuck_s <= PINNED_LIMIT_S, f"{paradigm_id}: clamped at one coordinate for {summary.max_stuck_s:.2f} s\n{detail}"
-    # The fly must actually have moved: a frozen fly trivially satisfies the above.
-    assert summary.steps == summary.runs * AUDIT_STEPS
+    assert summary.unexplained_jumps == 0, f"{paradigm_id}: {summary.unexplained_jumps} unexplained jumps\n{detail}"
+    assert summary.max_numerical_trapping_s <= audit.NUMERICAL_TRAP_LIMIT_S, \
+        f"{paradigm_id}: numerically trapped for {summary.max_numerical_trapping_s:.2f} s\n{detail}"
+    # Executed steps prove nothing about movement: check realized motion itself.
+    if paradigm_id in TETHERED:
+        assert summary.path_mm == 0.0, f"{paradigm_id}: tethered fly translated {summary.path_mm:.3f} mm"
+    else:
+        assert summary.path_mm > 0.5 * summary.runs, f"{paradigm_id}: only {summary.path_mm:.3f} mm travelled"
+    if assists:
+        # Controller outcome, not physics: the *assisted* modular controller has not
+        # pushed into a wall for more than 2 s. This guards the unchanged default;
+        # with assists off, wall pushing is a reported task outcome (decision item 4).
+        assert summary.max_pinned_s <= PINNED_LIMIT_S, f"{paradigm_id}: wall-pinned for {summary.max_pinned_s:.2f} s\n{detail}"
+        assert summary.max_stuck_s <= PINNED_LIMIT_S, f"{paradigm_id}: clamped at one coordinate for {summary.max_stuck_s:.2f} s\n{detail}"
 
 
 class TestContainmentRegions:
