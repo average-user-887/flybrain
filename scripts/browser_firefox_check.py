@@ -11,7 +11,10 @@ It starts its own daemon (``--output-dir``/``--data-dir``/``--pid-file`` under
 geckodriver, and records what it observed. Scenarios: live 1x load, 100x via the
 real speed selector for ``--seconds`` wall seconds, pause/resume, the three
 test-build fault injections (``?inject=malformed|apply|render``) and a daemon
-disconnect/restart.
+disconnect/restart.  Identity: the identity bar on the modular default, the JS
+stale-identity rule, a real assay switch via the experiment cards (ack identity =
+shown identity), and the conspicuous banner for a graph backend on the synthetic
+test graph (a second isolated daemon started with ``--test-synthetic-graph``).
 
 A headless check is NOT the final live-UI sign-off required by AGENTS.md; it
 supplements a person clicking the real controls in the running browser.
@@ -54,13 +57,14 @@ def free_port(start):
     raise RuntimeError("no free port")
 
 
-def start_daemon(work: Path, port: int, tag: str, script: Path = ROOT / "neurofly_daemon.py"):
+def start_daemon(work: Path, port: int, tag: str, script: Path = ROOT / "neurofly_daemon.py", extra=()):
     out = work / f"daemon-{tag}"
     out.mkdir(parents=True, exist_ok=True)
     proc = subprocess.Popen(
         [str(PROJECT_PY), str(script), "--host", "127.0.0.1", "--port", str(port),
          "--paradigm", "wind-tunnel", "--speed", "1", "--checkpoint-interval", "3600",
-         "--output-dir", str(out / "outputs"), "--data-dir", str(out / "data"), "--pid-file", str(out / "daemon.pid")],
+         "--output-dir", str(out / "outputs"), "--data-dir", str(out / "data"), "--pid-file", str(out / "daemon.pid"),
+         *extra],
         cwd=str(work), stdout=open(out / "daemon.log", "w"), stderr=subprocess.STDOUT,
         env=dict(os.environ, PYTHONPATH=str(ROOT)))
     deadline = time.time() + 30
@@ -99,8 +103,27 @@ def ui(driver):
                 dataAgeMs: d ? d.dataAgeMs() : null, lastStep: d ? d.lastStep() : null,
                 errors: (window.neuroflyErrors?.log || []).map(e => ({phase: e.phase, message: e.message, assay: e.assay, run_id: e.run_id, step: e.step, count: e.count})),
                 suspended: window.neuroflyErrors ? [...window.neuroflyErrors.suspended] : null,
-                remoteDriven: !!window.arena?.remoteDriven, trail: window.arena?.fly?.trail?.length ?? null};
+                remoteDriven: !!window.arena?.remoteDriven, trail: window.arena?.fly?.trail?.length ?? null,
+                ident: {backend: t('identBackend'), label: t('identLabel'), assists: t('identAssists'),
+                        motor: t('identMotor'), fault: t('identFault'), run: t('identRun'),
+                        banner: document.getElementById('identityBanner')?.style.display === 'none' ? '' : t('identityBanner'),
+                        bannerVisible: !!document.getElementById('identityBanner')?.offsetHeight,
+                        packetRun: window.arena?.remotePacket?.identity?.run_id ?? null,
+                        packetActivation: window.arena?.remotePacket?.identity?.activation ?? null,
+                        packetAssay: window.arena?.remotePacket?.identity?.assay ?? null,
+                        ackActivation: d?.bridge?.lastSwitchAck?.identity?.activation ?? null,
+                        rejected: d?.bridge?.rejectedIdentityPackets ?? null}};
     """)
+
+
+IDENTITY_JS_CASES = """
+    const f = window.neuroflyIdentityRejection;
+    const ack = {identity: {run_id: 'r2', instance_id: 'i2', activation: 5, daemon_run_id: 'd1'}};
+    const pkt = (activation, run_id, instance_id, daemon) => ({run_id: daemon || 'd1', identity: {activation, run_id, instance_id}});
+    return {
+        stale: f(pkt(4, 'r1', 'i1'), ack), current: f(pkt(5, 'r2', 'i2'), ack), mismatch: f(pkt(5, 'r2', 'x'), ack),
+        later: f(pkt(6, 'r3', 'i3'), ack), otherDaemon: f(pkt(1, 'r1', 'i1', 'd2'), ack), noAck: f(pkt(1, 'r1', 'i1'), null)};
+"""
 
 
 def wait_for(driver, pred, timeout=20.0):
@@ -158,6 +181,29 @@ def main():
         driver.get(base)
         s = wait_for(driver, lambda u: u["pill"] and "LIVE" in u["pill"] and u["step"] not in (None, "0"))
         receipt["scenarios"]["load_1x"] = {"ui": s, "pass": bool(s["pill"] and "LIVE" in s["pill"] and not s["errors"])}
+
+        # 1b. Identity bar on the modular default, JS stale-identity rule, and a real
+        #     assay switch through the experiment card: the ack's identity must be the
+        #     one the view then shows.
+        ident = wait_for(driver, lambda u: u["ident"]["backend"] == "modular", 10)["ident"]
+        cases = driver.execute_script(IDENTITY_JS_CASES)
+        driver.find_element(By.CSS_SELECTOR, '.experiment-card[data-paradigm="t-maze"]').click()
+        sw = wait_for(driver, lambda u: u["ident"]["packetAssay"] == "t-maze" and u["ident"]["ackActivation"] is not None
+                      and u["ident"]["ackActivation"] == u["ident"]["packetActivation"], 20)
+        driver.find_element(By.CSS_SELECTOR, '.experiment-card[data-paradigm="wind-tunnel"]').click()
+        back = wait_for(driver, lambda u: u["ident"]["packetAssay"] == "wind-tunnel"
+                        and u["ident"]["ackActivation"] == u["ident"]["packetActivation"], 20)
+        receipt["scenarios"]["identity_modular"] = {
+            "ident": ident, "js_identity_rules": cases, "after_switch": sw["ident"], "after_switch_back": back["ident"],
+            "errors": back["errors"],
+            "pass": bool(ident["backend"] == "modular" and (ident["assists"] or "").startswith("ON")
+                         and ident["motor"] == "modular" and ident["fault"] == "none" and not ident["banner"]
+                         and ident["run"] and ident["run"] != "run --"
+                         and (cases["stale"] or "").startswith("stale") and cases["current"] is None
+                         and cases["mismatch"] and cases["later"] is None and cases["otherDaemon"] is None
+                         and cases["noAck"] is None
+                         and sw["ident"]["packetAssay"] == "t-maze" and sw["ident"]["ackActivation"] == sw["ident"]["packetActivation"]
+                         and back["ident"]["packetAssay"] == "wind-tunnel" and not back["errors"])}
 
         # 2. 100x through the real speed selector, observed for --seconds
         Select(driver.find_element(By.ID, "selectSpeed")).select_by_value("100")
@@ -246,6 +292,24 @@ def main():
                          and d2["lastStep"] == d1["lastStep"] and d2["step"] == d1["step"]
                          and d2["remoteDriven"] and "(frozen)" in (d2["dataAge"] or "")
                          and d2["runState"] == d1["runState"] and "LIVE" in (rc["pill"] or ""))}
+
+        # 6. Identity banner for a graph backend on the SYNTHETIC TEST GRAPH (explicit
+        #    test option): the banner must say synthetic and name the abnormal motor source.
+        gport = free_port(19500)
+        graph_daemon = start_daemon(work, gport, "graph", Path(args.daemon_script),
+                                    extra=("--backend", "connectome-fixed", "--test-synthetic-graph"))
+        try:
+            driver.get(f"http://127.0.0.1:{wport}/index.html?daemon=http%3A%2F%2F127.0.0.1%3A{gport}")
+            g = wait_for(driver, lambda u: u["ident"]["backend"] == "connectome-fixed" and u["ident"]["bannerVisible"], 30)
+            gi = g["ident"]
+            receipt["scenarios"]["identity_banner_synthetic_graph"] = {
+                "ident": gi, "status_identity": status(gport).get("identity"), "errors": g["errors"],
+                "pass": bool(gi["bannerVisible"] and "SYNTHETIC TEST GRAPH" in (gi["banner"] or "")
+                             and "graph-unmapped-io" in (gi["banner"] or "") and gi["assists"] == "OFF"
+                             and gi["motor"] == "graph-unmapped-io" and "SYNTHETIC" in (gi["label"] or "")
+                             and not g["errors"])}
+        finally:
+            stop(graph_daemon)
     except _SpeedOnlyDone:
         pass
     finally:

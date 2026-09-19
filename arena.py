@@ -11,8 +11,15 @@ Simulates an embodied 2D multi-agent biological ecosystem:
 5. Backward compatible with single-fly unit tests and Gymnasium adapters.
 """
 
+import base64
+import collections
+import enum
+import functools
+import importlib
 import math
 import random
+import sys
+import types
 from typing import List, Tuple, Dict, Optional, Union, Any
 import numpy as np
 from assay_response import respond as assay_response
@@ -83,7 +90,9 @@ class FlyState:
         brain_type: str = 'modular',
         connectome_mode: str = 'surrogate',
         connectome_host: str = '192.168.194.227',
-        connectome_port: int = 8768
+        connectome_port: int = 8768,
+        connectome_on_fault: str = 'halt',
+        vision_rng: Optional[np.random.Generator] = None
     ):
         self.id = fly_id
         self.color = color
@@ -113,7 +122,7 @@ class FlyState:
         self.cx = CentralComplexEngine(n_wedges=16, seed=seed)
         self.metabolic = MetabolicState(initial_satiety=0.75 + 0.2 * (fly_id % 3 - 1))
         self.mechanosensory = JohnstonsOrgan(n_wedges=16)
-        self.vision = CompoundEyeVision(num_ommatidia=72)
+        self.vision = CompoundEyeVision(num_ommatidia=72, rng=vision_rng)
         self.cpg = TripodGaitCPG()
 
         # Whole-Brain Connectome Bridge
@@ -123,8 +132,15 @@ class FlyState:
             self.connectome_bridge = ConnectomeBridge(
                 mode=connectome_mode,
                 rpc_host=connectome_host,
-                rpc_port=connectome_port
+                rpc_port=connectome_port,
+                on_rpc_fault=connectome_on_fault
             )
+        # Which controller produced this step's motor command, and whether it is
+        # faulted (see Arena.MOTOR_SOURCES_NORMAL). ``motor_halted`` means no motion.
+        self.motor_source = 'modular' if self.brain_type != 'connectome' else (
+            self.connectome_bridge.motor_source if self.connectome_bridge is not None else 'none')
+        self.controller_fault: Optional[str] = None
+        self.motor_halted = False
 
         # Telemetry
         self.behavioral_state: str = 'WANDER'
@@ -438,6 +454,178 @@ class HoledRegion(ContainmentRegion):
         return self.outer.bbox()
 
 
+# ---------------------------------------------------------------------------
+# World snapshots (Arena.snapshot_world / restore_world)
+# ---------------------------------------------------------------------------
+class WorldStateError(ValueError):
+    """A world snapshot cannot be encoded or does not fit this arena."""
+
+
+# Only these modules' classes may be (re)constructed from a snapshot: no pickle and
+# no arbitrary imports.  Existing objects are otherwise restored in place.
+_WORLD_MODULES = ('arena', 'maze', 'vision', 'circuit', 'surge_cast', 'central_complex', 'metabolic',
+                  'mechanosensory', 'locomotion', 'assay_response', 'assay_controls', 'online_metrics')
+# Controller plumbing and derived telemetry are not world state.
+_WORLD_SKIP_ATTRS = frozenset(('connectome_bridge', 'last_connectome_telemetry', 'graph_controller'))
+_WORLD_SKIP_TYPES = (types.FunctionType, types.MethodType, types.BuiltinFunctionType, types.ModuleType,
+                     type, functools.partial)
+_MARKERS = frozenset(('__i__', '__nd__', '__np__', '__f__', '__t__', '__map__', '__set__', '__dq__', '__pyrng__',
+                      '__npgen__', '__obj__', '__alias__', '__enum__'))
+
+
+def _world_encode(value, memo, path):
+    if value is None or isinstance(value, (bool, str)):
+        return value
+    if isinstance(value, int) and not isinstance(value, np.integer):
+        # Beyond 2**53 a JSON reader in a browser loses precision (RNG states).
+        return value if abs(value) < 2 ** 53 else {'__i__': str(value)}
+    if isinstance(value, float) and not isinstance(value, np.floating):
+        return value if math.isfinite(value) else {'__f__': repr(value)}
+    if isinstance(value, np.generic):
+        return {'__np__': value.dtype.str, 'b64': base64.b64encode(value.tobytes()).decode()}
+    if isinstance(value, np.ndarray):
+        if value.dtype == object:
+            raise WorldStateError(f'{path}: object arrays are not world state')
+        data = np.ascontiguousarray(value)
+        return {'__nd__': data.dtype.str, 'shape': list(data.shape),
+                'b64': base64.b64encode(data.tobytes()).decode()}
+    if isinstance(value, list):
+        return [_world_encode(v, memo, f'{path}[{i}]') for i, v in enumerate(value)]
+    if isinstance(value, tuple):
+        return {'__t__': [_world_encode(v, memo, f'{path}[{i}]') for i, v in enumerate(value)]}
+    if isinstance(value, (set, frozenset)):
+        return {'__set__': sorted((_world_encode(v, memo, path) for v in value), key=repr)}
+    if isinstance(value, collections.deque):
+        out = {'__dq__': [_world_encode(v, memo, path) for v in value], 'maxlen': value.maxlen}
+        if type(value) is not collections.deque:   # e.g. online_metrics.PathHistory
+            cls = type(value)
+            out['cls'] = f'{cls.__module__.rsplit(".", 1)[-1]}.{cls.__qualname__}'
+            out['attrs'] = {k: _world_encode(v, memo, f'{path}.{k}') for k, v in vars(value).items()}
+        return out
+    if isinstance(value, enum.Enum):
+        return {'__enum__': value.name}
+    if isinstance(value, dict):
+        if all(isinstance(k, str) and k not in _MARKERS for k in value):
+            return {k: _world_encode(v, memo, f'{path}.{k}') for k, v in value.items()}
+        return {'__map__': [[_world_encode(k, memo, path), _world_encode(v, memo, f'{path}[{k!r}]')]
+                            for k, v in value.items()]}
+    # A shared (aliased) object is stored once; in-place restore keeps the alias.
+    if id(value) in memo:
+        return {'__alias__': memo[id(value)]}
+    if isinstance(value, random.Random):
+        memo[id(value)] = path
+        return {'__pyrng__': _world_encode(value.getstate(), memo, path)}
+    if isinstance(value, np.random.Generator):
+        memo[id(value)] = path
+        return {'__npgen__': _world_encode(value.bit_generator.state, memo, path)}
+    if hasattr(value, '__dict__') and not isinstance(value, _WORLD_SKIP_TYPES):
+        memo[id(value)] = path
+        cls = type(value)
+        return {'__obj__': f'{cls.__module__.rsplit(".", 1)[-1]}.{cls.__qualname__}',
+                'state': {k: _world_encode(v, memo, f'{path}.{k}') for k, v in vars(value).items()
+                          if k not in _WORLD_SKIP_ATTRS and not isinstance(v, _WORLD_SKIP_TYPES)}}
+    raise WorldStateError(f'{path}: cannot encode {type(value).__name__} as world state')
+
+
+def _world_class(name: str):
+    module_name, _, qual = name.partition('.')
+    if module_name not in _WORLD_MODULES:
+        raise WorldStateError(f'Refusing to construct {name}: module not allowed in world state')
+    module = sys.modules.get(module_name)
+    if module is None:
+        module = next((m for key, m in list(sys.modules.items())
+                       if m is not None and key.rsplit('.', 1)[-1] == module_name), None)
+    if module is None:
+        module = importlib.import_module(module_name)
+    obj = module
+    for part in qual.split('.'):
+        obj = getattr(obj, part)
+    return obj
+
+
+def _world_decode(enc, current, path, refs):
+    """Decode ``enc`` (encoded at ``path``).  Objects, arrays and generators are updated
+    inside ``current`` when possible, and an alias resolves to the object restored at
+    its canonical path (``refs``), so shared references stay shared."""
+    if enc is None or isinstance(enc, (bool, int, float, str)):
+        return enc
+    if isinstance(enc, list):
+        cur = current if isinstance(current, list) else []
+        return [_world_decode(v, cur[i] if i < len(cur) else None, f'{path}[{i}]', refs)
+                for i, v in enumerate(enc)]
+    if '__f__' in enc:
+        return float(enc['__f__'])
+    if '__i__' in enc:
+        return int(enc['__i__'])
+    if '__np__' in enc:
+        return np.frombuffer(base64.b64decode(enc['b64']), dtype=np.dtype(enc['__np__']))[0]
+    if '__nd__' in enc:
+        arr = np.frombuffer(base64.b64decode(enc['b64']), dtype=np.dtype(enc['__nd__'])).reshape(enc['shape'])
+        if (isinstance(current, np.ndarray) and current.shape == arr.shape and current.dtype == arr.dtype
+                and current.flags.writeable):
+            current[...] = arr
+            return current
+        return arr.copy()
+    if '__t__' in enc:
+        cur = current if isinstance(current, tuple) else ()
+        return tuple(_world_decode(v, cur[i] if i < len(cur) else None, f'{path}[{i}]', refs)
+                     for i, v in enumerate(enc['__t__']))
+    if '__set__' in enc:
+        return set(_world_decode(v, None, path, refs) for v in enc['__set__'])
+    if '__dq__' in enc:
+        items = [_world_decode(v, None, path, refs) for v in enc['__dq__']]
+        if 'cls' not in enc:
+            return collections.deque(items, maxlen=enc['maxlen'])
+        cls = _world_class(enc['cls'])
+        if not issubclass(cls, collections.deque):
+            raise WorldStateError(f'{path}: {enc["cls"]} is not a deque')
+        target = cls.__new__(cls)
+        collections.deque.__init__(target, items, enc['maxlen'])
+        _world_restore_attrs(target, enc.get('attrs') or {}, path, refs)
+        return target
+    if '__enum__' in enc:
+        if isinstance(current, enum.Enum):
+            return type(current)[enc['__enum__']]
+        raise WorldStateError(f'{path}: cannot restore enum member {enc["__enum__"]} without a current value')
+    if '__map__' in enc:
+        cur = current if isinstance(current, dict) else {}
+        out = {}
+        for k_enc, v_enc in enc['__map__']:
+            key = _world_decode(k_enc, None, path, refs)
+            out[key] = _world_decode(v_enc, cur.get(key), f'{path}[{key!r}]', refs)
+        return out
+    if '__alias__' in enc:
+        if enc['__alias__'] not in refs:
+            raise WorldStateError(f'{path}: alias to unknown {enc["__alias__"]}')
+        return refs[enc['__alias__']]
+    if '__pyrng__' in enc:
+        gen = current if isinstance(current, random.Random) else random.Random()
+        refs[path] = gen
+        gen.setstate(_world_decode(enc['__pyrng__'], None, path, {}))
+        return gen
+    if '__npgen__' in enc:
+        state = _world_decode(enc['__npgen__'], None, path, {})
+        gen = current if isinstance(current, np.random.Generator) else \
+            np.random.Generator(getattr(np.random, state['bit_generator'])())
+        gen.bit_generator.state = state
+        refs[path] = gen
+        return gen
+    if '__obj__' in enc:
+        cls = _world_class(enc['__obj__'])
+        target = current if type(current) is cls else cls.__new__(cls)
+        refs[path] = target
+        _world_restore_attrs(target, enc['state'], path, refs)
+        return target
+    cur = current if isinstance(current, dict) else {}
+    return {k: _world_decode(v, cur.get(k), f'{path}.{k}', refs) for k, v in enc.items()}
+
+
+def _world_restore_attrs(target, state: dict, path: str, refs: dict) -> None:
+    current = vars(target)
+    for key, enc in state.items():
+        setattr(target, key, _world_decode(enc, current.get(key), f'{path}.{key}', refs))
+
+
 class Arena:
     """Multi-Agent 2D Simulation Arena with Drosophila and Stalking Predators."""
 
@@ -460,7 +648,16 @@ class Arena:
     #   contact_turn - heading rotation applied when the containment failsafe (or the
     #       open-arena edge clamp) resolves a contact. Without it contact only removes
     #       the into-wall speed, as a physical constraint should.
+    # Default: ON only for the legacy hand-built controllers (MOTOR_ASSIST_DEFAULT_ON);
+    # OFF for every graph backend and the RPC hybrid (plan decision item 4), so a
+    # graph-driven fly that pushes into a wall is reported as such, not steered free.
     MOTOR_ASSISTS = ('wall_avoidance_reflex', 'contact_turn')
+    MOTOR_ASSIST_DEFAULT_ON = ('modular', 'bridge-surrogate')
+    # motor_source values that mean "the named controller drove this step". Anything
+    # else (halted-rpc-fault, surrogate-fallback-TEST, graph-unmapped-io, none...) is
+    # flagged in telemetry and the dashboard banner.
+    MOTOR_SOURCES_NORMAL = ('modular', 'surrogate', 'graph-rpc', 'graph')
+    WORLD_STATE_FORMAT = 'neurofly.world-state.v1'
     NEAR_WALL_MM = 1.0   # body-edge gap counted as "near a wall" in motor records
 
     def __init__(
@@ -479,9 +676,23 @@ class Arena:
         connectome_host: str = '192.168.194.227',
         connectome_port: int = 8768,
         paradigm: Optional[Union[Any, str]] = None,
-        motor_assists: Optional[Dict[str, bool]] = None
+        motor_assists: Optional[Dict[str, bool]] = None,
+        connectome_on_fault: str = 'halt',
+        controller_backend: Optional[str] = None,
+        graph_controller: Optional[Any] = None
     ):
-        self.motor_assists: Dict[str, bool] = {name: True for name in self.MOTOR_ASSISTS}
+        # Named controller backend (provenance.BACKENDS). Derived from brain_type and
+        # connectome_mode when not given; graph backends pass it explicitly together
+        # with ``graph_controller`` (see compute_steering).
+        if controller_backend is None:
+            if brain_type == 'connectome':
+                controller_backend = 'hybrid-bridge-rpc-experimental' if connectome_mode == 'rpc' else 'bridge-surrogate'
+            else:
+                controller_backend = 'modular'
+        self.controller_backend = controller_backend
+        self.graph_controller = graph_controller
+        assist_default = controller_backend in self.MOTOR_ASSIST_DEFAULT_ON
+        self.motor_assists: Dict[str, bool] = {name: assist_default for name in self.MOTOR_ASSISTS}
         for name, enabled in (motor_assists or {}).items():
             if name not in self.motor_assists:
                 raise ValueError(f'Unknown motor assist {name!r}; expected one of {self.MOTOR_ASSISTS}')
@@ -555,8 +766,12 @@ class Arena:
                 brain_type=brain_type,
                 connectome_mode=connectome_mode,
                 connectome_host=connectome_host,
-                connectome_port=connectome_port
+                connectome_port=connectome_port,
+                connectome_on_fault=connectome_on_fault,
+                vision_rng=self.np_rng
             )
+            if graph_controller is not None:
+                fly.motor_source = 'graph'
             fly.motor_record = {}
             fly.assist_totals = self._empty_assist_totals()
             self.flies.append(fly)
@@ -605,8 +820,84 @@ class Arena:
     def motor_provenance(self, fly: Optional[FlyState] = None) -> Dict[str, Any]:
         """Which engineered assists are enabled and how much each acted on ``fly``."""
         f = fly or self.fly
-        return {'motor_assists': dict(self.motor_assists),
+        source = getattr(f, 'motor_source', 'modular')
+        return {'controller_backend': self.controller_backend,
+                'motor_assists': dict(self.motor_assists),
+                'motor_assists_enabled': any(self.motor_assists.values()),
+                'motor_source': source,
+                'motor_source_normal': source in self.MOTOR_SOURCES_NORMAL,
+                'motor_halted': bool(getattr(f, 'motor_halted', False)),
+                'controller_fault': getattr(f, 'controller_fault', None),
                 'assist_totals': dict(getattr(f, 'assist_totals', None) or self._empty_assist_totals())}
+
+    # ------------------------------------------------------------------ world snapshots
+    def snapshot_world(self) -> Dict[str, Any]:
+        """JSON-safe snapshot of the whole world, for replay and per-assay checkpoints.
+
+        ``summary`` is a readable digest (pose, velocities, paradigm, RNG states).
+        ``state`` is the complete encoded arena: every fly's pose, velocities and
+        body/sensor state (including the modular controller sub-circuits that live
+        on the fly), the paradigm's mutable state, odor fields, entities, counters
+        and both random generators (``rng`` and the ``np_rng`` bit generator, which
+        also drives vision).  Controller plumbing (ConnectomeBridge, RPC clients and
+        the graph controller) is excluded: graph brain state lives in the registry
+        checkpoint next to this snapshot.  Arrays are base64 of their raw bytes, so
+        a restore is bit-exact.
+        """
+        state = _world_encode({k: v for k, v in vars(self).items()
+                               if k not in _WORLD_SKIP_ATTRS and not isinstance(v, _WORLD_SKIP_TYPES)},
+                              {}, 'arena')
+        flies = [{'id': f.id, 'x': f.pos.x, 'y': f.pos.y, 'heading': f.heading, 'speed': f.speed,
+                  'angular_velocity': f.angular_velocity, 'alive': f.alive,
+                  'behavioral_state': getattr(f, 'behavioral_state', None)} for f in self.flies]
+        return {
+            'format': self.WORLD_STATE_FORMAT,
+            'paradigm': self.paradigm_key(self.paradigm) if self.paradigm is not None else None,
+            'controller_backend': self.controller_backend,
+            'seed': self.seed,
+            'time_step': self.time_step,
+            'summary': {'flies': flies,
+                        'rng': {'python_random': _world_encode(self.rng.getstate(), {}, 'rng'),
+                                'np_rng': _world_encode(self.np_rng.bit_generator.state, {}, 'np_rng')},
+                        'motor_assists': dict(self.motor_assists)},
+            'state': state,
+        }
+
+    def restore_world(self, snapshot: Dict[str, Any]) -> None:
+        """Restore :meth:`snapshot_world` output into this arena, in place.
+
+        The arena must host the same paradigm.  Continuing after a restore follows
+        the same trajectory as continuing the snapshotted arena, step for step.
+        Raises :class:`WorldStateError` on a foreign or mismatching snapshot and
+        leaves the arena untouched in that case.
+        """
+        if not isinstance(snapshot, dict) or snapshot.get('format') != self.WORLD_STATE_FORMAT:
+            raise WorldStateError(f'Not a {self.WORLD_STATE_FORMAT} snapshot')
+        mine = self.paradigm_key(self.paradigm) if self.paradigm is not None else None
+        if snapshot.get('paradigm') != mine:
+            raise WorldStateError(f'Snapshot is for paradigm {snapshot.get("paradigm")!r}, arena hosts {mine!r}')
+        state = snapshot.get('state')
+        if not isinstance(state, dict):
+            raise WorldStateError('Snapshot has no state')
+        if len(state.get('flies') or []) != len(self.flies):
+            raise WorldStateError('Snapshot fly count differs from this arena')
+        # Keep the live controller plumbing and the configured assists/backend.
+        keep = {k: getattr(self, k) for k in ('graph_controller', 'motor_assists', 'controller_backend')}
+        bridges = [(f, getattr(f, 'connectome_bridge', None)) for f in self.flies]
+        current = {k: v for k, v in vars(self).items() if k not in _WORLD_SKIP_ATTRS}
+        refs: Dict[str, Any] = {}
+        decoded = {k: _world_decode(enc, current.get(k), f'arena.{k}', refs) for k, enc in state.items()}
+        for key, value in decoded.items():
+            setattr(self, key, value)
+        for key, value in keep.items():
+            setattr(self, key, value)
+        for fly, bridge in bridges:
+            fly.connectome_bridge = bridge
+        # Aliases of the first fly (single-fly API).
+        self.fly = self.flies[0]
+        self.circuit, self.surge_cast, self.cx = self.fly.circuit, self.fly.surge_cast, self.fly.cx
+        for fly in self.flies:
+            fly.vision.rng = self.np_rng
 
     def nearest_boundary_gap(self, x: float, y: float, radius: float) -> Tuple[float, float, float]:
         """(gap, nx, ny) of the closest boundary: body-edge clearance and away-normal."""
@@ -928,6 +1219,22 @@ class Arena:
         pred_vel_list = [p.get_velocity() for p in self.predators]
         w_vec = wind_vector if wind_vector is not None else np.array(self.wind, dtype=np.float64)
 
+        # Graph backend dispatch (connectome-fixed / -plastic / -with-trained-readout).
+        # The controller returns body-frame commands in arena units: forward_speed in
+        # mm/s and yaw_rate in rad/s (+ = counter-clockwise).  They are applied as
+        # given: no floor, no clipping and no substitute command when the graph is silent.
+        if self.graph_controller is not None:
+            out = self.graph_controller(fly=f, sensory=sensory, dt=dt, temperature=temperature,
+                                        wind_vector=w_vec, **kwargs)
+            f.last_connectome_telemetry = out
+            f.motor_source = str(out.get('motor_source', 'graph'))
+            f.controller_fault = out.get('controller_fault')
+            f.motor_halted = bool(out.get('halted', False))
+            if f.motor_halted:
+                return 0.0, 0.0, str(out.get('state', 'HALTED')), float(f.heading), float(f.heading)
+            return (float(out.get('yaw_rate', 0.0)), float(out.get('forward_speed', 0.0)),
+                    str(out.get('state', 'GRAPH')), float(f.heading), float(f.heading))
+
         # Whole-Brain Connectome Bridge Dispatch
         if getattr(f, 'brain_type', 'modular') == 'connectome' and getattr(f, 'connectome_bridge', None) is not None:
             bridge_out = f.connectome_bridge.step(
@@ -953,6 +1260,13 @@ class Arena:
                 **kwargs
             )
             f.last_connectome_telemetry = bridge_out
+            f.motor_source = str(bridge_out.get('motor_source', f.connectome_bridge.motor_source))
+            f.controller_fault = bridge_out.get('controller_fault')
+            f.motor_halted = f.motor_source == 'halted-rpc-fault'
+            if f.motor_halted:
+                # RPC fault under on_rpc_fault='halt': no controller, so no propulsion
+                # and no steering.  The legacy 0.1 speed floor below must not apply.
+                return 0.0, 0.0, 'HALTED', float(f.heading), float(f.heading)
             dheading = float(np.clip(bridge_out['yaw_rate'] * 0.01, -0.45, 0.45))
             new_speed = float(np.clip(bridge_out['forward_speed'] * 0.1, 0.1, 3.5))
             if bridge_out.get('escape_active'):
@@ -1278,9 +1592,11 @@ class Arena:
                     fly.assay_escape_remaining = 0.2
                     fly.escapes_performed += 1
                     self.total_escapes += 1
+                halted = bool(getattr(fly, 'motor_halted', False))
                 if getattr(fly, 'assay_escape_remaining', 0.0) > 0:
                     fly.assay_escape_remaining = max(0.0, fly.assay_escape_remaining - dt)
-                    new_speed, state = 3.5, 'ESCAPE'
+                    if not halted:   # a halted controller commands no escape run either
+                        new_speed, state = 3.5, 'ESCAPE'
                 fly.speed = new_speed
                 fly.behavioral_state = state
                 fly.compass_heading = compass_h
@@ -1288,10 +1604,17 @@ class Arena:
                 rec['state'] = state
                 rec['controller_yaw'] = float(dheading)
                 rec['controller_speed'] = float(new_speed)
+                rec['motor_source'] = getattr(fly, 'motor_source', 'modular')
+                rec['controller_fault'] = getattr(fly, 'controller_fault', None)
+                rec['halted'] = halted
 
                 # Wall perception: turn away from boundaries before touching them
-                # (engineered assist, logged separately from the controller's yaw)
-                dheading = self.wall_avoidance_turn(fly, dheading, dt)
+                # (engineered assist, logged separately from the controller's yaw).
+                # A halted fly receives no assist yaw: zero motion means zero.
+                if not halted:
+                    dheading = self.wall_avoidance_turn(fly, dheading, dt)
+                else:
+                    fly.wall_reflex_suppressed = False
                 rec['wall_reflex_yaw'] = float(dheading) - rec['controller_yaw']
                 rec['controller_yaw_suppressed'] = bool(getattr(fly, 'wall_reflex_suppressed', False))
 
@@ -1477,6 +1800,9 @@ class Arena:
             step_start = (fly.pos.x, fly.pos.y)
             rec = {'step': self.time_step, 'dt': dt, 'state': state, 'controller_yaw': float(dheading),
                    'controller_speed': float(new_speed), 'wall_reflex_yaw': 0.0,
+                   'motor_source': getattr(fly, 'motor_source', 'modular'),
+                   'controller_fault': getattr(fly, 'controller_fault', None),
+                   'halted': bool(getattr(fly, 'motor_halted', False)),
                    'controller_yaw_suppressed': False, 'tethered': False, 'overlap_correction_mm': 0.0}
             fly.update(dheading, dt)
             rec['attempted_dx'] = fly.pos.x - step_start[0]
