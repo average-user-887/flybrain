@@ -7,7 +7,7 @@ The original repository is preserved in `upstream/doomfly`. `UPSTREAM.json` reco
 ## Run now
 
 ```bash
-bash /home/avg-usr/Documents/ChatGPT/flybrain/run_brain.sh
+bash ./run_brain.sh
 ```
 
 This drives the first neuron of a **synthetic three-neuron chain**, then writes spike counts to `outputs/brainlab/demo.json`. It verifies that stimulation and propagation run without Doom. It is not a whole-fly experiment. First use includes Numba compilation time.
@@ -28,16 +28,16 @@ Excluded from the standalone package: ViZDoom, arenas, game assets, camera adapt
 
 The full graph data is **downloaded, checksum-verified, imported, and smoke-tested**. See `FULL_BRAIN_TEST.md` for results. The following pipeline reproduces the download of roughly 1.2 GB of source tables; normalization and graph preparation require additional disk space and several GB of RAM. No graph cropping or weak/self-edge pruning is added.
 
-From `/home/avg-usr/Documents/ChatGPT/flybrain`:
+From the repository root:
 
 ```bash
 .venv/bin/python -m brainlab.download
 .venv/bin/python -m brainlab.connectome
 .venv/bin/python -m brainlab.prepare
-bash /home/avg-usr/Documents/ChatGPT/flybrain/run_brain.sh \
-  --graph /home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz \
+bash ./run_brain.sh \
+  --graph outputs/brainlab/malecns_v1/graph.npz \
   --neuron-id 12781 --current 20 --duration-ms 100 \
-  --output /home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns-response.json
+  --output outputs/brainlab/malecns-response.json
 ```
 
 Neuron 12781 is an example explicit stimulation target, not a calibrated sensory input. Numerical model: 0.1 ms steps, 20 ms membrane and 5 ms synaptic time constants, 1.8 ms delay, 2.2 ms refractory period, -52 reset/rest, -45 threshold, and upstream synaptic scaling 0.275. These are modeling assumptions, not physiological facts recovered from the connectome. No learning or behavioral validity is claimed.

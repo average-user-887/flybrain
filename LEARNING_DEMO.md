@@ -5,7 +5,7 @@ Open **http://127.0.0.1:8767** while the local server is running. The page repla
 To start the server again:
 
 ```bash
-cd /home/avg-usr/Documents/ChatGPT/flybrain
+cd /path/to/flybrain
 .venv/bin/python -m brainlab.demo_server --port 8767
 ```
 
@@ -47,7 +47,7 @@ The replay's T-shaped diagram illustrates a recorded decision. Its marker positi
 
 ```bash
 .venv/bin/python -m pytest -q
-/home/avg-usr/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/check_learning_ui.cjs
+node scripts/check_learning_ui.cjs
 ```
 
 Tests cover reward-update direction, learning from reward without a target argument, frozen readout evaluation, exclusion of directly stimulated cells, UI replay/selection/launch event wiring, existing simulator numerical checks, and run recording. The local HTTP launcher was exercised with a real second run, plus rejection of invalid seeds, cross-origin launches, and concurrent launches.

@@ -3,7 +3,7 @@
 Run a reproducible full-brain baseline experiment from this workspace:
 
 ```bash
-cd /home/avg-usr/Documents/ChatGPT/flybrain
+cd /path/to/flybrain
 .venv/bin/python -m brainlab.experiment --seed 42 --repeats 2
 .venv/bin/python -m brainlab.report
 ```
