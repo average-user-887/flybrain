@@ -1,0 +1,115 @@
+{
+  "format": "neurofly.wp6-plastic-subset.v1",
+  "status": "SPECIFICATION ONLY - no rule implemented, no learning run performed",
+  "written": "2026-09-20",
+  "spec": "docs/WP6_PLASTICITY_SPEC.md",
+  "graph": {
+    "dataset": "malecns_v1",
+    "graph_dir": "outputs/brainlab/malecns_v1",
+    "graph_sha256_prefix": "4b2f87cc",
+    "neurons": 166700,
+    "edges": 25582938,
+    "weight_units": "synapse_count * transmitter_sign * 0.275 (upstream mV-equivalent)",
+    "counts_measured_by": "read-only scan of graph.npz + connectome_data/malecns_v1 on 2026-09-20",
+    "negative_edge_fraction": 0.3836
+  },
+  "candidate_subsets": [
+    {
+      "id": "ER_to_EPG_visual_subset",
+      "rank": 1,
+      "recommended": true,
+      "description": "Inhibitory ring-neuron to compass-neuron synapses in the ellipsoid body, restricted to the two visually driven ring-neuron families that receive TuBu input.",
+      "pre_types": ["ER4d", "ER2_a", "ER2_b", "ER2_c", "ER2_d"],
+      "post_types": ["EPG", "EPGt"],
+      "pre_neurons": 67,
+      "post_neurons": 50,
+      "edges": 3081,
+      "synaptic_contacts": 40919,
+      "fraction_of_graph_edges": 0.00012,
+      "sign_in_prepared_graph": "all negative (every ER neuron is predicted GABAergic: 282/282)",
+      "allowed_update": "depression only (|w| decreases toward 0); sign flip forbidden",
+      "primary_sources": ["Fisher 2019", "Kim 2019", "Fisher 2022", "Plitt 2025 (preprint)"]
+    },
+    {
+      "id": "ER_to_EPG_all",
+      "rank": "1b",
+      "recommended": false,
+      "description": "All ring-neuron to compass-neuron synapses (26 ER types). Wider superset; includes sleep/nutritional/non-visual ER families.",
+      "pre_neurons": 282,
+      "post_neurons": 50,
+      "edges": 11719,
+      "synaptic_contacts": 124264,
+      "fraction_of_graph_edges": 0.00046
+    },
+    {
+      "id": "KC_to_MBON_all",
+      "rank": 2,
+      "recommended": false,
+      "description": "Kenyon cell to mushroom-body output neuron synapses, the best-sourced plastic site in the fly; not recommended as the FIRST target because neither the odour encoder nor an MBON-to-motor decoder is verified in this build.",
+      "pre_neurons": 4064,
+      "post_neurons": 97,
+      "edges": 61210,
+      "synaptic_contacts": 463640,
+      "fraction_of_graph_edges": 0.00239,
+      "sign_in_prepared_graph": "all positive (4064/4064 KCs predicted cholinergic)",
+      "allowed_update": "bidirectional within [0.1, 2.0] x initial; sign flip forbidden",
+      "primary_sources": ["Hige 2015", "Aso 2014", "Handler 2019", "Li 2020", "Huang 2024"]
+    },
+    {
+      "id": "KC_to_MBON01_gamma1pedc",
+      "rank": "2b",
+      "recommended": false,
+      "description": "Single-compartment version of the olfactory subset: KC inputs to MBON01 (gamma1pedc>alpha/beta), the compartment innervated by PPL101.",
+      "post_neurons": 2,
+      "edges": 2109,
+      "synaptic_contacts": 40888
+    },
+    {
+      "id": "optomotor_T4T5_HS_DNa02",
+      "rank": 3,
+      "recommended": false,
+      "description": "WP5's verified loop. Best-verified IO map, but no primary source for experience-dependent plasticity at these synapses, and the HS/H2 -> DNa02 bottleneck is 8 edges, so a rule there is a gain knob, not a learning model.",
+      "edges_T4_to_HS": 2955,
+      "edges_T5_to_HS": 2937,
+      "edges_T4_to_H2": 1570,
+      "edges_T5_to_H2": 1582,
+      "edges_HS_to_DNa02": 6,
+      "edges_H2_to_DNa02": 2
+    }
+  ],
+  "modulatory_populations": {
+    "EL": {
+      "neurons": 18,
+      "predicted_transmitter": "octopamine",
+      "edges_to_ER": 4488,
+      "edges_to_ER4d": 465,
+      "edges_to_ER2_star": 703,
+      "edges_to_EPG": 300,
+      "note": "accounts for 4488 of the 4514 octopaminergic edges onto ER neurons in this graph",
+      "source": "Plitt 2025 (preprint): octopamine from EL neurons instructs depression of ER->EPG synapses"
+    },
+    "ExR2": {
+      "neurons": 4,
+      "predicted_transmitter": "dopamine",
+      "edges_to_ER": 495,
+      "edges_to_EPG": 187,
+      "source": "Fisher 2022: dopamine (PPM3/ExR2) is a when-to-learn signal scaling with rotational speed"
+    },
+    "PPL1": {"neurons": 16, "predicted_transmitter": "dopamine", "edges_to_KC": 17149, "edges_to_MBON": 430},
+    "PPL101": {"neurons": 2, "edges_to_KC": 4936, "edges_to_MBON01": 0},
+    "PAM": {"neurons": 316, "predicted_transmitter": "dopamine", "edges_to_KC": 110450, "edges_to_MBON": 2693}
+  },
+  "frozen_readout": {
+    "route": "EPG -> PFL3 -> DNa02 -> DNa02YawDecoder (WP5, frozen)",
+    "edges_EPG_to_PFL3": 113,
+    "edges_PFL3_to_DNa02": 24,
+    "edges_PFL3_to_DNa01": 0,
+    "decoder_pin": "OPTOMOTOR_IO_PIN 228c1b69...66c7b",
+    "sources": ["Westeinde 2024", "Rayshubskiy 2025"]
+  },
+  "known_engine_confound": {
+    "modulator_edges_are_excitatory": "dopamine, octopamine, serotonin and 'unclear' neurons are all mapped to POSITIVE weights in the prepared graph, so DAN/OAN spikes currently act as fast ionotropic excitation in the LIF proxy as well as being read as a modulatory signal by any WP6 rule. This double-counting must be declared in the run manifest.",
+    "neurotransmitter_census": {"acetylcholine": 103720, "glutamate": 29302, "gaba": 22069, "histamine": 7891, "unclear": 2999, "dopamine": 392, "unassigned": 178, "octopamine": 101, "serotonin": 48}
+  },
+  "blocking_dependency": "brainlab/engine.py LIF fix (runaway ~1e6 spikes/s self-sustained state and non-responsive right side, WP5 section 6). A conductance-based dynamics v2 (engine.advance_v2, docs/LIF_DYNAMICS_SPEC.md) landed while this spec was written; default is still v1. WP6 should be run under v2, the dynamics_version belongs in the prereg and manifest, and no confirmatory WP6 run should start before WP5's optomotor set has been re-run under v2 and shows a quiet baseline and bilateral responsiveness."
+}
