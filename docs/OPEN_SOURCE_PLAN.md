@@ -104,3 +104,21 @@ network with a suprathreshold fixed point measures the engine, not the connectom
    duplicates of `app.js`/`index.html`, and the tracked `experiment_data/ryzen_battery/`.
 5. **The live-UI sign-off still requires restarting the observatory service**, which
    this session is not permitted to do.
+
+### Correction (2026-09-20, completed v2 set)
+
+The entry above for 19 September states that one causal graph-mediated loop was
+demonstrated. **That claim is withdrawn.** The completed 24-run v2 set (commit
+`4552423`) shows:
+
+- Under v1 the positive optomotor result was an engine artefact: DNa02_R was held
+  at -184 mV, below any chloride reversal, and never fired.
+- Under v2, with the membrane bounded, the preregistered verdict is **NULL**.
+  Silencing DNa02 does not abolish the residual turning (paired intact - silenced
+  -0.0115 [-0.0247, +0.0059]); it slightly increases it. The residual is not a
+  decoded steering command, but noise on a ~273 Hz saturated background.
+
+NeuroFly currently has **no validated graph-mediated sensorimotor loop**. The
+software provenance, isolation, physics and transport work stands; the scientific
+claim does not. The next step is a declared v3 synaptic-gain recalibration argued
+from physiology before measurement, not another run of the same protocol.
