@@ -69,6 +69,23 @@ BACKENDS: Dict[str, BackendSpec] = {spec.name: spec for spec in (
 GRAPH_BACKENDS = ('connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout')
 
 
+def controller_version_for(spec: 'BackendSpec', dynamics: Optional[dict]) -> str:
+    """Re-pin a graph backend's controller version to the LIF dynamics version.
+
+    A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
+    a run under the conductance-based v2 engine records ``brainlab-lif-v2``,
+    never ``brainlab-lif-v1``, so old and new results can never be confused.
+    Runs under the default v1 dynamics keep exactly the string they had.
+    """
+    version = (dynamics or {}).get('dynamics_version')
+    if not spec.requires_graph or not version or version == 'v1':
+        return spec.controller_version
+    if not spec.controller_version.endswith('-v1'):
+        raise BackendError(f'Cannot re-pin controller version {spec.controller_version!r} '
+                           f'for LIF dynamics {version!r}')
+    return spec.controller_version[:-2] + version
+
+
 class BackendError(RuntimeError):
     """A backend was requested in a mode that cannot honour its identity."""
 
@@ -173,7 +190,8 @@ class RunManifest:
             label = f'NON-SCIENTIFIC BACKEND - {backend}: {spec.description}'
         return cls(backend=backend, assay=assay, instance_id=instance_id, seed=int(seed), graph=graph,
                    dynamics=copy.deepcopy(dynamics), learned_parameter_locations=dict(learned_parameter_locations),
-                   controller_version=spec.controller_version, synthetic=synthetic, test_mode=test_mode,
+                   controller_version=controller_version_for(spec, dynamics),
+                   synthetic=synthetic, test_mode=test_mode,
                    label=label, source=source if source is not None else source_revision(files=spec.source_files),
                    rng_initial_state=rng_state(rng) if rng is not None else None,
                    intervention_schedule=list(intervention_schedule or []), parent_run_id=parent_run_id)

@@ -82,7 +82,10 @@ class Run:
         with temporary.open('wb') as stream:
             np.savez_compressed(stream, spike_ids=brain.ids[fired], spike_counts=counts[fired],
                 input_ids=brain.ids[driven], input_current=drive[driven],
-                state_ids=brain.ids[active], voltage=brain.v[active], synaptic_state=brain.g[active])
+                state_ids=brain.ids[active], voltage=brain.v[active],
+                # v1: (k,) current-like synaptic state; v2: (2, k) excitatory/inhibitory
+                # conductances.  The trailing axis is always the neuron axis.
+                synaptic_state=brain.g[..., active], lif_dynamics=np.array(brain.dynamics))
         temporary.replace(self.path/filename)
         self.event('neural_bin', bin=self.index, trial_id=trial_id, phase=phase,
             sim_start_ms=start, sim_end_ms=brain.sim_ms, wall_seconds=elapsed,

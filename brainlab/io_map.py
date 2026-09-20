@@ -247,7 +247,15 @@ class DNa02YawDecoder:
                     contributions={'DNa02_L': contrib_l, 'DNa02_R': contrib_r})
 
 
-SILENCE_DRIVE = -200.0   # hyperpolarising clamp (Kir2.1-like), upstream mV-equivalent
+# Hyperpolarising clamp (Kir2.1-like), upstream mV-equivalent.  Under the v1
+# current-based dynamics this drags the membrane to about -200 mV, which no
+# neuron can do; under the v2 conductance-based dynamics the same value pins the
+# membrane at the inhibitory (chloride) reversal, -70 mV, which is what a Kir2.1
+# experiment approximates.  The silencing *effect* is identical in both — the
+# clamped neuron is far below threshold and emits no spike — so the WP5
+# silencing control means the same thing under either version.
+# See docs/LIF_DYNAMICS_SPEC.md §3.3.
+SILENCE_DRIVE = -200.0
 
 
 class OptomotorLoop:

@@ -6,6 +6,15 @@ Run of 19 September 2026 on the pinned MaleCNS v1.0 graph
 [`wp5_optomotor_prereg.json`](wp5_optomotor_prereg.json). Machine-readable
 result: [`receipts/wp5_optomotor.json`](receipts/wp5_optomotor.json).
 
+> **Everything in §1–§10 is the v1 run and is left exactly as it was.** The two
+> dynamics defects in §6 qualifiers 1 and 3 have since been addressed as a
+> declared dynamics change (`docs/LIF_DYNAMICS_SPEC.md`, LIF **v2**,
+> conductance-based with reversal potentials, controller version
+> `brainlab-lif-v2`). **The same preregistered protocol re-run under v2 gives a
+> different answer. Read [§11](#11-v2-re-run-conductance-based-dynamics) before
+> quoting any number below.** The numbers in §1–§10 remain valid *only* as
+> results of the `brainlab-lif-v1` controller.
+
 **Result by the preregistered rule: POSITIVE, with four material qualifiers.**
 A graph-mediated, stimulus-locked, side-specific yaw command exists and is
 abolished by silencing DNa02, but it is carried almost entirely by leftward
@@ -287,3 +296,121 @@ it a usable substrate and three constraints:
   should either declare adaptation/normalisation as an explicit dynamics change
   (a new controller version, re-pinned) or restrict claims to the left-rotation
   condition.
+
+## 11. v2 re-run (conductance-based dynamics)
+
+**Everything above is the v1 result and is unchanged.** This section reports the
+same preregistered protocol (`docs/wp5_optomotor_prereg.json`, same sha256, same
+seeds, same blocks, same primary outcome `TI`) under the declared conductance-based
+dynamics of [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMICS_SPEC.md) — controller version
+`brainlab-lif-v2`. Only the engine differs. Receipts:
+[`receipts/lif_dynamics_diagnosis.json`](receipts/lif_dynamics_diagnosis.json),
+[`receipts/lif_dynamics_v2.json`](receipts/lif_dynamics_v2.json).
+
+> **Status: the confirmatory v2 set is incomplete.** 1 of 24 (condition, seed)
+> runs had finished when this was written (intact, seed 0; 427 s of wall time
+> each, ≈2 h 10 for the set). The diagnosis below is complete and decisive; the
+> optomotor numbers below are **n = 1 seed, intact only, no controls, no
+> confidence interval**, and are not a verdict under the preregistered rule.
+> Finish with
+> `scripts/lif_dynamics_v2_receipt.py outputs/wp5/confirm-20260919 outputs/wp5/confirm-v2-20260920 docs/receipts/lif_dynamics_diagnosis.json docs/receipts/lif_dynamics_v2.json`.
+
+### 11.1 Diagnosis of the two defects
+
+**The dead right side was dynamical, not anatomical — as §6.1 suspected.**
+DNa02_L and DNa02_R have input budgets within 2 % of each other (L: 1,138
+in-edges, Σ excitatory weight 4,427.5, Σ inhibitory 2,160.7; R: 1,201 in-edges,
+4,389.8 / 2,256.4). Under v1, DNa02_R is driven to −184 mV during leftward
+rotation and −70 to −123 mV during rightward rotation — far below any
+physiological chloride reversal — and emits **0 spikes in either direction**.
+Under v2 the same neuron cannot go below −70 mV, sits at −51 mV, and fires.
+
+**The unbounded membrane is fixed; the runaway is not.** Probe A (two neurons,
+inhibitory weight swept over three decades):
+
+| inhibitory weight | v1 min V | v2 min V |
+|---|---|---|
+| −40 | −71.4 mV | −56.98 mV |
+| −400 | −245.9 mV | −66.66 mV |
+| −4000 | −1991.5 mV | −69.75 mV |
+
+v1 scales without limit; v2 asymptotes at `E_inh`. The conductance quantum is
+calibrated, not fitted: the unitary EPSP at rest is 0.04332 mV under v1 and
+0.04372 mV under v2.
+
+Probe B (2,000-neuron random recurrent net, 200 ms input then 800 ms free) shows
+v2 self-sustains at a **lower** recurrent gain than v1 — at weight gain 8, v1
+leaves 2.46 Hz/neuron and v2 leaves 67.9 Hz/neuron. §3.3 item 4 of the spec
+predeclared this as a possible consequence of giving both signs one conductance
+quantum: the unitary IPSP at rest becomes 18/52 = 0.346× the v1 IPSP, so
+inhibition loses hyperpolarising authority even as it gains shunting authority.
+
+**Why (analysis of the declared model, not a parameter change).** With
+`E_exc = 0`, `E_inh = −70` and one quantum per unit weight, the high-conductance
+fixed point is `r·E_inh/(1+r)` where `r = ĝ_i/ĝ_e`. The MaleCNS graph under the
+coarse transmitter-sign proxy has `r = 0.619` (13.0 M inhibitory vs 21.1 M
+excitatory weight), giving a fixed point of **−26.75 mV against a −45 mV
+threshold** — suprathreshold, so any sustained input drives the whole network to
+its refractory limit. A subthreshold fixed point needs `r > 1.80`; the graph is
+2.91× short. v1 hid this behind unbounded hyperpolarisation. The 0.275 mV per
+synapse scale was itself calibrated *inside* a current-based model; carrying it
+into a conductance model without recalibrating the overall synaptic gain is what
+leaves the graph suprathreshold. (An alternative calibration — matching the v1
+IPSP rather than the v1 EPSP — gives an inhibitory quantum 2.889× the excitatory
+one, within 1 % of the 2.91× needed. That is recorded as an observation for a
+future declared v3. It was **not** adopted here: choosing it after seeing this
+result would be tuning.)
+
+### 11.2 Optomotor, v1 vs v2, intact, seed 0
+
+Same trace, same metric, computed identically for both. **n = 1; the v1 column's
+six-seed values from §5 are given for scale, not for comparison.**
+
+| measure | v1 (seed 0) | v2 (seed 0) |
+|---|---|---|
+| `TI` (rad/s) | +0.072 | +0.052 |
+| `TI` contrast 1.0 | +0.175 | +0.076 |
+| `TI` contrast 0.5 | −0.030 | +0.027 |
+| blocks with yaw aligned to stimulus | **4 of 8** | **8 of 8** |
+| DNa02 asymmetry `A` (Hz) | +3.9 | +2.8 |
+| DNa02_L / DNa02_R, leftward (Hz) | 11.8 / **0.0** | 307.0 / **304.0** |
+| DNa02_L / DNa02_R, rightward (Hz) | 4.3 / **0.3** | 307.5 / **310.0** |
+| network rate, stimulus (spikes/s) | 1.22 × 10⁶ | 4.08 × 10⁶ |
+| network rate, gray (spikes/s) | 1.06 × 10⁶ | 3.58 × 10⁶ |
+| DNa02_L / DNa02_R during gray (Hz) | 8.4 / 0.0 | 272.2 / 272.9 |
+| membrane range (mV) | −307.3 … −45.0 | **−54.5 … −45.0** |
+| sustained speed (sim s per wall s) | 0.106 | 0.029 |
+
+Read the two middle rows together. Under v1 the right side is dead in *both*
+directions, and only half the blocks turn the right way; the positive `TI` comes
+from leftward blocks alone. Under v2 **both** DNa02s respond and the sign of the
+L−R difference follows the stimulus in **every** block, including rightward ones
+— the §6.1 defect is gone. But the signal is now ±3 Hz riding on a 307 Hz
+saturated background, the gray periods are noisier still (273 Hz per DNa02,
+3.6 × 10⁶ spikes/s network-wide), and the resulting `TI` is *smaller*.
+
+### 11.3 Honest verdict
+
+* The **membrane-bound** defect (§6 qualifier 3, second half) is **fixed**.
+  −200 mV is now impossible by construction; the observed range is −54.5 to
+  −45.0 mV.
+* The **dead right side** (§6 qualifier 1) is **fixed**, and its cause is
+  confirmed to be the missing inhibitory reversal potential, not the wiring.
+* The **runaway** (§6 qualifier 3, first half) is **not fixed — it is worse**:
+  4.1 × 10⁶ spikes/s against 1.0 × 10⁶, and the gray periods are further from
+  rest than before, not closer. Reversal potentials alone were never going to
+  fix it, and the spec said so before the run.
+* The **optomotor claim** under v2, on the evidence so far: it now looks
+  **symmetric but much weaker** — directionally correct in 8 of 8 blocks in both
+  rotation directions, at roughly a third of the v1 turning index, against a
+  saturated background that makes the whole measurement fragile. **This is one
+  seed of one condition.** Until the 24-run confirmatory set finishes there is
+  no confidence interval, no silencing control, no sham and no shuffled-graph
+  control, so **no verdict under the preregistered rule can be stated.** The v1
+  verdict (POSITIVE, one-sided) stands as the `brainlab-lif-v1` result and is
+  not retracted; it is now known to have depended on an engine property.
+* **WP6 must not build on either version as it stands.** A learning rule
+  evaluated on a network at 4 × 10⁶ spikes/s with a suprathreshold
+  high-conductance fixed point measures the engine, exactly as §10 warned. The
+  next declared change is a synaptic-gain recalibration, argued from physiology
+  *before* it is measured, not after.
