@@ -1,0 +1,37 @@
+{
+  "kind": "browser-side-fault-injection",
+  "note": "?inject=render is a browser-only one-shot fault in the deployed app.js; the daemon is never touched.",
+  "at": "2026-09-20T14:48:30.872873+00:00",
+  "banner_shown": true,
+  "banner": "RENDER ERROR: Injected renderer fault (test build) \u2014 assay open-arena \u00b7 run 7deb34e1 \u00b7 step 89278 \u00b7 view suspended (render); last measured frame kept",
+  "errors": [
+    {
+      "phase": "render",
+      "message": "Injected renderer fault (test build)",
+      "assay": "open-arena",
+      "step": 89278,
+      "count": 1
+    }
+  ],
+  "after_resume": {
+    "pill": "\u25cf LIVE DAEMON",
+    "lastStep": 89499,
+    "dataAgeMs": 10,
+    "banner": "",
+    "errors": 1
+  },
+  "recovered": true,
+  "final_plain_load": {
+    "ui_assay": "open-arena",
+    "pill": "\u25cf LIVE DAEMON",
+    "speed": "1x",
+    "errors": [],
+    "console": []
+  },
+  "final_status": {
+    "active_paradigm": "open-arena",
+    "sim_speed": 1.0,
+    "paused": false,
+    "total_steps": 89518
+  }
+}
