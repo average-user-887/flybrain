@@ -6,7 +6,14 @@ memory at a time; each (condition, seed) gets its own ExperimentRegistry root
 and a fresh connectome-fixed instance, checkpointed at the end.
 
     NEUROFLY_GRAPH_DIR=<graph dir> PYTHONPATH=. .venv/bin/python scripts/wp5_optomotor.py \
-        --out outputs/wp5/<stamp> [--pilot] [--receipt docs/receipts/wp5_optomotor.json]
+        --out outputs/wp5/<stamp> [--pilot] [--dynamics v2] \
+        [--receipt docs/receipts/wp5_optomotor.json]
+
+``--dynamics`` selects the declared LIF version (docs/LIF_DYNAMICS_SPEC.md).
+It defaults to ``v1``, the dynamics the 19 September 2026 confirmatory run was
+produced under, so the original result stays reproducible byte for byte.  The
+preregistration, the schedule and the primary outcome are identical in both
+cases; only the engine differs, and every manifest records which one.
 
 Nothing here contacts running services.
 """
@@ -16,6 +23,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import platform
 import resource
 import sys
@@ -27,7 +35,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from brainlab.graph_identity import GraphIdentity, sha256_json  # noqa: E402
+# The declared dynamics must be selected BEFORE brainlab is imported: the run
+# manifest's dynamics block and controller version are resolved at import time.
+_pre = argparse.ArgumentParser(add_help=False)
+_pre.add_argument('--dynamics', default='v1')
+os.environ['NEUROFLY_LIF_DYNAMICS'] = _pre.parse_known_args()[0].dynamics
+
+from brainlab.graph_identity import (DYNAMICS_VERSIONS, GraphIdentity,  # noqa: E402
+                                     active_dynamics_version, dynamics_pin, sha256_json)
 from brainlab.io_map import (DNa02YawDecoder, OptomotorEncoder, OptomotorLoop,  # noqa: E402
                              resolve_optomotor_io)
 from experiment_registry import ExperimentRegistry, SharedGraph  # noqa: E402
@@ -76,6 +91,8 @@ def run_graph_condition(shared, io, condition, seed, prereg, root, blocks=None, 
     instance.manifest.intervention_schedule = [dict(
         wp5_condition=condition, stimulus_seed=seed, prereg_sha256=prereg['_sha256'], loop=loop.describe(),
         encoder=encoder.describe(), decoder=decoder.describe(), closed_loop=closed_loop,
+        lif_dynamics_version=active_dynamics_version(),
+        lif_dynamics_pin=dynamics_pin(active_dynamics_version()),
         schedule_sha256=sha256_json(schedule))]
     instance.manifest.record_event('wp5-start', step=instance.step_index, condition=condition, seed=seed)
     trace = {k: [] for k in ('slip', 'contrast', 'block', 'yaw', 'spk_l', 'spk_r', 'v_l', 'v_r', 'total')}
@@ -219,7 +236,10 @@ def main():
     parser.add_argument('--closed-loop', action='store_true', help='conditional secondary (prereg)')
     parser.add_argument('--exploratory-mirror', action='store_true',
                         help='EXPLORATORY: direction-negated schedule, seeds 0-2, not part of the verdict')
+    parser.add_argument('--dynamics', default='v1', choices=('v1', 'v2'),
+                        help='declared LIF dynamics version (docs/LIF_DYNAMICS_SPEC.md); default v1')
     args = parser.parse_args()
+    assert args.dynamics == active_dynamics_version()   # set before the brainlab import
     raw = PREREG.read_bytes()
     prereg = json.loads(raw)
     prereg['_sha256'] = hashlib.sha256(raw).hexdigest()
@@ -232,7 +252,10 @@ def main():
     io = resolve_optomotor_io()
     header = dict(started_at=started, host=platform.node(), prereg_sha256=prereg['_sha256'],
                   graph=shared.identity.to_dict(), io_map=io.describe(), graph_load_s=load_s,
-                  rss_mib_after_load=rss_mib())
+                  rss_mib_after_load=rss_mib(),
+                  lif_dynamics_version=active_dynamics_version(),
+                  lif_dynamics_pin=dynamics_pin(active_dynamics_version()),
+                  lif_dynamics=dict(DYNAMICS_VERSIONS[active_dynamics_version()]))
 
     if args.pilot:
         blocks = [[1, 1.0], [-1, 1.0]]

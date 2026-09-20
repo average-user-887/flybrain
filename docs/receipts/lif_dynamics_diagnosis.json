@@ -1,0 +1,652 @@
+{
+  "generated_at": "2026-09-20T14:19:42+0200",
+  "host": "avg-usr-B550-GAMING-X",
+  "dynamics_declared": {
+    "v1": {
+      "dynamics_version": "v1",
+      "model": "fixed-weight leaky integrate-and-fire, CURRENT-based (brainlab.engine.advance)",
+      "dt_ms": 0.1,
+      "tau_membrane_ms": 20.0,
+      "tau_synapse_ms": 5.0,
+      "v_rest_mV": -52.0,
+      "v_reset_mV": -52.0,
+      "v_threshold_mV": -45.0,
+      "refractory_ms": 2.2,
+      "transmission_delay_ms": 1.8,
+      "synaptic_scale": 0.275,
+      "weight_units": "synapse_count * transmitter_sign * 0.275 (upstream mV-equivalent)",
+      "input_units": "per-neuron drive current (upstream mV-equivalent)",
+      "output_units": "spike counts per step window",
+      "membrane_bounds_mV": null,
+      "reversal_potentials_mV": null,
+      "integration": "exact two-exponential subthreshold kernel",
+      "known_defects": [
+        "membrane potential unbounded (observed -200 mV in WP5)",
+        "inhibition is purely subtractive; no shunting / gain control",
+        "self-sustained ~1e6 spikes/s on the MaleCNS graph after any stimulus"
+      ],
+      "parameter_source": "Shiu et al. 2024 Nature 634:210-219 whole-brain LIF model",
+      "spec": "docs/LIF_DYNAMICS_SPEC.md",
+      "biological_validation": "none; engineering proxy"
+    },
+    "v2": {
+      "dynamics_version": "v2",
+      "model": "fixed-weight leaky integrate-and-fire, CONDUCTANCE-based with reversal potentials (brainlab.engine.advance_v2)",
+      "dt_ms": 0.1,
+      "tau_membrane_ms": 20.0,
+      "tau_synapse_ms": 5.0,
+      "v_rest_mV": -52.0,
+      "v_reset_mV": -52.0,
+      "v_threshold_mV": -45.0,
+      "refractory_ms": 2.2,
+      "transmission_delay_ms": 1.8,
+      "synaptic_scale": 0.275,
+      "e_excitatory_mV": 0.0,
+      "e_inhibitory_mV": -70.0,
+      "g_unit_per_weight": 0.019230769230769232,
+      "weight_units": "synapse_count * transmitter_sign * 0.275, converted to a synaptic conductance of |weight| * g_unit_per_weight in leak-conductance units",
+      "input_units": "per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)",
+      "output_units": "spike counts per step window",
+      "membrane_bounds_mV": [
+        -70.0,
+        0.0
+      ],
+      "reversal_potentials_mV": {
+        "excitatory": {
+          "value": 0.0,
+          "status": "measured (Drosophila)",
+          "source": "Lee & O'Dowd 1999 J Neurosci 19:5311 (nAChR mEPSC reverses near 0 mV); Su & O'Dowd 2003 J Neurosci 23:9246 (+8.9 mV in Kenyon cells)"
+        },
+        "inhibitory": {
+          "value": -70.0,
+          "status": "ENGINEERING ASSUMPTION",
+          "source": "chloride reversal for Rdl/GluCl/HisCl; reported Drosophila values are internal-solution dependent (-56 mV Rohrbough & Broadie 2002; -37 mV Su & O'Dowd 2003). -70 mV is the conventional low-[Cl-]i value, not a measured adult number. Declared sensitivity arm at -56 mV."
+        }
+      },
+      "g_unit_derivation": "g_unit = 1/(e_excitatory - v_rest) = 1/52; fixed by matching the v1 / Shiu et al. unitary EPSP of 0.275 mV at rest. Not fitted.",
+      "integration": "exponential Euler, conductances frozen within dt (first order in the synaptic term)",
+      "changes_from_v1": [
+        "membrane potential bounded to [e_inhibitory, e_excitatory]",
+        "inhibition shunts as well as hyperpolarises (tau_eff = tau_m/(1+ge+gi))",
+        "excitatory driving force saturates as v depolarises",
+        "unitary IPSP at rest is 18/52 = 0.346x the v1 IPSP for the same weight",
+        "external drive current is divided by the total conductance",
+        "synaptic state array g has shape (2, n); v1 checkpoints are refused, not reinterpreted"
+      ],
+      "unchanged_engineering_properties": [
+        "synaptic conductance zeroed on every spike (Brian2 unless-refractory schedule)",
+        "synaptic input arriving at a refractory neuron is discarded",
+        "no adaptation, short-term plasticity or after-hyperpolarisation",
+        "coarse transmitter-sign proxy (brainlab/transmitters.py), not receptor physiology"
+      ],
+      "parameter_source": "Shiu et al. 2024 for the shared LIF constants; see spec for reversals",
+      "spec": "docs/LIF_DYNAMICS_SPEC.md",
+      "biological_validation": "none; engineering proxy with declared reversal potentials"
+    }
+  },
+  "probe_a": [
+    {
+      "dynamics": "v1",
+      "drive": 20.0,
+      "ms": 2000.0,
+      "sweep": [
+        {
+          "inhibitory_weight": -40.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -71.395,
+          "v_post_final_mV": -70.969
+        },
+        {
+          "inhibitory_weight": -400.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -245.955,
+          "v_post_final_mV": -241.694
+        },
+        {
+          "inhibitory_weight": -4000.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -1991.547,
+          "v_post_final_mV": -1948.936
+        }
+      ],
+      "unitary_epsp_mV": 0.04332
+    },
+    {
+      "dynamics": "v2",
+      "drive": 20.0,
+      "ms": 2000.0,
+      "sweep": [
+        {
+          "inhibitory_weight": -40.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -56.984,
+          "v_post_final_mV": -56.883
+        },
+        {
+          "inhibitory_weight": -400.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -66.664,
+          "v_post_final_mV": -66.543
+        },
+        {
+          "inhibitory_weight": -4000.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -69.748,
+          "v_post_final_mV": -69.701
+        }
+      ],
+      "unitary_epsp_mV": 0.04372
+    }
+  ],
+  "probe_b": [
+    {
+      "dynamics": "v1",
+      "neurons": 2000,
+      "edges_per_neuron": 40,
+      "excitatory_fraction": 0.8,
+      "stim_ms": 200.0,
+      "free_ms": 800.0,
+      "sweep": [
+        {
+          "weight_gain": 1.0,
+          "mean_net_in_weight": 7.86,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -52.56,
+          "v_max_during_free_mV": -49.04,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 2.0,
+          "mean_net_in_weight": 15.72,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -53.12,
+          "v_max_during_free_mV": -48.69,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 4.0,
+          "mean_net_in_weight": 31.43,
+          "stim_rate_hz_per_neuron": 9.182,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -54.89,
+          "v_max_during_free_mV": -46.15,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 8.0,
+          "mean_net_in_weight": 62.87,
+          "stim_rate_hz_per_neuron": 45.903,
+          "free_rate_hz_per_neuron": 2.457,
+          "free_total_spikes": 3931,
+          "v_min_during_free_mV": -54.47,
+          "v_max_during_free_mV": -45.0,
+          "self_sustained": true
+        },
+        {
+          "weight_gain": 16.0,
+          "mean_net_in_weight": 125.73,
+          "stim_rate_hz_per_neuron": 127.257,
+          "free_rate_hz_per_neuron": 137.846,
+          "free_total_spikes": 220554,
+          "v_min_during_free_mV": -55.77,
+          "v_max_during_free_mV": -45.0,
+          "self_sustained": true
+        }
+      ]
+    },
+    {
+      "dynamics": "v2",
+      "neurons": 2000,
+      "edges_per_neuron": 40,
+      "excitatory_fraction": 0.8,
+      "stim_ms": 200.0,
+      "free_ms": 800.0,
+      "sweep": [
+        {
+          "weight_gain": 1.0,
+          "mean_net_in_weight": 7.86,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -52.13,
+          "v_max_during_free_mV": -49.04,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 2.0,
+          "mean_net_in_weight": 15.72,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -52.25,
+          "v_max_during_free_mV": -48.92,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 4.0,
+          "mean_net_in_weight": 31.43,
+          "stim_rate_hz_per_neuron": 9.072,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -52.49,
+          "v_max_during_free_mV": -46.9,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 8.0,
+          "mean_net_in_weight": 62.87,
+          "stim_rate_hz_per_neuron": 51.935,
+          "free_rate_hz_per_neuron": 67.947,
+          "free_total_spikes": 108715,
+          "v_min_during_free_mV": -52.91,
+          "v_max_during_free_mV": -45.0,
+          "self_sustained": true
+        },
+        {
+          "weight_gain": 16.0,
+          "mean_net_in_weight": 125.73,
+          "stim_rate_hz_per_neuron": 137.787,
+          "free_rate_hz_per_neuron": 151.012,
+          "free_total_spikes": 241620,
+          "v_min_during_free_mV": -52.62,
+          "v_max_during_free_mV": -45.0,
+          "self_sustained": true
+        }
+      ]
+    }
+  ],
+  "graph": {
+    "dataset": "malecns_v1",
+    "synthetic": false,
+    "graph_path": "/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path_source": "env:NEUROFLY_GRAPH_DIR",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+    "neurons": 166700,
+    "edges": 25582938,
+    "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
+    "data_sha256": {
+      "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "edges.feather (pinned, not rehashed)": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+    },
+    "label": "MaleCNS v1.0 prepared graph"
+  },
+  "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+  "io_map_sha256": "228c1b69251e73a3ec34d551202b98f8b6afddf723a77c89e3203053d2366c7b",
+  "probe_c": [
+    {
+      "dynamics": "v1",
+      "e_inh_mV": null,
+      "direction": 1,
+      "wall_s": 16.7,
+      "sim_s_per_wall_s": 0.12,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -72.31,
+        "v_l_min": -130.01,
+        "v_r_mean": -184.24,
+        "v_r_min": -266.57,
+        "rate_l_hz": 23.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 1144772.0,
+        "arriving_exc_weight_L": 111.6,
+        "arriving_inh_weight_L": 116.4,
+        "arriving_exc_weight_R": 81.0,
+        "arriving_inh_weight_R": 135.9
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -84.25,
+        "v_l_min": -156.9,
+        "v_r_mean": -172.95,
+        "v_r_min": -246.65,
+        "rate_l_hz": 14.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 1194882.0,
+        "arriving_exc_weight_L": 105.8,
+        "arriving_inh_weight_L": 119.5,
+        "arriving_exc_weight_R": 90.9,
+        "arriving_inh_weight_R": 137.1
+      }
+    },
+    {
+      "dynamics": "v1",
+      "e_inh_mV": null,
+      "direction": -1,
+      "wall_s": 13.7,
+      "sim_s_per_wall_s": 0.146,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -136.24,
+        "v_l_min": -180.89,
+        "v_r_mean": -70.01,
+        "v_r_min": -123.17,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 23.0,
+        "network_rate_hz": 261984.0,
+        "arriving_exc_weight_L": 64.8,
+        "arriving_inh_weight_L": 99.0,
+        "arriving_exc_weight_R": 101.0,
+        "arriving_inh_weight_R": 102.8
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -95.83,
+        "v_l_min": -147.54,
+        "v_r_mean": -115.2,
+        "v_r_min": -169.15,
+        "rate_l_hz": 6.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 197500.0,
+        "arriving_exc_weight_L": 75.9,
+        "arriving_inh_weight_L": 92.9,
+        "arriving_exc_weight_R": 74.8,
+        "arriving_inh_weight_R": 101.3
+      }
+    },
+    {
+      "dynamics": "v2",
+      "e_inh_mV": -70.0,
+      "direction": 1,
+      "wall_s": 53.7,
+      "sim_s_per_wall_s": 0.0373,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -51.27,
+        "v_l_min": -53.31,
+        "v_r_mean": -51.22,
+        "v_r_min": -54.49,
+        "rate_l_hz": 300.0,
+        "rate_r_hz": 294.0,
+        "network_rate_hz": 3918499.0,
+        "arriving_exc_weight_L": 956.6,
+        "arriving_inh_weight_L": 709.1,
+        "arriving_exc_weight_R": 963.3,
+        "arriving_inh_weight_R": 760.8
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -51.15,
+        "v_l_min": -52.02,
+        "v_r_mean": -51.31,
+        "v_r_min": -52.17,
+        "rate_l_hz": 308.0,
+        "rate_r_hz": 306.0,
+        "network_rate_hz": 4042536.0,
+        "arriving_exc_weight_L": 988.1,
+        "arriving_inh_weight_L": 736.7,
+        "arriving_exc_weight_R": 1018.8,
+        "arriving_inh_weight_R": 796.3
+      }
+    },
+    {
+      "dynamics": "v2",
+      "e_inh_mV": -70.0,
+      "direction": -1,
+      "wall_s": 51.8,
+      "sim_s_per_wall_s": 0.0386,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -51.28,
+        "v_l_min": -53.82,
+        "v_r_mean": -51.13,
+        "v_r_min": -52.09,
+        "rate_l_hz": 297.0,
+        "rate_r_hz": 298.0,
+        "network_rate_hz": 3941849.0,
+        "arriving_exc_weight_L": 938.5,
+        "arriving_inh_weight_L": 710.2,
+        "arriving_exc_weight_R": 1005.3,
+        "arriving_inh_weight_R": 766.3
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -51.18,
+        "v_l_min": -52.33,
+        "v_r_mean": -51.09,
+        "v_r_min": -52.07,
+        "rate_l_hz": 308.0,
+        "rate_r_hz": 308.0,
+        "network_rate_hz": 4032554.0,
+        "arriving_exc_weight_L": 982.6,
+        "arriving_inh_weight_L": 736.9,
+        "arriving_exc_weight_R": 1016.3,
+        "arriving_inh_weight_R": 790.8
+      }
+    },
+    {
+      "dynamics": "v2",
+      "e_inh_mV": -56.0,
+      "direction": 1,
+      "wall_s": 63.0,
+      "sim_s_per_wall_s": 0.0317,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -51.4,
+        "v_l_min": -52.0,
+        "v_r_mean": -51.46,
+        "v_r_min": -52.12,
+        "rate_l_hz": 342.0,
+        "rate_r_hz": 340.0,
+        "network_rate_hz": 7156003.0,
+        "arriving_exc_weight_L": 1680.7,
+        "arriving_inh_weight_L": 981.4,
+        "arriving_exc_weight_R": 1654.4,
+        "arriving_inh_weight_R": 1042.1
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -51.36,
+        "v_l_min": -52.0,
+        "v_r_mean": -51.59,
+        "v_r_min": -52.0,
+        "rate_l_hz": 350.0,
+        "rate_r_hz": 350.0,
+        "network_rate_hz": 7221906.0,
+        "arriving_exc_weight_L": 1713.4,
+        "arriving_inh_weight_L": 1007.5,
+        "arriving_exc_weight_R": 1707.6,
+        "arriving_inh_weight_R": 1069.2
+      }
+    },
+    {
+      "dynamics": "v2",
+      "e_inh_mV": -56.0,
+      "direction": -1,
+      "wall_s": 74.4,
+      "sim_s_per_wall_s": 0.0269,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4427.5,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4389.8251953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -51.41,
+        "v_l_min": -52.08,
+        "v_r_mean": -51.44,
+        "v_r_min": -52.0,
+        "rate_l_hz": 340.0,
+        "rate_r_hz": 343.0,
+        "network_rate_hz": 7165098.0,
+        "arriving_exc_weight_L": 1658.1,
+        "arriving_inh_weight_L": 980.4,
+        "arriving_exc_weight_R": 1694.9,
+        "arriving_inh_weight_R": 1043.7
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -51.49,
+        "v_l_min": -52.0,
+        "v_r_mean": -51.48,
+        "v_r_min": -52.0,
+        "rate_l_hz": 352.0,
+        "rate_r_hz": 350.0,
+        "network_rate_hz": 7212460.0,
+        "arriving_exc_weight_L": 1712.7,
+        "arriving_inh_weight_L": 1010.0,
+        "arriving_exc_weight_R": 1706.6,
+        "arriving_inh_weight_R": 1071.0
+      }
+    }
+  ]
+}

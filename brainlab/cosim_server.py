@@ -36,11 +36,13 @@ except ImportError:
 
 
 try:
-    from .graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, resolve_connectome_dir,
-                                 resolve_graph_dir, sha256_json, synthetic_test_graph, verify_graph)
+    from .graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, dynamics_pin,
+                                 resolve_connectome_dir, resolve_graph_dir, sha256_json,
+                                 synthetic_test_graph, verify_graph)
 except ImportError:
-    from brainlab.graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, resolve_connectome_dir,
-                                         resolve_graph_dir, sha256_json, synthetic_test_graph, verify_graph)
+    from brainlab.graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, dynamics_pin,
+                                         resolve_connectome_dir, resolve_graph_dir, sha256_json,
+                                         synthetic_test_graph, verify_graph)
 
 # Engineered inputs that bypass sensory pathways; reported, never hidden (WP5).
 # Gated by ConnectomeServer(engineered_assistance=...) / --no-engineered-assistance;
@@ -186,6 +188,12 @@ class ConnectomeServer:
             "sensory_map_sha256": getattr(self, "sensory_map_sha256", None),
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
+            # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
+            # telemetry must never leave which engine produced a spike ambiguous.
+            "lif_dynamics_version": self.brain.dynamics,
+            "lif_dynamics_pin": dynamics_pin(self.brain.dynamics),
+            "controller_version": ('synthetic-test-v1' if self.is_synthetic
+                                   else f'brainlab-lif-{self.brain.dynamics}'),
         }
 
     def reset(self):

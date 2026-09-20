@@ -49,17 +49,113 @@ DN_EXPECTED_TYPES = {'dnp01': 'DNp01', 'dna02_l': 'DNa02', 'dna02_r': 'DNa02',
 DN_EXPECTED_SIDES = {'dna02_l': 'L', 'dna02_r': 'R'}
 
 # Constants of brainlab/engine.py, with units, so manifests never guess them.
-LIF_DYNAMICS = {
-    'model': 'fixed-weight leaky integrate-and-fire (brainlab.engine.advance)',
-    'dt_ms': 0.1, 'tau_membrane_ms': 20.0, 'tau_synapse_ms': 5.0,
-    'v_rest_mV': -52.0, 'v_reset_mV': -52.0, 'v_threshold_mV': -45.0,
-    'refractory_ms': 2.2, 'transmission_delay_ms': 1.8,
+# Two explicitly versioned dynamics; both declared in docs/LIF_DYNAMICS_SPEC.md.
+# The engine constants are imported, never restated, so the declaration and the
+# compiled code cannot drift apart.
+from . import engine as _engine
+
+DYNAMICS_SPEC_DOC = 'docs/LIF_DYNAMICS_SPEC.md'
+
+LIF_DYNAMICS_V1 = {
+    'dynamics_version': 'v1',
+    'model': 'fixed-weight leaky integrate-and-fire, CURRENT-based (brainlab.engine.advance)',
+    'dt_ms': 0.1, 'tau_membrane_ms': _engine.TAU_M_MS, 'tau_synapse_ms': _engine.TAU_SYN_MS,
+    'v_rest_mV': _engine.V_REST_MV, 'v_reset_mV': _engine.V_RESET_MV,
+    'v_threshold_mV': _engine.V_THRESHOLD_MV,
+    'refractory_ms': _engine.REFRACTORY_MS, 'transmission_delay_ms': _engine.DELAY_MS,
     'synaptic_scale': 0.275,
     'weight_units': 'synapse_count * transmitter_sign * 0.275 (upstream mV-equivalent)',
     'input_units': 'per-neuron drive current (upstream mV-equivalent)',
     'output_units': 'spike counts per step window',
+    'membrane_bounds_mV': None,
+    'reversal_potentials_mV': None,
+    'integration': 'exact two-exponential subthreshold kernel',
+    'known_defects': ['membrane potential unbounded (observed -200 mV in WP5)',
+                      'inhibition is purely subtractive; no shunting / gain control',
+                      'self-sustained ~1e6 spikes/s on the MaleCNS graph after any stimulus'],
+    'parameter_source': 'Shiu et al. 2024 Nature 634:210-219 whole-brain LIF model',
+    'spec': DYNAMICS_SPEC_DOC,
     'biological_validation': 'none; engineering proxy',
 }
+
+LIF_DYNAMICS_V2 = {
+    'dynamics_version': 'v2',
+    'model': 'fixed-weight leaky integrate-and-fire, CONDUCTANCE-based with reversal '
+             'potentials (brainlab.engine.advance_v2)',
+    'dt_ms': 0.1, 'tau_membrane_ms': _engine.TAU_M_MS, 'tau_synapse_ms': _engine.TAU_SYN_MS,
+    'v_rest_mV': _engine.V_REST_MV, 'v_reset_mV': _engine.V_RESET_MV,
+    'v_threshold_mV': _engine.V_THRESHOLD_MV,
+    'refractory_ms': _engine.REFRACTORY_MS, 'transmission_delay_ms': _engine.DELAY_MS,
+    'synaptic_scale': 0.275,
+    'e_excitatory_mV': _engine.E_EXC_MV,
+    'e_inhibitory_mV': _engine.E_INH_MV,
+    'g_unit_per_weight': _engine.G_UNIT_PER_WEIGHT,
+    'weight_units': 'synapse_count * transmitter_sign * 0.275, converted to a synaptic '
+                    'conductance of |weight| * g_unit_per_weight in leak-conductance units',
+    'input_units': 'per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)',
+    'output_units': 'spike counts per step window',
+    'membrane_bounds_mV': [_engine.E_INH_MV, _engine.E_EXC_MV],
+    'reversal_potentials_mV': {
+        'excitatory': dict(value=_engine.E_EXC_MV, status='measured (Drosophila)',
+                           source='Lee & O\'Dowd 1999 J Neurosci 19:5311 (nAChR mEPSC reverses near 0 mV); '
+                                  'Su & O\'Dowd 2003 J Neurosci 23:9246 (+8.9 mV in Kenyon cells)'),
+        'inhibitory': dict(value=_engine.E_INH_MV, status='ENGINEERING ASSUMPTION',
+                           source='chloride reversal for Rdl/GluCl/HisCl; reported Drosophila values are '
+                                  'internal-solution dependent (-56 mV Rohrbough & Broadie 2002; -37 mV '
+                                  'Su & O\'Dowd 2003). -70 mV is the conventional low-[Cl-]i value, not a '
+                                  'measured adult number. Declared sensitivity arm at -56 mV.')},
+    'g_unit_derivation': 'g_unit = 1/(e_excitatory - v_rest) = 1/52; fixed by matching the v1 / '
+                         'Shiu et al. unitary EPSP of 0.275 mV at rest. Not fitted.',
+    'integration': 'exponential Euler, conductances frozen within dt (first order in the synaptic term)',
+    'changes_from_v1': [
+        'membrane potential bounded to [e_inhibitory, e_excitatory]',
+        'inhibition shunts as well as hyperpolarises (tau_eff = tau_m/(1+ge+gi))',
+        'excitatory driving force saturates as v depolarises',
+        'unitary IPSP at rest is 18/52 = 0.346x the v1 IPSP for the same weight',
+        'external drive current is divided by the total conductance',
+        'synaptic state array g has shape (2, n); v1 checkpoints are refused, not reinterpreted'],
+    'unchanged_engineering_properties': [
+        'synaptic conductance zeroed on every spike (Brian2 unless-refractory schedule)',
+        'synaptic input arriving at a refractory neuron is discarded',
+        'no adaptation, short-term plasticity or after-hyperpolarisation',
+        'coarse transmitter-sign proxy (brainlab/transmitters.py), not receptor physiology'],
+    'parameter_source': 'Shiu et al. 2024 for the shared LIF constants; see spec for reversals',
+    'spec': DYNAMICS_SPEC_DOC,
+    'biological_validation': 'none; engineering proxy with declared reversal potentials',
+}
+
+DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2}
+DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
+DEFAULT_DYNAMICS = 'v1'
+
+
+def active_dynamics_version() -> str:
+    """The process-wide default dynamics version (``NEUROFLY_LIF_DYNAMICS``).
+
+    Defaults to ``v1`` so that every pre-existing script, test and checkpoint
+    keeps the meaning it had.  A dynamics change is never implicit.
+    """
+    version = os.environ.get(DYNAMICS_ENV) or DEFAULT_DYNAMICS
+    if version not in DYNAMICS_VERSIONS:
+        raise ValueError(f'{DYNAMICS_ENV}={version!r} is not a declared dynamics version '
+                         f'({sorted(DYNAMICS_VERSIONS)}); see {DYNAMICS_SPEC_DOC}')
+    return version
+
+
+def active_dynamics() -> dict:
+    return dict(DYNAMICS_VERSIONS[active_dynamics_version()])
+
+
+def dynamics_pin(version: str) -> str:
+    """sha256 of the declared dynamics dict: the re-pin for a dynamics change."""
+    if version not in DYNAMICS_VERSIONS:
+        raise ValueError(f'Unknown dynamics version {version!r}')
+    return sha256_json(DYNAMICS_VERSIONS[version])
+
+
+# Backwards-compatible name: the ACTIVE declaration, resolved once at import.
+# experiment_registry copies this into every run manifest.
+LIF_DYNAMICS = active_dynamics()
 
 
 class GraphUnavailable(RuntimeError):

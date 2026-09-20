@@ -1,0 +1,837 @@
+{
+  "schema": "neurofly.lif-dynamics-v2-receipt.v1",
+  "status": "PARTIAL - diagnosis complete; the v2 confirmatory optomotor re-run was still in progress (1 of 24 condition-seed runs finished) when this receipt was written. Complete it with scripts/lif_dynamics_v2_receipt.py once outputs/wp5/confirm-v2-20260920/results.json exists.",
+  "spec": "docs/LIF_DYNAMICS_SPEC.md",
+  "generator": "scripts/lif_dynamics_diagnosis.py; scripts/wp5_optomotor.py --dynamics v2; assembled by scripts/_make_partial_receipt.py",
+  "generated_at": "2026-09-20T14:40:02+0200",
+  "declared_dynamics": {
+    "v1": {
+      "dynamics_version": "v1",
+      "model": "fixed-weight leaky integrate-and-fire, CURRENT-based (brainlab.engine.advance)",
+      "dt_ms": 0.1,
+      "tau_membrane_ms": 20.0,
+      "tau_synapse_ms": 5.0,
+      "v_rest_mV": -52.0,
+      "v_reset_mV": -52.0,
+      "v_threshold_mV": -45.0,
+      "refractory_ms": 2.2,
+      "transmission_delay_ms": 1.8,
+      "synaptic_scale": 0.275,
+      "weight_units": "synapse_count * transmitter_sign * 0.275 (upstream mV-equivalent)",
+      "input_units": "per-neuron drive current (upstream mV-equivalent)",
+      "output_units": "spike counts per step window",
+      "membrane_bounds_mV": null,
+      "reversal_potentials_mV": null,
+      "integration": "exact two-exponential subthreshold kernel",
+      "known_defects": [
+        "membrane potential unbounded (observed -200 mV in WP5)",
+        "inhibition is purely subtractive; no shunting / gain control",
+        "self-sustained ~1e6 spikes/s on the MaleCNS graph after any stimulus"
+      ],
+      "parameter_source": "Shiu et al. 2024 Nature 634:210-219 whole-brain LIF model",
+      "spec": "docs/LIF_DYNAMICS_SPEC.md",
+      "biological_validation": "none; engineering proxy",
+      "pin_sha256": "1b17bfc6cf8c4f54dbda73d715fec53971c369d0495a60d938cd56fa8320f146"
+    },
+    "v2": {
+      "dynamics_version": "v2",
+      "model": "fixed-weight leaky integrate-and-fire, CONDUCTANCE-based with reversal potentials (brainlab.engine.advance_v2)",
+      "dt_ms": 0.1,
+      "tau_membrane_ms": 20.0,
+      "tau_synapse_ms": 5.0,
+      "v_rest_mV": -52.0,
+      "v_reset_mV": -52.0,
+      "v_threshold_mV": -45.0,
+      "refractory_ms": 2.2,
+      "transmission_delay_ms": 1.8,
+      "synaptic_scale": 0.275,
+      "e_excitatory_mV": 0.0,
+      "e_inhibitory_mV": -70.0,
+      "g_unit_per_weight": 0.019230769230769232,
+      "weight_units": "synapse_count * transmitter_sign * 0.275, converted to a synaptic conductance of |weight| * g_unit_per_weight in leak-conductance units",
+      "input_units": "per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)",
+      "output_units": "spike counts per step window",
+      "membrane_bounds_mV": [
+        -70.0,
+        0.0
+      ],
+      "reversal_potentials_mV": {
+        "excitatory": {
+          "value": 0.0,
+          "status": "measured (Drosophila)",
+          "source": "Lee & O'Dowd 1999 J Neurosci 19:5311 (nAChR mEPSC reverses near 0 mV); Su & O'Dowd 2003 J Neurosci 23:9246 (+8.9 mV in Kenyon cells)"
+        },
+        "inhibitory": {
+          "value": -70.0,
+          "status": "ENGINEERING ASSUMPTION",
+          "source": "chloride reversal for Rdl/GluCl/HisCl; reported Drosophila values are internal-solution dependent (-56 mV Rohrbough & Broadie 2002; -37 mV Su & O'Dowd 2003). -70 mV is the conventional low-[Cl-]i value, not a measured adult number. Declared sensitivity arm at -56 mV."
+        }
+      },
+      "g_unit_derivation": "g_unit = 1/(e_excitatory - v_rest) = 1/52; fixed by matching the v1 / Shiu et al. unitary EPSP of 0.275 mV at rest. Not fitted.",
+      "integration": "exponential Euler, conductances frozen within dt (first order in the synaptic term)",
+      "changes_from_v1": [
+        "membrane potential bounded to [e_inhibitory, e_excitatory]",
+        "inhibition shunts as well as hyperpolarises (tau_eff = tau_m/(1+ge+gi))",
+        "excitatory driving force saturates as v depolarises",
+        "unitary IPSP at rest is 18/52 = 0.346x the v1 IPSP for the same weight",
+        "external drive current is divided by the total conductance",
+        "synaptic state array g has shape (2, n); v1 checkpoints are refused, not reinterpreted"
+      ],
+      "unchanged_engineering_properties": [
+        "synaptic conductance zeroed on every spike (Brian2 unless-refractory schedule)",
+        "synaptic input arriving at a refractory neuron is discarded",
+        "no adaptation, short-term plasticity or after-hyperpolarisation",
+        "coarse transmitter-sign proxy (brainlab/transmitters.py), not receptor physiology"
+      ],
+      "parameter_source": "Shiu et al. 2024 for the shared LIF constants; see spec for reversals",
+      "spec": "docs/LIF_DYNAMICS_SPEC.md",
+      "biological_validation": "none; engineering proxy with declared reversal potentials",
+      "pin_sha256": "1ea33ba1d05d815cf8f83c0e3a783d3ff8dec101c44703eaad4c667f8cfbeb56"
+    }
+  },
+  "controller_versions": {
+    "v1": "brainlab-lif-v1",
+    "v2": "brainlab-lif-v2"
+  },
+  "checkpoint_compatibility": "v1 and v2 checkpoints are mutually refused: the synaptic state array g is (n,) under v1 and (2, n) under v2, and Brain.restore_state names both versions in the error. No silent reinterpretation is possible.",
+  "graph": {
+    "dataset": "malecns_v1",
+    "synthetic": false,
+    "graph_path": "/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path_source": "env:NEUROFLY_GRAPH_DIR",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_path": "/home/avg-usr/Documents/ChatGPT/flybrain/.claude/worktrees/neurofly-openready/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+    "neurons": 166700,
+    "edges": 25582938,
+    "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
+    "data_sha256": {
+      "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "edges.feather (pinned, not rehashed)": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+    },
+    "label": "MaleCNS v1.0 prepared graph"
+  },
+  "prereg": {
+    "path": "docs/wp5_optomotor_prereg.json",
+    "sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+    "unchanged": "schedule, seeds, conditions and the primary outcome TI are identical; only the LIF engine differs"
+  },
+  "v1_reproducibility_check": {
+    "claim": "the v1 code path is unchanged by this work",
+    "evidence": "probe C under v1 reproduces outputs/wp5/confirm-20260919/trace-intact-seed0.npz block 0 exactly: v_L -72.31 mV, v_R -184.24 mV, 23 DNa02_L spikes, 1144772 network spikes/s"
+  },
+  "defect_1_runaway_and_unbounded_voltage": {
+    "probe_a_voltage_bound": [
+      {
+        "dynamics": "v1",
+        "drive": 20.0,
+        "ms": 2000.0,
+        "sweep": [
+          {
+            "inhibitory_weight": -40.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -71.395,
+            "v_post_final_mV": -70.969
+          },
+          {
+            "inhibitory_weight": -400.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -245.955,
+            "v_post_final_mV": -241.694
+          },
+          {
+            "inhibitory_weight": -4000.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -1991.547,
+            "v_post_final_mV": -1948.936
+          }
+        ],
+        "unitary_epsp_mV": 0.04332
+      },
+      {
+        "dynamics": "v2",
+        "drive": 20.0,
+        "ms": 2000.0,
+        "sweep": [
+          {
+            "inhibitory_weight": -40.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -56.984,
+            "v_post_final_mV": -56.883
+          },
+          {
+            "inhibitory_weight": -400.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -66.664,
+            "v_post_final_mV": -66.543
+          },
+          {
+            "inhibitory_weight": -4000.0,
+            "presynaptic_spikes": 185,
+            "v_post_min_mV": -69.748,
+            "v_post_final_mV": -69.701
+          }
+        ],
+        "unitary_epsp_mV": 0.04372
+      }
+    ],
+    "probe_b_self_sustained_state": [
+      {
+        "dynamics": "v1",
+        "neurons": 2000,
+        "edges_per_neuron": 40,
+        "excitatory_fraction": 0.8,
+        "stim_ms": 200.0,
+        "free_ms": 800.0,
+        "sweep": [
+          {
+            "weight_gain": 1.0,
+            "mean_net_in_weight": 7.86,
+            "stim_rate_hz_per_neuron": 9.0,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -52.56,
+            "v_max_during_free_mV": -49.04,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 2.0,
+            "mean_net_in_weight": 15.72,
+            "stim_rate_hz_per_neuron": 9.0,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -53.12,
+            "v_max_during_free_mV": -48.69,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 4.0,
+            "mean_net_in_weight": 31.43,
+            "stim_rate_hz_per_neuron": 9.182,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -54.89,
+            "v_max_during_free_mV": -46.15,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 8.0,
+            "mean_net_in_weight": 62.87,
+            "stim_rate_hz_per_neuron": 45.903,
+            "free_rate_hz_per_neuron": 2.457,
+            "free_total_spikes": 3931,
+            "v_min_during_free_mV": -54.47,
+            "v_max_during_free_mV": -45.0,
+            "self_sustained": true
+          },
+          {
+            "weight_gain": 16.0,
+            "mean_net_in_weight": 125.73,
+            "stim_rate_hz_per_neuron": 127.257,
+            "free_rate_hz_per_neuron": 137.846,
+            "free_total_spikes": 220554,
+            "v_min_during_free_mV": -55.77,
+            "v_max_during_free_mV": -45.0,
+            "self_sustained": true
+          }
+        ]
+      },
+      {
+        "dynamics": "v2",
+        "neurons": 2000,
+        "edges_per_neuron": 40,
+        "excitatory_fraction": 0.8,
+        "stim_ms": 200.0,
+        "free_ms": 800.0,
+        "sweep": [
+          {
+            "weight_gain": 1.0,
+            "mean_net_in_weight": 7.86,
+            "stim_rate_hz_per_neuron": 9.0,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -52.13,
+            "v_max_during_free_mV": -49.04,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 2.0,
+            "mean_net_in_weight": 15.72,
+            "stim_rate_hz_per_neuron": 9.0,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -52.25,
+            "v_max_during_free_mV": -48.92,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 4.0,
+            "mean_net_in_weight": 31.43,
+            "stim_rate_hz_per_neuron": 9.072,
+            "free_rate_hz_per_neuron": 0.0,
+            "free_total_spikes": 0,
+            "v_min_during_free_mV": -52.49,
+            "v_max_during_free_mV": -46.9,
+            "self_sustained": false
+          },
+          {
+            "weight_gain": 8.0,
+            "mean_net_in_weight": 62.87,
+            "stim_rate_hz_per_neuron": 51.935,
+            "free_rate_hz_per_neuron": 67.947,
+            "free_total_spikes": 108715,
+            "v_min_during_free_mV": -52.91,
+            "v_max_during_free_mV": -45.0,
+            "self_sustained": true
+          },
+          {
+            "weight_gain": 16.0,
+            "mean_net_in_weight": 125.73,
+            "stim_rate_hz_per_neuron": 137.787,
+            "free_rate_hz_per_neuron": 151.012,
+            "free_total_spikes": 241620,
+            "v_min_during_free_mV": -52.62,
+            "v_max_during_free_mV": -45.0,
+            "self_sustained": true
+          }
+        ]
+      }
+    ],
+    "finding": "v1 membrane potential scales without limit with inhibitory weight (-71 / -246 / -1992 mV for weights -40 / -400 / -4000). v2 asymptotes at the chloride reversal (-56.98 / -66.66 / -69.75 mV). The unbounded-voltage half of the defect is fixed. The runaway half is NOT: on the random recurrent probe v2 self-sustains at a LOWER recurrent gain than v1 (gain 8: v1 2.46 Hz/neuron, v2 67.9 Hz/neuron), which docs/LIF_DYNAMICS_SPEC.md section 3.3 item 4 predeclared as a possible outcome of the single-conductance-quantum calibration."
+  },
+  "defect_2_dead_right_side": {
+    "dna02_static_input_budget": {
+      "DNa02_L": {
+        "in_edges": 1138,
+        "exc_weight": 4427.5,
+        "inh_weight": 2160.67529296875
+      },
+      "DNa02_R": {
+        "in_edges": 1201,
+        "exc_weight": 4389.8251953125,
+        "inh_weight": 2256.375
+      }
+    },
+    "anatomy_is_symmetric": "DNa02_L 1138 in-edges, exc 4427.5 / inh 2160.7; DNa02_R 1201 in-edges, exc 4389.8 / inh 2256.4 - within 2 percent",
+    "probe_c_real_graph": [
+      {
+        "dynamics": "v1",
+        "e_inh_mV": null,
+        "direction": 1,
+        "wall_s": 16.7,
+        "sim_s_per_wall_s": 0.12,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -72.31,
+          "v_l_min": -130.01,
+          "v_r_mean": -184.24,
+          "v_r_min": -266.57,
+          "rate_l_hz": 23.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 1144772.0,
+          "arriving_exc_weight_L": 111.6,
+          "arriving_inh_weight_L": 116.4,
+          "arriving_exc_weight_R": 81.0,
+          "arriving_inh_weight_R": 135.9
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -84.25,
+          "v_l_min": -156.9,
+          "v_r_mean": -172.95,
+          "v_r_min": -246.65,
+          "rate_l_hz": 14.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 1194882.0,
+          "arriving_exc_weight_L": 105.8,
+          "arriving_inh_weight_L": 119.5,
+          "arriving_exc_weight_R": 90.9,
+          "arriving_inh_weight_R": 137.1
+        }
+      },
+      {
+        "dynamics": "v1",
+        "e_inh_mV": null,
+        "direction": -1,
+        "wall_s": 13.7,
+        "sim_s_per_wall_s": 0.146,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -136.24,
+          "v_l_min": -180.89,
+          "v_r_mean": -70.01,
+          "v_r_min": -123.17,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 23.0,
+          "network_rate_hz": 261984.0,
+          "arriving_exc_weight_L": 64.8,
+          "arriving_inh_weight_L": 99.0,
+          "arriving_exc_weight_R": 101.0,
+          "arriving_inh_weight_R": 102.8
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -95.83,
+          "v_l_min": -147.54,
+          "v_r_mean": -115.2,
+          "v_r_min": -169.15,
+          "rate_l_hz": 6.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 197500.0,
+          "arriving_exc_weight_L": 75.9,
+          "arriving_inh_weight_L": 92.9,
+          "arriving_exc_weight_R": 74.8,
+          "arriving_inh_weight_R": 101.3
+        }
+      },
+      {
+        "dynamics": "v2",
+        "e_inh_mV": -70.0,
+        "direction": 1,
+        "wall_s": 53.7,
+        "sim_s_per_wall_s": 0.0373,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -51.27,
+          "v_l_min": -53.31,
+          "v_r_mean": -51.22,
+          "v_r_min": -54.49,
+          "rate_l_hz": 300.0,
+          "rate_r_hz": 294.0,
+          "network_rate_hz": 3918499.0,
+          "arriving_exc_weight_L": 956.6,
+          "arriving_inh_weight_L": 709.1,
+          "arriving_exc_weight_R": 963.3,
+          "arriving_inh_weight_R": 760.8
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -51.15,
+          "v_l_min": -52.02,
+          "v_r_mean": -51.31,
+          "v_r_min": -52.17,
+          "rate_l_hz": 308.0,
+          "rate_r_hz": 306.0,
+          "network_rate_hz": 4042536.0,
+          "arriving_exc_weight_L": 988.1,
+          "arriving_inh_weight_L": 736.7,
+          "arriving_exc_weight_R": 1018.8,
+          "arriving_inh_weight_R": 796.3
+        }
+      },
+      {
+        "dynamics": "v2",
+        "e_inh_mV": -70.0,
+        "direction": -1,
+        "wall_s": 51.8,
+        "sim_s_per_wall_s": 0.0386,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -51.28,
+          "v_l_min": -53.82,
+          "v_r_mean": -51.13,
+          "v_r_min": -52.09,
+          "rate_l_hz": 297.0,
+          "rate_r_hz": 298.0,
+          "network_rate_hz": 3941849.0,
+          "arriving_exc_weight_L": 938.5,
+          "arriving_inh_weight_L": 710.2,
+          "arriving_exc_weight_R": 1005.3,
+          "arriving_inh_weight_R": 766.3
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -51.18,
+          "v_l_min": -52.33,
+          "v_r_mean": -51.09,
+          "v_r_min": -52.07,
+          "rate_l_hz": 308.0,
+          "rate_r_hz": 308.0,
+          "network_rate_hz": 4032554.0,
+          "arriving_exc_weight_L": 982.6,
+          "arriving_inh_weight_L": 736.9,
+          "arriving_exc_weight_R": 1016.3,
+          "arriving_inh_weight_R": 790.8
+        }
+      },
+      {
+        "dynamics": "v2",
+        "e_inh_mV": -56.0,
+        "direction": 1,
+        "wall_s": 63.0,
+        "sim_s_per_wall_s": 0.0317,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -51.4,
+          "v_l_min": -52.0,
+          "v_r_mean": -51.46,
+          "v_r_min": -52.12,
+          "rate_l_hz": 342.0,
+          "rate_r_hz": 340.0,
+          "network_rate_hz": 7156003.0,
+          "arriving_exc_weight_L": 1680.7,
+          "arriving_inh_weight_L": 981.4,
+          "arriving_exc_weight_R": 1654.4,
+          "arriving_inh_weight_R": 1042.1
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -51.36,
+          "v_l_min": -52.0,
+          "v_r_mean": -51.59,
+          "v_r_min": -52.0,
+          "rate_l_hz": 350.0,
+          "rate_r_hz": 350.0,
+          "network_rate_hz": 7221906.0,
+          "arriving_exc_weight_L": 1713.4,
+          "arriving_inh_weight_L": 1007.5,
+          "arriving_exc_weight_R": 1707.6,
+          "arriving_inh_weight_R": 1069.2
+        }
+      },
+      {
+        "dynamics": "v2",
+        "e_inh_mV": -56.0,
+        "direction": -1,
+        "wall_s": 74.4,
+        "sim_s_per_wall_s": 0.0269,
+        "static_input_budget": {
+          "DNa02_L": {
+            "in_edges": 1138,
+            "exc_weight": 4427.5,
+            "inh_weight": 2160.67529296875
+          },
+          "DNa02_R": {
+            "in_edges": 1201,
+            "exc_weight": 4389.8251953125,
+            "inh_weight": 2256.375
+          }
+        },
+        "initial_gray": {
+          "steps": 250,
+          "v_l_mean": -52.0,
+          "v_l_min": -52.0,
+          "v_r_mean": -52.0,
+          "v_r_min": -52.0,
+          "rate_l_hz": 0.0,
+          "rate_r_hz": 0.0,
+          "network_rate_hz": 0.0,
+          "arriving_exc_weight_L": 0.0,
+          "arriving_inh_weight_L": 0.0,
+          "arriving_exc_weight_R": 0.0,
+          "arriving_inh_weight_R": 0.0
+        },
+        "stimulus": {
+          "steps": 500,
+          "v_l_mean": -51.41,
+          "v_l_min": -52.08,
+          "v_r_mean": -51.44,
+          "v_r_min": -52.0,
+          "rate_l_hz": 340.0,
+          "rate_r_hz": 343.0,
+          "network_rate_hz": 7165098.0,
+          "arriving_exc_weight_L": 1658.1,
+          "arriving_inh_weight_L": 980.4,
+          "arriving_exc_weight_R": 1694.9,
+          "arriving_inh_weight_R": 1043.7
+        },
+        "gray_after_stimulus": {
+          "steps": 250,
+          "v_l_mean": -51.49,
+          "v_l_min": -52.0,
+          "v_r_mean": -51.48,
+          "v_r_min": -52.0,
+          "rate_l_hz": 352.0,
+          "rate_r_hz": 350.0,
+          "network_rate_hz": 7212460.0,
+          "arriving_exc_weight_L": 1712.7,
+          "arriving_inh_weight_L": 1010.0,
+          "arriving_exc_weight_R": 1706.6,
+          "arriving_inh_weight_R": 1071.0
+        }
+      }
+    ],
+    "finding": "Confirmed dynamical, not anatomical. Under v1 DNa02_R is held at -184 mV (leftward) and -70 to -123 mV (rightward), far below any physiological chloride reversal, and emits 0 spikes in either direction. Under v2 the same neuron cannot be taken below -70 mV, sits at -51 mV and fires. The hypothesis in the task - that DNa02_R was being driven below a reversal floor a conductance-based model would prevent - is supported."
+  },
+  "high_conductance_fixed_point_analysis": {
+    "note": "analysis of the declared model, not a parameter change",
+    "network_inhibitory_to_excitatory_weight_ratio": 0.6185,
+    "realised_ratio_arriving_at_DNa02_under_v2": 0.74,
+    "asymptotic_fixed_point_mV": -26.75,
+    "threshold_mV": -45.0,
+    "required_ratio_for_subthreshold_fixed_point": 1.8,
+    "factor_short": 2.91,
+    "consequence": "With E_exc = 0 mV, E_inh = -70 mV and one conductance quantum per unit weight, the MaleCNS graph under the coarse transmitter-sign proxy has a SUPRAthreshold high-conductance fixed point (-26.75 mV against a -45 mV threshold), so any sustained input drives the whole network to its refractory-limited rate. v1 masked this with unbounded hyperpolarisation. The 0.275 mV/synapse scale was itself calibrated inside a current-based model; carrying it into a conductance model without recalibrating the overall synaptic gain is what leaves the graph suprathreshold.",
+    "not_adopted": "The alternative calibration - matching the v1 IPSP instead of the v1 EPSP - would give an inhibitory quantum 2.889x the excitatory one, within 1 percent of the 2.91x needed. Recorded as an observation for a future declared v3; NOT adopted here, because choosing it after seeing this result would be tuning."
+  },
+  "optomotor_rerun": {
+    "v1": {
+      "run": "outputs/wp5/confirm-20260919",
+      "seeds": 6,
+      "verdict": "POSITIVE",
+      "TI": {
+        "mean": 0.1925813099413366,
+        "sd": 0.07604374040010915,
+        "ci95": [
+          0.13312253512537986,
+          0.24346329135592104
+        ],
+        "n": 6,
+        "dz": 2.5325070666968426,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "TI_c1": {
+        "mean": 0.36996983133305883,
+        "sd": 0.13604636213573296,
+        "ci95": [
+          0.2691562911546219,
+          0.46278560320187223
+        ],
+        "n": 6,
+        "dz": 2.7194393552687672,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "TI_c05": {
+        "mean": 0.015192788549614344,
+        "sd": 0.02726031509191334,
+        "ci95": [
+          -0.006751328405892046,
+          0.03289017924949367
+        ],
+        "n": 6,
+        "dz": 0.5573225583926292,
+        "n_positive": 4,
+        "n_negative": 2,
+        "n_zero": 0
+      },
+      "A_DNa02": {
+        "mean": 10.354166666666666,
+        "sd": 4.010468073263602,
+        "ci95": [
+          7.1875,
+          13.0625
+        ],
+        "n": 6,
+        "dz": 2.5817850878041644,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "total_rate": {
+        "mean": 1023437.8541666666,
+        "sd": 162084.16762135917,
+        "ci95": [
+          904464.9583333334,
+          1142566.5833333333
+        ],
+        "n": 6,
+        "dz": 6.314237036139733,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "side_rates_mean_hz": {
+        "DNa02_L_sPos": 21.25,
+        "DNa02_R_sPos": 0.16666666666666666,
+        "DNa02_L_sNeg": 4.041666666666667,
+        "DNa02_R_sNeg": 3.6666666666666665
+      },
+      "compute": {
+        "intact_sim_s": 75.0,
+        "intact_wall_s": 708.4283689499716,
+        "sim_s_per_wall_s": 0.10586814883086142,
+        "per_condition_sim_s_per_wall_s": {
+          "intact": 0.10586814883086142,
+          "dna02_silenced": 0.11074222898637992,
+          "sham_no_input": 5.552219628598569,
+          "shuffled_graph": 0.1316745838499501
+        },
+        "peak_rss_mib": 825.6640625,
+        "step_ms": 2.0,
+        "lif_dt_ms": 0.1
+      },
+      "seed0": {
+        "TI": 0.07230451692362379,
+        "TI_c1": 0.17499648032001375,
+        "TI_c05": -0.030387446472766172,
+        "A_DNa02_hz": 3.875,
+        "blocks_aligned_with_stimulus": 4,
+        "blocks": 8,
+        "DNa02_L_sPos": 11.75,
+        "DNa02_R_sPos": 0.0,
+        "DNa02_L_sNeg": 4.25,
+        "DNa02_R_sNeg": 0.25,
+        "network_rate_hz_stimulus": 1219818.375,
+        "network_rate_hz_gray": 1063215.3333333333,
+        "DNa02_L_hz_gray": 8.444444444444445,
+        "DNa02_R_hz_gray": 0.0,
+        "v_min_mV": -307.32489013671875,
+        "v_max_mV": -45.03926086425781
+      }
+    },
+    "v2": {
+      "run": "outputs/wp5/confirm-v2-20260920",
+      "seeds_completed": 1,
+      "seeds_planned": 6,
+      "verdict": "PENDING - confirmatory set incomplete",
+      "intact_wall_s_per_seed": 427.4,
+      "sim_s_per_wall_s": 0.0293,
+      "seed0": {
+        "TI": 0.05155520076061193,
+        "TI_c1": 0.07608837191045008,
+        "TI_c05": 0.027022029610773782,
+        "A_DNa02_hz": 2.75,
+        "blocks_aligned_with_stimulus": 8,
+        "blocks": 8,
+        "DNa02_L_sPos": 307.0,
+        "DNa02_R_sPos": 304.0,
+        "DNa02_L_sNeg": 307.5,
+        "DNa02_R_sNeg": 310.0,
+        "network_rate_hz_stimulus": 4083156.375,
+        "network_rate_hz_gray": 3583847.111111111,
+        "DNa02_L_hz_gray": 272.22222222222223,
+        "DNa02_R_hz_gray": 272.8888888888889,
+        "v_min_mV": -54.49452590942383,
+        "v_max_mV": -45.00802230834961
+      },
+      "caveat": "n=1 seed, no confidence interval, and no silenced / sham / shuffled controls yet. This is NOT a verdict under the preregistered rule."
+    }
+  },
+  "host": "avg-usr-B550-GAMING-X"
+}

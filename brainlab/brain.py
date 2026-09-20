@@ -1,8 +1,17 @@
-"""Direct current input and spike output; no sensory or motor policy."""
+"""Direct current input and spike output; no sensory or motor policy.
+
+The dynamics are explicitly versioned (``docs/LIF_DYNAMICS_SPEC.md``).  ``v1``
+is the current-based proxy every WP1-WP5 result was produced under and stays
+the default; ``v2`` is the conductance-based model with reversal potentials.
+Select per instance with ``Brain(..., dynamics='v2')`` or process-wide with
+``NEUROFLY_LIF_DYNAMICS=v2``.  The two are not interchangeable and their
+checkpoints are mutually refused (the synaptic state array differs in shape).
+"""
 import math
 import time
 import numpy as np
-from .engine import advance
+from .engine import E_INH_MV, advance, advance_v2
+from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
 
 
 GRAPH_ARRAYS = (('ptr', np.int64), ('post', np.int32), ('weight', np.float32), ('ids', np.int64))
@@ -14,12 +23,23 @@ STATE_SCALARS = ('cursor', 'total_spikes', 'sim_ms')
 
 
 class Brain:
-    def __init__(self, path=None, *, arrays=None, validate=True):
+    def __init__(self, path=None, *, arrays=None, validate=True, dynamics=None, e_inh_mV=None):
         """Load a CSR graph from ``path`` (file or file-like) or reuse ``arrays``.
 
         ``arrays`` lets several instances share one immutable graph; pass
         ``validate=False`` only for arrays already validated by another Brain.
+        ``dynamics`` selects the declared LIF version ('v1' or 'v2'); the
+        default comes from ``NEUROFLY_LIF_DYNAMICS`` and is 'v1'.
+        ``e_inh_mV`` overrides the v2 inhibitory reversal potential and exists
+        only for the declared sensitivity arm of ``docs/LIF_DYNAMICS_SPEC.md``.
         """
+        self.dynamics = dynamics or active_dynamics_version()
+        if self.dynamics not in DYNAMICS_VERSIONS:
+            raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
+                             f'declared: {sorted(DYNAMICS_VERSIONS)}')
+        if e_inh_mV is not None and self.dynamics != 'v2':
+            raise ValueError('e_inh_mV applies only to the v2 conductance-based dynamics')
+        self.e_inh_mV = float(E_INH_MV if e_inh_mV is None else e_inh_mV)
         if (path is None) == (arrays is None):
             raise ValueError('Provide exactly one of path or arrays')
         if arrays is None:
@@ -40,7 +60,10 @@ class Brain:
         self.dt = .1
         self.cursor = 0
         self.v = np.full(self.n, -52, dtype=np.float32)
-        self.g = np.zeros(self.n, dtype=np.float32)
+        # v1: one current-like synaptic variable per neuron.
+        # v2: (2, n) conductances, row 0 excitatory, row 1 inhibitory.  The
+        # differing shape is what makes checkpoints mutually incompatible.
+        self.g = np.zeros(self.n if self.dynamics == 'v1' else (2, self.n), dtype=np.float32)
         self.refractory = np.zeros(self.n, dtype=np.int16)
         self.queue = np.zeros((19, self.n), dtype=np.int32)
         self.queue_count = np.zeros(19, dtype=np.int32)
@@ -67,7 +90,11 @@ class Brain:
             value = np.asarray(state[name])
             target = getattr(self, name)
             if value.shape != target.shape or value.dtype != target.dtype:
-                raise ValueError(f'Snapshot array {name} does not fit this graph')
+                raise ValueError(
+                    f'Snapshot array {name} {value.shape}/{value.dtype} does not fit this '
+                    f'brain ({target.shape}/{target.dtype}, LIF dynamics {self.dynamics}). '
+                    'A checkpoint written under a different dynamics version is refused, '
+                    'never reinterpreted; see docs/LIF_DYNAMICS_SPEC.md.')
             target[...] = value
         self.cursor = int(state['cursor'])
         self.total_spikes = int(state['total_spikes'])
@@ -90,9 +117,15 @@ class Brain:
         self.nactive[0] += len(newly_active)
         self.counts.fill(0)
         clock = time.perf_counter()
-        self.cursor = advance(self.ptr, self.post, self.weight, self.v, self.g,
-            self.refractory, drive, self.queue, self.queue_count, self.cursor,
-            steps, self.dt, self.counts, self.active, self.active_flag, self.nactive)
+        if self.dynamics == 'v1':
+            self.cursor = advance(self.ptr, self.post, self.weight, self.v, self.g,
+                self.refractory, drive, self.queue, self.queue_count, self.cursor,
+                steps, self.dt, self.counts, self.active, self.active_flag, self.nactive)
+        else:
+            self.cursor = advance_v2(self.ptr, self.post, self.weight, self.v, self.g,
+                self.refractory, drive, self.queue, self.queue_count, self.cursor,
+                steps, self.dt, self.counts, self.active, self.active_flag, self.nactive,
+                self.e_inh_mV)
         elapsed = time.perf_counter()-clock
         self.total_spikes += int(self.counts.sum())
         self.sim_ms += steps*self.dt

@@ -1,5 +1,11 @@
 {
   "schema": "neurofly.wp5-optomotor-receipt.v1",
+  "lif_dynamics": {
+    "dynamics_version": "v1",
+    "controller_version": "brainlab-lif-v1",
+    "spec": "docs/LIF_DYNAMICS_SPEC.md",
+    "note": "Every number in this receipt is a result of the CURRENT-based LIF v1 engine, whose membrane potential is unbounded and which self-sustains at ~1e6 spikes/s. The same preregistered protocol re-run under the conductance-based v2 engine gives a different answer: see docs/receipts/lif_dynamics_v2.json and docs/WP5_OPTOMOTOR.md section 11. This receipt is retained unchanged as the v1 result; it is not superseded in the sense of being wrong about v1."
+  },
   "generator": "scripts/wp5_optomotor.py (+ --exploratory-mirror, --closed-loop); assembled by scripts/wp5_receipt.py",
   "verdict_by_preregistered_rule": "POSITIVE",
   "verdict_qualifiers": [
