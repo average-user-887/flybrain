@@ -307,13 +307,13 @@ dynamics of [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMICS_SPEC.md) — controller versio
 [`receipts/lif_dynamics_diagnosis.json`](receipts/lif_dynamics_diagnosis.json),
 [`receipts/lif_dynamics_v2.json`](receipts/lif_dynamics_v2.json).
 
-> **Status: the confirmatory v2 set is incomplete.** 1 of 24 (condition, seed)
-> runs had finished when this was written (intact, seed 0; 427 s of wall time
-> each, ≈2 h 10 for the set). The diagnosis below is complete and decisive; the
-> optomotor numbers below are **n = 1 seed, intact only, no controls, no
-> confidence interval**, and are not a verdict under the preregistered rule.
-> Finish with
-> `scripts/lif_dynamics_v2_receipt.py outputs/wp5/confirm-20260919 outputs/wp5/confirm-v2-20260920 docs/receipts/lif_dynamics_diagnosis.json docs/receipts/lif_dynamics_v2.json`.
+> **Status: the confirmatory v2 set is COMPLETE** (24 of 24 runs, finished
+> 20 September 2026; receipt regenerated). The preregistered verdict under v2 is
+> **NULL**: silencing DNa02 does not remove the residual turning
+> (intact − silenced `TI` = −0.011 [−0.025, +0.006], CI includes zero, 5 of 6
+> seeds negative), so the yaw that remains is not DNa02-mediated. The numbers in
+> §11.2 are the seed-0 preview that was written before the set finished; §11.4
+> carries the full result.
 
 ### 11.1 Diagnosis of the two defects
 
@@ -400,17 +400,40 @@ saturated background, the gray periods are noisier still (273 Hz per DNa02,
   4.1 × 10⁶ spikes/s against 1.0 × 10⁶, and the gray periods are further from
   rest than before, not closer. Reversal potentials alone were never going to
   fix it, and the spec said so before the run.
-* The **optomotor claim** under v2, on the evidence so far: it now looks
-  **symmetric but much weaker** — directionally correct in 8 of 8 blocks in both
-  rotation directions, at roughly a third of the v1 turning index, against a
-  saturated background that makes the whole measurement fragile. **This is one
-  seed of one condition.** Until the 24-run confirmatory set finishes there is
-  no confidence interval, no silencing control, no sham and no shuffled-graph
-  control, so **no verdict under the preregistered rule can be stated.** The v1
-  verdict (POSITIVE, one-sided) stands as the `brainlab-lif-v1` result and is
-  not retracted; it is now known to have depended on an engine property.
+* The **optomotor claim** under v2 is **NULL** by the preregistered rule, on the
+  complete 24-run set. See §11.4. The v1 verdict (POSITIVE, one-sided) stands as
+  the `brainlab-lif-v1` result and is not retracted; it is now known to have
+  depended on an engine property (DNa02_R held below any chloride reversal).
 * **WP6 must not build on either version as it stands.** A learning rule
   evaluated on a network at 4 × 10⁶ spikes/s with a suprathreshold
   high-conductance fixed point measures the engine, exactly as §10 warned. The
   next declared change is a synaptic-gain recalibration, argued from physiology
   *before* it is measured, not after.
+
+
+### 11.4 Completed v2 confirmatory set (24 runs, 6 seeds, all conditions)
+
+| condition | `TI` mean [95 % CI] | seeds positive | DNa02 L/R, leftward (Hz) | network rate (spikes/s) |
+|---|---|---|---|---|
+| intact | +0.0287 [+0.0221, +0.0384] | 6/6 | 305.8 / 304.2 | 4.08 × 10⁶ |
+| DNa02 silenced | **+0.0402 [+0.0309, +0.0495]** | 6/6 | 241.4 / 240.2 | 4.08 × 10⁶ |
+| sham (no input) | 0.0000 | 0/6 | 0.0 / 0.0 | 0 |
+| shuffled graph | −0.0209 [−0.0328, −0.0085] | 0/6 | 0.0 / 2.1 | 9.02 × 10⁴ |
+
+Paired: **intact − silenced `TI` = −0.0115 [−0.0247, +0.0059]**, dz −0.54, 5 of 6
+seeds negative. Silencing the decoder's own output neurons does **not** abolish the
+turning, and numerically increases it. The preregistered causal requirement is
+therefore not met: **NULL**.
+
+Gray-period baseline, intact: 3.58 × 10⁶ spikes/s with DNa02_L 272.5 Hz and
+DNa02_R 273.0 Hz **with no stimulus at all**. The ±3 Hz stimulus-linked asymmetry
+rides on a ~273 Hz saturated background, which is why a small residual `TI`
+survives DNa02 silencing: it is not a decoded steering command.
+
+Compute: 0.030 simulated s per wall s intact (v1: 0.106), 41 min for the intact
+condition alone, about 2 h for the set.
+
+**Reading.** v2 removes the artefact that produced the v1 result and does not
+replace it with a real one. Neither version supports a graph-mediated optomotor
+claim: v1's was an engine artefact, and v2 has no causal effect to claim. The
+blocking problem is the synaptic-gain calibration (§11.1), not the wiring.
