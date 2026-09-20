@@ -11,9 +11,9 @@
 Project NeuroFly is a state-of-the-art computational neuroethology platform bridging whole-brain connectomics with closed-loop embodied biomechanics. It reproduces canonical behavioral assays in an interactive browser-based scientific instrument and a 24/7 continuous learning daemon.
 
 ### Current Health & Baseline Verification
-- **Docker Sandbox Container (`<redacted-id>`)**: **156 / 156 passed** (`pytest -q /workspace/tests`).
-- **AMD Ryzen 3900X Cluster (`<redacted-ip>`)**: **180 / 180 passed** (`PYTHONPATH=. pytest -q tests/`).
-- **Continuous Learning Daemon**: Active on PID `4110817` at `http://<redacted-ip>:8769`, stepping at $15.0\times$ simulation speed with rolling checkpoints.
+- **Docker Sandbox Container (`<container-id>`)**: **156 / 156 passed** (`pytest -q /workspace/tests`).
+- **AMD Ryzen 3900X Cluster (`<workstation-host>`)**: **180 / 180 passed** (`PYTHONPATH=. pytest -q tests/`).
+- **Continuous Learning Daemon**: Active on a recorded PID at `http://<workstation-host>:8769`, stepping at $15.0\times$ simulation speed with rolling checkpoints.
 - **Portability Audit**: **Zero hardcoded paths**. All file paths resolve dynamically relative to `Path(__file__)`.
 - **Standalone Instrument**: Single-file bundle at [`flybrain/flybrain_scientific_instrument.html`](flybrain_scientific_instrument.html) (310 KB, zero external dependencies, runs offline in any modern browser).
 
@@ -30,11 +30,11 @@ The codebase is synchronized across four distinct execution environments:
 │ Node / Target                │ Address / Location          │ Role & Execution Details  │
 ├──────────────────────────────┼─────────────────────────────┼───────────────────────────┤
 │ 1. Local Workspace (Windows) │ .\flybrain                  │ Primary development root. │
-│ 2. Docker Sandbox            │ <redacted-id>:/workspace     │ Local Linux test runner.  │
-│ 3. AMD Ryzen 3900X Cluster   │ <redacted-user>@<redacted-ip>     │ 24/7 continuous daemon &  │
+│ 2. Docker Sandbox            │ <container-id>:/workspace     │ Local Linux test runner.  │
+│ 3. AMD Ryzen 3900X Cluster   │ <user>@<workstation-host>     │ 24/7 continuous daemon &  │
 │                              │ ~/Documents/ChatGPT/flybrain│ full 180-test benchmark.  │
-│ 4. HP Storage Server         │ Z:\neurofly                 │ Network SMB backup & cold │
-│                              │ //<redacted-ip>/Storage/...  │ weight checkpoint archive.│
+│ 4. HP Storage Server         │ <archive-share>/neurofly                 │ Network SMB backup & cold │
+│                              │ //<file-server>/Storage/...  │ weight checkpoint archive.│
 │ 5. Shipping Distribution     │ .\neurofly_v1_shipping      │ Clean deployment package. │
 └──────────────────────────────┴─────────────────────────────┴───────────────────────────┘
 ```
@@ -42,16 +42,16 @@ The codebase is synchronized across four distinct execution environments:
 ### Essential Commands Quick Reference
 ```bash
 # 1. Run local Docker tests (156 tests)
-docker exec -i <redacted-id> pytest -q /workspace/tests
+docker exec -i <container-id> pytest -q /workspace/tests
 
 # 2. Run remote tests on AMD Ryzen (180 tests)
-ssh -i ~/.ssh/<redacted-key> <redacted-user>@<redacted-ip> "cd <redacted-path>/Documents/ChatGPT/flybrain && source .venv/bin/activate && PYTHONPATH=. pytest -q tests/"
+ssh -i $NEUROFLY_SSH_KEY <user>@<workstation-host> "cd $NEUROFLY_DIR && source .venv/bin/activate && PYTHONPATH=. pytest -q tests/"
 
 # 3. Check AMD Ryzen background learning daemon status
-curl -s http://<redacted-ip>:8769/api/status
+curl -s http://<workstation-host>:8769/api/status
 
 # 4. Restart Ryzen daemon
-ssh -i ~/.ssh/<redacted-key> <redacted-user>@<redacted-ip> "cd <redacted-path>/Documents/ChatGPT/flybrain && ./stop_daemon_ryzen.sh && ./start_daemon_ryzen.sh"
+ssh -i $NEUROFLY_SSH_KEY <user>@<workstation-host> "cd $NEUROFLY_DIR && ./stop_daemon_ryzen.sh && ./start_daemon_ryzen.sh"
 
 # 5. Re-bundle standalone HTML instrument
 python scratch/sync_standalone.py

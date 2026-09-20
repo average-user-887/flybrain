@@ -23,7 +23,7 @@ Prepared graph: `outputs/brainlab/malecns_v1/graph.npz`.
 
 ## Repeat
 
-From `<redacted-path>/Documents/ChatGPT/flybrain`:
+From the repository root:
 
 ```bash
 .venv/bin/python -m brainlab.validate_full
