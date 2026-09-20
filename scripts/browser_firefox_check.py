@@ -57,12 +57,13 @@ def free_port(start):
     raise RuntimeError("no free port")
 
 
-def start_daemon(work: Path, port: int, tag: str, script: Path = ROOT / "neurofly_daemon.py", extra=()):
+def start_daemon(work: Path, port: int, tag: str, script: Path = ROOT / "neurofly_daemon.py", extra=(),
+                 paradigm: str = "wind-tunnel"):
     out = work / f"daemon-{tag}"
     out.mkdir(parents=True, exist_ok=True)
     proc = subprocess.Popen(
         [str(PROJECT_PY), str(script), "--host", "127.0.0.1", "--port", str(port),
-         "--paradigm", "wind-tunnel", "--speed", "1", "--checkpoint-interval", "3600",
+         "--paradigm", paradigm, "--speed", "1", "--checkpoint-interval", "3600",
          "--output-dir", str(out / "outputs"), "--data-dir", str(out / "data"), "--pid-file", str(out / "daemon.pid"),
          *extra],
         cwd=str(work), stdout=open(out / "daemon.log", "w"), stderr=subprocess.STDOUT,
@@ -106,6 +107,10 @@ def ui(driver):
                 remoteDriven: !!window.arena?.remoteDriven, trail: window.arena?.fly?.trail?.length ?? null,
                 ident: {backend: t('identBackend'), label: t('identLabel'), assists: t('identAssists'),
                         motor: t('identMotor'), fault: t('identFault'), run: t('identRun'),
+                        assistance: t('identAssistance'), optoMap: t('identOptoMap'),
+                        optoMapTitle: document.getElementById('identOptoMap')?.title ?? null,
+                        packetOptomotor: window.arena?.remotePacket?.motor?.optomotor ?? null,
+                        achieved: t('statAchieved'),
                         banner: document.getElementById('identityBanner')?.style.display === 'none' ? '' : t('identityBanner'),
                         bannerVisible: !!document.getElementById('identityBanner')?.offsetHeight,
                         packetRun: window.arena?.remotePacket?.identity?.run_id ?? null,
@@ -310,6 +315,39 @@ def main():
                              and not g["errors"])}
         finally:
             stop(graph_daemon)
+
+        # 7. The WP5 optomotor loop in the live path, on the synthetic graph with a STUB
+        #    IO map (scripts/browser_optomotor_stub_daemon.py; the 600 MB graph is never
+        #    loaded). The identity bar must show the engineered-assistance gate and the
+        #    resolved IO-map hash, and the banner must state that 1x is unattainable and
+        #    that there is no graph-derived forward drive.
+        oport = free_port(19700)
+        opto_daemon = start_daemon(work, oport, "optomotor", ROOT / "scripts" / "browser_optomotor_stub_daemon.py",
+                                   extra=("--backend", "connectome-fixed", "--test-synthetic-graph"),
+                                   paradigm="optomotor")
+        try:
+            driver.get(f"http://127.0.0.1:{wport}/index.html?daemon=http%3A%2F%2F127.0.0.1%3A{oport}")
+            o = wait_for(driver, lambda u: u["ident"]["packetAssay"] == "optomotor"
+                         and u["ident"]["motor"] == "graph" and u["ident"]["bannerVisible"], 40)
+            oi = o["ident"]
+            banner = oi["banner"] or ""
+            block = oi["packetOptomotor"] or {}
+            receipt["scenarios"]["optomotor_graph_live_loop"] = {
+                "ident": oi, "optomotor_block": block, "status_identity": status(oport).get("identity"),
+                "server_timing": status(oport).get("timing"), "errors": o["errors"],
+                "pass": bool(oi["motor"] == "graph" and oi["backend"] == "connectome-fixed"
+                             and oi["assistance"] == "OFF" and oi["assists"] == "OFF"
+                             and oi["optoMap"] and oi["optoMap"] != "--"
+                             and "stub-browser-check-optomotor-map" in (oi["optoMapTitle"] or "")
+                             and "1x real time is unattainable" in banner
+                             and "simulated s per wall s" in banner
+                             and "FORWARD DRIVE" in banner and "SYNTHETIC TEST GRAPH" in banner
+                             and block.get("engineered_assistance_enabled") is False
+                             and block.get("engineered_assistance_applied") == []
+                             and block.get("forward_drive")
+                             and not o["errors"])}
+        finally:
+            stop(opto_daemon)
     except _SpeedOnlyDone:
         pass
     finally:
