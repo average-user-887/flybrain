@@ -70,3 +70,37 @@ touched, and no checkpoint or evidence bundle was deleted.
 - **The live-UI sign-off required by `AGENTS.md` is still pending.** It needs the
   observatory brain service restarted so it loads this code, then a check of all 14
   assays in the running browser.
+
+## 2026-09-20 — dynamics v2 and the WP6 specification
+
+| Item | Commit | Outcome |
+|------|--------|---------|
+| WP6 spec | `bd8f59c` | Recommends ER4d+ER2 -> EPG heading-map learning (3,081 edges, 0.012 % of the graph, all inhibitory, depression-only) over optomotor gain or olfactory conditioning, because it is the only candidate whose plastic site, modulator and motor readout are all identifiable here. Feasible in 6-7 wall hours; the 47-hour design is excluded. Specification only. |
+| Release redactions | `f709cb9` | Private infrastructure removed from the handoff, the guides and the standalone bundle. |
+| Dynamics v2 | `001b692` | Under v1, DNa02_R sat at -184 mV, below any chloride reversal, and never fired: **WP5's one-sided optomotor result was an engine property, not anatomy.** v2 bounds the membrane and both sides now respond, but the runaway is 4x worse. |
+
+### The blocking scientific problem
+
+The graph's inhibition-to-excitation ratio is 0.619 where subthreshold operation needs
+more than 1.80, so the high-conductance fixed point is -26.75 mV against a -45 mV
+threshold and sustained input saturates the network. The root cause is that Shiu et
+al.'s 0.275 mV per synapse was calibrated inside a current-based model. A recalibration
+that would close the gap was identified and deliberately **not** adopted, because
+choosing it after seeing the result would be tuning. It belongs in a declared v3,
+argued from physiology before measurement.
+
+**Consequently WP6 must not start on either dynamics version.** A learning rule on a
+network with a suprathreshold fixed point measures the engine, not the connectome.
+
+### Open decisions for the owner
+
+1. Adopt a declared v3 synaptic-gain recalibration (argued first, measured second), or
+   restrict all graph claims to what v1 and v2 actually support?
+2. Aminergic and `unclear` neurons are mapped to positive excitatory weights, so
+   modulators already act as fast excitation; a three-factor learning rule would count
+   them twice. Resolve before WP6.
+3. WP6 target: ER->EPG heading learning, or the olfactory neural-level replication?
+4. Release decisions left open: renaming the `*_ryzen.sh` scripts, the stale root-level
+   duplicates of `app.js`/`index.html`, and the tracked `experiment_data/ryzen_battery/`.
+5. **The live-UI sign-off still requires restarting the observatory service**, which
+   this session is not permitted to do.
