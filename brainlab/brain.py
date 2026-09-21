@@ -2,15 +2,19 @@
 
 The dynamics are explicitly versioned (``docs/LIF_DYNAMICS_SPEC.md``).  ``v1``
 is the current-based proxy every WP1-WP5 result was produced under and stays
-the default; ``v2`` is the conductance-based model with reversal potentials.
-Select per instance with ``Brain(..., dynamics='v2')`` or process-wide with
-``NEUROFLY_LIF_DYNAMICS=v2``.  The two are not interchangeable and their
-checkpoints are mutually refused (the synaptic state array differs in shape).
+the default; ``v2`` is the conductance-based model with reversal potentials and
+one conductance quantum for both signs; ``v3`` is the same conductance model
+with the declared per-sign PSP-preserving calibration.  Select per instance
+with ``Brain(..., dynamics='v3')`` or process-wide with
+``NEUROFLY_LIF_DYNAMICS=v3``.  They are not interchangeable and their
+checkpoints are mutually refused: v1's synaptic state array has a different
+shape, and every snapshot carries its dynamics version explicitly.
 """
 import math
 import time
 import numpy as np
-from .engine import E_INH_MV, advance, advance_v2
+from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
+                     advance_v3)
 from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
 
 
@@ -28,18 +32,26 @@ class Brain:
 
         ``arrays`` lets several instances share one immutable graph; pass
         ``validate=False`` only for arrays already validated by another Brain.
-        ``dynamics`` selects the declared LIF version ('v1' or 'v2'); the
-        default comes from ``NEUROFLY_LIF_DYNAMICS`` and is 'v1'.
-        ``e_inh_mV`` overrides the v2 inhibitory reversal potential and exists
-        only for the declared sensitivity arm of ``docs/LIF_DYNAMICS_SPEC.md``.
+        ``dynamics`` selects the declared LIF version ('v1', 'v2' or 'v3');
+        the default comes from ``NEUROFLY_LIF_DYNAMICS`` and is 'v1'.
+        ``e_inh_mV`` overrides the inhibitory reversal potential and exists
+        only for the declared sensitivity arms of
+        ``docs/LIF_DYNAMICS_SPEC.md``.  Under v3 the inhibitory conductance
+        quantum follows it, because the v3 calibration DERIVES that quantum
+        from the driving force at rest: ``g_inh = 1/(V_rest - E_inh)``.
         """
         self.dynamics = dynamics or active_dynamics_version()
         if self.dynamics not in DYNAMICS_VERSIONS:
             raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
                              f'declared: {sorted(DYNAMICS_VERSIONS)}')
-        if e_inh_mV is not None and self.dynamics != 'v2':
-            raise ValueError('e_inh_mV applies only to the v2 conductance-based dynamics')
+        if e_inh_mV is not None and self.dynamics == 'v1':
+            raise ValueError('e_inh_mV applies only to the conductance-based dynamics (v2, v3)')
         self.e_inh_mV = float(E_INH_MV if e_inh_mV is None else e_inh_mV)
+        if self.e_inh_mV >= V_REST_MV:
+            raise ValueError('e_inh_mV must be below V_rest for the v3 calibration to be finite')
+        # Declared, derived, not fitted (docs/LIF_DYNAMICS_SPEC.md §4.2).
+        self.g_unit_exc = float(G_UNIT_EXC_V3)
+        self.g_unit_inh = float(1.0 / (V_REST_MV - self.e_inh_mV))
         if (path is None) == (arrays is None):
             raise ValueError('Provide exactly one of path or arrays')
         if arrays is None:
@@ -82,10 +94,20 @@ class Brain:
         delay queue, active set, clocks).  Excludes the immutable graph."""
         state = {name: getattr(self, name).copy() for name in STATE_ARRAYS}
         state.update(cursor=int(self.cursor), total_spikes=int(self.total_spikes),
-                     sim_ms=float(self.sim_ms))
+                     sim_ms=float(self.sim_ms), dynamics=self.dynamics)
         return state
 
     def restore_state(self, state):
+        # v2 and v3 share the (2, n) synaptic state shape, so the shape check
+        # below cannot separate them: the version is carried explicitly.  A
+        # checkpoint written before this field existed carries no claim and
+        # falls back to the shape check, which still separates v1 from v2.
+        written_by = state.get('dynamics')
+        if written_by is not None and written_by != self.dynamics:
+            raise ValueError(
+                f'Snapshot was written under LIF dynamics {written_by!r} and this brain runs '
+                f'{self.dynamics!r}. A checkpoint written under a different dynamics version is '
+                'refused, never reinterpreted; see docs/LIF_DYNAMICS_SPEC.md.')
         for name in STATE_ARRAYS:
             value = np.asarray(state[name])
             target = getattr(self, name)
@@ -121,11 +143,16 @@ class Brain:
             self.cursor = advance(self.ptr, self.post, self.weight, self.v, self.g,
                 self.refractory, drive, self.queue, self.queue_count, self.cursor,
                 steps, self.dt, self.counts, self.active, self.active_flag, self.nactive)
-        else:
+        elif self.dynamics == 'v2':
             self.cursor = advance_v2(self.ptr, self.post, self.weight, self.v, self.g,
                 self.refractory, drive, self.queue, self.queue_count, self.cursor,
                 steps, self.dt, self.counts, self.active, self.active_flag, self.nactive,
                 self.e_inh_mV)
+        else:
+            self.cursor = advance_v3(self.ptr, self.post, self.weight, self.v, self.g,
+                self.refractory, drive, self.queue, self.queue_count, self.cursor,
+                steps, self.dt, self.counts, self.active, self.active_flag, self.nactive,
+                self.e_inh_mV, self.g_unit_exc, self.g_unit_inh)
         elapsed = time.perf_counter()-clock
         self.total_spikes += int(self.counts.sum())
         self.sim_ms += steps*self.dt

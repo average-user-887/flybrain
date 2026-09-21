@@ -1,6 +1,6 @@
 """Compiled, all-edge LIF simulation. Only incoming currents can drive neurons.
 
-Two explicitly versioned dynamics live here; both are declared in
+Three explicitly versioned dynamics live here; all are declared in
 ``docs/LIF_DYNAMICS_SPEC.md`` and in ``brainlab.graph_identity.DYNAMICS_VERSIONS``.
 
 * ``advance``    -- v1, current-based. Same membrane/synapse constants as the
@@ -12,8 +12,14 @@ Two explicitly versioned dynamics live here; both are declared in
   (excitatory 0 mV, inhibitory/chloride -70 mV) and a hard floor/ceiling at
   those reversals. Exponential-Euler integration with the conductances frozen
   within each dt. Spike, delay, refractory and reset schedule identical to v1.
+  ONE conductance quantum for both signs, calibrated on the excitatory PSP.
+* ``advance_v3`` -- v3, the same conductance model with a PER-SIGN
+  PSP-preserving calibration: the excitatory quantum reproduces the upstream
+  unitary EPSP and the inhibitory quantum reproduces the upstream unitary IPSP
+  (1/52 and 1/18 leak units per unit weight). Used together with the v3
+  transmitter policy of ``brainlab.transmitter_policy``.
 
-Neither models realistic ion channels, receptors, adaptation or learning.
+None of them models realistic ion channels, receptors, adaptation or learning.
 Retina and lamina use a DECLARED coarse spiking approximation to graded cells.
 """
 import math
@@ -43,6 +49,13 @@ E_INH_MV = -70.0          # chloride (Rdl / GluCl / HisCl); ENGINEERING ASSUMPTI
 # Derived, not fitted: makes a unitary excitatory event at rest produce the same
 # peak EPSP as v1 (0.275 mV per synapse, Shiu et al. 2024).
 G_UNIT_PER_WEIGHT = 1.0 / (E_EXC_MV - V_REST_MV)
+# v3 only: the SAME calibration principle applied to each sign separately, so
+# that a unitary inhibitory event at rest reproduces the v1 IPSP just as the
+# excitatory quantum reproduces the v1 EPSP (docs/LIF_DYNAMICS_SPEC.md §4.2).
+# v2 used the excitatory quantum for both signs, which silently shrank the
+# unitary IPSP to 18/52 of the value the upstream model specifies.
+G_UNIT_EXC_V3 = 1.0 / (E_EXC_MV - V_REST_MV)      # 1/52
+G_UNIT_INH_V3 = 1.0 / (V_REST_MV - E_INH_MV)      # 1/18
 
 
 @njit(cache=True)
@@ -142,3 +155,57 @@ def advance_v2(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,ste
         cursor+=1
     return cursor
 
+
+
+@njit(cache=True)
+def advance_v3(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive,e_inh,g_unit_exc,g_unit_inh):
+    """v3: v2's conductance model with a per-sign PSP-preserving calibration.
+
+    Identical to ``advance_v2`` in every equation, bound, schedule and reset.
+    The only difference is that an excitatory and an inhibitory unit of weight
+    open different conductances (``g_unit_exc``, ``g_unit_inh``), each
+    calibrated so that the unitary PSP at rest equals the one the upstream
+    current-based model specifies for that sign.  See
+    ``docs/LIF_DYNAMICS_SPEC.md`` §4.
+    """
+    ag=math.exp(-dt/TAU_SYN_MS)
+    delay_slots=queue.shape[0]
+    delay_ticks=int(round(DELAY_MS/dt))
+    refractory_ticks=int(round(REFRACTORY_MS/dt))
+    for step in range(steps):
+        slot=cursor%delay_slots
+        for k in range(nactive[0]):
+            i=active[k]
+            if refractory[i]>0: refractory[i]-=1
+            if refractory[i]==0:
+                ge=g[0,i]; gi=g[1,i]
+                gtot=1.0+ge+gi
+                vinf=(V_REST_MV+ge*E_EXC_MV+gi*e_inh+drive[i])/gtot
+                vi=vinf+(v[i]-vinf)*math.exp(-dt*gtot/TAU_M_MS)
+                if vi<e_inh: vi=e_inh
+                elif vi>E_EXC_MV: vi=E_EXC_MV
+                v[i]=vi
+                g[0,i]=ge*ag; g[1,i]=gi*ag
+                if vi>V_THRESHOLD_MV:
+                    counts[i]+=1
+                    future=(cursor+delay_ticks)%delay_slots
+                    queue[future,queue_count[future]]=i
+                    queue_count[future]+=1
+        for q in range(queue_count[slot]):
+            i=queue[slot,q]
+            for e in range(ptr[i],ptr[i+1]):
+                j=post[e]
+                if refractory[j]>0: continue
+                w=weight[e]
+                if w>0.0:
+                    g[0,j]+=w*g_unit_exc
+                else:
+                    g[1,j]-=w*g_unit_inh
+                if active_flag[j]==0:
+                    active_flag[j]=1;active[nactive[0]]=j;nactive[0]+=1
+        queue_count[slot]=0
+        future=(cursor+delay_ticks)%delay_slots
+        for q in range(queue_count[future]):
+            i=queue[future,q];v[i]=V_RESET_MV;g[0,i]=0.0;g[1,i]=0.0;refractory[i]=refractory_ticks
+        cursor+=1
+    return cursor

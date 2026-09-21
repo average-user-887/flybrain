@@ -147,6 +147,7 @@ def probe_c(dynamics, shared, io, prereg, direction, out_dir, incoming_cache, e_
 
     stim, dec = prereg['stimulus'], prereg['decoder']
     brain = Brain(arrays=shared.arrays, validate=False, dynamics=dynamics, e_inh_mV=e_inh)
+    v_net_min, v_net_max = 1e9, -1e9
     rng = np.random.default_rng(0)
     encoder = OptomotorEncoder(io, rng, i_max=stim['i_max'],
                                spatial_period_deg=stim['spatial_period_deg'], noise_sd=stim['noise_sd'])
@@ -174,6 +175,8 @@ def probe_c(dynamics, shared, io, prereg, direction, out_dir, incoming_cache, e_
             fired = counts[pre] > 0
             arriving[f'{name}_exc'] = float(w[fired & (w > 0)].sum())
             arriving[f'{name}_inh'] = float(-w[fired & (w < 0)].sum())
+        v_net_min = min(v_net_min, float(brain.v.min()))
+        v_net_max = max(v_net_max, float(brain.v.max()))
         rows.append(dict(t_ms=(i + 1) * step_ms, slip=slip,
                          v_l=float(brain.v[left]), v_r=float(brain.v[right]),
                          spk_l=int(counts[left]), spk_r=int(counts[right]),
@@ -206,28 +209,32 @@ def probe_c(dynamics, shared, io, prereg, direction, out_dir, incoming_cache, e_
         out_dir.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(out_dir / f'probe-c-{tag}.npz',
                             **{k: np.array([r[k] for r in rows]) for k in rows[0]})
-    return dict(dynamics=dynamics, e_inh_mV=brain.e_inh_mV if dynamics == 'v2' else None,
+    return dict(dynamics=dynamics, e_inh_mV=brain.e_inh_mV if dynamics != 'v1' else None,
                 direction=direction, wall_s=round(wall, 1),
                 sim_s_per_wall_s=round(len(schedule) * step_ms / 1000 / wall, 4),
                 static_input_budget=budget,
+                network_membrane_range_mV=[round(v_net_min, 3), round(v_net_max, 3)],
                 initial_gray=agg(mask_gray0), stimulus=agg(mask_block),
                 gray_after_stimulus=agg(mask_after))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--dynamics', default='v1', help='comma-separated: v1,v2')
+    parser.add_argument('--dynamics', default='v1', help='comma-separated: v1,v2,v3')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--traces', type=Path)
     parser.add_argument('--no-graph', action='store_true', help='probes A and B only')
     parser.add_argument('--e-inh-sensitivity', action='store_true',
-                        help='also run probe C at the predeclared E_inh = -56 mV arm')
+                        help='also run probe C at the predeclared E_inh = -56 mV arm (S2)')
+    parser.add_argument('--unclear-sensitivity', action='store_true',
+                        help='also run probe C with the predeclared unclear_mode=zero arm (S1)')
     args = parser.parse_args()
     versions = [v.strip() for v in args.dynamics.split(',') if v.strip()]
 
-    from brainlab.graph_identity import DYNAMICS_VERSIONS
+    from brainlab.graph_identity import DYNAMICS_VERSIONS, dynamics_pin
     result = dict(generated_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=platform.node(),
                   dynamics_declared={v: DYNAMICS_VERSIONS[v] for v in versions},
+                  dynamics_pins={v: dynamics_pin(v) for v in versions},
                   probe_a=[probe_a(v) for v in versions],
                   probe_b=[probe_b(v) for v in versions])
     print(json.dumps(result['probe_a'], indent=1))
@@ -239,22 +246,57 @@ def main():
         raw = (ROOT / 'docs/wp5_optomotor_prereg.json').read_bytes()
         prereg = json.loads(raw)
         prereg['_sha256'] = hashlib.sha256(raw).hexdigest()
+        from brainlab import transmitter_policy as tp
         shared = SharedGraph.load()
         io = resolve_optomotor_io()
-        cache = {name: incoming(shared, int(io.populations[name][0]))
-                 for name in ('DNa02_L', 'DNa02_R')}
         result['graph'] = shared.identity.to_dict()
         result['prereg_sha256'] = prereg['_sha256']
         result['io_map_sha256'] = io.sha256
-        arms = [(v, None) for v in versions]
+
+        # Declared static fixed-point calculation (docs/LIF_DYNAMICS_SPEC.md
+        # §6.5).  No simulation: total excitatory / inhibitory weight under each
+        # transmitter policy, and the resulting high-conductance fixed point
+        # under each conductance calibration.
+        labels = tp.load_transmitters()
+        fixed_points = {}
+        graphs = {'legacy': (shared, None)}
+        for name, (policy, mode) in (('legacy', (tp.POLICY_LEGACY, 'excitatory')),
+                                     ('v3-primary', (tp.POLICY_V3, 'excitatory')),
+                                     ('v3-unclear-zero', (tp.POLICY_V3, 'zero')),
+                                     ('v3-unclear-exclude', (tp.POLICY_V3, 'exclude'))):
+            _, report = tp.apply_policy(shared.arrays['ptr'], shared.arrays['post'],
+                                        shared.arrays['weight'], labels,
+                                        policy=policy, unclear_mode=mode)
+            fixed_points[name] = report
+        result['fixed_point'] = fixed_points
+        print(json.dumps({k: {kk: v[kk] for kk in ('edges_zeroed', 'v2_quanta', 'v3_quanta')}
+                          for k, v in fixed_points.items()}, indent=1), flush=True)
+
+        arms = [(v, None, 'excitatory') for v in versions]
         if 'v2' in versions and args.e_inh_sensitivity:
             # Predeclared sensitivity arm (docs/LIF_DYNAMICS_SPEC.md §3.1): the
             # measured Drosophila larval chloride reversal, diagnostic only.
-            arms.append(('v2', -56.0))
+            arms.append(('v2', -56.0, 'excitatory'))
+        if 'v3' in versions and args.e_inh_sensitivity:
+            arms.append(('v3', -56.0, 'excitatory'))        # declared arm S2
+        if 'v3' in versions and args.unclear_sensitivity:
+            arms.append(('v3', None, 'zero'))               # declared arm S1
         result['probe_c'] = []
-        for v, e_inh in arms:
+        result['probe_c_policies'] = {}
+        for v, e_inh, mode in arms:
+            key = ('v3', mode) if v == 'v3' else ('legacy', 'excitatory')
+            if key not in graphs:
+                g, report = tp.apply_to_shared(shared, policy=tp.POLICY_V3, unclear_mode=mode)
+                graphs[key] = (g, report)
+                result['probe_c_policies'][f'v3:{mode}'] = report
+            graph, _ = graphs[key]
+            cache = {name: incoming(graph, int(io.populations[name][0]))
+                     for name in ('DNa02_L', 'DNa02_R')}
             for d in (+1, -1):
-                row = probe_c(v, shared, io, prereg, d, args.traces, cache, e_inh=e_inh)
+                row = probe_c(v, graph, io, prereg, d, args.traces, cache, e_inh=e_inh)
+                row['transmitter_policy'] = tp.describe(
+                    tp.POLICY_V3 if v == 'v3' else tp.POLICY_LEGACY, mode)
+                row['graph_sha256'] = graph.identity.graph_sha256
                 result['probe_c'].append(row)
                 print(json.dumps({k: row[k] for k in ('dynamics', 'e_inh_mV', 'direction', 'wall_s',
                                                       'stimulus', 'gray_after_stimulus')}, indent=1),

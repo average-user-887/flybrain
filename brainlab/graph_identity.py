@@ -49,7 +49,7 @@ DN_EXPECTED_TYPES = {'dnp01': 'DNp01', 'dna02_l': 'DNa02', 'dna02_r': 'DNa02',
 DN_EXPECTED_SIDES = {'dna02_l': 'L', 'dna02_r': 'R'}
 
 # Constants of brainlab/engine.py, with units, so manifests never guess them.
-# Two explicitly versioned dynamics; both declared in docs/LIF_DYNAMICS_SPEC.md.
+# Three explicitly versioned dynamics; all declared in docs/LIF_DYNAMICS_SPEC.md.
 # The engine constants are imported, never restated, so the declaration and the
 # compiled code cannot drift apart.
 from . import engine as _engine
@@ -124,7 +124,78 @@ LIF_DYNAMICS_V2 = {
     'biological_validation': 'none; engineering proxy with declared reversal potentials',
 }
 
-DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2}
+LIF_DYNAMICS_V3 = {
+    'dynamics_version': 'v3',
+    'model': 'fixed-weight leaky integrate-and-fire, CONDUCTANCE-based with reversal '
+             'potentials and a PER-SIGN PSP-preserving calibration '
+             '(brainlab.engine.advance_v3)',
+    'dt_ms': 0.1, 'tau_membrane_ms': _engine.TAU_M_MS, 'tau_synapse_ms': _engine.TAU_SYN_MS,
+    'v_rest_mV': _engine.V_REST_MV, 'v_reset_mV': _engine.V_RESET_MV,
+    'v_threshold_mV': _engine.V_THRESHOLD_MV,
+    'refractory_ms': _engine.REFRACTORY_MS, 'transmission_delay_ms': _engine.DELAY_MS,
+    'synaptic_scale': 0.275,
+    'e_excitatory_mV': _engine.E_EXC_MV,
+    'e_inhibitory_mV': _engine.E_INH_MV,
+    'g_unit_excitatory_per_weight': _engine.G_UNIT_EXC_V3,
+    'g_unit_inhibitory_per_weight': _engine.G_UNIT_INH_V3,
+    'g_unit_ratio_inh_over_exc': _engine.G_UNIT_INH_V3 / _engine.G_UNIT_EXC_V3,
+    'weight_units': 'synapse_count * transmitter_sign * 0.275, converted to a synaptic '
+                    'conductance of |weight| * g_unit_<sign> in leak-conductance units',
+    'input_units': 'per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)',
+    'output_units': 'spike counts per step window',
+    'membrane_bounds_mV': [_engine.E_INH_MV, _engine.E_EXC_MV],
+    'reversal_potentials_mV': dict(LIF_DYNAMICS_V2['reversal_potentials_mV']),
+    'g_unit_derivation': 'g_unit_exc = 1/(e_excitatory - v_rest) = 1/52 and '
+                         'g_unit_inh = 1/(v_rest - e_inhibitory) = 1/18. Each quantum is fixed '
+                         'by requiring the unitary PSP at rest to equal the one the upstream '
+                         'current-based model (Shiu et al. 2024, w_syn = 0.275 mV) specifies '
+                         'for that sign. Derived, not fitted; no free parameter. v2 applied '
+                         'the excitatory quantum to both signs, which is an extra assumption '
+                         'the upstream model never made and which shrank the unitary IPSP to '
+                         '18/52 = 0.346x its declared value.',
+    'transmitter_policy': {
+        'policy': 'v3-modulatory-only',
+        'modulatory_only_transmitters': ['dopamine', 'octopamine', 'serotonin'],
+        'effect': 'every out-edge of a dopaminergic, octopaminergic or serotonergic neuron '
+                  'carries zero fast synaptic weight; those neurons are available to a '
+                  'plasticity rule as a modulatory signal and in no other way',
+        'unresolved_neurons': "the 2,999 'unclear' (plus 178 unlabelled) neurons are handled "
+                              "SEPARATELY by the declared switch unclear_mode "
+                              "{excitatory|zero|exclude}; the primary is 'excitatory', i.e. "
+                              "unchanged from v1 and v2",
+        'applied_by': 'brainlab.transmitter_policy.apply_to_shared (in memory; the pinned '
+                      'graph.npz is never rewritten, and the transformed graph gets its own '
+                      'graph_sha256)',
+        'rationale': 'Drosophila dopamine, octopamine and serotonin receptors are '
+                     'G-protein-coupled (Blenau & Baumann 2001 Arch Insect Biochem Physiol '
+                     '48:13-38; Evans & Maqueira 2005 Invert Neurosci 5:111-118), so these '
+                     'neurons do not make the fast ionotropic excitatory synapse the coarse '
+                     'sign proxy gave them. See docs/LIF_DYNAMICS_SPEC.md §4.3.',
+    },
+    'integration': 'exponential Euler, conductances frozen within dt (first order in the synaptic term)',
+    'changes_from_v2': [
+        'inhibitory conductance quantum is 52/18 = 2.889x the excitatory one, so the unitary '
+        'IPSP at rest equals the v1 IPSP instead of 0.346x it',
+        'dopaminergic / octopaminergic / serotonergic neurons carry no fast synaptic weight',
+        'the fast-weight array therefore differs from the pinned graph and carries its own '
+        'graph_sha256; checkpoints do not cross between policies',
+        'every snapshot records its dynamics version, so v2 and v3 checkpoints (which share '
+        'the (2, n) synaptic state shape) refuse each other explicitly'],
+    'unchanged_from_v2': [
+        'E_exc = 0 mV, E_inh = -70 mV, membrane bounded to [E_inh, E_exc]',
+        'shunting inhibition, saturating excitation, shunted external drive',
+        'spike / delay / refractory / reset schedule, identical to v1',
+        'synaptic conductance zeroed on every spike; arrivals at a refractory neuron dropped',
+        'no adaptation, short-term plasticity or after-hyperpolarisation',
+        'coarse transmitter-sign proxy for the fast classes, not receptor physiology'],
+    'parameter_source': 'Shiu et al. 2024 for the shared LIF constants; see spec for reversals '
+                        'and for the aminergic sources',
+    'spec': DYNAMICS_SPEC_DOC,
+    'biological_validation': 'none; engineering proxy with declared reversal potentials and a '
+                             'declared transmitter-class policy',
+}
+
+DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v1'
 
