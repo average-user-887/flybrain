@@ -1,0 +1,2206 @@
+{
+  "kind": "live-ui-signoff",
+  "started_at": "2026-09-21T12:19:59.743997+00:00",
+  "web_url": "http://127.0.0.1:8780/",
+  "daemon_url": "http://127.0.0.1:8781",
+  "automated_real_firefox": true,
+  "scenarios": {
+    "initial_load": {
+      "at": "2026-09-21T12:20:01.490886+00:00",
+      "live_reached": true,
+      "first": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "OPEN ARENA",
+        "step": "3963481",
+        "simTime": "79269.62s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "60",
+        "runState": "SURGE \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 7,
+        "lastStep": 3963481,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "open-arena",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": -140,
+            "maxX": 140,
+            "minY": -100,
+            "maxY": 100
+          },
+          "walls": 4,
+          "fly": {
+            "x": 1.90278,
+            "y": 2.779420000000002
+          },
+          "packetAssay": "open-arena",
+          "packetBounds": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "packetStep": 3963481
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run 63abde71ed83",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260920T164654-63abde71ed83",
+          "packetActivation": 22,
+          "packetAssay": "open-arena",
+          "ackActivation": null,
+          "ackAssay": null,
+          "rejected": 0
+        }
+      },
+      "after_3s": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "OPEN ARENA",
+        "step": "3963630",
+        "simTime": "79272.60s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "39",
+        "runState": "SURGE \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 3,
+        "lastStep": 3963632,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "open-arena",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": -140,
+            "maxX": 140,
+            "minY": -100,
+            "maxY": 100
+          },
+          "walls": 4,
+          "fly": {
+            "x": 2.2808199999999985,
+            "y": 2.1504400000000032
+          },
+          "packetAssay": "open-arena",
+          "packetBounds": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "packetStep": 3963632
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run 63abde71ed83",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260920T164654-63abde71ed83",
+          "packetActivation": 22,
+          "packetAssay": "open-arena",
+          "ackActivation": null,
+          "ackAssay": null,
+          "rejected": 0
+        }
+      },
+      "daemon_status": {
+        "active_paradigm": "open-arena",
+        "total_steps": 3963632,
+        "sim_speed": 1.0,
+        "paused": false
+      },
+      "canvas_sha256_16": "b57b4fe90d35a07d",
+      "canvas_data_len": 46638,
+      "checks": {
+        "pill_live": true,
+        "assay_matches_daemon": true,
+        "clock_advanced": true,
+        "steps_advanced": true,
+        "identity_backend_modular": true,
+        "identity_label_present": true,
+        "achieved_live": true,
+        "data_age_live": true,
+        "tools_panel": true,
+        "arena_rendered": true,
+        "no_errors": true
+      },
+      "pass": true
+    },
+    "all_assays": {
+      "rows": [
+        {
+          "assay": "open-arena",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:07.424661+00:00",
+          "badge": "OPEN ARENA",
+          "arena_assay": "open-arena",
+          "packet_assay": "open-arena",
+          "daemon_assay": "open-arena",
+          "bounds": {
+            "minX": -140,
+            "maxX": 140,
+            "minY": -100,
+            "maxY": 100
+          },
+          "packet_bounds": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "walls": 4,
+          "fly": {
+            "x": 2.5694599999999994,
+            "y": 1.6492799999999974
+          },
+          "ui_step_before": 3963639,
+          "ui_step_after": 3963751,
+          "daemon_steps_before": 3963640,
+          "daemon_steps_after": 3963751,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 23,
+            "ackActivation": 23,
+            "packetAssay": "open-arena",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "131dfc0b31835a42",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 9,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "t-maze",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:09.696891+00:00",
+          "badge": "T MAZE",
+          "arena_assay": "t-maze",
+          "packet_assay": "t-maze",
+          "daemon_assay": "t-maze",
+          "bounds": {
+            "minX": 0,
+            "maxX": 140,
+            "minY": 0,
+            "maxY": 80
+          },
+          "packet_bounds": [
+            10,
+            10,
+            130,
+            57
+          ],
+          "walls": 8,
+          "fly": {
+            "x": 67.66368,
+            "y": 11.5001
+          },
+          "ui_step_before": 3963752,
+          "ui_step_after": 3963864,
+          "daemon_steps_before": 3963754,
+          "daemon_steps_after": 3963865,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 24,
+            "ackActivation": 24,
+            "packetAssay": "t-maze",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "dd9a94c339d011c6",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 12,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "y-maze",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:11.966651+00:00",
+          "badge": "Y MAZE",
+          "arena_assay": "y-maze",
+          "packet_assay": "y-maze",
+          "daemon_assay": "y-maze",
+          "bounds": {
+            "minX": 0,
+            "maxX": 120,
+            "minY": 0,
+            "maxY": 120
+          },
+          "packet_bounds": [
+            12,
+            12,
+            108,
+            108
+          ],
+          "walls": 9,
+          "fly": {
+            "x": 71.72945,
+            "y": 57.76269
+          },
+          "ui_step_before": 3963866,
+          "ui_step_after": 3963978,
+          "daemon_steps_before": 3963868,
+          "daemon_steps_after": 3963979,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 25,
+            "ackActivation": 25,
+            "packetAssay": "y-maze",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "17fc05321f2464ab",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 5,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "heat-maze",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:14.200795+00:00",
+          "badge": "HEAT MAZE",
+          "arena_assay": "heat-maze",
+          "packet_assay": "heat-maze",
+          "daemon_assay": "heat-maze",
+          "bounds": {
+            "minX": 0,
+            "maxX": 120,
+            "minY": 0,
+            "maxY": 120
+          },
+          "packet_bounds": [
+            5,
+            5,
+            115,
+            115
+          ],
+          "walls": 32,
+          "fly": {
+            "x": 69.57562,
+            "y": 67.89247
+          },
+          "ui_step_before": 3963980,
+          "ui_step_after": 3964092,
+          "daemon_steps_before": 3963981,
+          "daemon_steps_after": 3964092,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 26,
+            "ackActivation": 26,
+            "packetAssay": "heat-maze",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "78a1eadc0f0ce1df",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 4,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "buridan",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:16.478640+00:00",
+          "badge": "BURIDAN",
+          "arena_assay": "buridan",
+          "packet_assay": "buridan",
+          "daemon_assay": "buridan",
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "packet_bounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "walls": 32,
+          "fly": {
+            "x": 47.35561,
+            "y": 43.5739
+          },
+          "ui_step_before": 3964092,
+          "ui_step_after": 3964204,
+          "daemon_steps_before": 3964093,
+          "daemon_steps_after": 3964204,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 27,
+            "ackActivation": 27,
+            "packetAssay": "buridan",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "3f6fb759bf2e3ab1",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 2,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "visual-operant",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:18.710574+00:00",
+          "badge": "VISUAL OPERANT",
+          "arena_assay": "visual-operant",
+          "packet_assay": "visual-operant",
+          "daemon_assay": "visual-operant",
+          "bounds": {
+            "minX": 0,
+            "maxX": 80,
+            "minY": 0,
+            "maxY": 80
+          },
+          "packet_bounds": [
+            0,
+            0,
+            80,
+            80
+          ],
+          "walls": 0,
+          "fly": {
+            "x": 40,
+            "y": 40
+          },
+          "ui_step_before": 3964206,
+          "ui_step_after": 3964318,
+          "daemon_steps_before": 3964207,
+          "daemon_steps_after": 3964318,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 28,
+            "ackActivation": 28,
+            "packetAssay": "visual-operant",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "dc15675e1225d5d5",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 5,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "wind-tunnel",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:20.943812+00:00",
+          "badge": "WIND TUNNEL",
+          "arena_assay": "wind-tunnel",
+          "packet_assay": "wind-tunnel",
+          "daemon_assay": "wind-tunnel",
+          "bounds": {
+            "minX": 0,
+            "maxX": 200,
+            "minY": 0,
+            "maxY": 60
+          },
+          "packet_bounds": [
+            0,
+            0,
+            200,
+            60
+          ],
+          "walls": 4,
+          "fly": {
+            "x": 47.61829,
+            "y": 30.00318
+          },
+          "ui_step_before": 3964318,
+          "ui_step_after": 3964428,
+          "daemon_steps_before": 3964319,
+          "daemon_steps_after": 3964430,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 29,
+            "ackActivation": 29,
+            "packetAssay": "wind-tunnel",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "493a4104fbe0b374",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 26,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "looming-escape",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:23.229586+00:00",
+          "badge": "LOOMING ESCAPE",
+          "arena_assay": "looming-escape",
+          "packet_assay": "looming-escape",
+          "daemon_assay": "looming-escape",
+          "bounds": {
+            "minX": 0,
+            "maxX": 80,
+            "minY": 0,
+            "maxY": 80
+          },
+          "packet_bounds": [
+            0,
+            0,
+            80,
+            80
+          ],
+          "walls": 0,
+          "fly": {
+            "x": 49.43546,
+            "y": 39.96981
+          },
+          "ui_step_before": 3964430,
+          "ui_step_after": 3964540,
+          "daemon_steps_before": 3964430,
+          "daemon_steps_after": 3964542,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 30,
+            "ackActivation": 30,
+            "packetAssay": "looming-escape",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "f409eb604196805a",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 21,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "optomotor",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:25.452051+00:00",
+          "badge": "OPTOMOTOR",
+          "arena_assay": "optomotor",
+          "packet_assay": "optomotor",
+          "daemon_assay": "optomotor",
+          "bounds": {
+            "minX": 0,
+            "maxX": 90,
+            "minY": 0,
+            "maxY": 90
+          },
+          "packet_bounds": [
+            0,
+            0,
+            90,
+            90
+          ],
+          "walls": 0,
+          "fly": {
+            "x": 45,
+            "y": 45
+          },
+          "ui_step_before": 3964543,
+          "ui_step_after": 3964654,
+          "daemon_steps_before": 3964544,
+          "daemon_steps_after": 3964655,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 31,
+            "ackActivation": 31,
+            "packetAssay": "optomotor",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "52054bfe74c090ed",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 27,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "gap-crossing",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:27.757912+00:00",
+          "badge": "GAP CROSSING",
+          "arena_assay": "gap-crossing",
+          "packet_assay": "gap-crossing",
+          "daemon_assay": "gap-crossing",
+          "bounds": {
+            "minX": 0,
+            "maxX": 100,
+            "minY": 0,
+            "maxY": 20
+          },
+          "packet_bounds": [
+            5,
+            7.5,
+            95,
+            12.5
+          ],
+          "walls": 4,
+          "fly": {
+            "x": 30.22203,
+            "y": 10.00387
+          },
+          "ui_step_before": 3964659,
+          "ui_step_after": 3964769,
+          "daemon_steps_before": 3964660,
+          "daemon_steps_after": 3964770,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 32,
+            "ackActivation": 32,
+            "packetAssay": "gap-crossing",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "7e28c205957a7666",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 26,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "circadian-dam",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:29.981260+00:00",
+          "badge": "CIRCADIAN DAM",
+          "arena_assay": "circadian-dam",
+          "packet_assay": "circadian-dam",
+          "daemon_assay": "circadian-dam",
+          "bounds": {
+            "minX": -10,
+            "maxX": 75,
+            "minY": -10,
+            "maxY": 172
+          },
+          "packet_bounds": [
+            5,
+            1,
+            60,
+            9
+          ],
+          "walls": 4,
+          "fly": {
+            "x": 22.47031,
+            "y": 5.00806
+          },
+          "ui_step_before": 3964769,
+          "ui_step_after": 3964881,
+          "daemon_steps_before": 3964771,
+          "daemon_steps_after": 3964882,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 33,
+            "ackActivation": 33,
+            "packetAssay": "circadian-dam",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "cda0b3455c999cce",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 3,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "courtship",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:32.205054+00:00",
+          "badge": "COURTSHIP",
+          "arena_assay": "courtship",
+          "packet_assay": "courtship",
+          "daemon_assay": "courtship",
+          "bounds": {
+            "minX": 0,
+            "maxX": 20,
+            "minY": 0,
+            "maxY": 20
+          },
+          "packet_bounds": [
+            1.5,
+            1.5,
+            18.5,
+            18.5
+          ],
+          "walls": 24,
+          "fly": {
+            "x": 4.48145,
+            "y": 9.84444
+          },
+          "ui_step_before": 3964881,
+          "ui_step_after": 3964992,
+          "daemon_steps_before": 3964882,
+          "daemon_steps_after": 3964993,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 34,
+            "ackActivation": 34,
+            "packetAssay": "courtship",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "c26226986bdef6e7",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 13,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "labyrinth",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:34.476603+00:00",
+          "badge": "LABYRINTH",
+          "arena_assay": "labyrinth",
+          "packet_assay": "labyrinth",
+          "daemon_assay": "labyrinth",
+          "bounds": {
+            "minX": 0,
+            "maxX": 140,
+            "minY": 0,
+            "maxY": 100
+          },
+          "packet_bounds": [
+            0,
+            0,
+            140,
+            100
+          ],
+          "walls": 16,
+          "fly": {
+            "x": 16.36179,
+            "y": 15.0126
+          },
+          "ui_step_before": 3964992,
+          "ui_step_after": 3965102,
+          "daemon_steps_before": 3964993,
+          "daemon_steps_after": 3965104,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 35,
+            "ackActivation": 35,
+            "packetAssay": "labyrinth",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "83bb06fcdd4da33a",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 33,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        },
+        {
+          "assay": "multisensory-sandbox",
+          "switch_ok": true,
+          "at": "2026-09-21T12:20:36.900963+00:00",
+          "badge": "MULTISENSORY SANDBOX",
+          "arena_assay": "multisensory-sandbox",
+          "packet_assay": "multisensory-sandbox",
+          "daemon_assay": "multisensory-sandbox",
+          "bounds": {
+            "minX": -80,
+            "maxX": 80,
+            "minY": -80,
+            "maxY": 80
+          },
+          "packet_bounds": [
+            -75,
+            -75,
+            75,
+            75
+          ],
+          "walls": 64,
+          "fly": {
+            "x": 1.27822,
+            "y": 0.54073
+          },
+          "ui_step_before": 3965112,
+          "ui_step_after": 3965224,
+          "daemon_steps_before": 3965114,
+          "daemon_steps_after": 3965225,
+          "identity": {
+            "backend": "modular",
+            "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+            "assists": "ON (wall_avoidance_reflex, contact_turn)",
+            "motor": "modular",
+            "fault": "none",
+            "assistance": "--",
+            "packetActivation": 36,
+            "ackActivation": 36,
+            "packetAssay": "multisensory-sandbox",
+            "rejected": 0,
+            "banner": ""
+          },
+          "canvas_sha256_16": "6ace9c978777cdd9",
+          "canvas_changed_from_prev": true,
+          "data_age_ms": 6,
+          "pill": "\u25cf LIVE DAEMON",
+          "errors": [],
+          "console_errors": [],
+          "fly_inside_bounds": true,
+          "checks": {
+            "acked": true,
+            "ui_matches_daemon": true,
+            "identity_assay_matches": true,
+            "activation_current": true,
+            "steps_advancing": true,
+            "daemon_steps_monotonic": true,
+            "fly_inside": true,
+            "live": true,
+            "no_errors": true
+          },
+          "pass": true
+        }
+      ],
+      "pass": true,
+      "distinct_canvases": 14,
+      "distinct_bounds": 12
+    },
+    "rapid_selection": {
+      "at": "2026-09-21T12:20:37.036915+00:00",
+      "sequence": [
+        "t-maze",
+        "wind-tunnel",
+        "looming-escape",
+        "heat-maze",
+        "y-maze"
+      ],
+      "settled": true,
+      "settle_ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "Y MAZE",
+        "step": "3965373",
+        "simTime": "79307.46s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "48",
+        "runState": "REST \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 36,
+        "lastStep": 3965373,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "y-maze",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 0,
+            "maxX": 120,
+            "minY": 0,
+            "maxY": 120
+          },
+          "walls": 9,
+          "fly": {
+            "x": 71.72945,
+            "y": 57.76269
+          },
+          "packetAssay": "y-maze",
+          "packetBounds": [
+            12,
+            12,
+            108,
+            108
+          ],
+          "packetStep": 3965373
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a12c3d246485",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142039-a12c3d246485",
+          "packetActivation": 41,
+          "packetAssay": "y-maze",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "post_settle_samples": [
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965375,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965395,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965415,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965435,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965455,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965475,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965495,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965515,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965535,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965555,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965576,
+          "act": 41,
+          "ack": 41
+        },
+        {
+          "packetAssay": "y-maze",
+          "arenaAssay": "y-maze",
+          "badge": "Y MAZE",
+          "step": 3965596,
+          "act": 41,
+          "ack": 41
+        }
+      ],
+      "daemon_assay": "y-maze",
+      "daemon_steps_before": 3965234,
+      "daemon_steps_after": 3965618,
+      "rejected_before": 0,
+      "rejected_after": 1,
+      "checks": {
+        "settled_on_last": true,
+        "daemon_agrees": true,
+        "no_stale_after_settle": true,
+        "activation_current": true,
+        "no_hidden_reset": true,
+        "steps_monotonic_in_ui": true,
+        "no_errors": true
+      },
+      "pass": true
+    },
+    "two_tab_sync": {
+      "tab_b_live": true,
+      "tab_b_switch_ok": true,
+      "tab_b": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3965755",
+        "simTime": "79315.10s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "38",
+        "runState": "REST \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 30,
+        "lastStep": 3965755,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 47.35561,
+            "y": 43.5739
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3965755
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 42,
+          "ackAssay": "buridan",
+          "rejected": 0
+        }
+      },
+      "tab_a_followed": true,
+      "tab_a": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3965830",
+        "simTime": "79316.60s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "43",
+        "runState": "REST \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 32,
+        "lastStep": 3965830,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 47.35561,
+            "y": 43.5739
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3965830
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "daemon": "buridan",
+      "checks": {
+        "tab_b_switched": true,
+        "tab_a_followed": true,
+        "tab_a_badge": true,
+        "tab_a_still_live": true,
+        "tab_a_steps_advancing": true,
+        "tab_a_no_errors": true
+      },
+      "pass": true
+    },
+    "speed_control": {
+      "steps": [
+        {
+          "requested": 1.0,
+          "samples": [
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "1x",
+              "ui_achieved": "1.0x",
+              "ui_data_age_ms": 5,
+              "ui_step": 3966138,
+              "server_requested": 1.0,
+              "server_achieved": 1.0,
+              "server_overloaded": false,
+              "server_step": 3966139
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "1x",
+              "ui_achieved": "1.0x",
+              "ui_data_age_ms": 16,
+              "ui_step": 3966188,
+              "server_requested": 1.0,
+              "server_achieved": 1.0,
+              "server_overloaded": false,
+              "server_step": 3966189
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "1x",
+              "ui_achieved": "1.0x",
+              "ui_data_age_ms": 17,
+              "ui_step": 3966238,
+              "server_requested": 1.0,
+              "server_achieved": 1.0,
+              "server_overloaded": false,
+              "server_step": 3966239
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "1x",
+              "ui_achieved": "1.0x",
+              "ui_data_age_ms": 18,
+              "ui_step": 3966288,
+              "server_requested": 1.0,
+              "server_achieved": 1.0,
+              "server_overloaded": false,
+              "server_step": 3966289
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "1x",
+              "ui_achieved": "1.0x",
+              "ui_data_age_ms": 14,
+              "ui_step": 3966338,
+              "server_requested": 1.0,
+              "server_achieved": 1.0,
+              "server_overloaded": false,
+              "server_step": 3966340
+            }
+          ],
+          "checks": {
+            "server_requested_matches": true,
+            "ui_shows_requested": true,
+            "achieved_reported": true,
+            "never_disconnected": true,
+            "view_not_frozen": true,
+            "data_fresh": true
+          },
+          "achieved_vs_requested": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "pass": true
+        },
+        {
+          "requested": 20.0,
+          "samples": [
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "20x",
+              "ui_achieved": "20.1x",
+              "ui_data_age_ms": 39,
+              "ui_step": 3972373,
+              "server_requested": 20.0,
+              "server_achieved": 20.165,
+              "server_overloaded": false,
+              "server_step": 3972439
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "20x",
+              "ui_achieved": "20.0x",
+              "ui_data_age_ms": 12,
+              "ui_step": 3973417,
+              "server_requested": 20.0,
+              "server_achieved": 19.989,
+              "server_overloaded": false,
+              "server_step": 3973448
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "20x",
+              "ui_achieved": "20.0x",
+              "ui_data_age_ms": 23,
+              "ui_step": 3974417,
+              "server_requested": 20.0,
+              "server_achieved": 20.014,
+              "server_overloaded": false,
+              "server_step": 3974452
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "20x",
+              "ui_achieved": "20.0x",
+              "ui_data_age_ms": 2,
+              "ui_step": 3975443,
+              "server_requested": 20.0,
+              "server_achieved": 19.999,
+              "server_overloaded": false,
+              "server_step": 3975458
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "20x",
+              "ui_achieved": "20.0x",
+              "ui_data_age_ms": 16,
+              "ui_step": 3976434,
+              "server_requested": 20.0,
+              "server_achieved": 19.998,
+              "server_overloaded": false,
+              "server_step": 3976467
+            }
+          ],
+          "checks": {
+            "server_requested_matches": true,
+            "ui_shows_requested": true,
+            "achieved_reported": true,
+            "never_disconnected": true,
+            "view_not_frozen": true,
+            "data_fresh": true
+          },
+          "achieved_vs_requested": [
+            20.165,
+            19.989,
+            20.014,
+            19.999,
+            19.998
+          ],
+          "pass": true
+        },
+        {
+          "requested": 100.0,
+          "samples": [
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "100x",
+              "ui_achieved": "28.2x",
+              "ui_data_age_ms": 9,
+              "ui_step": 3985802,
+              "server_requested": 100.0,
+              "server_achieved": 28.225,
+              "server_overloaded": true,
+              "server_step": 3985855
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "100x",
+              "ui_achieved": "28.5x",
+              "ui_data_age_ms": 30,
+              "ui_step": 3987248,
+              "server_requested": 100.0,
+              "server_achieved": 28.475,
+              "server_overloaded": true,
+              "server_step": 3987321
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "100x",
+              "ui_achieved": "28.7x",
+              "ui_data_age_ms": 5,
+              "ui_step": 3988715,
+              "server_requested": 100.0,
+              "server_achieved": 28.739,
+              "server_overloaded": true,
+              "server_step": 3988750
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "100x",
+              "ui_achieved": "27.9x",
+              "ui_data_age_ms": 10,
+              "ui_step": 3990089,
+              "server_requested": 100.0,
+              "server_achieved": 27.905,
+              "server_overloaded": true,
+              "server_step": 3990141
+            },
+            {
+              "pill": "\u25cf LIVE DAEMON",
+              "ui_speed": "100x",
+              "ui_achieved": "28.1x",
+              "ui_data_age_ms": 16,
+              "ui_step": 3991535,
+              "server_requested": 100.0,
+              "server_achieved": 28.202,
+              "server_overloaded": true,
+              "server_step": 3991594
+            }
+          ],
+          "checks": {
+            "server_requested_matches": true,
+            "ui_shows_requested": true,
+            "achieved_reported": true,
+            "never_disconnected": true,
+            "view_not_frozen": true,
+            "data_fresh": true
+          },
+          "achieved_vs_requested": [
+            28.225,
+            28.475,
+            28.739,
+            27.905,
+            28.202
+          ],
+          "pass": true
+        }
+      ],
+      "pass": true,
+      "errors": []
+    },
+    "pause_resume": {
+      "before": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3993237",
+        "simTime": "79864.74s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "43",
+        "runState": "WANDER \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 12,
+        "lastStep": 3993238,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 67.78913,
+            "y": 74.70379
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3993238
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "paused_first": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3993240",
+        "simTime": "79864.80s",
+        "speed": "1x",
+        "achieved": "paused",
+        "dataAge": "0.0s",
+        "fps": "43",
+        "runState": "PAUSED",
+        "pauseLabel": "Resume",
+        "banner": "",
+        "dataAgeMs": 42,
+        "lastStep": 3993240,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 67.72642,
+            "y": 74.68747
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3993240
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "paused_after_4s": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3993240",
+        "simTime": "79864.80s",
+        "speed": "1x",
+        "achieved": "paused",
+        "dataAge": "0.3s",
+        "fps": "60",
+        "runState": "PAUSED",
+        "pauseLabel": "Resume",
+        "banner": "",
+        "dataAgeMs": 38,
+        "lastStep": 3993240,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 67.72642,
+            "y": 74.68747
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3993240
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "resumed": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "BURIDAN",
+        "step": "3993241",
+        "simTime": "79864.82s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.1s",
+        "fps": "60",
+        "runState": "WANDER \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 15,
+        "lastStep": 3993241,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "buridan",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": 10,
+            "maxX": 110,
+            "minY": 10,
+            "maxY": 110
+          },
+          "walls": 32,
+          "fly": {
+            "x": 67.69505,
+            "y": 74.67935
+          },
+          "packetAssay": "buridan",
+          "packetBounds": [
+            10,
+            10,
+            110,
+            110
+          ],
+          "packetStep": 3993241
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run a71751f3341b",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142045-a71751f3341b",
+          "packetActivation": 42,
+          "packetAssay": "buridan",
+          "ackActivation": 41,
+          "ackAssay": "y-maze",
+          "rejected": 1
+        }
+      },
+      "server_paused": true,
+      "server_resumed_paused": false,
+      "server_steps_paused": 3993240,
+      "checks": {
+        "ui_shows_paused": true,
+        "server_paused": true,
+        "steps_frozen": true,
+        "clock_frozen": true,
+        "metrics_retained": true,
+        "not_disconnected_flag": true,
+        "resumed": true,
+        "server_running_again": true,
+        "no_errors": true
+      },
+      "pass": true
+    },
+    "restore": {
+      "target": {
+        "assay": "open-arena",
+        "sim_speed": 1.0,
+        "paused": false
+      },
+      "ui": {
+        "pill": "\u25cf LIVE DAEMON",
+        "badge": "OPEN ARENA",
+        "step": "3993452",
+        "simTime": "79869.04s",
+        "speed": "1x",
+        "achieved": "1.0x",
+        "dataAge": "0.0s",
+        "fps": "60",
+        "runState": "SURGE \u00b7 CONTINUOUS OBSERVATION",
+        "pauseLabel": "Pause",
+        "banner": "",
+        "dataAgeMs": 22,
+        "lastStep": 3993452,
+        "errors": [],
+        "consoleErrors": [],
+        "toolsPanel": {
+          "present": true,
+          "buttons": [
+            "Inspect Fly",
+            "Drop Food (Odor A)",
+            "Alarm Pheromone (Odor B)",
+            "Deploy Threat",
+            "Drag Wind"
+          ],
+          "visible": true
+        },
+        "arena": {
+          "assay": "open-arena",
+          "remoteDriven": true,
+          "bounds": {
+            "minX": -140,
+            "maxX": 140,
+            "minY": -100,
+            "maxY": 100
+          },
+          "walls": 4,
+          "fly": {
+            "x": 3.070839999999997,
+            "y": 0.7436399999999992
+          },
+          "packetAssay": "open-arena",
+          "packetBounds": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "packetStep": 3993452
+        },
+        "ident": {
+          "backend": "modular",
+          "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+          "assists": "ON (wall_avoidance_reflex, contact_turn)",
+          "motor": "modular",
+          "fault": "none",
+          "run": "run 68d7d74cff45",
+          "assistance": "--",
+          "optoMap": "--",
+          "banner": "",
+          "packetRun": "20260921T142128-68d7d74cff45",
+          "packetActivation": 43,
+          "packetAssay": "open-arena",
+          "ackActivation": 43,
+          "ackAssay": "open-arena",
+          "rejected": 1
+        }
+      },
+      "daemon_status": {
+        "active_paradigm": "open-arena",
+        "sim_speed": 1.0,
+        "paused": false,
+        "total_steps": 3993453
+      },
+      "checks": {
+        "assay_restored": true,
+        "speed_restored": true,
+        "running": true,
+        "ui_agrees": true,
+        "ui_live": true,
+        "acked": true
+      },
+      "pass": true
+    }
+  },
+  "screenshots": [
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/01-initial-load.png",
+      "bytes": 416268
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/02-assay-optomotor.png",
+      "bytes": 389687
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/02-assay-labyrinth.png",
+      "bytes": 389615
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/03-identity-bar.png",
+      "bytes": 467035
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/04-after-rapid.png",
+      "bytes": 421146
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/05-tabA-follows-tabB.png",
+      "bytes": 385517
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/06-speed-100x.png",
+      "bytes": 396559
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/07-paused.png",
+      "bytes": 391380
+    },
+    {
+      "file": "/home/avg-usr/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/08-restored-open-arena-1x.png",
+      "bytes": 419057
+    }
+  ],
+  "browser": {
+    "name": "firefox",
+    "version": "156.0",
+    "platform": "linux",
+    "headless": true,
+    "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0",
+    "geckodriver": "/snap/bin/geckodriver",
+    "firefox_binary": "0.37.1",
+    "viewport": [
+      1600,
+      914,
+      1
+    ],
+    "loaded_url": "http://127.0.0.1:8780/"
+  },
+  "status_at_start": {
+    "status": "online",
+    "error": null,
+    "paused": false,
+    "continuous": true,
+    "service": "Project NeuroFly Continuous Learning Daemon",
+    "uptime_sec": 78026.9,
+    "total_steps": 3963457,
+    "sim_speed": 1.0,
+    "active_paradigm": "open-arena",
+    "active_paradigm_title": "Open Arena Assay",
+    "current_trial": 1,
+    "trials_completed": 0,
+    "trial_elapsed_s": 77587.3,
+    "trial_length_s": 120.0,
+    "world_bounds": [
+      0.0,
+      0.0,
+      100.0,
+      100.0
+    ],
+    "stream": {
+      "public": false,
+      "read_only": false,
+      "commands_require_token": false,
+      "max_stream_clients": 0,
+      "stream_hz": 30.0,
+      "active_stream_clients": 2,
+      "rejected_stream_clients": 0,
+      "rejected_commands": 0,
+      "delivered_snapshots": 4656023,
+      "decimated_snapshots": 3139183
+    },
+    "identity": {
+      "run_id": "20260920T164654-63abde71ed83",
+      "instance_id": "99bc08c9f1854dbd9bfd9d244dcdef5b",
+      "assay": "open-arena",
+      "backend": "modular",
+      "controller_version": "modular-mb-v1",
+      "graph_sha256": null,
+      "neuron_map_sha256": null,
+      "io_map_sha256": null,
+      "synthetic": false,
+      "test_mode": false,
+      "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+      "activation": 22,
+      "daemon_run_id": "7deb34e122b14ba0aee4e6913d32b1f6"
+    },
+    "motor": {
+      "controller_backend": "modular",
+      "motor_assists": {
+        "wall_avoidance_reflex": true,
+        "contact_turn": true
+      },
+      "motor_assists_enabled": true,
+      "motor_source": "modular",
+      "motor_source_normal": true,
+      "motor_halted": false,
+      "controller_fault": null,
+      "assist_totals": {
+        "steps": 3879365,
+        "near_wall_steps": 650,
+        "contact_steps": 90,
+        "wall_reflex_steps": 0,
+        "wall_reflex_abs_yaw_rad": 0.0,
+        "controller_yaw_suppressed_steps": 0,
+        "contact_turn_events": 90,
+        "contact_turn_abs_rad": 7.200000000000005,
+        "solver_contact_steps": 90,
+        "solver_correction_mm": 0.0,
+        "overlap_correction_steps": 0,
+        "overlap_correction_mm": 0.0,
+        "failsafe_corrections": 90,
+        "failsafe_correction_mm": 2.572382736485063
+      },
+      "record": {
+        "step": 3879365,
+        "state": "SURGE",
+        "controller_yaw": 0.006945,
+        "controller_speed": 0.243,
+        "wall_reflex_yaw": 0.0,
+        "controller_yaw_suppressed": false,
+        "contact_turn_rad": 0.0,
+        "attempted_mm": 0.00486,
+        "realized_mm": 0.00486,
+        "solver_correction_mm": 0.0,
+        "failsafe_correction_mm": 0.0,
+        "overlap_correction_mm": 0.0,
+        "wall_gap_mm": 45.621382,
+        "near_wall": false,
+        "in_contact": false,
+        "tethered": false,
+        "halted": false,
+        "contacts": 0
+      }
+    },
+    "controller_fault": null,
+    "backend": "modular",
+    "timing": {
+      "requested_speed": 1.0,
+      "achieved_speed": 1.0,
+      "integration_dt_s": 0.02,
+      "sim_time_s": 79269.14,
+      "step": 3963457,
+      "snapshot_seq": 3895252,
+      "publish_hz": 60.0,
+      "overloaded": false,
+      "schedule_rebases": 41,
+      "forgiven_wall_s": 15.286,
+      "max_batch_hold_ms": 1595.96,
+      "command_latency": {
+        "count": 27,
+        "p50_ms": 16.94,
+        "p95_ms": 27.07,
+        "max_ms": 29.29
+      }
+    },
+    "lock_profile": {
+      "simulation": {
+        "acquisitions": 7830659,
+        "mean_wait_ms": 0.0,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 13.44,
+        "window": 4096
+      },
+      "recorder": {
+        "acquisitions": 77997,
+        "mean_wait_ms": 0.228,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 10.907,
+        "max_wait_ms": 1465.949,
+        "window": 4096
+      },
+      "http": {
+        "acquisitions": 2696,
+        "mean_wait_ms": 0.052,
+        "p50_wait_ms": 0.0,
+        "p95_wait_ms": 0.0,
+        "p99_wait_ms": 0.0,
+        "max_wait_ms": 64.986,
+        "window": 2696
+      }
+    }
+  },
+  "final_console_errors": [],
+  "final_app_errors": [],
+  "finished_at": "2026-09-21T12:21:33.393962+00:00",
+  "pass": true
+}

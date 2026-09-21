@@ -27,3 +27,8 @@ experiment_data/battery/
 # Generated, shareable research summaries and latest batch bundle
 /web/research-status.json
 /web/research-latest.zip
+
+# Agent worktrees, setuptools build output, and the separately versioned site repo
+/.claude/
+/build/
+/neurofly-site/
