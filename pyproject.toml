@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "neurofly"
 version = "0.2.0"
-description = "Embodied Drosophila behavioural simulation with a MaleCNS-derived spiking substrate (brainlab) and a streaming learning daemon"
+description = "A MaleCNS connectome coupled to an articulated FlyGym body"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -14,36 +14,48 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 [project.optional-dependencies]
+body = [
+    "flygym==2.1.0; python_version >= '3.12' and python_version < '3.15'",
+    "mujoco==3.9.0; python_version >= '3.12' and python_version < '3.15'",
+]
 test = ["pytest", "brian2"]
 
 [tool.setuptools]
-packages = ["brainlab", "experiments"]
+packages = ["brainlab", "experiments", "neurofly_body"]
 py-modules = [
     "arena",
+    "assay_controls",
+    "assay_response",
     "central_complex",
     "circuit",
     "connectome_bridge",
     "connectome_client",
     "data_logger",
     "env_adapter",
+    "experiment_brains",
+    "experiment_registry",
     "learning_recorder",
     "locomotion",
     "maze",
     "mechanosensory",
     "metabolic",
     "neurofly_daemon",
+    "online_metrics",
+    "provenance",
     "stream_gateway",
     "surge_cast",
     "vision",
 ]
 
 [tool.setuptools.package-data]
-brainlab = ["datasets.json"]
+brainlab = ["datasets.json", "graph_pins.json"]
+experiments = ["data/*.csv", "data/*.json", "data/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

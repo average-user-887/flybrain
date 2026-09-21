@@ -1,4 +1,9 @@
-# Handoff to Codex — 2026-09-21
+# Historical handoff to Codex — 2026-09-21
+
+> This is the pre-MVP handoff, not the current installation guide. Private
+> deployment identifiers have been redacted; original operational copies were
+> archived outside the public checkout. Start with `README.md` and
+> `docs/EMBODIED_MVP.md` for the implemented MVP.
 
 Written by the Claude orchestrator after an Antigravity (Gemini) session ran out of quota mid-task.
 Everything under "Verified" was checked directly on the hosts at handoff time. Everything under
@@ -19,11 +24,11 @@ Nothing from that plan has been implemented.
 
 | Where | Path | Role |
 |---|---|---|
-| Ryzen 3900X (`avg-usr@192.168.194.227`, ZeroTier) | `~/Documents/ChatGPT/flybrain`, branch `master` | **Canonical repo. Work here.** Holds `connectome_data/malecns_v1/` (~1.4 GB, gitignored) and `.venv/`. |
+| Ryzen 3900X (`<operator>@<simulation-host>`, ZeroTier) | `~/Documents/ChatGPT/flybrain`, branch `master` | **Canonical repo. Work here.** Holds `connectome_data/malecns_v1/` (~1.4 GB, gitignored) and `.venv/`. |
 | Ryzen worktree | `.claude/worktrees/neurofly-openready`, branch `worktree-neurofly-openready` (at `a544bfa`) | Locked. **Hosts the running observatory + dashboard (see §4). Do not remove it** while those run. |
 | Ryzen, nested repo | `neurofly-site/` (branch `main`, own `.git`, no remote) | Next.js download site. Ignored by the parent repo. |
-| hpserver storage | `/mnt/hpserver-storage/neurofly/` on Ryzen = SMB `//192.168.1.23/Storage/neurofly` | Archive mirror. `snapshots/<sha>/` + `CURRENT_HANDOFF.md`. |
-| Windows laptop | `C:\Users\Łukasz Wolny\Documents\Sluzbowy_hp\flybrain` | Mirror. Git is **not installed**; `.git` is restored from the snapshot tarball. |
+| hpserver storage | `/mnt/hpserver-storage/neurofly/` on Ryzen = SMB `//<archive-host>/Storage/neurofly` | Archive mirror. `snapshots/<sha>/` + `CURRENT_HANDOFF.md`. |
+| Windows laptop | `<laptop-checkout>` | Mirror. Historical `.git` snapshot restore; Git is now installed and the mirror is verified. |
 | Windows laptop | `...\Sluzbowy_hp\neurofly_v1_shipping` | Plain export (not a git repo) at `a544bfa`. Stale by docs-only commits; refresh only when shipping. |
 
 There is **no git remote anywhere**. Sync = snapshot, not push.
@@ -102,7 +107,10 @@ Assists: ON (wall_avoidance_reflex, contact_turn) · Motor: modular`.
   `139759bc`). Four components: sensory ingress → full graph; DN readout → locomotion; 18-DOF articulated
   walking (FlyGym/MuJoCo or upgraded CPG); dashboard 3D viewport + premotor deck + identity bar
   `Controller: connectome`. Its open question on plasticity scope (hybrid MB plasticity vs static graph) is **still undecided by the owner**.
-- `docs/ANTIGRAVITY_PLAN_2026-09-17.md`: an older Antigravity plan from 2026-09-17, kept for reference only.
+- Cleanup correction (2026-09-21): the former `docs/ANTIGRAVITY_PLAN_2026-09-17.md`
+  was a misplaced **Uroboros** plan, not a NeuroFly plan. It was archived outside
+  the checkout before removal; its original contents remain in Git history at
+  `4db4b88`. See `docs/REPOSITORY_LAYOUT.md` for the active project layout.
 
 ## 7. Recommended first slice (smallest honest end-to-end)
 

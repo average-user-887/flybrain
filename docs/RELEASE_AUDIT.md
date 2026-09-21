@@ -1,4 +1,8 @@
-# Open-source release audit
+# Historical open-source release audit
+
+> September 21 cleanup: infrastructure identifiers quoted as findings below
+> have been redacted. This is a historical checklist, not a claim that the
+> original listed open items remain unchanged. Original copy retained privately.
 
 Date: 2026-09-19. Scope: the whole worktree (`.venv`, `.git` and the
 git-ignored `upstream/`, `connectome_data/`, `runs/`, `outputs/` excluded
@@ -16,16 +20,16 @@ owner call.
 
 | # | File:line | Finding | Suggested change | Status |
 | --- | --- | --- | --- | --- |
-| 1 | `README.md:105-111` | `docker exec ... 65dcff428c87`, `ssh avg-usr@192.168.194.227`, `/home/avg-usr/...` | rewritten | fixed |
-| 2 | `sync_ecosystem.py:65,89-90,222-226` | SSH key name `repo_audit_linux`, UNC `//192.168.1.23/Storage/neurofly`, `Z:/neurofly`, default host `avg-usr@192.168.194.227`, container id | rewritten: all targets opt-in via `NEUROFLY_REMOTE_HOST/REMOTE_DIR/DOCKER_TARGET/ARCHIVE_DIR/SSH_KEY`; no defaults | fixed |
+| 1 | `README.md:105-111` | `docker exec ... <private-container-id>`, `ssh <operator>@<simulation-host>`, `/home/<operator>/...` | rewritten | fixed |
+| 2 | `sync_ecosystem.py:65,89-90,222-226` | SSH key name `<private-ssh-key>`, UNC `//<archive-host>/Storage/neurofly`, `Z:/neurofly`, default host `<operator>@<simulation-host>`, container id | rewritten: all targets opt-in via `NEUROFLY_REMOTE_HOST/REMOTE_DIR/DOCKER_TARGET/ARCHIVE_DIR/SSH_KEY`; no defaults | fixed |
 | 3 | `neurofly_daemon.py:6` | "AMD Ryzen workstation" in docstring | neutral wording | fixed |
 | 4 | `start_daemon_ryzen.sh`, `stop_daemon_ryzen.sh` | file names carry the host name; content is generic | rename to `start_daemon.sh` / `stop_daemon.sh` via `git mv` (orchestrator); content updated to document `NEUROFLY_PUBLIC`, `NEUROFLY_ADMIN_TOKEN`, `NEUROFLY_DATA_DIR` and pass extra flags through | open (rename) |
-| 5 | `CLAUDE_HANDOFF.md:14-16, 33-37, 45-59, 188-195` | container id `65dcff428c87`, `192.168.194.227`, `avg-usr@`, `~/.ssh/repo_audit_linux`, daemon PID, `Z:\neurofly`, `//192.168.1.23/Storage/...`, Windows dev root, `scratch/sync_standalone.py` (not in repo) | Either move to `docs/INTERNAL_HANDOFF.md` with section 2 and the command block removed, or keep out of the public tree. Sections 3-7 are fine to publish once the scale claims match the README | open |
-| 6 | `arena.py:84, 465` (line numbers drift while the physics agent edits; search `connectome_host`) | `connectome_host: str = '192.168.194.227'` | `os.environ.get("NEUROFLY_CONNECTOME_HOST", "127.0.0.1")` | open (owner: physics agent) |
-| 7 | `connectome_bridge.py:28, 63` | "Remote RPC client connecting to Ryzen workstation"; `rpc_host: str = "192.168.194.227"` | same env default; neutral wording | open |
-| 8 | `connectome_client.py:4-5, 24, 42, 75` | "remote Ryzen ... spiking engine"; `host: str = "192.168.194.227"` | same env default; neutral wording | open |
-| 9 | `web/app.js:3322` (search `192.168` and `Ryzen cluster daemon`) and `flybrain_scientific_instrument.html:4615, 4668, 5341` | `list.push(\`http://192.168.194.227:${port}\`)` in the daemon candidate URL list; "Ryzen cluster daemon" tooltips | drop the LAN entry (keep `window.location.hostname`, `localhost`, `127.0.0.1`, plus an optional `?daemon=` query/`data-daemon-url` attribute); neutral wording | open (owner: web agent) |
-| 10 | `BRAINLAB.md:10, 31, 37-40`; `RUNS.md:6`; `FULL_BRAIN_TEST.md:26`; `LEARNING_DEMO.md:8, 50` | absolute `/home/avg-usr/Documents/ChatGPT/flybrain` paths; `/home/avg-usr/.cache/codex-runtimes/.../node` | replace with relative commands (`.venv/bin/python -m brainlab...`, `node scripts/check_learning_ui.cjs`) | open |
+| 5 | `CLAUDE_HANDOFF.md:14-16, 33-37, 45-59, 188-195` | container id `<private-container-id>`, `<simulation-host>`, `<operator>@`, `~/.ssh/<private-ssh-key>`, daemon PID, `Z:\neurofly`, `//<archive-host>/Storage/...`, Windows dev root, `scratch/sync_standalone.py` (not in repo) | Either move to `docs/INTERNAL_HANDOFF.md` with section 2 and the command block removed, or keep out of the public tree. Sections 3-7 are fine to publish once the scale claims match the README | open |
+| 6 | `arena.py:84, 465` (line numbers drift while the physics agent edits; search `connectome_host`) | `connectome_host: str = '<simulation-host>'` | `os.environ.get("NEUROFLY_CONNECTOME_HOST", "127.0.0.1")` | open (owner: physics agent) |
+| 7 | `connectome_bridge.py:28, 63` | "Remote RPC client connecting to Ryzen workstation"; `rpc_host: str = "<simulation-host>"` | same env default; neutral wording | open |
+| 8 | `connectome_client.py:4-5, 24, 42, 75` | "remote Ryzen ... spiking engine"; `host: str = "<simulation-host>"` | same env default; neutral wording | open |
+| 9 | `web/app.js:3322` (search `192.168` and `Ryzen cluster daemon`) and `flybrain_scientific_instrument.html:4615, 4668, 5341` | `list.push(\`http://<simulation-host>:${port}\`)` in the daemon candidate URL list; "Ryzen cluster daemon" tooltips | drop the LAN entry (keep `window.location.hostname`, `localhost`, `127.0.0.1`, plus an optional `?daemon=` query/`data-daemon-url` attribute); neutral wording | open (owner: web agent) |
+| 10 | `BRAINLAB.md:10, 31, 37-40`; `RUNS.md:6`; `FULL_BRAIN_TEST.md:26`; `LEARNING_DEMO.md:8, 50` | absolute `/home/<operator>/Documents/ChatGPT/flybrain` paths; `/home/<operator>/.cache/codex-runtimes/.../node` | replace with relative commands (`.venv/bin/python -m brainlab...`, `node scripts/check_learning_ui.cjs`) | open |
 | 11 | `brainlab/cosim_server.py:5` | "on Ryzen / remote compute nodes" | neutral wording | open (cosmetic) |
 | 12 | `experiment_data/ryzen_battery/**` (108 files, 1.9 MB, tracked) | directory named after the host; `PARADIGM_REPORT.md` embeds that path; the data is a 3×200-step smoke battery with all-zero performance indices | `git rm -r --cached` and ignore (regenerable with one command), or `git mv` to `examples/battery_smoke/` if an example is wanted. Nothing to delete on disk | decision |
 | 13 | `docs/OPEN_SOURCE_PLAN.md:3, 6` | "Ryzen worktree", "live Ryzen tree" | harmless internal wording; leave or neutralise | open (cosmetic) |
