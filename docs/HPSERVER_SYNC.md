@@ -2,7 +2,7 @@
 
 Source revision: `75f6d3aa264bd64ebcc4759658d54f290e8608be` (accepted remediation plan).
 Destination: `/mnt/<redacted-host>-storage/neurofly/snapshots/75f6d3a/`.
-SMB location: `//<redacted-ip>/Storage/neurofly`.
+SMB location: `//<archive-host>/Storage/neurofly`.
 
 Gemini's existing root snapshot and `CLAUDE_HANDOFF.md` are preserved. Comparison
 found 40 identical tracked files, 18 differing files and 223 local tracked files

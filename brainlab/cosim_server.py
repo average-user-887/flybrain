@@ -37,12 +37,21 @@ except ImportError:
 
 try:
     from .graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, dynamics_pin,
+                                 DYNAMICS_VERSIONS, active_dynamics_version,
                                  resolve_connectome_dir, resolve_graph_dir, sha256_json,
                                  synthetic_test_graph, verify_graph)
 except ImportError:
     from brainlab.graph_identity import (DN_CHANNELS, SYNTHETIC_LABEL, GraphUnavailable, dynamics_pin,
+                                         DYNAMICS_VERSIONS, active_dynamics_version,
                                          resolve_connectome_dir, resolve_graph_dir, sha256_json,
                                          synthetic_test_graph, verify_graph)
+
+try:
+    from .transmitter_policy import (POLICIES, POLICY_LEGACY, POLICY_V3, UNCLEAR_MODES,
+                                     describe as describe_transmitter_policy)
+except ImportError:
+    from brainlab.transmitter_policy import (POLICIES, POLICY_LEGACY, POLICY_V3, UNCLEAR_MODES,
+                                             describe as describe_transmitter_policy)
 
 # Engineered inputs that bypass sensory pathways; reported, never hidden (WP5).
 # Gated by ConnectomeServer(engineered_assistance=...) / --no-engineered-assistance;
@@ -69,7 +78,14 @@ class ConnectomeServer:
     def __init__(self, graph_path: Optional[Path] = None, metadata_path: Optional[Path] = None, *,
                  graph_dir: Optional[Path] = None, connectome_dir: Optional[Path] = None,
                  allow_synthetic: bool = False, engineered_assistance: bool = True,
-                 optomotor_seed: int = 0):
+                 optomotor_seed: int = 0, dynamics: Optional[str] = None,
+                 transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory'):
+        """Create a fixed-weight controller with an explicit LIF/policy pairing.
+
+        ``dynamics`` defaults to the declared process setting. v1/v2 keep the
+        prepared graph unchanged; v3 defaults to ``v3-modulatory-only``, which
+        derives a distinct in-memory graph identity without altering graph.npz.
+        """
         if graph_path is not None:
             graph_path = Path(graph_path)
             if graph_path.name != "graph.npz":
@@ -84,7 +100,25 @@ class ConnectomeServer:
         self.allow_synthetic = allow_synthetic
         self.engineered_assistance = bool(engineered_assistance)
         self.optomotor_seed = int(optomotor_seed)
+        self.dynamics = dynamics if dynamics is not None else active_dynamics_version()
+        if self.dynamics not in DYNAMICS_VERSIONS:
+            raise ValueError(f"Unknown dynamics version {self.dynamics!r}; "
+                             f"declared: {sorted(DYNAMICS_VERSIONS)}")
+        self.transmitter_policy = (transmitter_policy if transmitter_policy is not None
+                                   else (POLICY_V3 if self.dynamics == 'v3' else POLICY_LEGACY))
+        if self.transmitter_policy not in POLICIES:
+            raise ValueError(f"Unknown transmitter policy {self.transmitter_policy!r}; "
+                             f"declared: {list(POLICIES)}")
+        if unclear_mode not in UNCLEAR_MODES:
+            raise ValueError(f"Unknown unclear_mode {unclear_mode!r}; declared: {list(UNCLEAR_MODES)}")
+        if self.dynamics != 'v3' and self.transmitter_policy != POLICY_LEGACY:
+            raise ValueError(f"LIF dynamics {self.dynamics!r} requires the legacy prepared weights; "
+                             f"{POLICY_V3!r} is only valid with dynamics='v3'")
+        self.unclear_mode = unclear_mode
+        self.transmitter_policy_report = describe_transmitter_policy(
+            self.transmitter_policy, self.unclear_mode)
         self.optomotor = None          # (io map, encoder, decoder) on the real graph only
+        self.shared_graph = None        # retains transformed v3 arrays for this controller
         self.brain = None
         self.identity = None
         self.n_neurons = 0
@@ -125,7 +159,25 @@ class ConnectomeServer:
             return
         print(f"[ConnectomeServer] Loading verified MaleCNS v1.0 graph {self.identity.graph_sha256[:12]} "
               f"from {self.graph_path} ({self.graph_dir_source})...", flush=True)
-        self.brain = Brain(self.graph_path)
+        if self.transmitter_policy == POLICY_V3:
+            # This mirrors scripts/wp5_optomotor.py: validate/load the pinned
+            # graph, apply the declared policy only in memory, and use the
+            # transformed identity. graph.npz remains byte-for-byte intact.
+            try:
+                from experiment_registry import SharedGraph
+                from .transmitter_policy import apply_to_shared
+            except ImportError:
+                from experiment_registry import SharedGraph
+                from brainlab.transmitter_policy import apply_to_shared
+            self.shared_graph = SharedGraph.load(self.graph_dir, self.connectome_dir)
+            self.shared_graph, self.transmitter_policy_report = apply_to_shared(
+                self.shared_graph, policy=self.transmitter_policy,
+                unclear_mode=self.unclear_mode, connectome_dir=self.connectome_dir)
+            self.identity = self.shared_graph.identity
+            self.identity.graph_path_source = self.graph_dir_source
+            self.brain = Brain(arrays=self.shared_graph.arrays, validate=False, dynamics=self.dynamics)
+        else:
+            self.brain = Brain(self.graph_path, dynamics=self.dynamics)
         self.n_neurons = self.brain.n
         self.n_edges = len(self.brain.post)
         print(f"[ConnectomeServer] Brain loaded: {self.n_neurons:,} neurons, {self.n_edges:,} synapses.", flush=True)
@@ -134,7 +186,15 @@ class ConnectomeServer:
         """Explicit test option only: a small in-memory graph, never written to disk."""
         self.is_synthetic = True
         arrays, self.identity, io_map = synthetic_test_graph(n=2500, k_out=15, seed=42)
-        self.brain = Brain(arrays=arrays)
+        # A synthetic graph has no released transmitter table. It is kept
+        # explicitly synthetic rather than pretending a MaleCNS policy was
+        # applied; the requested policy is still carried in every identity.
+        self.transmitter_policy_report = describe_transmitter_policy(
+            self.transmitter_policy, self.unclear_mode)
+        self.transmitter_policy_report.update(
+            applied_to_weights=False,
+            note='synthetic test graph has no MaleCNS transmitter metadata; no policy transform applied')
+        self.brain = Brain(arrays=arrays, dynamics=self.dynamics)
         self.n_neurons = self.brain.n
         self.n_edges = len(self.brain.post)
         self.dn_indices = io_map
@@ -186,6 +246,11 @@ class ConnectomeServer:
             "neuron_map_sha256": ident.neuron_map_sha256,
             "io_map_sha256": ident.io_map_sha256,
             "sensory_map_sha256": getattr(self, "sensory_map_sha256", None),
+            # graph_sha256 identifies the exact effective CSR arrays; paired
+            # with this declaration it cannot confuse prepared and v3
+            # policy-transformed fast weights.
+            "transmitter_policy": self.transmitter_policy,
+            "transmitter_policy_report": self.transmitter_policy_report,
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):

@@ -3,8 +3,7 @@
 Antigravity session 139759bc, written 2026-09-21 14:38; owner approved at 14:40 (server-side
 co-simulation on Ryzen + Three.js 3D articulated viewport). The session ran out of quota before any
 implementation. Project references beyond Shiu et al. 2024 and NeLy-EPFL/flygym, and all numeric
-targets, are unverified; see docs/CODEX_HANDOFF.md section 5. File links below point at the laptop
-mirror; the canonical paths are the same relative to the repo root on Ryzen.
+targets, are unverified; see docs/CODEX_HANDOFF.md section 5. File links below are repository-relative.
 
 ---
 
@@ -81,11 +80,11 @@ To transition Project NeuroFly from its current **compact modular controller** t
 
 Connect the environment observations directly to the 6,098 sensory neuron entries in MaleCNS v1.0:
 
-#### [MODIFY] [`connectome_bridge.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/connectome_bridge.py)
+#### [MODIFY] [`connectome_bridge.py`](../connectome_bridge.py)
 - **Visual Mapping**: Map 72-ommatidia compound eye visual rays into the optic lobe columnar entry neurons (R1–R6, L1, L2, T4/T5, LC4, LPTC HS/VS) using Poisson rate-to-spike generation.
 - **Olfactory & Mechanosensory Mapping**: Route odor concentrations directly into Antennal Lobe Projection Neurons (PNs) and wind deflection drag into Johnston's Organ Neurons (JON-C/E).
 
-#### [MODIFY] [`brainlab/engine.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/brainlab/engine.py)
+#### [MODIFY] [`brainlab/engine.py`](../brainlab/engine.py)
 - Integrate Shiu et al. (Nature 2024) baseline parameters alongside Claude's v3 PSP conductance calibration ($E_{\text{exc}} = 0\text{ mV}$, $E_{\text{inh}} = -70\text{ mV}$, $g_{\text{unit}}^{\text{exc}} = 1/52$, $g_{\text{unit}}^{\text{inh}} = 1/18$).
 - Enforce tonic background current injection to maintain physiological resting state ($V_m \approx -52\text{ mV}$) without runaway epileptic synchronization.
 
@@ -95,7 +94,7 @@ Connect the environment observations directly to the 6,098 sensory neuron entrie
 
 Extract motor commands directly from the descending neuron populations in the full connectome:
 
-#### [MODIFY] [`connectome_bridge.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/connectome_bridge.py)
+#### [MODIFY] [`connectome_bridge.py`](../connectome_bridge.py)
 - Monitor real-time spike counts over sliding $20\text{ ms}$ windows across identified descending pairs:
   - **`DNa02` (Turning Yaw)**: $\Delta\omega_{\text{yaw}} = \alpha \cdot (R_{\text{DNa02\_R}} - R_{\text{DNa02\_L}})$.
   - **`DNp09` (Forward Velocity / Plume Surge)**: $v_{\text{thrust}} = v_0 + \beta \cdot R_{\text{DNp09}}$.
@@ -108,14 +107,14 @@ Extract motor commands directly from the descending neuron populations in the fu
 
 Implement true 6-limb walking kinematics and dynamics derived from NeuroMechFly v2 / FlyGym:
 
-#### [MODIFY] [`locomotion.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/locomotion.py)
+#### [MODIFY] [`locomotion.py`](../locomotion.py)
 - Upgrade the Kuramoto-Hopf oscillator network to output explicit 3D joint angles for all 6 legs:
   - **Coxa-Trochanter (CTr)**: Protraction / retraction ($[-20^\circ, +40^\circ]$).
   - **Femur-Tibia (FTi)**: Joint flexion / extension ($[30^\circ, 110^\circ]$).
   - **Tibia-Tarsus (TiTa)**: Pitch and claw ground contact ($[-15^\circ, +35^\circ]$).
 - Implement **Cruse's Rule 1** (Campaniform Sensilla CS cuticular load gating): A leg cannot initiate swing phase until adjacent legs bear ground reaction load ($F_{\text{normal}} > 2.5\ \mu\text{N}$).
 
-#### [MODIFY] [`arena.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/arena.py)
+#### [MODIFY] [`arena.py`](../arena.py)
 - Transmit the full 18-joint state, 6 leg contact states, and descending neuron rates in every telemetry snapshot published by `neurofly_daemon.py`.
 
 ---
@@ -124,13 +123,13 @@ Implement true 6-limb walking kinematics and dynamics derived from NeuroMechFly 
 
 Upgrade the web dashboard to visually expose the running full connectome and articulated walking:
 
-#### [MODIFY] [`web/index.html`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/web/index.html)
+#### [MODIFY] [`web/index.html`](../web/index.html)
 - Add an interactive **3D Articulated Walking Viewport** (using Three.js) in the center stage or as a toggleable overlay next to the 2D arena.
 - Add a **Connectome Premotor Deck**: Real-time spike activity indicators and rate bars for `DNa02_L/R`, `DNp09`, `MDN`, and `GF`.
 - Update the Identity Bar to reflect:
   `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.5M synapses)`
 
-#### [MODIFY] [`web/app.js`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/web/app.js)
+#### [MODIFY] [`web/app.js`](../web/app.js)
 - Parse the 18-joint telemetry angles from the daemon SSE stream and animate the 3D articulated fly skeleton.
 - Render ground contact indicators (green pads for stance, blue for swing) showing the alternating tripod walking gait in real-time.
 
