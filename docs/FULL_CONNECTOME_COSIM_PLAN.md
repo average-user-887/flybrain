@@ -1,163 +1,152 @@
-# Full-connectome co-simulation plan (PROPOSAL, NOT IMPLEMENTED)
+# Full-connectome co-simulation plan: APPROVED 2026-09-21, NOT IMPLEMENTED
 
-Authored by an Antigravity agent session on 2026-09-21 and approved by the owner at 14:40.
-The session was interrupted before implementation; only scripts/test_srv.py (a smoke test of
-brainlab.cosim_server.ConnectomeServer) was produced. The live dashboard still runs the
-hand-built modular controller, not the connectome. Verify every claim below before building on it.
-
----
-
-# Phase 10 Completion & 2-Host Multi-Architecture Benchmarking Tool Delivery Plan
-
-This plan establishes the concrete steps to close out Phase 10 (P10 v2), resolve all remaining defects and acceptance gaps in the Uroboros repository, and deliver the 2-host multi-architecture LLM benchmarking tool across AMD Ryzen (CUDA / Docker / dedicated memory) and Valve Steam Deck (Vulkan / rootless Podman / shared memory).
+Antigravity session 139759bc, written 2026-09-21 14:38; owner approved at 14:40 (server-side
+co-simulation on Ryzen + Three.js 3D articulated viewport). The session ran out of quota before any
+implementation. Project references beyond Shiu et al. 2024 and NeLy-EPFL/flygym, and all numeric
+targets, are unverified; see docs/CODEX_HANDOFF.md section 5. File links below point at the laptop
+mirror; the canonical paths are the same relative to the repo root on Ryzen.
 
 ---
 
-## Sources of Truth & Handoff Locations
+# Implementation Plan: Adapting Project NeuroFly to Full Whole-Brain Connectome & Embodied Walking
 
-### Repository & Local Checkout
-- **Repository Root:** `/home/avg-usr/Documents/Codex/uroboros`
-- **Active Handoff:** [CURRENT_HANDOFF.md](file:///home/avg-usr/Documents/Codex/uroboros/docs/state/CURRENT_HANDOFF.md)
-- **Compact Local Handoff (worktree-p10v2-ryzen branch):** [P10_FINAL_HANDOFF.md](file:///home/avg-usr/Documents/Codex/uroboros/docs/state/P10_FINAL_HANDOFF.md)
-- **Standing Rules & Authority:** [AGENTS.md](file:///home/avg-usr/Documents/Codex/uroboros/AGENTS.md), [CLAUDE.md](file:///home/avg-usr/Documents/Codex/uroboros/CLAUDE.md), [CONSOLIDATION_PLAN.md](file:///home/avg-usr/Documents/Codex/uroboros/CONSOLIDATION_PLAN.md), [CONSOLIDATION_LEDGER.md](file:///home/avg-usr/Documents/Codex/uroboros/docs/state/CONSOLIDATION_LEDGER.md)
+## Executive Summary & State-of-the-Art Research
 
-### Samba Share (`//192.168.1.23/Storage` mounted at `/mnt/hpserver-storage/uroboros-transfer/`)
-- [P10-HARNESS-HANDOFF-RYZEN-20260916.md](file:///mnt/hpserver-storage/uroboros-transfer/P10-HARNESS-HANDOFF-RYZEN-20260916.md): Ryzen harness transition handoff at window close.
-- [P10-HARNESS-HANDOFF-DECK-20260916.md](file:///mnt/hpserver-storage/uroboros-transfer/P10-HARNESS-HANDOFF-DECK-20260916.md): Steam Deck harness transition handoff at window close.
-- [DECK-FINAL-HANDOFF.md](file:///mnt/hpserver-storage/uroboros-transfer/p10v2-deck-FINAL-HANDOFF/DECK-FINAL-HANDOFF.md): Deck final handoff with 5-model coverage matrix and Vulkan memory limits.
-- [p10-dashboard-correctness-20260916.md](file:///mnt/hpserver-storage/uroboros-transfer/p10-dashboard-correctness-20260916.md): Live dashboard correctness repair checklist items 1–5.
+To transition Project NeuroFly from its current **compact modular controller** to a **true embodied whole-brain simulation**, we conducted deep research across the foremost open-source Drosophila connectome projects published between 2024 and 2026:
 
----
-
-## Current Status: Why Phase 10 is Not Yet Complete
-
-As recorded in the cross-host handoffs at the close of the 8-hour window (2026-09-16 17:15:30Z):
-
-### Delivered & Verified:
-1. **2-Host Multi-Architecture Benchmark Coverage:**
-   - **Ryzen (CUDA/Docker):** 36/36 document diagnostic cases + 30/30 benchmark cases (18 BFCL, 8 IFEval, 4 HumanEval).
-   - **Steam Deck (Vulkan/RADV/rootless Podman):** 36 document cases + 30 benchmark cases across 5 models (`Qwen3.5-4B`, `Claude-Reasoning`, `LFM2.5-1.2B`, `SmolLM3`, `gemma-3-4b-it`).
-2. **Dashboard Host-Side Projections (D-2):**
-   - Host projects `uroboros.run-projection.v2` into `<state_root>/projections/` to avoid adding heavy Inspect dependencies to the read-only dashboard image.
-   - Historical assessment visibility restored (5 assessments render on Ryzen, 11 on Deck).
-   - Document evidence displays on its own discrete axes (`coverage`, `task_success`, `critical_violation`), validated 5 of 5 exact against disk by both hosts.
-   - Per-model cited run counts (`accepted_run_count`) and `completed_sample_count` repaired at the server merge point.
-3. **Core Parser & Role Fixes:**
-   - Markdown code fence parser bug in `dsh_research` fixed (`_strip_code_fence`).
-   - Precondition check decoupled from `dsh-research` role (`cli.py:3831`).
-   - Multi-partition reader unreadability resolved with `_per_case_partition`.
-
-### Partially Completed / Open Defects:
-1. **`build_compare` with Per-Case Runs:**
-   - `build_compare` still fails with `duplicate_eval_task` when comparing two runs that used per-case partitioning.
-2. **`last_tested_at` Unknown Everywhere:**
-   - `created_at` is caller-supplied and defaults to `None`. For `uroboros.lifecycle.v2` bundles (as present on Deck), anchored timestamps (`utc_ns`) exist and should be derived per-bundle.
-3. **Deck Deployed Candidate Stale:**
-   - Deck's provisioned dashboard at `127.0.0.1:18081` runs the older image/wheel (`db128038`) and does not reflect historical sibling binds or document axes (though its hand-run container at `18090` does).
-4. **Build of `cd3d87e` Missing on Share:**
-   - `p10-ryzen-build-319dac0` is the latest build on `/mnt/hpserver-storage/uroboros-transfer/`; no wheel or image for `cd3d87e` has been published.
-5. **Fixture Audit for Presentation Testing:**
-   - Optional fields in test fixtures default to `None`, leaving populated template branches untested.
-   - Document column presentation is tested only on the live container because test fixtures use the `task-a` mock name instead of real task names (`dsh_document_evidence`, `bfcl`).
-6. **Unmet Qualification Gates:**
-   - S4.1 (compatibility execution) and S4.2 (export staging) remain unimplemented (`compatibility_not_executed`).
-   - A7 (launch flag tuning optimization) undemonstrated.
+1. **`erojasoficial-byte/fly-brain` (2024–2025)**:
+   - **Scale**: 138,639 neurons and 15+ million synapses from FlyWire v783.
+   - **Embodiment**: Coupled directly to **NeuroMechFly v2** inside the **MuJoCo** physics engine.
+   - **Key Architectural Lesson**: Employs a dedicated **"Brain-Body Bridge"**. High-level behavioral decisions emerge from connectome spiking activity and are channeled through Descending Neurons (DNs) into lower-level Central Pattern Generators (CPGs), while ascending sensory and proprioceptive signals flow back into the brain graph.
+2. **`ZeroXClem/closed-loop-fly` (2024–2025)**:
+   - **Scale**: MaleCNS v1.0 connectome in closed loop.
+   - **Environment**: Runs directly in the browser using **WebGPU and Three.js** with neural simulation executing inside a WebWorker (~0.17x real-time on RTX 3070).
+   - **Key Architectural Lesson**: Maps compound eye ommatidia directly to optic lobe column entries and decodes bilateral descending outputs to steer in-browser 3D agents.
+3. **`philshiu/Drosophila_brain_model` (Nature 2024)**:
+   - **Ground-Truth Biophysics**: Published benchmark for Drosophila leaky integrate-and-fire (LIF) parameters ($V_{\text{rest}} = -52\text{ mV}$, $V_{\text{reset}} = -52\text{ mV}$, $V_{\text{thresh}} = -45\text{ mV}$, $\tau = 5\text{ ms}$, $t_{\text{ref}} = 2.2\text{ ms}$, $w_{\text{unit}} = 0.275\text{ mV}$).
+   - **Key Finding**: Validated transmission paths from sensory receptor neurons through intermediate interneurons to descending premotor neurons (e.g. sugar feeding and grooming pathways).
+4. **`NeLy-EPFL/flygym` (EPFL Ramdya Lab / NeuroMechFly v2)**:
+   - **The Gold Standard for Drosophila Biomechanics**: Simulates an articulated fruit fly body in MuJoCo with 18 actuated degrees of freedom (Coxa, Femur, Tibia per leg), cuticular adhesion, and ground reaction forces.
+   - **Descending Locomotion Interface**: Driven by a **two-value descending signal** ($\Delta_{\text{yaw}}$ for turning, $v_{\text{fwd}}$ for thrust) that modulates left and right Kuramoto CPG oscillators.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Branch Integration on Main**:
-> The `main` branch currently sits at `cd3d87e`. The local worktree branch `worktree-p10v2-ryzen` contains two documentation commits ahead of `main`:
-> 1. `a23c036` ("P10 v2 Ryzen: final cumulative closeout")
-> 2. `3258fac` ("P10 v2 Ryzen: compact final P10 handoff", creating `P10_FINAL_HANDOFF.md`)
-> These will be fast-forwarded/integrated into `main`.
-
-> [!IMPORTANT]
-> **Three-Claims Boundary Preservation**:
-> The benchmarking tool is delivered for diagnostic execution and multi-architecture comparisons. All benchmark outcomes (BFCL, IFEval, HumanEval, and 36 document cases) are nonqualifying diagnostic observations. They must not be mislabeled as role qualification without executing the full qualification pipeline.
+> **Architectural Execution Choice: Server-Side Co-Simulation (Recommended) vs. Client-Side WebGPU**
+> - **Option A (Recommended: Multi-Rate Co-Simulation on AMD Ryzen)**:
+>   The full MaleCNS v1.0 connectome (166,700 neurons, 25.5M synapses, 1.4 GB) and the 3D walking physics run on your AMD Ryzen 3900X (24 threads, 128 GB RAM) via Numba/C++ and MuJoCo/FlyGym. The server steps at high speed and streams 60 FPS 3D joint angles, leg contacts, descending neuron firing rates, and arena coordinates to the web dashboard via SSE/WebSockets.  
+>   *Advantages*: Runs seamlessly on any client browser/laptop (no GPU bottleneck); utilizes the already-verified 166.7k dataset and `brainlab/` kernel on Ryzen.
+> - **Option B (In-Browser WebGPU Single-Worker)**:
+>   Port the connectome weights to quantized WebGPU buffers running entirely on the user's browser GPU (similar to `ZeroXClem/closed-loop-fly`).  
+>   *Disadvantages*: Requires high-end client GPUs (RTX 3070+ only achieves ~0.17x real-time; standard work laptops will thermal throttle or crash with Out-Of-Memory errors on a 166.7k graph).
 
 ---
 
 ## Open Questions
 
 > [!NOTE]
-> 1. **Export Staging & Compatibility Execution**:
->    Should S4.1/S4.2 be marked as deferred to a dedicated qualification phase (retaining the honest `COMPATIBILITY_NOT_EXECUTED` reason code), or should an offline compatibility receipt verification pipeline be staged?
-> 2. **Candidate Packaging & Share Deployment**:
->    After fixing the remaining software defects, should a fresh candidate wheel and dashboard image (`cd3d87e` + fixes) be built and published to `/mnt/hpserver-storage/uroboros-transfer/` so the Steam Deck can update its provisioned install?
+> 1. **Visual Presentation Mode**: In the web dashboard, do you want:
+>    - **(Recommended) Integrated 3D Articulated View**: A Three.js 3D viewport rendering the articulated fly walking, showing leg joints flexing, tarsal ground contact, and antenna deflections in real-time alongside the arena map.
+>    - **High-Resolution 2D Biomechanical Stage**: Keep the current top-down 2D arena canvas but upgrade the fly icon with true articulated 6-limb kinematic joint rendering (CTr, FTi, TiTa angles derived from the CPG).
+> 2. **Connectome Plasticity Scope**:
+>    - **(Recommended) Hybrid Biological Plasticity**: Run the 166.7k connectome with resting homeostatic stability and GluCl$\alpha$ inhibition, while allowing dopamine-modulated synaptic plasticity in the Mushroom Body ($W_{\text{KC}\to\text{MBON}}$) and premotor decoders, matching Shiu et al. and erojasoficial-byte.
+>    - **Uniform Static Connectome**: Run the 166.7k graph purely with fixed static anatomical weights.
 
 ---
 
 ## Proposed Changes
 
-### Documentation & Repository State
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               PROPOSED RE-ARCHITECTURE                                 │
+├────────────────────────────────┬───────────────────────────────────────────────────────┤
+│ Layer                          │ Implementation Target                                 │
+├────────────────────────────────┼───────────────────────────────────────────────────────┤
+│ 1. Sensory Ingress             │ 72-Ray Visual Ingress + Johnston's Organ Antennae      │
+│                                │   ──► 6,098 Sensory Nodes in MaleCNS v1.0             │
+│ 2. Whole-Brain Spiking Graph   │ MaleCNS v1.0 (166,700 Neurons / 25.58M Synapses)      │
+│                                │   ──► Numba / C++ LIF Spiking Kernel on Ryzen         │
+│ 3. Descending Premotor Bridge  │ 1,314 Descending Neurons (DNa02, DNp09, MDN, GF)      │
+│                                │   ──► Firing Rate Differential Decoders               │
+│ 4. 6-Limb Walking Engine       │ 18-DOF Articulated Kuramoto/FlyGym Tripod CPG         │
+│                                │   ──► Cruse Rule 1 Stance/Swing & Joint Torques       │
+│ 5. Interactive Web Dashboard   │ Three.js 3D Articulated Model + Connectome HUD        │
+│                                │   ──► Real-time Descending Spike Rasters & Gait Telemetry│
+└────────────────────────────────┴───────────────────────────────────────────────────────┘
+```
 
-#### [MODIFY] [CURRENT_HANDOFF.md](file:///home/avg-usr/Documents/Codex/uroboros/docs/state/CURRENT_HANDOFF.md)
-- Merge `a23c036` final cumulative closeout section into `main`.
+### Component 1: Sensory Ingress to Full Connectome (`connectome_bridge.py`, `brainlab/`)
 
-#### [NEW] [P10_FINAL_HANDOFF.md](file:///home/avg-usr/Documents/Codex/uroboros/docs/state/P10_FINAL_HANDOFF.md)
-- Bring `P10_FINAL_HANDOFF.md` from `worktree-p10v2-ryzen` onto `main`.
+Connect the environment observations directly to the 6,098 sensory neuron entries in MaleCNS v1.0:
+
+#### [MODIFY] [`connectome_bridge.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/connectome_bridge.py)
+- **Visual Mapping**: Map 72-ommatidia compound eye visual rays into the optic lobe columnar entry neurons (R1–R6, L1, L2, T4/T5, LC4, LPTC HS/VS) using Poisson rate-to-spike generation.
+- **Olfactory & Mechanosensory Mapping**: Route odor concentrations directly into Antennal Lobe Projection Neurons (PNs) and wind deflection drag into Johnston's Organ Neurons (JON-C/E).
+
+#### [MODIFY] [`brainlab/engine.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/brainlab/engine.py)
+- Integrate Shiu et al. (Nature 2024) baseline parameters alongside Claude's v3 PSP conductance calibration ($E_{\text{exc}} = 0\text{ mV}$, $E_{\text{inh}} = -70\text{ mV}$, $g_{\text{unit}}^{\text{exc}} = 1/52$, $g_{\text{unit}}^{\text{inh}} = 1/18$).
+- Enforce tonic background current injection to maintain physiological resting state ($V_m \approx -52\text{ mV}$) without runaway epileptic synchronization.
 
 ---
 
-### Projections & Comparators (`uroboros/`)
+### Component 2: Descending Premotor Bottleneck & Motor Decoding (`connectome_bridge.py`, `locomotion.py`)
 
-#### [MODIFY] [projections.py](file:///home/avg-usr/Documents/Codex/uroboros/uroboros/projections.py)
-- In `build_compare()`: permit repeated task names if the reports indicate `_per_case_partition`, removing the spurious `duplicate_eval_task` error when comparing diagnostic runs.
-- In `_status_for_bundle()` and `load_report()`: if `created_at` is `None`, inspect `records/lifecycle.json`. If `schema == "uroboros.lifecycle.v2"` and anchored intervals exist with `utc_ns`, convert the earliest interval to an ISO 8601 UTC timestamp. If absent or v1, preserve `None`.
+Extract motor commands directly from the descending neuron populations in the full connectome:
 
-#### [MODIFY] [run_projection.py](file:///home/avg-usr/Documents/Codex/uroboros/uroboros/run_projection.py)
-- In `build_projection()`: pass the bundle-derived timestamp into the projection payload so `uroboros.run-projection.v2` carries accurate timestamps when available.
-
----
-
-### Dashboard Server & UI (`uroboros/dashboard/`)
-
-#### [MODIFY] [server.py](file:///home/avg-usr/Documents/Codex/uroboros/uroboros/dashboard/server.py)
-- Ensure `_diagnostic_suites()` outputs comprehensive per-run resolution metadata in `/api/v1/assessments` so callers can distinguish resolved, unsupported, unreadable, and missing runs explicitly.
-
-#### [MODIFY] [data.py](file:///home/avg-usr/Documents/Codex/uroboros/uroboros/dashboard/data.py)
-- Widen projection reading on `/runs` to surface available performance fields (memory domain, duration breakdown) alongside server-measured token rates.
+#### [MODIFY] [`connectome_bridge.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/connectome_bridge.py)
+- Monitor real-time spike counts over sliding $20\text{ ms}$ windows across identified descending pairs:
+  - **`DNa02` (Turning Yaw)**: $\Delta\omega_{\text{yaw}} = \alpha \cdot (R_{\text{DNa02\_R}} - R_{\text{DNa02\_L}})$.
+  - **`DNp09` (Forward Velocity / Plume Surge)**: $v_{\text{thrust}} = v_0 + \beta \cdot R_{\text{DNp09}}$.
+  - **`MDN` (Moonwalker Reversal)**: Reverses phase direction of CPG oscillators when obstacles or noxious heat are detected.
+  - **`DNp01` (Giant Fiber Looming Takeoff)**: Triggers sudden ballistic flight transition upon rapid visual disk expansion ($d\theta/dt > 1.2\text{ rad/s}$).
 
 ---
 
-### Test Suite (`tests/`)
+### Component 3: Articulated 6-Leg Walking Engine (`locomotion.py`, `arena.py`)
 
-#### [MODIFY] [test_projections.py](file:///home/avg-usr/Documents/Codex/uroboros/tests/test_projections.py)
-- Add unit tests for `build_compare()` with per-case partitioned reports.
-- Add unit tests for `created_at` timestamp extraction from v2 lifecycle bundles vs v1 lifecycle bundles.
+Implement true 6-limb walking kinematics and dynamics derived from NeuroMechFly v2 / FlyGym:
 
-#### [MODIFY] [test_dashboard_consolidated_history.py](file:///home/avg-usr/Documents/Codex/uroboros/tests/test_dashboard_consolidated_history.py)
-- Add test cases using real suite names (`dsh_document_evidence`, `bfcl`) to verify that suite rows and document evidence columns (`coverage`, `task_success`, `critical_violation`) render accurately in automated tests.
+#### [MODIFY] [`locomotion.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/locomotion.py)
+- Upgrade the Kuramoto-Hopf oscillator network to output explicit 3D joint angles for all 6 legs:
+  - **Coxa-Trochanter (CTr)**: Protraction / retraction ($[-20^\circ, +40^\circ]$).
+  - **Femur-Tibia (FTi)**: Joint flexion / extension ($[30^\circ, 110^\circ]$).
+  - **Tibia-Tarsus (TiTa)**: Pitch and claw ground contact ($[-15^\circ, +35^\circ]$).
+- Implement **Cruse's Rule 1** (Campaniform Sensilla CS cuticular load gating): A leg cannot initiate swing phase until adjacent legs bear ground reaction load ($F_{\text{normal}} > 2.5\ \mu\text{N}$).
 
-#### [MODIFY] [test_dashboard_server.py](file:///home/avg-usr/Documents/Codex/uroboros/tests/test_dashboard_server.py)
-- Add tests verifying populated model and run fixture presentation.
+#### [MODIFY] [`arena.py`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/arena.py)
+- Transmit the full 18-joint state, 6 leg contact states, and descending neuron rates in every telemetry snapshot published by `neurofly_daemon.py`.
+
+---
+
+### Component 4: Dashboard Adaptation (`web/app.js`, `web/index.html`)
+
+Upgrade the web dashboard to visually expose the running full connectome and articulated walking:
+
+#### [MODIFY] [`web/index.html`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/web/index.html)
+- Add an interactive **3D Articulated Walking Viewport** (using Three.js) in the center stage or as a toggleable overlay next to the 2D arena.
+- Add a **Connectome Premotor Deck**: Real-time spike activity indicators and rate bars for `DNa02_L/R`, `DNp09`, `MDN`, and `GF`.
+- Update the Identity Bar to reflect:
+  `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.5M synapses)`
+
+#### [MODIFY] [`web/app.js`](file:///c:/Users/Łukasz%20Wolny/Documents/Sluzbowy_hp/flybrain/web/app.js)
+- Parse the 18-joint telemetry angles from the daemon SSE stream and animate the 3D articulated fly skeleton.
+- Render ground contact indicators (green pads for stance, blue for swing) showing the alternating tripod walking gait in real-time.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-1. **Targeted Subsystem Tests**:
-   ```bash
-   /home/avg-usr/Documents/Codex/uroboros/.venv-v30/bin/python -m pytest tests/test_projections.py tests/test_run_projection.py tests/test_dashboard_server.py tests/test_dashboard_consolidated_history.py -v
-   ```
-2. **Lint & Style Check**:
-   ```bash
-   /home/avg-usr/Documents/Codex/uroboros/.venv-v30/bin/ruff check uroboros tail tests
-   ```
-3. **Full Integration Test Gate**:
-   ```bash
-   /home/avg-usr/Documents/Codex/uroboros/.venv-v30/bin/python -m pytest tests/ tail/tests/ --ignore=tests/test_qualification_public_lifecycle.py --ignore=tests/test_pty_acceptance.py -q
-   /home/avg-usr/Documents/Codex/uroboros/.venv-v30/bin/python -m pytest tests/test_qualification_public_lifecycle.py tests/test_pty_acceptance.py -v
-   ```
+### 1. Automated Spiking & Premotor Tests
+- `pytest tests/test_connectome_stability.py`: Verify that the 166,700-neuron graph achieves stable resting rates ($< 5\text{ Hz}$ mean background) without runaway epileptiform bursting.
+- `pytest tests/test_biomechanics_closed_loop.py`: Verify that asymmetric visual stimulus produces asymmetric `DNa02` spikes ($> 20\text{ Hz}$ differential), which successfully induces differential leg cadence and yaw steering in the CPG.
 
-### Manual & Share Verification
-1. **Candidate Build & Share Publication**:
-   - Build updated wheel and candidate package.
-   - Verify artifacts and generate `SHA256SUMS` in `/mnt/hpserver-storage/uroboros-transfer/p10-ryzen-build-<sha>/`.
-2. **Dashboard Health Verification**:
-   - Verify `http://127.0.0.1:18081` serves HTTP 200 across all 10 endpoints.
-   - Confirm `/assessments` displays both benchmark and document evidence suites with accurate per-run accounting.
+### 2. Physical Walking Kinematics Verification
+- `python scripts/behavior_audit.py`: Verify that 6-limb stepping produces valid tripod coordination (Tripod A vs Tripod B phase shift $\Delta\Phi \approx \pi$), zero backward slippage during forward walking, and proper obstacle-triggered MDN reversal.
+
+### 3. Live Browser Verification (Firefox 156 / Headless)
+- `python scripts/live_ui_signoff.py`: Verify live in the browser that:
+  - The identity bar shows `Controller: connectome (MaleCNS v1.0)`.
+  - The 3D articulated fly actively flexes leg joints, walks across all 14 paradigms, and turns toward odor plumes and away from looming discs.
+  - Zero dropped frames, zero console errors, data age $< 0.1\text{ s}$.
