@@ -12,8 +12,15 @@ and a fresh connectome-fixed instance, checkpointed at the end.
 ``--dynamics`` selects the declared LIF version (docs/LIF_DYNAMICS_SPEC.md).
 It defaults to ``v1``, the dynamics the 19 September 2026 confirmatory run was
 produced under, so the original result stays reproducible byte for byte.  The
-preregistration, the schedule and the primary outcome are identical in both
-cases; only the engine differs, and every manifest records which one.
+preregistration, the schedule and the primary outcome are identical in every
+case; only the engine differs, and every manifest records which one.
+
+``--dynamics v3`` additionally applies the declared transmitter policy of
+``brainlab.transmitter_policy`` (spec §6.3) to the fast weights in memory: the
+aminergic neurons carry no fast weight, and ``--unclear-mode`` selects the
+declared treatment of the 2,999 ``unclear`` neurons (default ``excitatory``,
+i.e. unchanged from v1/v2).  The pinned graph file is never rewritten; the
+transformed graph carries its own ``graph_sha256``.
 
 Nothing here contacts running services.
 """
@@ -236,8 +243,11 @@ def main():
     parser.add_argument('--closed-loop', action='store_true', help='conditional secondary (prereg)')
     parser.add_argument('--exploratory-mirror', action='store_true',
                         help='EXPLORATORY: direction-negated schedule, seeds 0-2, not part of the verdict')
-    parser.add_argument('--dynamics', default='v1', choices=('v1', 'v2'),
+    parser.add_argument('--dynamics', default='v1', choices=('v1', 'v2', 'v3'),
                         help='declared LIF dynamics version (docs/LIF_DYNAMICS_SPEC.md); default v1')
+    parser.add_argument('--unclear-mode', default='excitatory',
+                        choices=('excitatory', 'zero', 'exclude'),
+                        help="v3 only: declared treatment of the 'unclear' neurons (spec §6.3.2)")
     args = parser.parse_args()
     assert args.dynamics == active_dynamics_version()   # set before the brainlab import
     raw = PREREG.read_bytes()
@@ -249,13 +259,24 @@ def main():
     clock = time.perf_counter()
     shared = SharedGraph.load()
     load_s = time.perf_counter() - clock
+    policy_report = None
+    if args.dynamics == 'v3':
+        # Declared, not incidental: docs/LIF_DYNAMICS_SPEC.md §6.3.  Applied in
+        # memory; graph.npz is untouched and the result carries its own hash.
+        from brainlab import transmitter_policy as _tp
+        shared, policy_report = _tp.apply_to_shared(
+            shared, policy=_tp.POLICY_V3, unclear_mode=args.unclear_mode)
+        print('transmitter policy:', json.dumps(
+            {k: policy_report[k] for k in ('policy', 'unclear_mode', 'edges_zeroed',
+                                           'neurons_modulatory', 'graph_sha256')}), flush=True)
     io = resolve_optomotor_io()
     header = dict(started_at=started, host=platform.node(), prereg_sha256=prereg['_sha256'],
                   graph=shared.identity.to_dict(), io_map=io.describe(), graph_load_s=load_s,
                   rss_mib_after_load=rss_mib(),
                   lif_dynamics_version=active_dynamics_version(),
                   lif_dynamics_pin=dynamics_pin(active_dynamics_version()),
-                  lif_dynamics=dict(DYNAMICS_VERSIONS[active_dynamics_version()]))
+                  lif_dynamics=dict(DYNAMICS_VERSIONS[active_dynamics_version()]),
+                  transmitter_policy=policy_report)
 
     if args.pilot:
         blocks = [[1, 1.0], [-1, 1.0]]
