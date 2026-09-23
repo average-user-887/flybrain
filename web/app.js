@@ -5665,17 +5665,19 @@ class ScientificHUD {
             if (cardMetricEl) cardMetricEl.textContent = `${(p.compositeScore || 0).toFixed(1)} / 100`;
 
             const jointBox = document.getElementById('jointAnglesBox');
-            if (jointBox && p.jointAngles) {
-                const ja = p.jointAngles;
-                const ls = this.arena.cpg.legStates;
-                jointBox.innerHTML = `
-                    <div>L1: CTr ${ja.L1.ctr.toFixed(0)}° FTi ${ja.L1.fti.toFixed(0)}° [${ls.L1 ? 'STANCE' : 'SWING'}]</div>
-                    <div>R1: CTr ${ja.R1.ctr.toFixed(0)}° FTi ${ja.R1.fti.toFixed(0)}° [${ls.R1 ? 'STANCE' : 'SWING'}]</div>
-                    <div>L2: CTr ${ja.L2.ctr.toFixed(0)}° FTi ${ja.L2.fti.toFixed(0)}° [${ls.L2 ? 'STANCE' : 'SWING'}]</div>
-                    <div>R2: CTr ${ja.R2.ctr.toFixed(0)}° FTi ${ja.R2.fti.toFixed(0)}° [${ls.R2 ? 'STANCE' : 'SWING'}]</div>
-                    <div>L3: CTr ${ja.L3.ctr.toFixed(0)}° FTi ${ja.L3.fti.toFixed(0)}° [${ls.L3 ? 'STANCE' : 'SWING'}]</div>
-                    <div>R3: CTr ${ja.R3.ctr.toFixed(0)}° FTi ${ja.R3.fti.toFixed(0)}° [${ls.R3 ? 'STANCE' : 'SWING'}]</div>
-                `;
+            if (jointBox) {
+                const ja = (p && p.jointAngles) ? p.jointAngles : (this.arena.remotePacket?.biomechanics?.joint_angles);
+                const ls = this.arena.cpg.legStates || {};
+                if (ja) {
+                    const fmt = (v) => Number.isFinite(v) ? v.toFixed(0) : '--';
+                    jointBox.innerHTML = Object.entries(ja).map(([leg, info]) => {
+                        const ctr = info?.ctr !== undefined ? info.ctr : 0;
+                        const fti = info?.fti !== undefined ? info.fti : 80;
+                        const isStance = info?.phase ? (info.phase === 'STANCE') : !!ls[leg];
+                        const sign = ctr >= 0 ? '+' : '';
+                        return `<div>${leg}: CTr: ${sign}${fmt(ctr)}° FTi: ${fmt(fti)}° [${isStance ? 'STANCE' : 'SWING'}]</div>`;
+                    }).join('');
+                }
             }
         }
         for (const [leg, isStance] of Object.entries(this.arena.cpg.legStates)) {
@@ -5692,6 +5694,62 @@ class ScientificHUD {
 
         // Update active assay tools panel & metrics if visible
         this.updateAssayTools();
+
+        // Update Premotor & Descending HUD (Phase 3 Step 3.3)
+        this.updatePremotorHUD();
+    }
+
+    updatePremotorHUD() {
+        const pkt = this.arena.remotePacket || {};
+        const dn = pkt.dn_rates || pkt.descending?.dn_rates || {
+            dna02_l: Math.max(0, -this.arena.fly.yawRate * 8.0),
+            dna02_r: Math.max(0, this.arena.fly.yawRate * 8.0),
+            dnp09: Math.max(0, this.arena.fly.speed * 2.5),
+            mdn: this.arena.dn?.mdn ? 25.0 : 0.0,
+            gf: this.arena.dn?.escapeActive ? 50.0 : 0.0
+        };
+        const rawCtrl = pkt.controller_id || (pkt.identity?.backend?.startsWith('connectome') ? 'connectome-v3' : 'modular');
+        const isConn = String(rawCtrl).toLowerCase().includes('connectome');
+
+        const badge = document.getElementById('controllerBadge');
+        if (badge) {
+            badge.textContent = isConn ? 'CONNECTOME v3' : 'MODULAR';
+            badge.className = isConn ? 'badge badge-green' : 'badge badge-cyan';
+        }
+        const v3dTag = document.getElementById('v3dControllerTag');
+        if (v3dTag) {
+            v3dTag.textContent = isConn ? 'CONNECTOME v3' : 'MODULAR';
+            v3dTag.style.color = isConn ? '#22c55e' : '#38bdf8';
+        }
+
+        const setMeter = (valId, barId, val, maxVal) => {
+            const vEl = document.getElementById(valId);
+            const bEl = document.getElementById(barId);
+            const num = Number.isFinite(val) ? val : 0;
+            if (vEl) vEl.textContent = num.toFixed(1);
+            if (bEl) {
+                const pct = Math.min(100, Math.max(0, (num / maxVal) * 100));
+                bEl.style.width = pct + '%';
+            }
+        };
+
+        setMeter('hudDna02L', 'barDna02L', dn.dna02_l, 20.0);
+        setMeter('hudDna02R', 'barDna02R', dn.dna02_r, 20.0);
+        setMeter('hudDnp09', 'barDnp09', dn.dnp09, 40.0);
+        setMeter('hudMdn', 'barMdn', dn.mdn, 30.0);
+        setMeter('hudGf', 'barGf', dn.gf, 60.0);
+
+        const legStates = this.arena.cpg.legStates || {};
+        const legs = ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'];
+        legs.forEach(leg => {
+            const dot = document.getElementById(`cpgDot${leg}`);
+            if (dot) {
+                const isStance = !!legStates[leg];
+                dot.style.background = isStance ? '#22c55e' : '#1e293b';
+                dot.style.color = isStance ? '#0f172a' : '#94a3b8';
+                dot.style.fontWeight = isStance ? 'bold' : 'normal';
+            }
+        });
     }
 
     renderKcMatrix() {
@@ -5832,11 +5890,376 @@ window.addEventListener('load', () => {
     }
 });
 
+// =========================================================================
+// Phase 3 Step 3.2: Three.js 3D Articulated Viewport
+// =========================================================================
+
+class ArticulatedFly3DViewport {
+    constructor(canvasId, containerId, arena) {
+        this.canvas = document.getElementById(canvasId);
+        this.container = document.getElementById(containerId);
+        this.arena = arena;
+        this.visible = false;
+        this.cameraMode = 'orbit'; // 'orbit' or 'chase'
+        this.initialized = false;
+        this.init();
+    }
+
+    init() {
+        if (typeof THREE === 'undefined' || !this.canvas || !this.container) return;
+
+        const width = this.container.clientWidth || 800;
+        const height = this.container.clientHeight || 600;
+
+        // Scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x060913);
+        this.scene.fog = new THREE.FogExp2(0x060913, 0.005);
+
+        // Camera
+        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        this.camera.position.set(0, 25, 45);
+
+        // Renderer
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });
+        this.renderer.setSize(width, height);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.shadowMap.enabled = true;
+
+        // OrbitControls
+        if (THREE.OrbitControls) {
+            this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.enableDamping = true;
+            this.controls.dampingFactor = 0.08;
+            this.controls.maxPolarAngle = Math.PI / 2 + 0.05;
+            this.controls.target.set(0, 2, 0);
+        }
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        this.scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        this.scene.add(dirLight);
+
+        const backLight = new THREE.DirectionalLight(0xf59e0b, 0.6);
+        backLight.position.set(-20, 20, -20);
+        this.scene.add(backLight);
+
+        // Ground arena grid floor
+        const grid = new THREE.GridHelper(120, 60, 0x38bdf8, 0x1e293b);
+        grid.position.y = 0;
+        this.scene.add(grid);
+
+        // Arena boundary ring (50mm radius circle)
+        const ringGeo = new THREE.RingGeometry(49.8, 50.2, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.02;
+        this.scene.add(ring);
+
+        // Build anatomical fly mesh
+        this.buildFlyMesh();
+
+        // Resize handler
+        window.addEventListener('resize', () => this.onResize());
+
+        this.initialized = true;
+    }
+
+    buildFlyMesh() {
+        this.flyGroup = new THREE.Group();
+        this.scene.add(this.flyGroup);
+
+        // Materials
+        const thoraxMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.2 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.4, metalness: 0.3 });
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.2, metalness: 0.1 });
+        const abdomenMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.1 });
+        const wingMat = new THREE.MeshStandardMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.45, roughness: 0.1, side: THREE.DoubleSide });
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.7 });
+
+        // Thorax (center at y=2.2 mm)
+        const thoraxGeo = new THREE.SphereGeometry(1.2, 16, 16);
+        thoraxGeo.scale(1.0, 1.1, 1.5);
+        this.thoraxMesh = new THREE.Mesh(thoraxGeo, thoraxMat);
+        this.thoraxMesh.position.set(0, 2.2, 0);
+        this.thoraxMesh.castShadow = true;
+        this.flyGroup.add(this.thoraxMesh);
+
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.8, 16, 16);
+        headGeo.scale(1.2, 1.0, 0.9);
+        const headMesh = new THREE.Mesh(headGeo, headMat);
+        headMesh.position.set(0, 0.2, 1.6);
+        this.thoraxMesh.add(headMesh);
+
+        // Compound Eyes (left & right)
+        const eyeGeo = new THREE.SphereGeometry(0.45, 12, 12);
+        eyeGeo.scale(0.8, 1.2, 1.2);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.65, 0.2, 0.1);
+        headMesh.add(leftEye);
+
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.65, 0.2, 0.1);
+        headMesh.add(rightEye);
+
+        // Abdomen (posterior)
+        const abdGeo = new THREE.SphereGeometry(1.1, 16, 16);
+        abdGeo.scale(0.9, 0.9, 2.0);
+        const abdMesh = new THREE.Mesh(abdGeo, abdomenMat);
+        abdMesh.position.set(0, -0.1, -2.4);
+        this.thoraxMesh.add(abdMesh);
+
+        // Wings (left & right)
+        const wingGeo = new THREE.PlaneGeometry(1.4, 4.0);
+        const leftWing = new THREE.Mesh(wingGeo, wingMat);
+        leftWing.position.set(-0.8, 0.9, -1.8);
+        leftWing.rotation.x = Math.PI / 2 - 0.2;
+        leftWing.rotation.y = -0.25;
+        this.thoraxMesh.add(leftWing);
+
+        const rightWing = new THREE.Mesh(wingGeo, wingMat);
+        rightWing.position.set(0.8, 0.9, -1.8);
+        rightWing.rotation.x = Math.PI / 2 - 0.2;
+        rightWing.rotation.y = 0.25;
+        this.thoraxMesh.add(rightWing);
+
+        // Build 6 articulated legs: L1, L2, L3, R1, R2, R3
+        this.legs = [];
+        this.contactSpheres = [];
+
+        const legConfigs = [
+            { name: 'L1', side: -1, zOffset: 0.8,  baseAngle: -Math.PI / 4 },
+            { name: 'L2', side: -1, zOffset: 0.0,  baseAngle: -Math.PI / 2 },
+            { name: 'L3', side: -1, zOffset: -0.8, baseAngle: -3 * Math.PI / 4 },
+            { name: 'R1', side: 1,  zOffset: 0.8,  baseAngle: Math.PI / 4 },
+            { name: 'R2', side: 1,  zOffset: 0.0,  baseAngle: Math.PI / 2 },
+            { name: 'R3', side: 1,  zOffset: -0.8, baseAngle: 3 * Math.PI / 4 }
+        ];
+
+        legConfigs.forEach((cfg) => {
+            // Coxa root group (Thorax joint)
+            const coxaGroup = new THREE.Group();
+            coxaGroup.position.set(cfg.side * 1.0, -0.2, cfg.zOffset);
+            coxaGroup.rotation.y = cfg.baseAngle;
+            this.thoraxMesh.add(coxaGroup);
+
+            // Coxa segment mesh (length ~1.0mm)
+            const coxaGeo = new THREE.CylinderGeometry(0.2, 0.18, 1.0, 8);
+            coxaGeo.translate(0, -0.5, 0);
+            const coxaMesh = new THREE.Mesh(coxaGeo, legMat);
+            coxaGroup.add(coxaMesh);
+
+            // Femur joint group (at tip of coxa)
+            const femurGroup = new THREE.Group();
+            femurGroup.position.set(0, -1.0, 0);
+            coxaGroup.add(femurGroup);
+
+            // Femur segment mesh (length ~2.2mm)
+            const femurGeo = new THREE.CylinderGeometry(0.18, 0.15, 2.2, 8);
+            femurGeo.translate(0, -1.1, 0);
+            const femurMesh = new THREE.Mesh(femurGeo, legMat);
+            femurGroup.add(femurMesh);
+
+            // Tibia joint group (at tip of femur)
+            const tibiaGroup = new THREE.Group();
+            tibiaGroup.position.set(0, -2.2, 0);
+            femurGroup.add(tibiaGroup);
+
+            // Tibia segment mesh (length ~2.4mm)
+            const tibiaGeo = new THREE.CylinderGeometry(0.15, 0.10, 2.4, 8);
+            tibiaGeo.translate(0, -1.2, 0);
+            const tibiaMesh = new THREE.Mesh(tibiaGeo, legMat);
+            tibiaGroup.add(tibiaMesh);
+
+            // Tarsus contact indicator sphere (at tip of tibia)
+            const contactGeo = new THREE.SphereGeometry(0.25, 8, 8);
+            const contactMat = new THREE.MeshStandardMaterial({
+                color: 0x38bdf8,
+                emissive: 0x38bdf8,
+                emissiveIntensity: 0.6,
+                roughness: 0.3
+            });
+            const contactMesh = new THREE.Mesh(contactGeo, contactMat);
+            contactMesh.position.set(0, -2.4, 0);
+            tibiaGroup.add(contactMesh);
+
+            this.legs.push({
+                name: cfg.name,
+                side: cfg.side,
+                baseAngle: cfg.baseAngle,
+                coxa: coxaGroup,
+                femur: femurGroup,
+                tibia: tibiaGroup,
+                contact: contactMesh,
+                contactMat: contactMat
+            });
+            this.contactSpheres.push(contactMesh);
+        });
+    }
+
+    onResize() {
+        if (!this.renderer || !this.container) return;
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+        if (width === 0 || height === 0) return;
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
+    }
+
+    setVisible(visible) {
+        this.visible = visible;
+        if (this.container) {
+            this.container.style.display = visible ? 'block' : 'none';
+        }
+        const canvas2d = document.getElementById('arenaCanvas');
+        if (canvas2d) {
+            canvas2d.style.display = visible ? 'none' : 'block';
+        }
+        if (visible) {
+            this.onResize();
+        }
+    }
+
+    setCameraMode(mode) {
+        this.cameraMode = mode;
+        const btn = document.getElementById('btnCameraMode');
+        if (btn) {
+            btn.textContent = mode === 'orbit' ? 'Cam: Orbit' : 'Cam: Chase';
+        }
+        if (this.controls) {
+            this.controls.enabled = (mode === 'orbit');
+        }
+    }
+
+    updatePose() {
+        if (!this.initialized || !this.flyGroup) return;
+
+        const pkt = this.arena.remotePacket || {};
+        const fly = this.arena.fly;
+
+        const arenaW = this.arena.width || 100;
+        const arenaH = this.arena.height || 100;
+        const xMm = (fly.pos.x !== undefined ? fly.pos.x : 50) - arenaW / 2;
+        const yMm = (fly.pos.y !== undefined ? fly.pos.y : 50) - arenaH / 2;
+        const zMm = pkt.body_position_mm ? (pkt.body_position_mm[2] || 0.5) : 0.5;
+
+        this.flyGroup.position.set(xMm, zMm + 1.2, -yMm);
+
+        const heading = fly.heading !== undefined ? fly.heading : 0.0;
+        this.flyGroup.rotation.set(0, -heading + Math.PI / 2, 0);
+
+        const anglesRad = pkt.joint_angles_rad || this.synthesizeAngles();
+        const contacts = pkt.leg_contacts || this.synthesizeContacts();
+
+        for (let i = 0; i < 6; i++) {
+            const leg = this.legs[i];
+            if (!leg) continue;
+
+            const coxaRad = anglesRad[i * 3 + 0] || 0.0;
+            const femurRad = anglesRad[i * 3 + 1] || 0.0;
+            const tibiaRad = anglesRad[i * 3 + 2] || 1.4;
+
+            leg.coxa.rotation.y = leg.baseAngle + coxaRad * 0.8;
+            leg.femur.rotation.z = leg.side * (0.35 + femurRad * 0.5);
+            leg.tibia.rotation.z = -leg.side * (0.6 + (tibiaRad - 1.4) * 0.6);
+
+            const isStance = !!contacts[i];
+            const targetColor = isStance ? 0x22c55e : 0x38bdf8;
+            leg.contactMat.color.setHex(targetColor);
+            leg.contactMat.emissive.setHex(targetColor);
+            leg.contactMat.emissiveIntensity = isStance ? 0.9 : 0.4;
+        }
+
+        if (this.cameraMode === 'chase') {
+            const chaseDist = 20.0;
+            const chaseHeight = 10.0;
+            const camX = this.flyGroup.position.x - Math.cos(-heading + Math.PI / 2) * chaseDist;
+            const camZ = this.flyGroup.position.z + Math.sin(-heading + Math.PI / 2) * chaseDist;
+            const camY = this.flyGroup.position.y + chaseHeight;
+
+            this.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
+            this.camera.lookAt(this.flyGroup.position);
+        } else if (this.controls && this.controls.enabled) {
+            this.controls.update();
+        }
+    }
+
+    synthesizeAngles() {
+        const t = performance.now() * 0.006;
+        const angles = [];
+        for (let i = 0; i < 6; i++) {
+            const phaseOffset = (i % 2 === 0) ? 0 : Math.PI;
+            const phase = t + phaseOffset;
+            const coxa = Math.sin(phase) * 0.15;
+            const femur = Math.sin(phase) * 0.25;
+            const tibia = 1.4 - Math.cos(phase) * 0.25;
+            angles.push(coxa, femur, tibia);
+        }
+        return angles;
+    }
+
+    synthesizeContacts() {
+        const t = performance.now() * 0.006;
+        const contacts = [];
+        for (let i = 0; i < 6; i++) {
+            const phaseOffset = (i % 2 === 0) ? 0 : Math.PI;
+            contacts.push(Math.sin(t + phaseOffset) >= 0.0);
+        }
+        return contacts;
+    }
+
+    render() {
+        if (!this.initialized || !this.visible) return;
+        this.updatePose();
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
 function startNeuroflyApp() {
     const arena = new ScientificBioArena('arenaCanvas');
     const hud = new ScientificHUD(arena);
     window.arena = arena;
     window.hud = hud;
+
+    // Phase 3 Step 3.2: Initialize 3D Articulated Viewport
+    let viewport3D = null;
+    try {
+        viewport3D = new ArticulatedFly3DViewport('viewport3DCanvas', 'viewport3DContainer', arena);
+        window.viewport3D = viewport3D;
+    } catch (e) {
+        console.warn('[3D Viewport] Initialization failed:', e);
+    }
+
+    const btnToggle3D = document.getElementById('btnToggle3D');
+    const btnCameraMode = document.getElementById('btnCameraMode');
+    if (btnToggle3D) {
+        btnToggle3D.addEventListener('click', () => {
+            if (!viewport3D) return;
+            const nextVisible = !viewport3D.visible;
+            viewport3D.setVisible(nextVisible);
+            btnToggle3D.textContent = nextVisible ? 'View: 3D Viewport' : 'View: 2D Arena';
+            btnToggle3D.style.borderColor = nextVisible ? '#22c55e' : '#38bdf8';
+            btnToggle3D.style.color = nextVisible ? '#22c55e' : '#38bdf8';
+            if (btnCameraMode) {
+                btnCameraMode.style.display = nextVisible ? 'inline-block' : 'none';
+            }
+        });
+    }
+
+    if (btnCameraMode) {
+        btnCameraMode.addEventListener('click', () => {
+            if (!viewport3D) return;
+            const nextMode = viewport3D.cameraMode === 'orbit' ? 'chase' : 'orbit';
+            viewport3D.setCameraMode(nextMode);
+        });
+    }
 
     let isPaused = false;
     const btnPause = document.getElementById('btnPauseToggle');
@@ -5856,6 +6279,7 @@ function startNeuroflyApp() {
     window.app = {
         arena,
         hud,
+        viewport3D,
         selectParadigm: (pid) => hud.selectParadigm(pid),
         setSpeed: (spd) => hud.setSpeed(spd),
         togglePause: () => {
@@ -5874,11 +6298,6 @@ function startNeuroflyApp() {
     let accumulator = 0;
     let renderFaultPending = NEUROFLY_INJECT === 'render';
 
-    // Each frame has two phases: 'update' (local preview integration + HUD) and
-    // 'render' (canvas). A phase that throws is reported once with assay/run/step and
-    // then suspended -- not retried every frame -- so the last drawn frame stays on
-    // screen. Daemon frames keep arriving and are recorded meanwhile; "Resume view"
-    // in the error banner re-enables the phases.
     function runPhase(phase, fn) {
         if (NeuroflyErrors.isSuspended(phase)) return;
         try {
@@ -5907,8 +6326,6 @@ function startNeuroflyApp() {
                 const speed = (hud && hud.simSpeed) ? hud.simSpeed : 1.0;
                 accumulator += rawDt * speed;
 
-                // Fixed physical timestep for the local preview at every display speed;
-                // speed changes how many steps run per frame, never the step size.
                 const stepDt = 0.02;
                 const maxStepsPerFrame = Math.max(160, Math.ceil(speed * 1.8));
                 let stepsExecuted = 0;
@@ -5919,17 +6336,21 @@ function startNeuroflyApp() {
                     stepsExecuted++;
                 }
                 if (stepsExecuted >= maxStepsPerFrame) {
-                    accumulator = 0; // Prevent lag buildup on tab switch or pause
+                    accumulator = 0;
                 }
                 hud.update();
             });
         }
         runPhase('render', () => {
             if (renderFaultPending && arena.remotePacket) {
-                renderFaultPending = false;   // one-shot test-build fault (?inject=render)
+                renderFaultPending = false;
                 throw new Error('Injected renderer fault (test build)');
             }
-            arena.render();
+            if (viewport3D && viewport3D.visible) {
+                viewport3D.render();
+            } else {
+                arena.render();
+            }
         });
         requestAnimationFrame(loop);
     }

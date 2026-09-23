@@ -1158,9 +1158,18 @@
                     <button class="tool-btn" id="toolAlarm">Alarm Pheromone (Odor B)</button>
                     <button class="tool-btn" id="toolPredator">Deploy Threat</button>
                     <button class="tool-btn" id="toolWind">Drag Wind</button>
+                    <button class="tool-btn" id="btnToggle3D" style="border-color:#38bdf8;color:#38bdf8;font-weight:700;">View: 2D Arena</button>
+                    <button class="tool-btn" id="btnCameraMode" style="display:none;border-color:#818cf8;color:#818cf8;">Cam: Orbit</button>
                 </div>
 
                 <canvas id="arenaCanvas"></canvas>
+                <div id="viewport3DContainer" style="display:none; width:100%; height:100%; position:absolute; top:0; left:0; z-index:5;">
+                    <canvas id="viewport3DCanvas" style="width:100%; height:100%; display:block;"></canvas>
+                    <div id="viewport3DOverlay" style="position:absolute; bottom:12px; left:12px; background:rgba(15,23,42,0.88); border:1px solid rgba(56,189,248,0.3); border-radius:6px; padding:6px 12px; font-size:10px; color:#94a3b8; pointer-events:none; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+                        <span style="color:#38bdf8; font-weight:700;">Three.js 3D Articulated Viewport</span> | <span id="v3dControllerTag" style="color:#22c55e; font-weight:700;">MODULAR</span><br>
+                        18-DOF FlyGym Kinematics &bull; <span style="color:#22c55e;">Green = Stance</span>, <span style="color:#38bdf8;">Blue = Swing</span> &bull; Drag to Orbit
+                    </div>
+                </div>
 
                 <div class="arena-legend">
                     <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div> Food / Reward</div>
@@ -1392,6 +1401,72 @@
                     </div>
                 </div>
 
+                <!-- Connectome Premotor HUD (Phase 3 Step 3.3) -->
+                <div class="hud-card" id="premotorHudCard">
+                    <div class="hud-card-header">
+                        <span>Premotor &amp; Descending HUD</span>
+                        <span id="controllerBadge" class="badge badge-cyan" style="font-size:8.5px;">MODULAR</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; padding:4px 0; font-size:10px;">
+                        <!-- DNa02 L & R -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:#94a3b8;">DNa02 Steering (L / R)</span>
+                                <span style="font-family:monospace; color:#38bdf8;"><span id="hudDna02L">0.0</span> / <span id="hudDna02R">0.0</span> Hz</span>
+                            </div>
+                            <div style="display:flex; height:6px; background:#1e293b; border-radius:3px; overflow:hidden; gap:2px;">
+                                <div id="barDna02L" style="width:0%; background:#38bdf8; transition:width 0.1s;"></div>
+                                <div id="barDna02R" style="width:0%; background:#818cf8; transition:width 0.1s;"></div>
+                            </div>
+                        </div>
+                        <!-- DNp09 Forward Thrust -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:#94a3b8;">DNp09 Forward Thrust</span>
+                                <span style="font-family:monospace; color:#22c55e;"><span id="hudDnp09">0.0</span> Hz</span>
+                            </div>
+                            <div style="height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                                <div id="barDnp09" style="width:0%; background:#22c55e; transition:width 0.1s;"></div>
+                            </div>
+                        </div>
+                        <!-- MDN Backward Walk -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:#94a3b8;">MDN Reversal Command</span>
+                                <span style="font-family:monospace; color:#f59e0b;"><span id="hudMdn">0.0</span> Hz</span>
+                            </div>
+                            <div style="height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                                <div id="barMdn" style="width:0%; background:#f59e0b; transition:width 0.1s;"></div>
+                            </div>
+                        </div>
+                        <!-- GF Giant Fiber Escape -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:#94a3b8;">GF Giant Fiber Escape</span>
+                                <span style="font-family:monospace; color:#f43f5e;"><span id="hudGf">0.0</span> Hz</span>
+                            </div>
+                            <div style="height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                                <div id="barGf" style="width:0%; background:#f43f5e; transition:width 0.1s;"></div>
+                            </div>
+                        </div>
+                        <!-- CPG Gait Phase 6-Leg Diagram -->
+                        <div style="margin-top:4px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                                <span style="color:#94a3b8; font-size:9px;">CPG Phase Oscillators</span>
+                                <span id="cpgGaitName" style="color:#c084fc; font-size:9px; font-weight:bold;">TRIPOD GAIT</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:3px; text-align:center; font-size:8px;">
+                                <div id="cpgDotL1" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">L1</div>
+                                <div id="cpgDotL2" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">L2</div>
+                                <div id="cpgDotL3" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">L3</div>
+                                <div id="cpgDotR1" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">R1</div>
+                                <div id="cpgDotR2" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">R2</div>
+                                <div id="cpgDotR3" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">R3</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- TAB 1: A. Active Experiment Guide ("What to Watch & Parameters") -->
@@ -1524,6 +1599,8 @@
     </div>
 
     <!-- Application Script -->
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/OrbitControls.js"></script>
     <script src="live_assays.js"></script>
     <script src="app.js"></script>
     <script src="training.js"></script>
