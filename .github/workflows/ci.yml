@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  audit-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Private infrastructure grep guard
+        run: |
+          chmod +x scripts/check_private_infra.sh
+          ./scripts/check_private_infra.sh
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[body,test]"
+
+      - name: Verify CLI entry points
+        run: |
+          neurofly --help
+          neurofly capability | head -n 20
+
+      - name: Run unit & synthetic regression test battery
+        run: |
+          pytest -v tests/test_provenance_registry.py \
+                    tests/test_capability_matrix.py \
+                    tests/test_embodied_decoder.py \
+                    tests/test_learning.py \
+                    tests/test_daemon.py \
+                    tests/test_stream_gateway.py \
+                    tests/test_sensory_ingress_advanced.py

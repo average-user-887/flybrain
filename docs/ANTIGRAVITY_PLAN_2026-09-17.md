@@ -19,7 +19,7 @@ This plan establishes the concrete steps to close out Phase 10 (P10 v2), resolve
 - **Compact Local Handoff (worktree-p10v2-ryzen branch):** [P10_FINAL_HANDOFF.md](file://<redacted-path>/Documents/Codex/uroboros/docs/state/P10_FINAL_HANDOFF.md)
 - **Standing Rules & Authority:** [AGENTS.md](file://<redacted-path>/Documents/Codex/uroboros/AGENTS.md), [CLAUDE.md](file://<redacted-path>/Documents/Codex/uroboros/CLAUDE.md), [CONSOLIDATION_PLAN.md](file://<redacted-path>/Documents/Codex/uroboros/CONSOLIDATION_PLAN.md), [CONSOLIDATION_LEDGER.md](file://<redacted-path>/Documents/Codex/uroboros/docs/state/CONSOLIDATION_LEDGER.md)
 
-### Samba Share (`//<redacted-ip>/Storage` mounted at `/mnt/<redacted-host>-storage/uroboros-transfer/`)
+### Storage Mount (`/mnt/<redacted-host>-storage/uroboros-transfer/`)
 - [P10-HARNESS-HANDOFF-RYZEN-20260916.md](file:///mnt/<redacted-host>-storage/uroboros-transfer/P10-HARNESS-HANDOFF-RYZEN-20260916.md): Ryzen harness transition handoff at window close.
 - [P10-HARNESS-HANDOFF-DECK-20260916.md](file:///mnt/<redacted-host>-storage/uroboros-transfer/P10-HARNESS-HANDOFF-DECK-20260916.md): Steam Deck harness transition handoff at window close.
 - [DECK-FINAL-HANDOFF.md](file:///mnt/<redacted-host>-storage/uroboros-transfer/p10v2-deck-FINAL-HANDOFF/DECK-FINAL-HANDOFF.md): Deck final handoff with 5-model coverage matrix and Vulkan memory limits.
