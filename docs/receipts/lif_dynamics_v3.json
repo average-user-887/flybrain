@@ -1,0 +1,556 @@
+{
+  "generated_at": "2026-09-23T16:59:42+0200",
+  "host": "avg-usr-B550-GAMING-X",
+  "dynamics_declared": {
+    "v3": {
+      "dynamics_version": "v3",
+      "model": "fixed-weight leaky integrate-and-fire, CONDUCTANCE-based with reversal potentials and a PER-SIGN PSP-preserving calibration (brainlab.engine.advance_v3)",
+      "dt_ms": 0.1,
+      "tau_membrane_ms": 20.0,
+      "tau_synapse_ms": 5.0,
+      "v_rest_mV": -52.0,
+      "v_reset_mV": -52.0,
+      "v_threshold_mV": -45.0,
+      "refractory_ms": 2.2,
+      "transmission_delay_ms": 1.8,
+      "synaptic_scale": 0.275,
+      "e_excitatory_mV": 0.0,
+      "e_inhibitory_mV": -70.0,
+      "g_unit_excitatory_per_weight": 0.019230769230769232,
+      "g_unit_inhibitory_per_weight": 0.05555555555555555,
+      "g_unit_ratio_inh_over_exc": 2.8888888888888884,
+      "weight_units": "synapse_count * transmitter_sign * 0.275, converted to a synaptic conductance of |weight| * g_unit_<sign> in leak-conductance units",
+      "input_units": "per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)",
+      "output_units": "spike counts per step window",
+      "membrane_bounds_mV": [
+        -70.0,
+        0.0
+      ],
+      "reversal_potentials_mV": {
+        "excitatory": {
+          "value": 0.0,
+          "status": "measured (Drosophila)",
+          "source": "Lee & O'Dowd 1999 J Neurosci 19:5311 (nAChR mEPSC reverses near 0 mV); Su & O'Dowd 2003 J Neurosci 23:9246 (+8.9 mV in Kenyon cells)"
+        },
+        "inhibitory": {
+          "value": -70.0,
+          "status": "ENGINEERING ASSUMPTION",
+          "source": "chloride reversal for Rdl/GluCl/HisCl; reported Drosophila values are internal-solution dependent (-56 mV Rohrbough & Broadie 2002; -37 mV Su & O'Dowd 2003). -70 mV is the conventional low-[Cl-]i value, not a measured adult number. Declared sensitivity arm at -56 mV."
+        }
+      },
+      "g_unit_derivation": "g_unit_exc = 1/(e_excitatory - v_rest) = 1/52 and g_unit_inh = 1/(v_rest - e_inhibitory) = 1/18. Each quantum is fixed by requiring the unitary PSP at rest to equal the one the upstream current-based model (Shiu et al. 2024, w_syn = 0.275 mV) specifies for that sign. Derived, not fitted; no free parameter. v2 applied the excitatory quantum to both signs, which is an extra assumption the upstream model never made and which shrank the unitary IPSP to 18/52 = 0.346x its declared value.",
+      "transmitter_policy": {
+        "policy": "v3-modulatory-only",
+        "modulatory_only_transmitters": [
+          "dopamine",
+          "octopamine",
+          "serotonin"
+        ],
+        "effect": "every out-edge of a dopaminergic, octopaminergic or serotonergic neuron carries zero fast synaptic weight; those neurons are available to a plasticity rule as a modulatory signal and in no other way",
+        "unresolved_neurons": "the 2,999 'unclear' (plus 178 unlabelled) neurons are handled SEPARATELY by the declared switch unclear_mode {excitatory|zero|exclude}; the primary is 'excitatory', i.e. unchanged from v1 and v2",
+        "applied_by": "brainlab.transmitter_policy.apply_to_shared (in memory; the pinned graph.npz is never rewritten, and the transformed graph gets its own graph_sha256)",
+        "rationale": "Drosophila dopamine, octopamine and serotonin receptors are G-protein-coupled (Blenau & Baumann 2001 Arch Insect Biochem Physiol 48:13-38; Evans & Maqueira 2005 Invert Neurosci 5:111-118), so these neurons do not make the fast ionotropic excitatory synapse the coarse sign proxy gave them. See docs/LIF_DYNAMICS_SPEC.md \u00a74.3."
+      },
+      "integration": "exponential Euler, conductances frozen within dt (first order in the synaptic term)",
+      "changes_from_v2": [
+        "inhibitory conductance quantum is 52/18 = 2.889x the excitatory one, so the unitary IPSP at rest equals the v1 IPSP instead of 0.346x it",
+        "dopaminergic / octopaminergic / serotonergic neurons carry no fast synaptic weight",
+        "the fast-weight array therefore differs from the pinned graph and carries its own graph_sha256; checkpoints do not cross between policies",
+        "every snapshot records its dynamics version, so v2 and v3 checkpoints (which share the (2, n) synaptic state shape) refuse each other explicitly"
+      ],
+      "unchanged_from_v2": [
+        "E_exc = 0 mV, E_inh = -70 mV, membrane bounded to [E_inh, E_exc]",
+        "shunting inhibition, saturating excitation, shunted external drive",
+        "spike / delay / refractory / reset schedule, identical to v1",
+        "synaptic conductance zeroed on every spike; arrivals at a refractory neuron dropped",
+        "no adaptation, short-term plasticity or after-hyperpolarisation",
+        "coarse transmitter-sign proxy for the fast classes, not receptor physiology"
+      ],
+      "parameter_source": "Shiu et al. 2024 for the shared LIF constants; see spec for reversals and for the aminergic sources",
+      "spec": "docs/LIF_DYNAMICS_SPEC.md",
+      "biological_validation": "none; engineering proxy with declared reversal potentials and a declared transmitter-class policy"
+    }
+  },
+  "dynamics_pins": {
+    "v3": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41"
+  },
+  "probe_a": [
+    {
+      "dynamics": "v3",
+      "drive": 20.0,
+      "ms": 2000.0,
+      "sweep": [
+        {
+          "inhibitory_weight": -40.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -61.591,
+          "v_post_final_mV": -61.426
+        },
+        {
+          "inhibitory_weight": -400.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -68.914,
+          "v_post_final_mV": -68.914
+        },
+        {
+          "inhibitory_weight": -4000.0,
+          "presynaptic_spikes": 185,
+          "v_post_min_mV": -69.92,
+          "v_post_final_mV": -69.891
+        }
+      ],
+      "unitary_epsp_mV": 0.04372
+    }
+  ],
+  "probe_b": [
+    {
+      "dynamics": "v3",
+      "neurons": 2000,
+      "edges_per_neuron": 40,
+      "excitatory_fraction": 0.8,
+      "stim_ms": 200.0,
+      "free_ms": 800.0,
+      "sweep": [
+        {
+          "weight_gain": 1.0,
+          "mean_net_in_weight": 7.86,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -52.54,
+          "v_max_during_free_mV": -49.04,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 2.0,
+          "mean_net_in_weight": 15.72,
+          "stim_rate_hz_per_neuron": 9.0,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -53.02,
+          "v_max_during_free_mV": -48.92,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 4.0,
+          "mean_net_in_weight": 31.43,
+          "stim_rate_hz_per_neuron": 9.115,
+          "free_rate_hz_per_neuron": 0.0,
+          "free_total_spikes": 0,
+          "v_min_during_free_mV": -54.12,
+          "v_max_during_free_mV": -46.31,
+          "self_sustained": false
+        },
+        {
+          "weight_gain": 8.0,
+          "mean_net_in_weight": 62.87,
+          "stim_rate_hz_per_neuron": 11.898,
+          "free_rate_hz_per_neuron": 0.01,
+          "free_total_spikes": 16,
+          "v_min_during_free_mV": -55.75,
+          "v_max_during_free_mV": -45.67,
+          "self_sustained": true
+        },
+        {
+          "weight_gain": 16.0,
+          "mean_net_in_weight": 125.73,
+          "stim_rate_hz_per_neuron": 105.275,
+          "free_rate_hz_per_neuron": 112.874,
+          "free_total_spikes": 180598,
+          "v_min_during_free_mV": -54.75,
+          "v_max_during_free_mV": -45.0,
+          "self_sustained": true
+        }
+      ]
+    }
+  ],
+  "graph": {
+    "dataset": "malecns_v1",
+    "synthetic": false,
+    "graph_path": "/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path_source": "default",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_path": "/home/avg-usr/Documents/ChatGPT/flybrain/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+    "neurons": 166700,
+    "edges": 25582938,
+    "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
+    "data_sha256": {
+      "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "edges.feather (pinned, not rehashed)": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+    },
+    "label": "MaleCNS v1.0 prepared graph"
+  },
+  "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+  "io_map_sha256": "228c1b69251e73a3ec34d551202b98f8b6afddf723a77c89e3203053d2366c7b",
+  "fixed_point": {
+    "legacy": {
+      "policy": "v1v2-as-prepared",
+      "unclear_mode": "excitatory",
+      "modulatory_transmitters": [
+        "dopamine",
+        "octopamine",
+        "serotonin"
+      ],
+      "unresolved_transmitters": [
+        "unclear",
+        "unassigned",
+        "nan",
+        "none",
+        ""
+      ],
+      "neurons": 166700,
+      "edges": 25582938,
+      "edges_zeroed": 0,
+      "neurons_modulatory": 0,
+      "neurons_unresolved": 0,
+      "changed": false,
+      "total_excitatory_weight": 21098935.015976638,
+      "total_inhibitory_weight": 13049910.572894871,
+      "v2_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 0.6185103922550194,
+        "high_conductance_fixed_point_mV": -26.750354934409035,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -18.249645065590965
+      },
+      "v3_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 1.7868077998478331,
+        "high_conductance_fixed_point_mV": -44.88165491577059,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -0.1183450842294107
+      }
+    },
+    "v3-primary": {
+      "policy": "v3-modulatory-only",
+      "unclear_mode": "excitatory",
+      "modulatory_transmitters": [
+        "dopamine",
+        "octopamine",
+        "serotonin"
+      ],
+      "unresolved_transmitters": [
+        "unclear",
+        "unassigned",
+        "nan",
+        "none",
+        ""
+      ],
+      "neurons": 166700,
+      "edges": 25582938,
+      "edges_zeroed": 435541,
+      "neurons_modulatory": 541,
+      "neurons_unresolved": 3177,
+      "modulatory_out_edges": 435541,
+      "unresolved_out_edges": 588262,
+      "changed": true,
+      "total_excitatory_weight": 20773392.757033437,
+      "total_inhibitory_weight": 13049910.572894871,
+      "v2_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 0.6282031406967186,
+        "high_conductance_fixed_point_mV": -27.007821536293957,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -17.992178463706043
+      },
+      "v3_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 1.8148090731238533,
+        "high_conductance_fixed_point_mV": -45.13152822037961,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.13152822037960732
+      },
+      "weight_sha256": "40faf59702c7054102017bf1171a7e3088b979f4375a1c668570d2c713e46346"
+    },
+    "v3-unclear-zero": {
+      "policy": "v3-modulatory-only",
+      "unclear_mode": "zero",
+      "modulatory_transmitters": [
+        "dopamine",
+        "octopamine",
+        "serotonin"
+      ],
+      "unresolved_transmitters": [
+        "unclear",
+        "unassigned",
+        "nan",
+        "none",
+        ""
+      ],
+      "neurons": 166700,
+      "edges": 25582938,
+      "edges_zeroed": 1023803,
+      "neurons_modulatory": 541,
+      "neurons_unresolved": 3177,
+      "modulatory_out_edges": 435541,
+      "unresolved_out_edges": 588262,
+      "changed": true,
+      "total_excitatory_weight": 20210070.641856164,
+      "total_inhibitory_weight": 13049910.572894871,
+      "v2_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 0.6457132587091404,
+        "high_conductance_fixed_point_mV": -27.465251234041588,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -17.534748765958412
+      },
+      "v3_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 1.8653938584930718,
+        "high_conductance_fixed_point_mV": -45.570548602762265,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.5705486027622655
+      },
+      "weight_sha256": "7452083cd6b360899821545d73f6c2a9bea5f3c46e08c8bc9726611b6ba96a87"
+    },
+    "v3-unclear-exclude": {
+      "policy": "v3-modulatory-only",
+      "unclear_mode": "exclude",
+      "modulatory_transmitters": [
+        "dopamine",
+        "octopamine",
+        "serotonin"
+      ],
+      "unresolved_transmitters": [
+        "unclear",
+        "unassigned",
+        "nan",
+        "none",
+        ""
+      ],
+      "neurons": 166700,
+      "edges": 25582938,
+      "edges_zeroed": 1634081,
+      "neurons_modulatory": 541,
+      "neurons_unresolved": 3177,
+      "modulatory_out_edges": 435541,
+      "unresolved_out_edges": 588262,
+      "changed": true,
+      "total_excitatory_weight": 19422842.696849734,
+      "total_inhibitory_weight": 12547133.01039493,
+      "v2_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 0.6459987966864398,
+        "high_conductance_fixed_point_mV": -27.472629906584984,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -17.527370093415016
+      },
+      "v3_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 1.8662187459830477,
+        "high_conductance_fixed_point_mV": -45.577579311382394,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.5775793113823937
+      },
+      "weight_sha256": "05010804a806df2593ee3346ca190f163e0b2a4d215d361d95dfcef0356cc663"
+    }
+  },
+  "probe_c": [
+    {
+      "dynamics": "v3",
+      "e_inh_mV": -70.0,
+      "direction": 1,
+      "wall_s": 31.3,
+      "sim_s_per_wall_s": 0.0638,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4400.275390625,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4365.0751953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "network_membrane_range_mV": [
+        -69.786,
+        -45.0
+      ],
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -53.92,
+        "v_l_min": -63.52,
+        "v_r_mean": -63.61,
+        "v_r_min": -67.93,
+        "rate_l_hz": 8.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 99708.0,
+        "arriving_exc_weight_L": 27.1,
+        "arriving_inh_weight_L": 33.5,
+        "arriving_exc_weight_R": 9.2,
+        "arriving_inh_weight_R": 48.8
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -59.08,
+        "v_l_min": -66.46,
+        "v_r_mean": -61.06,
+        "v_r_min": -67.43,
+        "rate_l_hz": 2.0,
+        "rate_r_hz": 2.0,
+        "network_rate_hz": 45160.0,
+        "arriving_exc_weight_L": 13.3,
+        "arriving_inh_weight_L": 31.8,
+        "arriving_exc_weight_R": 11.6,
+        "arriving_inh_weight_R": 36.6
+      },
+      "transmitter_policy": {
+        "policy": "v3-modulatory-only",
+        "unclear_mode": "excitatory",
+        "modulatory_transmitters": [
+          "dopamine",
+          "octopamine",
+          "serotonin"
+        ],
+        "unresolved_transmitters": [
+          "unclear",
+          "unassigned",
+          "nan",
+          "none",
+          ""
+        ],
+        "spec": "docs/LIF_DYNAMICS_SPEC.md#4",
+        "note": "coarse transmitter-class policy; not receptor physiology"
+      },
+      "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda"
+    },
+    {
+      "dynamics": "v3",
+      "e_inh_mV": -70.0,
+      "direction": -1,
+      "wall_s": 30.6,
+      "sim_s_per_wall_s": 0.0655,
+      "static_input_budget": {
+        "DNa02_L": {
+          "in_edges": 1138,
+          "exc_weight": 4400.275390625,
+          "inh_weight": 2160.67529296875
+        },
+        "DNa02_R": {
+          "in_edges": 1201,
+          "exc_weight": 4365.0751953125,
+          "inh_weight": 2256.375
+        }
+      },
+      "network_membrane_range_mV": [
+        -69.776,
+        -45.0
+      ],
+      "initial_gray": {
+        "steps": 250,
+        "v_l_mean": -52.0,
+        "v_l_min": -52.0,
+        "v_r_mean": -52.0,
+        "v_r_min": -52.0,
+        "rate_l_hz": 0.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 0.0,
+        "arriving_exc_weight_L": 0.0,
+        "arriving_inh_weight_L": 0.0,
+        "arriving_exc_weight_R": 0.0,
+        "arriving_inh_weight_R": 0.0
+      },
+      "stimulus": {
+        "steps": 500,
+        "v_l_mean": -61.63,
+        "v_l_min": -67.55,
+        "v_r_mean": -56.23,
+        "v_r_min": -65.39,
+        "rate_l_hz": 2.0,
+        "rate_r_hz": 5.0,
+        "network_rate_hz": 92767.0,
+        "arriving_exc_weight_L": 12.1,
+        "arriving_inh_weight_L": 43.0,
+        "arriving_exc_weight_R": 25.7,
+        "arriving_inh_weight_R": 40.7
+      },
+      "gray_after_stimulus": {
+        "steps": 250,
+        "v_l_mean": -57.19,
+        "v_l_min": -67.23,
+        "v_r_mean": -57.11,
+        "v_r_min": -65.96,
+        "rate_l_hz": 4.0,
+        "rate_r_hz": 0.0,
+        "network_rate_hz": 31356.0,
+        "arriving_exc_weight_L": 10.7,
+        "arriving_inh_weight_L": 20.7,
+        "arriving_exc_weight_R": 9.9,
+        "arriving_inh_weight_R": 22.3
+      },
+      "transmitter_policy": {
+        "policy": "v3-modulatory-only",
+        "unclear_mode": "excitatory",
+        "modulatory_transmitters": [
+          "dopamine",
+          "octopamine",
+          "serotonin"
+        ],
+        "unresolved_transmitters": [
+          "unclear",
+          "unassigned",
+          "nan",
+          "none",
+          ""
+        ],
+        "spec": "docs/LIF_DYNAMICS_SPEC.md#4",
+        "note": "coarse transmitter-class policy; not receptor physiology"
+      },
+      "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda"
+    }
+  ],
+  "probe_c_policies": {
+    "v3:excitatory": {
+      "policy": "v3-modulatory-only",
+      "unclear_mode": "excitatory",
+      "modulatory_transmitters": [
+        "dopamine",
+        "octopamine",
+        "serotonin"
+      ],
+      "unresolved_transmitters": [
+        "unclear",
+        "unassigned",
+        "nan",
+        "none",
+        ""
+      ],
+      "neurons": 166700,
+      "edges": 25582938,
+      "edges_zeroed": 435541,
+      "neurons_modulatory": 541,
+      "neurons_unresolved": 3177,
+      "modulatory_out_edges": 435541,
+      "unresolved_out_edges": 588262,
+      "changed": true,
+      "total_excitatory_weight": 20773392.757033437,
+      "total_inhibitory_weight": 13049910.572894871,
+      "v2_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 0.6282031406967186,
+        "high_conductance_fixed_point_mV": -27.007821536293957,
+        "subthreshold": false,
+        "margin_below_threshold_mV": -17.992178463706043
+      },
+      "v3_quanta": {
+        "conductance_ratio_g_inh_over_g_exc": 1.8148090731238533,
+        "high_conductance_fixed_point_mV": -45.13152822037961,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.13152822037960732
+      },
+      "weight_sha256": "40faf59702c7054102017bf1171a7e3088b979f4375a1c668570d2c713e46346",
+      "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+      "base_graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01"
+    }
+  }
+}
