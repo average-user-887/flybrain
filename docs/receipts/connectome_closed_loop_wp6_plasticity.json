@@ -1,0 +1,171 @@
+{
+  "schema": "neurofly.connectome-closed-loop-wp6.v1",
+  "timestamp": 1790206887.7665684,
+  "backend": "connectome-plastic",
+  "identity": {
+    "run_id": "20260924T013855-d3e9230f00b6",
+    "instance_id": "7bcbfd4197c545f7a9aef056b3835d11",
+    "assay": "buridan",
+    "backend": "connectome-plastic",
+    "controller_version": "brainlab-lif-plastic-v1",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+    "synthetic": false,
+    "test_mode": false,
+    "label": "Full graph with internal plasticity restricted to a declared edge subset and rule.",
+    "activation": 1,
+    "daemon_run_id": "84c71b6296f9429d85dc9cc32c45d4b5"
+  },
+  "paradigm": "buridan",
+  "steps_simulated": 50,
+  "sim_time_s": 1.0,
+  "wall_time_s": 0.133,
+  "total_spikes_integrated": 2036,
+  "plastic_synapses": 3081,
+  "final_mean_delta": 0.022222,
+  "final_max_delta": 0.143367,
+  "final_epg_bump_phase": 0.0,
+  "telemetry_samples": [
+    {
+      "step": 0,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 3e-06,
+      "wp6_max_delta": 8e-06,
+      "total_spikes": 167
+    },
+    {
+      "step": 1,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 6e-06,
+      "wp6_max_delta": 2e-05,
+      "total_spikes": 14
+    },
+    {
+      "step": 2,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 1.4e-05,
+      "wp6_max_delta": 5.4e-05,
+      "total_spikes": 17
+    },
+    {
+      "step": 3,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 2.7e-05,
+      "wp6_max_delta": 0.000126,
+      "total_spikes": 44
+    },
+    {
+      "step": 4,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 4.7e-05,
+      "wp6_max_delta": 0.000245,
+      "total_spikes": 40
+    },
+    {
+      "step": 5,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 7.4e-05,
+      "wp6_max_delta": 0.000423,
+      "total_spikes": 35
+    },
+    {
+      "step": 6,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.000111,
+      "wp6_max_delta": 0.000633,
+      "total_spikes": 61
+    },
+    {
+      "step": 7,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.000156,
+      "wp6_max_delta": 0.000876,
+      "total_spikes": 23
+    },
+    {
+      "step": 8,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.000211,
+      "wp6_max_delta": 0.00115,
+      "total_spikes": 29
+    },
+    {
+      "step": 9,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.000278,
+      "wp6_max_delta": 0.001454,
+      "total_spikes": 51
+    },
+    {
+      "step": 40,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.013095,
+      "wp6_max_delta": 0.081246,
+      "total_spikes": 47
+    },
+    {
+      "step": 41,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.013971,
+      "wp6_max_delta": 0.086865,
+      "total_spikes": 33
+    },
+    {
+      "step": 42,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.014878,
+      "wp6_max_delta": 0.092713,
+      "total_spikes": 28
+    },
+    {
+      "step": 43,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.015821,
+      "wp6_max_delta": 0.098792,
+      "total_spikes": 51
+    },
+    {
+      "step": 44,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.016796,
+      "wp6_max_delta": 0.105106,
+      "total_spikes": 30
+    },
+    {
+      "step": 45,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.017817,
+      "wp6_max_delta": 0.111655,
+      "total_spikes": 59
+    },
+    {
+      "step": 46,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.018869,
+      "wp6_max_delta": 0.118726,
+      "total_spikes": 25
+    },
+    {
+      "step": 47,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.01995,
+      "wp6_max_delta": 0.126612,
+      "total_spikes": 35
+    },
+    {
+      "step": 48,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.021069,
+      "wp6_max_delta": 0.134824,
+      "total_spikes": 47
+    },
+    {
+      "step": 49,
+      "epg_bump_phase": 0.0,
+      "wp6_mean_delta": 0.022222,
+      "wp6_max_delta": 0.143367,
+      "total_spikes": 37
+    }
+  ]
+}

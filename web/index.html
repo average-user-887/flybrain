@@ -1128,6 +1128,14 @@
                             <option value="100">100x (Max)</option>
                         </select>
                     </div>
+                    <div class="speed-control-wrap" title="Select Controller Backend">
+                        <span style="font-size:9.5px;color:#94a3b8;margin:0 4px;">Controller:</span>
+                        <select id="selectBackend" class="speed-select" style="color:#38bdf8;">
+                            <option value="modular">Modular (15x)</option>
+                            <option value="connectome-fixed">Connectome v3 Fixed</option>
+                            <option value="connectome-plastic">Connectome Plastic (WP6)</option>
+                        </select>
+                    </div>
                     <button class="nav-btn primary" id="btnResetTrial">Reset Trial</button>
                 </div>
             </div>
@@ -1464,6 +1472,21 @@
                                 <div id="cpgDotR3" style="padding:2px 0; border-radius:3px; background:#1e293b; color:#94a3b8; border:1px solid rgba(255,255,255,0.08);">R3</div>
                             </div>
                         </div>
+
+                        <!-- WP6 ER->EPG Plasticity Block -->
+                        <div id="wp6PlasticityBlock" style="margin-top:6px; padding-top:6px; border-top:1px solid #1e293b; display:none;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:9.5px;">
+                                <span style="color:#c084fc; font-weight:700;">WP6 ER→EPG ΔW (Plasticity)</span>
+                                <span style="font-family:monospace; color:#c084fc;"><span id="hudWp6MeanDelta">0.000</span> Δg (<span id="hudWp6Pct">0.0</span>%)</span>
+                            </div>
+                            <div style="height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                                <div id="barWp6Delta" style="width:0%; background:#c084fc; transition:width 0.15s;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:2px; font-size:8.5px; color:#64748b;">
+                                <span>3,081 ER→EPG synapses</span>
+                                <span>Max |ΔW|: <b id="hudWp6MaxDelta" style="color:#fbbf24;">0.000</b></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1565,12 +1588,16 @@
             <div class="hud-card">
                 <div class="hud-card-header">
                     <span>[2] Central Complex Compass</span>
-                    <span id="valCompassHeading" style="color:var(--cyan-glow); font-family:monospace;">0.0°</span>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <span id="valCompassSource" class="badge badge-cyan" style="font-size:8px;">MODULAR</span>
+                        <span id="valCompassHeading" style="color:var(--cyan-glow); font-family:monospace;">0.0°</span>
+                    </div>
                 </div>
                 <div class="compass-box">
                     <canvas id="compassCanvas"></canvas>
                     <div class="compass-data">
                         <div>Bump Phase: <b id="valHeadingBump" style="color:#38bdf8;">0°</b></div>
+                        <div>EPG Connectome: <b id="valEpgBump" style="color:#22c55e;">--</b></div>
                         <div>Upwind Ref: <b id="valUpwindAngle">0°</b></div>
                         <div>PFL3 Steering: <b id="valPfl3Error" style="color:#fbbf24;">0.00</b></div>
                         <div>Antenna Drag: <b id="valAntennaDeflect">0.0 μN</b></div>

@@ -1,0 +1,239 @@
+{
+  "schema": "neurofly.connectome-closed-loop-looming.v1",
+  "timestamp": 1790206886.4343574,
+  "backend": "connectome-fixed",
+  "identity": {
+    "run_id": "20260924T013853-3bc45a61fec5",
+    "instance_id": "f03da8f9f42a4e459486689b37a97ba6",
+    "assay": "looming-escape",
+    "backend": "connectome-fixed",
+    "controller_version": "brainlab-lif-v1",
+    "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+    "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+    "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+    "synthetic": false,
+    "test_mode": false,
+    "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+    "activation": 1,
+    "daemon_run_id": "c7b449b567ae4ffe93f1d1fce5822400"
+  },
+  "paradigm": "looming-escape",
+  "steps_simulated": 50,
+  "sim_time_s": 1.0,
+  "wall_time_s": 7.052,
+  "total_spikes_integrated": 299635,
+  "escape_triggered": true,
+  "max_speed_mm_s": 35.0,
+  "telemetry_samples": [
+    {
+      "step": 20,
+      "state": "GRAPH",
+      "speed": 25.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 0.0
+      },
+      "total_spikes": 3383
+    },
+    {
+      "step": 21,
+      "state": "GRAPH",
+      "speed": 15.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 0.0
+      },
+      "total_spikes": 3665
+    },
+    {
+      "step": 22,
+      "state": "GRAPH",
+      "speed": 5.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 0.0
+      },
+      "total_spikes": 4078
+    },
+    {
+      "step": 23,
+      "state": "GRAPH",
+      "speed": 25.0,
+      "yaw_rate": 2.0,
+      "dn_rates": {
+        "dna02_l": 100.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 0.0
+      },
+      "total_spikes": 4122
+    },
+    {
+      "step": 24,
+      "state": "GRAPH",
+      "speed": 25.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 0.0
+      },
+      "total_spikes": 3387
+    },
+    {
+      "step": 25,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 100.0
+      },
+      "total_spikes": 4124
+    },
+    {
+      "step": 26,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 3.0,
+      "dn_rates": {
+        "dna02_l": 150.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 550.0
+      },
+      "total_spikes": 6647
+    },
+    {
+      "step": 27,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 550.0
+      },
+      "total_spikes": 7582
+    },
+    {
+      "step": 28,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 600.0
+      },
+      "total_spikes": 8130
+    },
+    {
+      "step": 29,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 550.0
+      },
+      "total_spikes": 8630
+    },
+    {
+      "step": 30,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 600.0
+      },
+      "total_spikes": 8769
+    },
+    {
+      "step": 31,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 550.0
+      },
+      "total_spikes": 8751
+    },
+    {
+      "step": 32,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 650.0
+      },
+      "total_spikes": 8470
+    },
+    {
+      "step": 33,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 1.0,
+      "dn_rates": {
+        "dna02_l": 50.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 550.0
+      },
+      "total_spikes": 8230
+    },
+    {
+      "step": 34,
+      "state": "ESCAPE",
+      "speed": 35.0,
+      "yaw_rate": 0.0,
+      "dn_rates": {
+        "dna02_l": 0.0,
+        "dna02_r": 0.0,
+        "dnp09": 0.0,
+        "mdn": 0.0,
+        "gf": 600.0
+      },
+      "total_spikes": 8669
+    }
+  ]
+}

@@ -132,6 +132,48 @@ class GraphArenaController:
         self._optomotor_io = None
         self._optomotor_loop = None          # (instance_id, OptomotorLoop)
         self.optomotor_unavailable = None
+        self.dn_indices = {}
+        self.sensory_indices = {}
+        self.epg_indices = []
+        self._load_indices()
+
+    def _load_indices(self):
+        from brainlab.graph_identity import DN_CHANNELS, resolve_connectome_dir
+        self.dn_indices = {name: list(indices) for name, indices in DN_CHANNELS.items()}
+        self.sensory_indices = {
+            "orn_food": [], "orn_danger": [], "visual_l": [], "visual_r": [],
+            "visual_looming": [], "jon_wind": [], "feco_proprio": [],
+            "courtship_cva": [], "thermo_receptors": []
+        }
+        self.epg_indices = []
+        try:
+            cdir, _ = resolve_connectome_dir(getattr(self.runner, "connectome_dir", None))
+            neurons_path = cdir / "normalized/neurons.feather"
+            if neurons_path.is_file():
+                import pyarrow.feather as feather
+                df = feather.read_table(neurons_path).to_pandas()
+                if "cell_type" in df.columns:
+                    self.sensory_indices["orn_food"] = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()[:50]
+                    self.sensory_indices["orn_danger"] = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()[:50]
+                    self.sensory_indices["courtship_cva"] = df[df['cell_type'] == 'ORN_DA1']['node_index'].tolist()[:50]
+                    self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
+                    self.sensory_indices["visual_looming"] = df[df['cell_type'].isin(['LC4', 'LPLC2'])]['node_index'].tolist()
+                    self.sensory_indices["er_ring"] = df[df['cell_type'].isin(['ER4d', 'ER2_a', 'ER2_b', 'ER2_c', 'ER2_d'])]['node_index'].tolist()
+                    self.sensory_indices["el_modulator"] = df[df['cell_type'] == 'EL']['node_index'].tolist()
+                    self.epg_indices = df[df['cell_type'].isin(['EPG', 'EPGt'])]['node_index'].tolist()
+                ann_path = cdir / "annotations.feather"
+                if ann_path.is_file():
+                    ann = feather.read_table(ann_path, columns=['bodyId', 'rootSide']).to_pandas()
+                    root_side = dict(zip(ann.bodyId.astype('int64'), ann.rootSide))
+                    retina = df[df['cell_type'] == 'R1-R6'].sort_values('source_id')
+                    sides = retina['source_id'].map(root_side)
+                    self.sensory_indices["visual_l"] = retina[sides == 'L']['node_index'].tolist()[:100]
+                    self.sensory_indices["visual_r"] = retina[sides == 'R']['node_index'].tolist()[:100]
+                    ann_thermo = feather.read_table(ann_path, columns=['bodyId', 'class']).to_pandas()
+                    thermo_ids = set(ann_thermo[ann_thermo['class'] == 'thermosensory']['bodyId'].astype('int64'))
+                    self.sensory_indices["thermo_receptors"] = df[df['source_id'].isin(thermo_ids)]['node_index'].tolist()
+        except Exception as exc:
+            print(f"[GraphArenaController] Note: sensory indices unavailable ({exc})", flush=True)
 
     @property
     def optomotor_io_map_sha256(self):
@@ -182,10 +224,30 @@ class GraphArenaController:
                 record = loop.step(float(kwargs.get("optomotor_slip_rad_s", 0.0)),
                                    float(kwargs.get("optomotor_contrast", 1.0)))
                 self.last_total_spikes = int(record["total_spikes"])
+                epg_wedges = [0.0] * 16
+                bump_phase = 0.0
+                wp6_mean_delta = 0.0
+                wp6_max_delta = 0.0
+                if instance.backend == 'connectome-plastic' and len(getattr(instance, "plastic_delta", [])) > 0:
+                    wp6_mean_delta = float(np.mean(instance.plastic_delta))
+                    wp6_max_delta = float(np.max(np.abs(instance.plastic_delta)))
+
                 return {"halted": False, "forward_speed": 0.0, "yaw_rate": float(record["yaw_rad_s"]),
                         "motor_source": "graph", "controller_fault": None, "state": "OPTOMOTOR-TETHERED",
                         "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
                         "total_spikes": self.last_total_spikes,
+                        "dn_rates": {
+                            "dna02_l": round(float(record.get("rate_l", 0.0)), 2),
+                            "dna02_r": round(float(record.get("rate_r", 0.0)), 2),
+                            "dnp09": 0.0, "mdn": 0.0, "gf": 0.0,
+                        },
+                        "epg_wedges": epg_wedges,
+                        "epg_bump_phase": bump_phase,
+                        "wp6": {
+                            "mean_delta": round(wp6_mean_delta, 6),
+                            "max_delta": round(wp6_max_delta, 6),
+                            "n_edges": len(getattr(instance, "plastic_edges", [])),
+                        },
                         "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
                         "engineered_assistance_applied": [],
                         "optomotor": {
@@ -196,24 +258,190 @@ class GraphArenaController:
                             "io_map_sha256": self.optomotor_io_map_sha256,
                             "decoder": "yaw = 0.02*(rate DNa02_L - rate DNa02_R), + = counter-clockwise; unclipped",
                         }}
+            unsupported = (f"The WP5 optomotor map could not be resolved on this graph "
+                           f"({self.optomotor_unavailable}); no motor command.")
+            return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": self.UNMAPPED,
+                    "controller_fault": None, "state": "NO-MOTOR-MAP",
+                    "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
+                    "total_spikes": self.last_total_spikes,
+                    "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
+                    "engineered_assistance_applied": [],
+                    "optomotor": None, "optomotor_unsupported": unsupported,
+                    "unsupported": unsupported}
+
         n = instance.brain.n
         if self._currents is None or len(self._currents) != n:
             self._currents = np.zeros(n, dtype=np.float32)
-        result = instance.step(self._currents, self.step_ms)
-        self.last_total_spikes = int(result.counts.sum())
-        unsupported = (f"No verified sensory encoder or motor decoder for assay "
-                       f"{self.runner.active_paradigm_id!r} in the live arena; no motor command.")
-        if self.runner.active_paradigm_id == self.OPTOMOTOR_ASSAY:
-            unsupported = (f"The WP5 optomotor map could not be resolved on this graph "
-                           f"({self.optomotor_unavailable}); no motor command.")
-        return {"halted": True, "forward_speed": 0.0, "yaw_rate": 0.0, "motor_source": self.UNMAPPED,
-                "controller_fault": None, "state": "NO-MOTOR-MAP",
-                "graph_step": instance.step_index, "graph_step_ms": self.step_ms,
-                "total_spikes": self.last_total_spikes,
-                "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
-                "engineered_assistance_applied": [],
-                "optomotor": None, "optomotor_unsupported": unsupported,
-                "unsupported": unsupported}
+        else:
+            self._currents.fill(0.0)
+        currents = self._currents
+
+        if sensory is None:
+            sensory = {}
+        if "assay_stimuli" in kwargs and isinstance(kwargs["assay_stimuli"], dict):
+            s_merged = dict(kwargs["assay_stimuli"])
+            s_merged.update(sensory)
+            sensory = s_merged
+
+        # 0. Olfactory (food & danger)
+        food_stim = float(sensory.get("mean_a", sensory.get("odor_conc", sensory.get("odor_a", 0.0))))
+        if food_stim > 0.001:
+            i_food = float(min(40.0, food_stim * 35.0))
+            for idx in self.sensory_indices.get("orn_food", ()):
+                if idx < n: currents[idx] += i_food
+
+        danger_stim = float(sensory.get("mean_b", sensory.get("odor_b", 0.0)))
+        if danger_stim > 0.001:
+            i_danger = float(min(45.0, danger_stim * 40.0))
+            for idx in self.sensory_indices.get("orn_danger", ()):
+                if idx < n: currents[idx] += i_danger
+
+        # 1. Visual lateral (photoreceptors) & Ring neurons (ER)
+        contrast = float(kwargs.get("visual_contrast", kwargs.get("optomotor_contrast", sensory.get("stripe_contrast", 1.0))))
+        retina_l = sensory.get("retina_photoreceptors_l")
+        retina_r = sensory.get("retina_photoreceptors_r")
+        if retina_l is not None and len(retina_l) > 0:
+            mean_l = float(np.mean(retina_l))
+            for idx in self.sensory_indices.get("visual_l", ()):
+                if idx < n: currents[idx] += mean_l * 20.0 * contrast
+        if retina_r is not None and len(retina_r) > 0:
+            mean_r = float(np.mean(retina_r))
+            for idx in self.sensory_indices.get("visual_r", ()):
+                if idx < n: currents[idx] += mean_r * 20.0 * contrast
+
+        # Central Complex Ring neurons (ER4d/ER2) driven by landmarks / Buridan stripes
+        stripes = sensory.get("stripe_bearings", kwargs.get("landmarks"))
+        if stripes is not None or "stripe_contrast" in sensory or "stripe_fixation" in sensory:
+            i_er = float(min(35.0, 20.0 * contrast))
+            for idx in self.sensory_indices.get("er_ring", ()):
+                if idx < n: currents[idx] += i_er
+            # Tonic modulatory drive for octopaminergic EL neurons during active visual navigation
+            for idx in self.sensory_indices.get("el_modulator", ()):
+                if idx < n: currents[idx] += 18.0
+
+        # 2. Visual looming (LC4 / LPLC2)
+        raw_loom = sensory.get("looming_theta", sensory.get("theta_rad", kwargs.get("stimulus_theta", 0.0)))
+        if sensory.get("theta_deg") is not None and raw_loom == 0.0:
+            raw_loom = math.radians(float(sensory["theta_deg"]))
+        looming_theta = float(raw_loom)
+        looming_detected = bool(sensory.get("looming_detected", False)) or (looming_theta > 0.15) or bool(sensory.get("gf_spike", False))
+        i_loom = 0.0
+        if looming_detected:
+            i_loom = float(min(55.0, looming_theta * 40.0 + 15.0))
+            for idx in self.sensory_indices.get("visual_looming", ()):
+                if idx < n: currents[idx] += i_loom
+
+        # 3. Courtship pheromone (DA1 cVA)
+        cva_stim = float(sensory.get("cva_concentration", kwargs.get("cva_odor", 0.0)))
+        if cva_stim > 0.001:
+            i_cva = float(min(35.0, cva_stim * 30.0))
+            for idx in self.sensory_indices.get("courtship_cva", ()):
+                if idx < n: currents[idx] += i_cva
+
+        # 4. Wind mechanoreception (Johnston's organ drag)
+        wind_speed = float(sensory.get("wind_speed", 0.0))
+        if wind_speed > 3.0:
+            i_wind = float(min(35.0, wind_speed * 0.15))
+            for idx in self.sensory_indices.get("jon_wind", ()):
+                if idx < n: currents[idx] += i_wind
+
+        # 5. Thermosensory receptors (TRN)
+        temp = float(sensory.get("temperature", kwargs.get("temperature", 24.0)))
+        if abs(temp - 24.0) > 2.0:
+            i_temp = float(min(40.0, abs(temp - 24.0) * 2.5))
+            for idx in self.sensory_indices.get("thermo_receptors", ()):
+                if idx < n: currents[idx] += i_temp
+
+        # 6. Baseline exploratory drive (tonic BPN/DNb01 current)
+        for idx in self.dn_indices.get("dnb01", ()):
+            if idx < n: currents[idx] += 12.0
+
+        # Step the graph instance
+        result = instance.step(currents, self.step_ms)
+        counts = result.counts
+        self.last_total_spikes = int(counts.sum())
+
+        # Decode descending neuron firing rates (Hz)
+        sec = self.step_ms / 1000.0
+        spk_dna02_l = sum(counts[i] for i in self.dn_indices.get("dna02_l", ()) if i < n)
+        spk_dna02_r = sum(counts[i] for i in self.dn_indices.get("dna02_r", ()) if i < n)
+        dna02_rate_l = float(spk_dna02_l / sec)
+        dna02_rate_r = float(spk_dna02_r / sec)
+
+        spk_dnp09 = sum(counts[i] for i in self.dn_indices.get("dnp09", ()) if i < n)
+        dnp09_n = max(1, len(self.dn_indices.get("dnp09", [])))
+        dnp09_rate = float(spk_dnp09 / (dnp09_n * sec))
+
+        spk_dnb01 = sum(counts[i] for i in self.dn_indices.get("dnb01", ()) if i < n)
+        dnb01_n = max(1, len(self.dn_indices.get("dnb01", [])))
+        bpn_rate = float(spk_dnb01 / (dnb01_n * sec))
+
+        spk_mdn = sum(counts[i] for i in self.dn_indices.get("mdn", ()) if i < n)
+        mdn_n = max(1, len(self.dn_indices.get("mdn", [])))
+        mdn_rate = float(spk_mdn / (mdn_n * sec))
+
+        spk_dnp01 = sum(counts[i] for i in self.dn_indices.get("dnp01", ()) if i < n)
+
+        # Steering & forward drive
+        yaw_rate = 0.02 * (dna02_rate_l - dna02_rate_r)
+        forward_speed = min(35.0, max(0.0, dnp09_rate * 1.5 + bpn_rate * 0.4 + 5.0))
+        state = "GRAPH"
+
+        if mdn_rate > 20.0:
+            forward_speed = -15.0
+            state = "REVERSE"
+        if spk_dnp01 > 0 or (looming_detected and i_loom > 30.0):
+            forward_speed = 35.0
+            state = "ESCAPE"
+
+        # EPG compass bump
+        epg_wedges = [0.0] * 16
+        bump_phase = 0.0
+        if self.epg_indices:
+            for k, node in enumerate(self.epg_indices):
+                if node < n:
+                    w_idx = int(k * 16 / len(self.epg_indices)) % 16
+                    epg_wedges[w_idx] += float(counts[node] / sec)
+            wedge_angles = np.linspace(-np.pi, np.pi, 16, endpoint=False)
+            s_sum = sum(epg_wedges[i] * np.sin(wedge_angles[i]) for i in range(16))
+            c_sum = sum(epg_wedges[i] * np.cos(wedge_angles[i]) for i in range(16))
+            if abs(s_sum) > 1e-4 or abs(c_sum) > 1e-4:
+                bump_phase = float(np.arctan2(s_sum, c_sum))
+
+        wp6_mean_delta = 0.0
+        wp6_max_delta = 0.0
+        if instance.backend == 'connectome-plastic' and len(getattr(instance, "plastic_delta", [])) > 0:
+            wp6_mean_delta = float(np.mean(instance.plastic_delta))
+            wp6_max_delta = float(np.max(np.abs(instance.plastic_delta)))
+
+        return {
+            "halted": False,
+            "forward_speed": float(forward_speed),
+            "yaw_rate": float(yaw_rate),
+            "motor_source": "graph",
+            "controller_fault": None,
+            "state": state,
+            "graph_step": instance.step_index,
+            "graph_step_ms": self.step_ms,
+            "total_spikes": self.last_total_spikes,
+            "dn_rates": {
+                "dna02_l": round(dna02_rate_l, 2),
+                "dna02_r": round(dna02_rate_r, 2),
+                "dnp09": round(dnp09_rate, 2),
+                "mdn": round(mdn_rate, 2),
+                "gf": round(float(spk_dnp01 / sec), 2),
+            },
+            "epg_wedges": [round(w, 2) for w in epg_wedges],
+            "epg_bump_phase": round(bump_phase, 4),
+            "wp6": {
+                "mean_delta": round(wp6_mean_delta, 6),
+                "max_delta": round(wp6_max_delta, 6),
+                "n_edges": len(getattr(instance, "plastic_edges", [])),
+            },
+            "engineered_assistance_enabled": self.ENGINEERED_ASSISTANCE_ENABLED,
+            "engineered_assistance_applied": [],
+            "optomotor": None,
+        }
 
 
 class TimedLock:
@@ -350,6 +578,9 @@ class ContinuousExperimentRunner:
         registry_root: Optional[Path] = None
     ):
         self.output_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "outputs")
+        self.graph_dir = graph_dir
+        self.registry_root = registry_root
+        self.graph_step_ms = graph_step_ms if graph_step_ms is not None else 20.0
         # Controller backend (provenance.BACKENDS).  A graph backend loads ONE shared
         # immutable graph and ONE ExperimentRegistry; a missing or mismatching graph
         # raises here (GraphUnavailable), never falls back to another controller.
@@ -373,10 +604,15 @@ class ContinuousExperimentRunner:
                 shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if test_synthetic_graph
                                 else SharedGraph.load(graph_dir))
             self.shared_graph = shared_graph
+            plasticity_rule = None
+            if backend == "connectome-plastic" and not getattr(shared_graph.identity, 'synthetic', False):
+                from brainlab.wp6_plasticity import VisualHeadingPlasticityRule
+                plasticity_rule = VisualHeadingPlasticityRule.from_shared(shared_graph)
             self.registry = GraphRegistry(shared_graph, Path(registry_root) if registry_root else
-                                          self.output_dir / "registry", test_mode=self.test_mode)
+                                          self.output_dir / "registry", test_mode=self.test_mode,
+                                          plasticity_rule=plasticity_rule)
             self.graph_controller = GraphArenaController(
-                self, graph_step_ms if graph_step_ms is not None else 20.0)
+                self, self.graph_step_ms)
             # Bookkeeping (curves, event logs) for graph runs never shares files with
             # the modular brains: modular weights are not graph weights.
             self.brains = ExperimentBrains(self.output_dir / "graph-bookkeeping" / backend)
@@ -453,6 +689,44 @@ class ContinuousExperimentRunner:
 
         # Initialize primary simulation arena
         self._init_arena(self.active_paradigm_id)
+
+    def _switch_backend(self, target_backend: str):
+        """Switch controller backend between modular, connectome-fixed, and connectome-plastic under lock."""
+        if target_backend == self.backend:
+            return
+        if target_backend not in DAEMON_BACKENDS:
+            raise ValueError(f"Unknown backend {target_backend!r}; choose one of {DAEMON_BACKENDS}")
+
+        target_graph_mode = target_backend in GRAPH_BACKENDS
+        if target_graph_mode:
+            from experiment_registry import ExperimentRegistry as GraphRegistry, SharedGraph
+            if self.shared_graph is None:
+                self.shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if self.test_mode
+                                     else SharedGraph.load(self.graph_dir))
+            if self.registry is None:
+                self.registry = GraphRegistry(self.shared_graph,
+                                              Path(self.registry_root) if self.registry_root else self.output_dir / "registry",
+                                              test_mode=self.test_mode)
+            if self.graph_controller is None:
+                self.graph_controller = GraphArenaController(self, self.graph_step_ms)
+            if target_backend == "connectome-plastic" and self.registry.plasticity_rule is None:
+                if not getattr(self.shared_graph.identity, 'synthetic', False):
+                    from brainlab.wp6_plasticity import VisualHeadingPlasticityRule
+                    self.registry.plasticity_rule = VisualHeadingPlasticityRule.from_shared(self.shared_graph)
+
+        self.backend = target_backend
+        self.backend_spec = get_backend(target_backend, scientific=not self.test_mode, allow_test=self.test_mode)
+        self.graph_mode = target_graph_mode
+        self._source = source_revision(files=self.backend_spec.source_files)
+
+        if self.graph_mode:
+            self.brains = ExperimentBrains(self.output_dir / "graph-bookkeeping" / self.backend)
+        else:
+            self.brains = ExperimentBrains(self.output_dir / "brains")
+
+        # Activate the active experiment with the new backend
+        self._init_arena(self.active_paradigm_id)
+        print(f"[Daemon] Switched controller backend to {self.backend} (graph_mode={self.graph_mode})", flush=True)
 
     def _init_arena(self, paradigm_name: str):
         """Activate an experiment's own arena and learned state; never share weights."""
@@ -899,13 +1173,17 @@ class ContinuousExperimentRunner:
         ang_vel = float(getattr(fly, "angular_velocity", 0.0))
         speed = float(fly.speed)
         b_state = str(getattr(fly, "behavioral_state", "FORAGING"))
-        dn_rates = {
-            "dna02_l": round(max(0.0, -ang_vel * 8.0), 2),
-            "dna02_r": round(max(0.0, ang_vel * 8.0), 2),
-            "dnp09": round(max(0.0, speed * 2.5), 2),
-            "mdn": 25.0 if b_state == "REVERSE" else 0.0,
-            "gf": 50.0 if b_state == "ESCAPE" else 0.0,
-        }
+        conn_telem = getattr(fly, "last_connectome_telemetry", None) or {}
+        if conn_telem and "dn_rates" in conn_telem:
+            dn_rates = conn_telem["dn_rates"]
+        else:
+            dn_rates = {
+                "dna02_l": round(max(0.0, -ang_vel * 8.0), 2),
+                "dna02_r": round(max(0.0, ang_vel * 8.0), 2),
+                "dnp09": round(max(0.0, speed * 2.5), 2),
+                "mdn": 25.0 if b_state == "REVERSE" else 0.0,
+                "gf": 50.0 if b_state == "ESCAPE" else 0.0,
+            }
         controller_id = "connectome-v3" if str(self.backend).startswith("connectome") else "modular"
 
         if c_bridge and hasattr(c_bridge, "last_body_obs") and c_bridge.last_body_obs:
@@ -990,10 +1268,10 @@ class ContinuousExperimentRunner:
                 "wind_y": round(float(stim.get("wind", self.arena.wind)[1]), 2)
             },
             "descending": {
-                "dna02_yaw": round(float(getattr(fly, "angular_velocity", 0.0)), 3),
-                "dnp09_thrust": round(float(fly.speed), 2),
-                "mdn_reverse": 1.0 if getattr(fly, "behavioral_state", "") == "REVERSE" else 0.0,
-                "gf_escape": 1.0 if getattr(fly, "behavioral_state", "") == "ESCAPE" else 0.0
+                "dna02_yaw": round(float(conn_telem.get("yaw_rate", getattr(fly, "angular_velocity", 0.0))), 3),
+                "dnp09_thrust": round(float(conn_telem.get("forward_speed", fly.speed)), 2),
+                "mdn_reverse": 1.0 if conn_telem.get("state") == "REVERSE" or getattr(fly, "behavioral_state", "") == "REVERSE" else 0.0,
+                "gf_escape": 1.0 if conn_telem.get("state") == "ESCAPE" or getattr(fly, "behavioral_state", "") == "ESCAPE" else 0.0
             },
             "biomechanics": {
                 "tripod_gait": "TRIPOD_COORDINATED",
@@ -1002,18 +1280,21 @@ class ContinuousExperimentRunner:
                 "cuticular_loads": loads
             },
             "neural": {
-                "kc_hz": fly.circuit.encode_odor(float(stim.get("odor_a", stim.get("odor_conc", 0))), float(stim.get("odor_b", 0)))[1].tolist(),
-                "kc_trace": fly.circuit.y_kc.tolist(),
-                "net_valence": fly.circuit.forward(fly.circuit.y_kc)[2],
-                "pam_trace": float(fly.circuit.y_dan_pam[0]),
-                "ppl1_trace": float(fly.circuit.y_dan_ppl1[0]),
-                "compass_heading": float(getattr(fly, "compass_heading", fly.heading)),
+                "kc_hz": fly.circuit.encode_odor(float(stim.get("odor_a", stim.get("odor_conc", 0))), float(stim.get("odor_b", 0)))[1].tolist() if hasattr(fly, "circuit") and hasattr(fly.circuit, "encode_odor") else [0] * 120,
+                "kc_trace": fly.circuit.y_kc.tolist() if hasattr(fly, "circuit") and hasattr(fly.circuit, "y_kc") else [],
+                "net_valence": float(fly.circuit.forward(fly.circuit.y_kc)[2]) if hasattr(fly, "circuit") and hasattr(fly.circuit, "forward") else 0.0,
+                "pam_trace": float(fly.circuit.y_dan_pam[0]) if hasattr(fly, "circuit") and hasattr(fly.circuit, "y_dan_pam") else 0.0,
+                "ppl1_trace": float(fly.circuit.y_dan_ppl1[0]) if hasattr(fly, "circuit") and hasattr(fly.circuit, "y_dan_ppl1") else 0.0,
+                "compass_heading": float(conn_telem.get("epg_bump_phase", getattr(fly, "compass_heading", fly.heading))),
+                "epg_wedges": conn_telem.get("epg_wedges"),
             },
             "plasticity": {
                 "mb_weights_mean": round(weights_mean, 4),
                 "mb_weights_std": round(weights_std, 4),
-                "learning_curve": self.learning_curve[-30:]
+                "learning_curve": self.learning_curve[-30:],
+                "wp6": conn_telem.get("wp6"),
             },
+            "connectome": conn_telem if conn_telem else None,
             "metrics": p_metrics
         }
 
@@ -1118,6 +1399,16 @@ class ContinuousExperimentRunner:
                 # RuntimeError covers BackendError, GraphUnavailable and checkpoint errors.
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
             return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity()}
+
+        elif action in ("switch_backend", "switch_controller"):
+            target = cmd.get("backend") or p.get("backend")
+            if target not in DAEMON_BACKENDS:
+                return {"status": "error", "message": f"Unknown backend {target!r}; choose one of {DAEMON_BACKENDS}"}
+            try:
+                self._switch_backend(target)
+            except Exception as exc:
+                return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            return {"status": "ok", "backend": self.backend, "identity": self.identity()}
 
         elif action in ("probe_brain", "teach_brain") and self.graph_mode:
             return {"status": "error", "message": f"{action} acts on the modular mushroom body, which is not "
@@ -1527,6 +1818,34 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
 
             result = self.runner.dispatch_command(cmd)
             self.send_response(200)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode("utf-8"))
+        elif url == "/api/controller":
+            try:
+                content_len = int(self.headers.get("Content-Length", 0) or 0)
+            except ValueError:
+                content_len = -1
+            if content_len < 0 or content_len > MAX_COMMAND_BYTES:
+                self.send_response(413)
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(b'{"error": "Payload too large"}')
+                return
+            body = self.rfile.read(content_len).decode("utf-8")
+            try:
+                data = json.loads(body)
+            except json.JSONDecodeError:
+                self.send_response(400)
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(b'{"error": "Invalid JSON"}')
+                return
+            backend_target = data.get("backend")
+            cmd = {"action": "switch_backend", "params": {"backend": backend_target}}
+            result = self.runner.dispatch_command(cmd)
+            status_code = 200 if (result.get("ack", {}).get("status") == "ok" or result.get("status") == "ok") else 400
+            self.send_response(status_code)
             self._set_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps(result).encode("utf-8"))
