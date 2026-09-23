@@ -13,7 +13,7 @@
 #   NEUROFLY_GRAPH_DIR                                   prepared graph for graph backends, e.g.
 #                                                        NEUROFLY_GRAPH_DIR=/path/to/malecns_v1
 #                                                        (a missing graph stops the daemon; no fallback)
-# Extra daemon flags can be appended: ./start_daemon_ryzen.sh --public --stream-hz 5
+# Extra daemon flags can be appended: ./start_daemon.sh --public --stream-hz 5
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR"

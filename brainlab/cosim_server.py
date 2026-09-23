@@ -2,7 +2,7 @@
 Drosophila Whole-Brain RPC Co-Simulation Server (MaleCNS v1.0)
 ============================================================
 Exposes high-performance HTTP endpoints for running the 166,700-neuron,
-25.58M-synapse MaleCNS v1.0 spiking engine on Ryzen / remote compute nodes.
+25.58M-synapse MaleCNS v1.0 spiking engine on local or remote compute hosts.
 
 Endpoints:
 - GET  /status : Returns system health, dataset info, neuron count, spike telemetry.

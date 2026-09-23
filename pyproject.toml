@@ -26,8 +26,11 @@ body = [
 ]
 test = ["pytest", "brian2"]
 
+[project.scripts]
+neurofly = "neurofly.cli:main"
+
 [tool.setuptools]
-packages = ["brainlab", "experiments", "neurofly_body"]
+packages = ["neurofly", "brainlab", "experiments", "neurofly_body"]
 py-modules = [
     "arena",
     "assay_controls",

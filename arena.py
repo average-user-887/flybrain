@@ -17,6 +17,7 @@ import enum
 import functools
 import importlib
 import math
+import os
 import random
 import sys
 import types
@@ -89,7 +90,7 @@ class FlyState:
         ablate_off: bool = False,
         brain_type: str = 'modular',
         connectome_mode: str = 'surrogate',
-        connectome_host: str = '192.168.194.227',
+        connectome_host: Optional[str] = None,
         connectome_port: int = 8768,
         connectome_on_fault: str = 'halt',
         vision_rng: Optional[np.random.Generator] = None
@@ -676,7 +677,7 @@ class Arena:
         fly_ablations: Optional[List[Dict[str, bool]]] = None,
         brain_type: str = 'modular',
         connectome_mode: str = 'surrogate',
-        connectome_host: str = '192.168.194.227',
+        connectome_host: Optional[str] = None,
         connectome_port: int = 8768,
         paradigm: Optional[Union[Any, str]] = None,
         motor_assists: Optional[Dict[str, bool]] = None,
