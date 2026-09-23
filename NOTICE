@@ -8,6 +8,19 @@ listed here; each keeps its own terms.
 Code
 ----
 
+Optional embodied-runtime dependencies
+--------------------------------------
+
+* FlyGym 2.1.0 (https://github.com/NeLy-EPFL/flygym/tree/v2.1.0), Apache
+  License 2.0. The `body` extra installs FlyGym from its package distribution;
+  NeuroFly links to its public API and does not include FlyGym source code.
+  Upstream license: https://github.com/NeLy-EPFL/flygym/blob/v2.1.0/LICENSE.
+
+* MuJoCo 3.9.0 (https://github.com/google-deepmind/mujoco/tree/3.9.0), Apache
+  License 2.0. The `body` extra installs MuJoCo from its package distribution;
+  NeuroFly does not include MuJoCo source code. Upstream license:
+  https://github.com/google-deepmind/mujoco/blob/3.9.0/LICENSE.
+
 * DOOMFLY (https://github.com/nftechie/doomfly, commit 71ecf53d78eaffaf1a57ed7b0ccf5d458abc9f33)
   MIT, copyright (c) 2026 nftechie and DOOMFLY contributors.
   The `brainlab/` package (Numba LIF kernel, MaleCNS importer, transmitter
