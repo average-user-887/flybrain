@@ -54,7 +54,7 @@ python -m neurofly_body run --duration 2 --output runs/embodied-intact \
 ```
 
 Repeat with `--mode output-disconnected` and the same seed for the control.
-Add `--render-video runs/embodied-intact.mp4` to save a rendered run. Details
+Add `--video` to save `body.mp4` inside the output directory. Details
 and the out-of-checkout data-path limitation are in the [guide](docs/EMBODIED_MVP.md).
 
 ## Scope
