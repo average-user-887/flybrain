@@ -169,6 +169,20 @@ class CentralComplexCompass {
         for (let i = 0; i < this.numWedges; i++) this.bumpProfile[i] /= maxVal;
     }
 
+    setRealEpgProfile(epgWedges) {
+        if (!Array.isArray(epgWedges) || epgWedges.length === 0) return;
+        const maxVal = Math.max(0.001, ...epgWedges);
+        for (let i = 0; i < this.numWedges; i++) {
+            this.bumpProfile[i] = (epgWedges[i] || 0.0) / maxVal;
+        }
+        let sinSum = 0, cosSum = 0;
+        for (let i = 0; i < this.numWedges; i++) {
+            sinSum += this.bumpProfile[i] * Math.sin(this.wedgeAngles[i]);
+            cosSum += this.bumpProfile[i] * Math.cos(this.wedgeAngles[i]);
+        }
+        this.headingBump = Math.atan2(sinSum, cosSum);
+    }
+
     step(flyHeading, flyYawRate, egocentricWind = 0, goalAngle = null, dt = 0.02) {
         if (this.isLesioned) {
             this.updateBump(this.headingBump + (Math.random() - 0.5) * 0.8);
@@ -3955,8 +3969,11 @@ class DaemonBridgeClient {
             this.arena.mb.kcFiring = pkt.neural?.kc_hz || this.arena.mb.kcFiring;
             if (Number.isFinite(pkt.neural?.net_valence)) this.arena.mb.netValence = pkt.neural.net_valence;
             this.arena.mb.pamRate = pkt.neural?.pam_trace || 0;
-            this.arena.mb.ppl1Rate = pkt.neural?.ppl1_trace || 0;
-            this.arena.cx.updateBump(pkt.neural?.compass_heading ?? pkt.fly.heading);
+            if (pkt.neural?.epg_wedges && Array.isArray(pkt.neural.epg_wedges) && pkt.neural.epg_wedges.length > 0) {
+                this.arena.cx.setRealEpgProfile(pkt.neural.epg_wedges);
+            } else {
+                this.arena.cx.updateBump(pkt.neural?.compass_heading ?? pkt.fly.heading);
+            }
             this.arena.cpg.steppingFreq = pkt.paused || pkt.brain?.teaching ? 0 : (pkt.biomechanics?.cadence_hz || 0);
             this.arena.cpg.phaseA = this.arena.simTime * this.arena.cpg.steppingFreq * 2 * Math.PI;
             this.arena.cpg.phaseB = this.arena.cpg.phaseA + Math.PI;
@@ -5132,6 +5149,26 @@ class ScientificHUD {
             });
         }
 
+        const selBackend = document.getElementById('selectBackend');
+        if (selBackend) {
+            selBackend.addEventListener('change', async (e) => {
+                const target = e.target.value;
+                if (this.daemonBridge && this.daemonBridge.connected) {
+                    await this.daemonBridge.sendCommand('switch_backend', { backend: target });
+                } else {
+                    try {
+                        await fetch('/api/controller', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ backend: target })
+                        });
+                    } catch (err) {
+                        console.error('Failed to switch controller backend:', err);
+                    }
+                }
+            });
+        }
+
         const btnDlCsv = document.getElementById('btnDownloadCsv');
         if (btnDlCsv) {
             btnDlCsv.addEventListener('click', () => this.downloadCsv());
@@ -5709,17 +5746,63 @@ class ScientificHUD {
             gf: this.arena.dn?.escapeActive ? 50.0 : 0.0
         };
         const rawCtrl = pkt.controller_id || (pkt.identity?.backend?.startsWith('connectome') ? 'connectome-v3' : 'modular');
-        const isConn = String(rawCtrl).toLowerCase().includes('connectome');
+        const backendName = String(pkt.identity?.backend || rawCtrl || 'modular').toLowerCase();
+        const isPlastic = backendName.includes('plastic');
+        const isConn = backendName.includes('connectome');
+
+        // Keep backend selector in sync
+        const selBackend = document.getElementById('selectBackend');
+        if (selBackend && pkt.identity?.backend && document.activeElement !== selBackend) {
+            selBackend.value = pkt.identity.backend;
+        }
 
         const badge = document.getElementById('controllerBadge');
         if (badge) {
-            badge.textContent = isConn ? 'CONNECTOME v3' : 'MODULAR';
-            badge.className = isConn ? 'badge badge-green' : 'badge badge-cyan';
+            badge.textContent = isPlastic ? 'CONNECTOME PLASTIC (WP6)' : isConn ? 'CONNECTOME v3 FIXED' : 'MODULAR';
+            badge.className = isPlastic ? 'badge badge-purple' : isConn ? 'badge badge-green' : 'badge badge-cyan';
         }
         const v3dTag = document.getElementById('v3dControllerTag');
         if (v3dTag) {
-            v3dTag.textContent = isConn ? 'CONNECTOME v3' : 'MODULAR';
-            v3dTag.style.color = isConn ? '#22c55e' : '#38bdf8';
+            v3dTag.textContent = isPlastic ? 'CONNECTOME PLASTIC (WP6)' : isConn ? 'CONNECTOME v3 FIXED' : 'MODULAR';
+            v3dTag.style.color = isPlastic ? '#c084fc' : isConn ? '#22c55e' : '#38bdf8';
+        }
+        const compassSource = document.getElementById('valCompassSource');
+        if (compassSource) {
+            compassSource.textContent = isPlastic ? 'CONNECTOME WP6' : isConn ? 'CONNECTOME EPG' : 'MODULAR';
+            compassSource.className = isPlastic ? 'badge badge-purple' : isConn ? 'badge badge-green' : 'badge badge-cyan';
+        }
+
+        const epgBumpEl = document.getElementById('valEpgBump');
+        if (epgBumpEl) {
+            if (isConn && (pkt.neural?.epg_wedges || pkt.connectome?.epg_bump_phase !== undefined)) {
+                const deg = Math.round(this.arena.cx.headingBump * 180 / Math.PI);
+                epgBumpEl.textContent = `${deg}°`;
+                epgBumpEl.style.color = '#22c55e';
+            } else {
+                epgBumpEl.textContent = '--';
+                epgBumpEl.style.color = '#94a3b8';
+            }
+        }
+
+        const wp6Block = document.getElementById('wp6PlasticityBlock');
+        if (wp6Block) {
+            wp6Block.style.display = isPlastic ? 'block' : 'none';
+        }
+        if (isPlastic) {
+            const wp6 = pkt.plasticity?.wp6 || pkt.connectome?.wp6 || {};
+            const meanDelta = Number.isFinite(wp6.mean_delta) ? wp6.mean_delta : 0.0;
+            const maxDelta = Number.isFinite(wp6.max_delta) ? wp6.max_delta : Math.abs(meanDelta);
+            const pct = Math.min(100, Math.max(0, (Math.abs(meanDelta) / 0.5) * 100));
+
+            const mDeltaEl = document.getElementById('hudWp6MeanDelta');
+            const pctEl = document.getElementById('hudWp6Pct');
+            const barEl = document.getElementById('barWp6Delta');
+            const maxDeltaEl = document.getElementById('hudWp6MaxDelta');
+
+            if (mDeltaEl) mDeltaEl.textContent = meanDelta.toFixed(4);
+            if (pctEl) pctEl.textContent = pct.toFixed(1);
+            if (barEl) barEl.style.width = pct + '%';
+            if (maxDeltaEl) maxDeltaEl.textContent = maxDelta.toFixed(4);
         }
 
         const setMeter = (valId, barId, val, maxVal) => {
@@ -5813,7 +5896,23 @@ class ScientificHUD {
             this.compassCtx.setLineDash([]);
         }
 
-        // Heading needle (white, representing current heading bump)
+        // Decoded EPG Bump needle (cyan, representing connectome bump phase)
+        const isConn = this.arena.remotePacket?.controller_id?.includes('connectome')
+                       || this.arena.remotePacket?.identity?.backend?.includes('connectome')
+                       || this.arena.remotePacket?.neural?.epg_wedges;
+        if (isConn) {
+            this.compassCtx.strokeStyle = '#22c55e';
+            this.compassCtx.lineWidth = 2.0;
+            this.compassCtx.shadowColor = 'rgba(34, 197, 94, 0.8)';
+            this.compassCtx.shadowBlur = 5;
+            this.compassCtx.beginPath();
+            this.compassCtx.moveTo(cx, cy);
+            this.compassCtx.lineTo(cx + Math.cos(this.arena.cx.headingBump) * (r - 2), cy - Math.sin(this.arena.cx.headingBump) * (r - 2));
+            this.compassCtx.stroke();
+            this.compassCtx.shadowBlur = 0;
+        }
+
+        // Ground-truth fly heading needle (white)
         this.compassCtx.strokeStyle = '#ffffff';
         this.compassCtx.lineWidth = 2.5;
         this.compassCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
