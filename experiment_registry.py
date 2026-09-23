@@ -190,7 +190,10 @@ class GraphInstance:
         counts, _ = self.brain.step(currents, duration_ms)
         result = StepResult(step=self.step_index, counts=counts)
         if self.rule is not None and self.registry.learning_enabled:
-            self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post])
+            try:
+                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post], full_counts=counts)
+            except TypeError:
+                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post])
             self._working_weight[self.plastic_edges] = (
                 self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
         if self.readout is not None:
@@ -297,7 +300,11 @@ class ExperimentRegistry:
             if entry['assay'] == assay and entry['backend'] == backend:
                 return instance_id
         if backend == 'connectome-plastic' and self.plasticity_rule is None:
-            raise BackendError('connectome-plastic needs a declared plasticity rule (WP6); none is registered')
+            if not self.shared.identity.synthetic:
+                from brainlab.wp6_plasticity import VisualHeadingPlasticityRule
+                self.plasticity_rule = VisualHeadingPlasticityRule.from_shared(self.shared)
+            else:
+                raise BackendError('connectome-plastic needs a declared plasticity rule (WP6); none is registered')
         instance_id = uuid.uuid4().hex
         seed = _derive_seed(assay, backend)
         manifest = RunManifest.create(

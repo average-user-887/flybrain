@@ -54,6 +54,7 @@ MONITOR_TYPES: Dict[str, tuple] = {
 # sha256 of the resolved populations (source IDs per population, sorted); set
 # after the first verified resolution and checked on every load.
 OPTOMOTOR_IO_PIN = '228c1b69251e73a3ec34d551202b98f8b6afddf723a77c89e3203053d2366c7b'
+VISUAL_HEADING_IO_PIN = '7516d2da93cb466e2200f02998a6388f12debfc2e01ef6b302118d5a50d34948'
 
 # Steering descending neuron.  Rayshubskiy et al. 2020 (bioRxiv 2020.04.04.024703,
 # "Neural control of steering in walking Drosophila"): DNa02 activity predicts and
@@ -308,3 +309,74 @@ class OptomotorLoop:
                     monitors=monitors, total_spikes=int(counts.sum()),
                     v_dna02_l=float(v[self.io.populations['DNa02_L']].mean()),
                     v_dna02_r=float(v[self.io.populations['DNa02_R']].mean()), **motor)
+
+
+@dataclass
+class VisualHeadingIOMap:
+    er_nodes: np.ndarray       # ER4d + ER2 (67 neurons)
+    epg_nodes: np.ndarray      # EPG + EPGt (50 neurons)
+    el_nodes: np.ndarray       # EL octopaminergic modulators (18 neurons)
+    pfl3_nodes: np.ndarray     # PFL3 compass-to-motor steering (24 neurons)
+    dna02_nodes: Dict[str, np.ndarray]  # 'DNa02_L', 'DNa02_R'
+    plastic_edges: np.ndarray  # exactly 3,081 edges
+    sha256: str = ''
+
+    def describe(self) -> dict:
+        return dict(
+            er_neurons=int(len(self.er_nodes)),
+            epg_neurons=int(len(self.epg_nodes)),
+            el_neurons=int(len(self.el_nodes)),
+            pfl3_neurons=int(len(self.pfl3_nodes)),
+            plastic_edges=int(len(self.plastic_edges)),
+            sha256=self.sha256,
+        )
+
+
+def resolve_visual_heading_io(connectome_dir: Optional[Path] = None, graph_dir: Optional[Path] = None,
+                              *, pin: Optional[str] = 'default') -> VisualHeadingIOMap:
+    """Resolve visual heading compass circuit (ER -> EPG -> PFL3 -> DNa02 + EL modulators)."""
+    from .graph_identity import resolve_graph_dir
+    gdir, _ = resolve_graph_dir(graph_dir)
+    nodes = _load_tables(connectome_dir)
+    ctype = nodes.cell_type.fillna('')
+    side = nodes.somaSide.fillna('?')
+
+    graph_path = gdir / 'graph.npz'
+    if not graph_path.is_file():
+        raise GraphUnavailable(f'{graph_path} not found; set NEUROFLY_GRAPH_DIR')
+    graph = np.load(graph_path)
+    ptr, post = graph['ptr'], graph['post']
+
+    er_types = ('ER4d', 'ER2_a', 'ER2_b', 'ER2_c', 'ER2_d')
+    epg_types = ('EPG', 'EPGt')
+
+    er_nodes = np.sort(nodes[ctype.isin(er_types)].node_index.to_numpy(dtype=np.int64))
+    epg_nodes = np.sort(nodes[ctype.isin(epg_types)].node_index.to_numpy(dtype=np.int64))
+    el_nodes = np.sort(nodes[ctype.isin(('EL',))].node_index.to_numpy(dtype=np.int64))
+    pfl3_nodes = np.sort(nodes[ctype.isin(('PFL3',))].node_index.to_numpy(dtype=np.int64))
+    dna02_l = np.sort(nodes[ctype.eq('DNa02') & side.eq('L')].node_index.to_numpy(dtype=np.int64))
+    dna02_r = np.sort(nodes[ctype.eq('DNa02') & side.eq('R')].node_index.to_numpy(dtype=np.int64))
+
+    epg_set = set(epg_nodes)
+    edges = []
+    for pre in er_nodes:
+        for e in range(ptr[pre], ptr[pre + 1]):
+            if post[e] in epg_set:
+                edges.append(e)
+
+    edges_arr = np.array(edges, dtype=np.int64)
+    digest = sha256_json(dict(er=er_nodes.tolist(), epg=epg_nodes.tolist(), el=el_nodes.tolist(),
+                              pfl3=pfl3_nodes.tolist(), edges=edges_arr.tolist()))
+    expected = VISUAL_HEADING_IO_PIN if pin == 'default' else pin
+    if expected is not None and digest != expected:
+        raise GraphUnavailable(f'Visual heading IO map digest {digest} differs from pin {expected}')
+
+    return VisualHeadingIOMap(
+        er_nodes=er_nodes,
+        epg_nodes=epg_nodes,
+        el_nodes=el_nodes,
+        pfl3_nodes=pfl3_nodes,
+        dna02_nodes={'DNa02_L': dna02_l, 'DNa02_R': dna02_r},
+        plastic_edges=edges_arr,
+        sha256=digest,
+    )

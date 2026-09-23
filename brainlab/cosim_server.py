@@ -140,7 +140,9 @@ class ConnectomeServer:
             "visual_r": [],                       # see MAPPING_WARNINGS
             "visual_looming": [],                 # LC4 / LPLC2 looming
             "jon_wind": [],                       # Johnston's organ wind mechanoreception
-            "feco_proprio": []                    # Leg chordotonal organs & sensilla
+            "feco_proprio": [],                   # Leg chordotonal organs & sensilla
+            "courtship_cva": [],                  # ORN_DA1 pheromone
+            "thermo_receptors": [],               # Antennal thermosensory receptor neurons (TRN)
         }
 
         self._load_brain()
@@ -232,6 +234,12 @@ class ConnectomeServer:
             print(f"[ConnectomeServer] optomotor IO map unavailable: {error}", flush=True)
         self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
+        self.sensory_indices["visual_looming"] = df[df['cell_type'].isin(['LC4', 'LPLC2'])]['node_index'].tolist()
+        self.sensory_indices["courtship_cva"] = df[df['cell_type'] == 'ORN_DA1']['node_index'].tolist()[:50]
+        if ann_path.is_file():
+            ann_thermo = feather.read_table(ann_path, columns=['bodyId', 'class']).to_pandas()
+            thermo_ids = set(ann_thermo[ann_thermo['class'] == 'thermosensory']['bodyId'].astype('int64'))
+            self.sensory_indices["thermo_receptors"] = df[df['source_id'].isin(thermo_ids)]['node_index'].tolist()
         self.unmapped_channels = sorted(k for k, v in self.sensory_indices.items() if not v)
         print(f"[ConnectomeServer] Sensory indices mapped from {self.metadata_path.name}; "
               f"unmapped: {self.unmapped_channels}", flush=True)
@@ -313,11 +321,33 @@ class ConnectomeServer:
                            float(sensory.get("optomotor_contrast", 1.0)))
 
         # 3. Visual Looming (LC4/LPLC2 -> Giant Fiber)
+        looming = bool(sensory.get("looming_trigger", False)) or float(sensory.get("looming_expansion_rate", 0.0)) > 0.1
+        if looming:
+            for idx in self.sensory_indices["visual_looming"]:
+                if idx < self.n_neurons:
+                    currents[idx] += 30.0
+
         if self.engineered_assistance and sensory.get("looming_trigger", False):
             applied_assistance.append(ENGINEERED_ASSISTANCE[0])
             for idx in self.dn_indices["dnp01"]:
                 if idx < self.n_neurons:
                     currents[idx] += 80.0  # Supra-threshold escape trigger
+
+        # 3b. Antennal Thermoreception (TRN -> SEZ)
+        temp_val = float(sensory.get("temperature_excess", max(0.0, float(sensory.get("temperature_c", 25.0)) - 25.0)))
+        if temp_val > 0.5:
+            i_thermo = float(min(40.0, temp_val * 4.0))
+            for idx in self.sensory_indices["thermo_receptors"]:
+                if idx < self.n_neurons:
+                    currents[idx] += i_thermo
+
+        # 3c. Courtship Pheromone (cVA -> ORN_DA1)
+        cva_val = float(sensory.get("pheromone_cva", sensory.get("courtship_cva", 0.0)))
+        if cva_val > 0.01:
+            i_cva = float(min(40.0, cva_val * 35.0))
+            for idx in self.sensory_indices["courtship_cva"]:
+                if idx < self.n_neurons:
+                    currents[idx] += i_cva
 
         # 4. Wind mechanoreception (Johnston's organ drag)
         wind_speed = float(sensory.get("wpn_wind_speed", 0.0))
