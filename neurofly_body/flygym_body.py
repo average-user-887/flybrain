@@ -72,8 +72,8 @@ class FlyGymBody:
         world = FlatGroundWorld()
         world.add_fly(
             fly,
-            spawn_pos=[0.0, 0.0, 0.5],
-            spawn_rot=Rotation3D("quat", [1.0, 0.0, 0.0, 0.0]),
+            spawn_position=np.array([0.0, 0.0, 0.5], dtype=float),
+            spawn_rotation=Rotation3D("quat", [1.0, 0.0, 0.0, 0.0]),
         )
         self.fly = fly
         self.sim = Simulation(world, timestep=float(physics_dt_s))
