@@ -68,6 +68,12 @@ def cmd_status(args: list[str]) -> int:
     return 0
 
 
+def cmd_embodied(args: list[str]) -> int:
+    """Run embodied graph-to-body co-simulation with FlyGym and MuJoCo."""
+    from neurofly_body import cli as body_cli
+    return body_cli.main(args)
+
+
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
     matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
@@ -90,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
+    subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
     subparsers.add_parser("capability", help="Print the 14-paradigm capability matrix")
@@ -103,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if cmd == "run":
         return cmd_run(rest)
+    elif cmd == "embodied":
+        return cmd_embodied(rest)
     elif cmd == "download-data":
         return cmd_download_data(rest)
     elif cmd == "status":
