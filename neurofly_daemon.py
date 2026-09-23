@@ -871,10 +871,66 @@ class ContinuousExperimentRunner:
             }
             loads = {k: (1.85 if v["phase"] == "STANCE" else 0.0) for k, v in joint_angles.items()}
 
+        # 18-DOF joint angles in radians: order [L1, L2, L3, R1, R2, R3] x [Coxa, Femur, Tibia]
+        leg_names = ("L1", "L2", "L3", "R1", "R2", "R3")
+        joint_angles_rad = []
+        for leg in leg_names:
+            info = joint_angles.get(leg, {})
+            ctr_deg = float(info.get("ctr", 0.0))
+            fti_deg = float(info.get("fti", 80.0))
+            phase_sign = 1.0 if info.get("phase") == "STANCE" else -1.0
+            thc_rad = round(math.radians(phase_sign * 8.0), 4)
+            ctr_rad = round(math.radians(ctr_deg), 4)
+            fti_rad = round(math.radians(fti_deg), 4)
+            joint_angles_rad.extend([thc_rad, ctr_rad, fti_rad])
+
+        leg_contacts = [bool(joint_angles.get(leg, {}).get("phase") == "STANCE") for leg in leg_names]
+
+        pos_z = float(getattr(fly, "pos_z", 0.5))
+        body_position_mm = [round(float(fly.pos.x), 4), round(float(fly.pos.y), 4), round(pos_z, 4)]
+        heading = float(fly.heading)
+        body_quaternion_wxyz = [
+            round(math.cos(heading / 2.0), 5),
+            0.0,
+            0.0,
+            round(math.sin(heading / 2.0), 5),
+        ]
+
+        ang_vel = float(getattr(fly, "angular_velocity", 0.0))
+        speed = float(fly.speed)
+        b_state = str(getattr(fly, "behavioral_state", "FORAGING"))
+        dn_rates = {
+            "dna02_l": round(max(0.0, -ang_vel * 8.0), 2),
+            "dna02_r": round(max(0.0, ang_vel * 8.0), 2),
+            "dnp09": round(max(0.0, speed * 2.5), 2),
+            "mdn": 25.0 if b_state == "REVERSE" else 0.0,
+            "gf": 50.0 if b_state == "ESCAPE" else 0.0,
+        }
+        controller_id = "connectome-v3" if str(self.backend).startswith("connectome") else "modular"
+
+        if c_bridge and hasattr(c_bridge, "last_body_obs") and c_bridge.last_body_obs:
+            b_obs = c_bridge.last_body_obs
+            if "joint_angles_rad" in b_obs:
+                joint_angles_rad = [round(float(v), 4) for v in b_obs["joint_angles_rad"][:18]]
+            if "thorax" in b_obs:
+                thorax = b_obs["thorax"]
+                if "position_mm" in thorax:
+                    body_position_mm = [round(float(v), 4) for v in thorax["position_mm"]]
+                if "quaternion_wxyz" in thorax:
+                    body_quaternion_wxyz = [round(float(v), 5) for v in thorax["quaternion_wxyz"]]
+            if "contacts" in b_obs and "found" in b_obs["contacts"]:
+                leg_contacts = [bool(f > 0.5) for f in b_obs["contacts"]["found"][:6]]
+
         motor = self.motor_summary()
         return {
             "type": "telemetry",
             "run_id": self.run_id,
+            "controller_id": controller_id,
+            "joint_angles_rad": joint_angles_rad,
+            "leg_contacts": leg_contacts,
+            "body_position_mm": body_position_mm,
+            "body_quaternion_wxyz": body_quaternion_wxyz,
+            "dn_rates": dn_rates,
             # Controller identity (same dict as /api/status and the switch ack) and
             # motor provenance; see docs/DATA_SCHEMA.md "Identity and motor provenance".
             "identity": self.identity(),
@@ -1260,6 +1316,20 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["motor"] = latest.get("motor")
             payload["controller_fault"] = latest.get("controller_fault")
             payload["backend"] = getattr(self.runner, "backend", "modular")
+            payload["controller_id"] = latest.get("controller_id", "modular")
+            payload["joint_angles_rad"] = latest.get("joint_angles_rad", [0.0] * 18)
+            payload["leg_contacts"] = latest.get("leg_contacts", [False] * 6)
+            payload["body_position_mm"] = latest.get("body_position_mm", [0.0, 0.0, 0.5])
+            payload["body_quaternion_wxyz"] = latest.get("body_quaternion_wxyz", [1.0, 0.0, 0.0, 0.0])
+            payload["dn_rates"] = latest.get("dn_rates", {"dna02_l": 0.0, "dna02_r": 0.0, "dnp09": 0.0, "mdn": 0.0, "gf": 0.0})
+            payload["body"] = {
+                "controller_id": payload["controller_id"],
+                "joint_angles_rad": payload["joint_angles_rad"],
+                "leg_contacts": payload["leg_contacts"],
+                "body_position_mm": payload["body_position_mm"],
+                "body_quaternion_wxyz": payload["body_quaternion_wxyz"],
+                "dn_rates": payload["dn_rates"],
+            }
         if hasattr(self.runner, "timing_snapshot"):
             payload["timing"] = self.runner.timing_snapshot()
         if hasattr(self.runner.lock, "profile"):
