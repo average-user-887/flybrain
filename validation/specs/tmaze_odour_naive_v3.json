@@ -3,7 +3,7 @@
  "id": "tmaze-odour-naive-v3-1",
  "paradigm": "tmaze_odor",
  "status": "draft",
- "status_reason": "the gating targets (balanced naive OCT vs MCH choice; naive avoidance of each odour vs air) are standard but their published values were NOT read (Tully & Quinn 1985 paywalled; Li 2013 Fig. 1I not extracted). A library check must fill them before preregistration.",
+ "status_reason": "literature check 2026-09-24: the naive odour-vs-air avoidance direction is published at training concentrations (Akalal 2006 Table 1), but one other setup found OCT and MCH slightly attractive vs mineral oil (Barth 2014), and the naive OCT-vs-MCH 50:50 split is a concentration calibration made by the experimenters, not a property of the fly. The model's odour concentration is not mapped to the published ones. The OCT/MCH balance is now reported as a calibration check, not gated. The concentration mapping still needs an owner decision before preregistration.",
  "declared_at": "2026-09-24",
  "summary": "Naive T-maze choice at the choice point, before any learning: OCT vs MCH should be balanced, and each odour vs air should be avoided.",
  "dynamics": {
@@ -377,21 +377,6 @@
     "sources": []
    },
    {
-    "id": "T1_OCT_MCH_balanced",
-    "type": "ratio_ci_within",
-    "sample": "PI_OCT_vs_MCH",
-    "interval": [
-     -0.2,
-     0.2
-    ],
-    "claim": "Naive OCT vs MCH choice is balanced: PI 95% CI inside [-0.2, 0.2].",
-    "basis": "standard: odour concentrations are set so naive flies split evenly (Tully & Quinn 1985); the tolerance is a judgement",
-    "verified": false,
-    "sources": [
-     "tully1985"
-    ]
-   },
-   {
     "id": "T2_OCT_avoided",
     "type": "ratio_ci_within",
     "sample": "PI_OCT_vs_air",
@@ -400,10 +385,12 @@
      0.0
     ],
     "claim": "Naive flies avoid OCT against air (PI for OCT below 0).",
-    "basis": "naive odour avoidance is measured against air as a control in T-maze work (Li 2013 methods); values not read",
+    "basis": "published direction at training concentrations: Akalal 2006 Table 1, naive OCT vs fresh air, CS;H24-GAL4 control 0.78 +/- 0.04 (positive = avoidance, n >= 6; range over four CS-background GAL4 controls: OCT 0.66-0.78, MCH 0.62-0.84); dilutions not stated there. Li 2013 measured the same (half-PI = (n_air - n_odour)/total, positive = avoidance) but its values are only in Fig. 1I (not read). Conflict: Barth 2014 found 3-octanol and MCH 'slightly attractive' vs mineral oil in Canton-S (values in figure only). Direction depends on concentration and setup, and the model's concentration is not mapped, so verified stays false. Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0.",
     "verified": false,
     "sources": [
-     "li2013"
+     "akalal2006",
+     "li2013",
+     "barth2014"
     ]
    },
    {
@@ -415,16 +402,37 @@
      0.0
     ],
     "claim": "Naive flies avoid MCH against air.",
-    "basis": "as T2",
+    "basis": "published direction at training concentrations: Akalal 2006 Table 1, naive MCH vs fresh air, CS;H24-GAL4 control 0.84 +/- 0.06 (positive = avoidance, n >= 6; range over four CS-background GAL4 controls: OCT 0.66-0.78, MCH 0.62-0.84); dilutions not stated there. Li 2013 measured the same (half-PI = (n_air - n_odour)/total, positive = avoidance) but its values are only in Fig. 1I (not read). Conflict: Barth 2014 found 3-octanol and MCH 'slightly attractive' vs mineral oil in Canton-S (values in figure only). Direction depends on concentration and setup, and the model's concentration is not mapped, so verified stays false. Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0.",
     "verified": false,
     "sources": [
-     "li2013"
+     "akalal2006",
+     "li2013",
+     "barth2014"
+    ]
+   }
+  ],
+  "reported": [
+   {
+    "id": "R1_OCT_MCH_balance_calibration",
+    "type": "ratio_ci_within",
+    "sample": "PI_OCT_vs_MCH",
+    "interval": [
+     -0.2,
+     0.2
+    ],
+    "claim": "Naive OCT vs MCH PI and its 95% CI, reported as a calibration check of the relative odour concentration (not gated).",
+    "basis": "REPORTED, NOT GATED (decision 2026-09-24): NOT a biological target: labs adjust the relative OCT/MCH concentrations until naive flies split ~50:50 ('Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze', Goodwin 1997; same in Akalal 2006). No paper read reports a numeric naive split. In the model both odours are at DoOR scale 1, so this gate tests the encoder's concentration choice, not the fly. Tolerance is a judgement.",
+    "verified": false,
+    "sources": [
+     "goodwin1997",
+     "akalal2006",
+     "tully1985"
     ]
    }
   ]
  },
  "physiology": {
-  "bounds_file": "firing_rate_bounds_v1.json",
+  "bounds_file": "firing_rate_bounds_v2.json",
   "checks": [
    {
     "id": "P1_ORN_spont",
@@ -499,16 +507,21 @@
    "citation": "Tully T, Quinn WG (1985) Classical conditioning and retention in normal and mutant Drosophila melanogaster. J Comp Physiol A 157:263-277",
    "doi": "10.1007/BF01350033",
    "doi_status": "Crossref metadata only",
-   "read": "NOT READ (paywalled)",
-   "values_read": []
+   "read": "abstract only (Springer); full text paywalled",
+   "values_read": [
+    "'Typically, 95% of trained flies avoided the shock-associated odor (CS+)'; learning plateaued within one training session; memory decayed over 7 h and was still present at 24 h; ~150 flies per trial, 12 shock pulses",
+    "no naive OCT/MCH split, concentrations, or exact 3-min PI in the abstract"
+   ]
   },
   "li2013": {
-   "citation": "Li W, et al. (2013) J Neurosci (T-maze methods: naive odour avoidance, reciprocal half-PIs)",
+   "citation": "Li W, Cressy M, Qin H, Fulga T, Van Vactor D, Dubnau J (2013) MicroRNA-276a functions in ellipsoid body and mushroom body neurons for naive and conditioned olfactory avoidance in Drosophila. J Neurosci 33(13):5821",
    "doi": "10.1523/JNEUROSCI.4004-12.2013",
    "doi_status": "resolved (PMC3640307)",
-   "read": "methods only; control values are in Fig. 1I and were NOT extracted",
+   "read": "Methods and Fig. 1 legend (jneurosci.org); Fig. 1I bar values NOT read (image only)",
    "values_read": [
-    "~100 flies per trial; MCH 1e-3 v/v, OCT 1.5e-3 v/v; half-PI = (n_air - n_odour)/total, PI = mean of reciprocal half-PIs"
+    "OCT 1.5e-3 v/v, MCH 1e-3 v/v, BA 0.5e-3; ~100 flies per trial",
+    "naive avoidance: odour vs air, odour side alternated; half-PI = (n_air - n_odour)/total, PI = mean of reciprocal halves (positive = avoidance)",
+    "Fig. 1I: MCH, OCT and BA avoidance at various concentrations, WT and miR-276a alleles, N = ~6-10"
    ]
   },
   "munch2016": {
@@ -537,6 +550,36 @@
    "read": "text; no absolute DNa02 firing rates in the text (figures only)",
    "values_read": [
     "DNa02 activity predicts and unilateral activation evokes ipsilateral turning (decoder convention, inherited from WP5)"
+   ]
+  },
+  "akalal2006": {
+   "citation": "Akalal DB, et al., Davis RL (2006) Roles for Drosophila mushroom body neurons in olfactory learning and memory. Learn Mem 13:659",
+   "doi": "10.1101/lm.221206",
+   "doi_status": "title matched by search (learnmem.cshlp.org 13/5/659, PMC1783621); authors after the first not checked",
+   "read": "full text PDF (learnmem.cshlp.org), Table 1 read twice with the same values",
+   "values_read": [
+    "'Odor concentrations were chosen that yielded ~50:50 distributions between the two odors for naive flies'",
+    "'Odor avoidance was assayed by measuring the distribution of naive flies between odor and fresh air at the odor concentrations used during training and testing'",
+    "Table 1 (mean +/- SEM, n >= 6, no genotype differences P >= 0.1749): CS;H24-GAL4 MCH 0.84 +/- 0.06, OCT 0.78 +/- 0.04; CS;NP1131 MCH 0.73 +/- 0.08, OCT 0.78 +/- 0.04; CS;c739 MCH 0.62 +/- 0.03, OCT 0.74 +/- 0.03; CS;17d MCH 0.66 +/- 0.03, OCT 0.66 +/- 0.05"
+   ]
+  },
+  "goodwin1997": {
+   "citation": "Goodwin SF, et al. (1997) J Neurosci 17(22):8817",
+   "doi": null,
+   "doi_status": "not checked",
+   "read": "full text (jneurosci.org)",
+   "values_read": [
+    "'Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze'",
+    "olfactory acuity measured as odour vs air, ~100 flies per group, n = 16 PIs; values in figures only"
+   ]
+  },
+  "barth2014": {
+   "citation": "Barth J, et al., Fiala A (2014) J Neurosci 34:1819",
+   "doi": null,
+   "doi_status": "not checked",
+   "read": "text (jneurosci.org)",
+   "values_read": [
+    "Canton-S, odour vs mineral oil in the T-maze: 3-octanol, 1-octen-3-ol and MCH 'were slightly attractive ... positive preference indices' (Fig. 1B legend, n = 8); values and dilutions in the figure only"
    ]
   }
  }
