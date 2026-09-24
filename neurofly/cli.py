@@ -82,6 +82,12 @@ def cmd_full_sim(args: list[str]) -> int:
     return sim_main()
 
 
+def cmd_validate(args: list[str]) -> int:
+    """Run or check a preregistered validation spec (docs/VALIDATION_HARNESS.md)."""
+    from validation.__main__ import main as validate_main
+    return validate_main(args)
+
+
 def cmd_record(args: list[str]) -> int:
     """Run a paradigm headless and write a deterministic .nfrec recording."""
     from neurofly import recording
@@ -115,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
     subparsers.add_parser("capability", help="Print the 14-paradigm capability matrix")
+    subparsers.add_parser("validate", help="Run or check a preregistered validation spec (run|check <spec>)")
     subparsers.add_parser("record", help="Record a paradigm run (.nfrec) for 1x replay in the dashboard")
 
     if not argv:
@@ -136,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_status(rest)
     elif cmd == "capability":
         return cmd_capability(rest)
+    elif cmd == "validate":
+        return cmd_validate(rest)
     elif cmd == "record":
         return cmd_record(rest)
     elif cmd in ("-h", "--help"):
