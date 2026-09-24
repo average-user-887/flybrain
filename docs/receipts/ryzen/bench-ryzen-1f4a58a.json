@@ -1,0 +1,88 @@
+{
+  "schema": "neurofly.host-benchmark.v1",
+  "started_at": "2026-09-24T16:34:22+0200",
+  "args": {
+    "out": "runs/bench-ryzen-1f4a58a.json",
+    "stages": "daemon-connectome,daemon-connectome-cuda,brain-malecns,brain-malecns-cuda",
+    "brain_ms": 500.0,
+    "body_ms": 1000.0,
+    "daemon_s": 5.0,
+    "seed": 7,
+    "quick": false
+  },
+  "host": {
+    "hostname": "avg-usr-B550-GAMING-X",
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 12,
+    "git_sha": "1f4a58a049ee4e7a2e649d475c4e92b6535d2cfa",
+    "git_dirty": false,
+    "cpu_model": "AMD Ryzen 5 5600X 6-Core Processor",
+    "ram_gib": 31.2,
+    "nvidia_smi": "Quadro P620, 2048 MiB, 580.173.02\nNVIDIA GeForce GTX 1660 Ti, 6144 MiB, 580.173.02",
+    "numpy_version": "2.5.3",
+    "numba_version": "0.67.0",
+    "mujoco_version": "3.9.0",
+    "flygym_version": null,
+    "cupy_version": "14.2.0",
+    "numba_cuda_available": false,
+    "cupy_gpu_available": true
+  },
+  "stages": {
+    "daemon-connectome": {
+      "backend": "connectome-fixed",
+      "brain_backend": "cpu",
+      "paradigm": "open-arena",
+      "dt_s": 0.02,
+      "sim_s": 5.0,
+      "wall_s": 115.418,
+      "init_s": 1.65,
+      "sim_s_per_wall_s": 0.0433
+    },
+    "daemon-connectome-cuda": {
+      "backend": "connectome-fixed",
+      "brain_backend": "cuda",
+      "paradigm": "open-arena",
+      "dt_s": 0.02,
+      "sim_s": 5.0,
+      "wall_s": 11.639,
+      "init_s": 2.44,
+      "sim_s_per_wall_s": 0.4296
+    },
+    "brain-malecns": {
+      "backend": "cpu",
+      "dynamics": "v3",
+      "neurons": 166700,
+      "edges": 25582938,
+      "driven_neurons": 3334,
+      "drive": 20.0,
+      "sim_s": 0.5,
+      "wall_s": 11.956,
+      "kernel_s": 11.886,
+      "first_step_s": 0.001,
+      "sim_s_per_wall_s": 0.0418,
+      "network_spikes_per_sim_s": 628782.0,
+      "active_neurons_end": 157141,
+      "graph": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+      "graph_load_s": 1.18
+    },
+    "brain-malecns-cuda": {
+      "backend": "cuda",
+      "dynamics": "v3",
+      "neurons": 166700,
+      "edges": 25582938,
+      "driven_neurons": 3334,
+      "drive": 20.0,
+      "sim_s": 0.5,
+      "wall_s": 1.302,
+      "kernel_s": 1.266,
+      "first_step_s": 0.016,
+      "sim_s_per_wall_s": 0.3841,
+      "network_spikes_per_sim_s": 627106.0,
+      "active_neurons_end": 0,
+      "graph": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+      "graph_load_s": 1.16
+    }
+  },
+  "finished_at": "2026-09-24T16:36:50+0200"
+}
