@@ -128,7 +128,7 @@ class CupyV3State:
         self.dt = float(dt)
         self.e_inh = float(e_inh)
         self.delay_slots = int(delay_slots)
-        self.kernel = cp.RawKernel(_SOURCE, 'advance_v3', options=('-std=c++14',),
+        self.kernel = cp.RawKernel(_SOURCE, 'advance_v3', options=('-std=c++17',),
                                    enable_cooperative_groups=True)
         self.d_ptr = cp.asarray(ptr)
         self.d_post = cp.asarray(post)
