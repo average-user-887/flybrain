@@ -108,9 +108,6 @@ original current-based model. Saved brains never cross versions: v1 brains stay 
 automatically when CuPy or numba.cuda can see one (`NEUROFLY_BRAIN_BACKEND=cpu` forces the CPU
 reference kernel).
 
-`neurofly full-sim` does not apply the v3 transmitter policy yet, so it runs v3 equations on
-v1 weights. Do not use its output as a v3 result.
-
 Once it is running, open `http://localhost:8769` to see the fly, watch premotor firing rates, and trigger stimuli.
 
 ---
