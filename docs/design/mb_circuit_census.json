@@ -1,0 +1,6261 @@
+{
+ "schema": "flybrain.mb-circuit-census.v1",
+ "dataset": "MaleCNS v1.0",
+ "source_sha256": {
+  "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+  "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+  "edges.feather": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+ },
+ "node_policy": "brainlab.connectome.normalize_nodes (assigned superclass, Glia excluded)",
+ "edge_policy": "every released edge between retained neurons; no threshold",
+ "synaptic_scale": 0.275,
+ "retained_neurons": 166700,
+ "queries": {
+  "KC": {
+   "column": "type",
+   "regex": "^KC"
+  },
+  "MBON": {
+   "column": "type",
+   "regex": "^MBON"
+  },
+  "PAM": {
+   "column": "type",
+   "regex": "^PAM\\d"
+  },
+  "PPL1": {
+   "column": "type",
+   "regex": "^PPL1\\d"
+  },
+  "PPL2": {
+   "column": "type",
+   "regex": "^PPL2\\d"
+  },
+  "APL": {
+   "column": "type",
+   "regex": "^APL$"
+  },
+  "DPM": {
+   "column": "type",
+   "regex": "^DPM$"
+  },
+  "MB-C1": {
+   "column": "type",
+   "regex": "^MB-C1$"
+  },
+  "OA-VPM3/4": {
+   "column": "type",
+   "regex": "^OA-VPM[34]$"
+  },
+  "ALPN": {
+   "column": "class",
+   "regex": "^ALPN$"
+  },
+  "DAN_class": {
+   "column": "class",
+   "regex": "^DAN$"
+  },
+  "DN": {
+   "column": "superclass",
+   "regex": "^descending_neuron"
+  }
+ },
+ "populations": {
+  "KC": {
+   "neurons": 4064,
+   "by_type": {
+    "KC": 2,
+    "KCa'b'-ap1": 199,
+    "KCa'b'-ap2": 291,
+    "KCa'b'-m": 205,
+    "KCab-c": 488,
+    "KCab-m": 536,
+    "KCab-p": 129,
+    "KCab-s": 657,
+    "KCg": 1,
+    "KCg-d": 206,
+    "KCg-m": 1342,
+    "KCg-s1": 2,
+    "KCg-s2": 2,
+    "KCg-s3": 2,
+    "KCg-s4": 2
+   },
+   "by_side": {
+    "L": 2019,
+    "R": 2045
+   },
+   "transmitter": {
+    "acetylcholine": 4064
+   }
+  },
+  "MBON": {
+   "neurons": 97,
+   "by_type": {
+    "MBON01": 2,
+    "MBON02": 2,
+    "MBON03": 2,
+    "MBON04": 2,
+    "MBON05": 2,
+    "MBON06": 2,
+    "MBON07": 4,
+    "MBON09": 4,
+    "MBON10": 9,
+    "MBON11": 2,
+    "MBON12": 4,
+    "MBON13": 2,
+    "MBON14": 4,
+    "MBON15": 4,
+    "MBON15-like": 4,
+    "MBON16": 2,
+    "MBON17": 2,
+    "MBON17-like": 2,
+    "MBON18": 2,
+    "MBON19": 4,
+    "MBON20": 2,
+    "MBON21": 2,
+    "MBON22": 2,
+    "MBON23": 2,
+    "MBON24": 2,
+    "MBON25": 2,
+    "MBON25-like": 4,
+    "MBON26": 2,
+    "MBON27": 2,
+    "MBON28": 2,
+    "MBON29": 2,
+    "MBON30": 2,
+    "MBON31": 2,
+    "MBON32": 2,
+    "MBON33": 2,
+    "MBON34": 2,
+    "MBON35": 2
+   },
+   "by_side": {
+    "L": 48,
+    "R": 49
+   },
+   "transmitter": {
+    "acetylcholine": 50,
+    "glutamate": 26,
+    "gaba": 21
+   }
+  },
+  "PAM": {
+   "neurons": 316,
+   "by_type": {
+    "PAM01": 44,
+    "PAM02": 17,
+    "PAM03": 12,
+    "PAM04": 32,
+    "PAM05": 20,
+    "PAM06": 28,
+    "PAM07": 14,
+    "PAM08": 50,
+    "PAM09": 9,
+    "PAM10": 15,
+    "PAM11": 15,
+    "PAM12": 22,
+    "PAM13": 16,
+    "PAM14": 18,
+    "PAM15": 4
+   },
+   "by_side": {
+    "L": 158,
+    "R": 158
+   },
+   "transmitter": {
+    "dopamine": 316
+   }
+  },
+  "PPL1": {
+   "neurons": 16,
+   "by_type": {
+    "PPL101": 2,
+    "PPL102": 2,
+    "PPL103": 2,
+    "PPL104": 2,
+    "PPL105": 2,
+    "PPL106": 2,
+    "PPL107": 2,
+    "PPL108": 2
+   },
+   "by_side": {
+    "L": 8,
+    "R": 8
+   },
+   "transmitter": {
+    "dopamine": 16
+   }
+  },
+  "PPL2": {
+   "neurons": 8,
+   "by_type": {
+    "PPL201": 2,
+    "PPL202": 2,
+    "PPL203": 2,
+    "PPL204": 2
+   },
+   "by_side": {
+    "L": 4,
+    "R": 4
+   },
+   "transmitter": {
+    "dopamine": 6,
+    "unclear": 2
+   }
+  },
+  "APL": {
+   "neurons": 2,
+   "by_type": {
+    "APL": 2
+   },
+   "by_side": {
+    "L": 1,
+    "R": 1
+   },
+   "transmitter": {
+    "gaba": 2
+   }
+  },
+  "DPM": {
+   "neurons": 2,
+   "by_type": {
+    "DPM": 2
+   },
+   "by_side": {
+    "L": 1,
+    "R": 1
+   },
+   "transmitter": {
+    "dopamine": 2
+   }
+  },
+  "MB-C1": {
+   "neurons": 5,
+   "by_type": {
+    "MB-C1": 5
+   },
+   "by_side": {
+    "L": 2,
+    "R": 3
+   },
+   "transmitter": {
+    "gaba": 5
+   }
+  },
+  "OA-VPM3/4": {
+   "neurons": 4,
+   "by_type": {
+    "OA-VPM3": 2,
+    "OA-VPM4": 2
+   },
+   "by_side": {
+    "L": 2,
+    "R": 2
+   },
+   "transmitter": {
+    "octopamine": 4
+   }
+  },
+  "ALPN": {
+   "neurons": 686,
+   "by_type": {
+    "CB0650": 4,
+    "CB1296_a": 5,
+    "CB2004": 6,
+    "CB2561": 2,
+    "CB2589": 6,
+    "CB2703": 6,
+    "CB2711": 4,
+    "CB2772": 2,
+    "CB3228": 3,
+    "CB3383": 1,
+    "CB3447": 5,
+    "DA1_lPN": 13,
+    "DA1_vPN": 2,
+    "DA2_lPN": 10,
+    "DA3_adPN": 4,
+    "DA4l_adPN": 2,
+    "DA4m_adPN": 2,
+    "DC1_adPN": 2,
+    "DC2_adPN": 4,
+    "DC3_adPN": 6,
+    "DC4_adPN": 2,
+    "DC4_vPN": 2,
+    "DL1_adPN": 4,
+    "DL2d_adPN": 9,
+    "DL2d_vPN": 4,
+    "DL2v_adPN": 8,
+    "DL3_lPN": 11,
+    "DL4_adPN": 2,
+    "DL5_adPN": 2,
+    "DM1_lPN": 2,
+    "DM2_lPN": 4,
+    "DM3_adPN": 2,
+    "DM3_vPN": 2,
+    "DM4_adPN": 2,
+    "DM4_vPN": 2,
+    "DM5_lPN": 7,
+    "DM6_adPN": 7,
+    "DP1l_adPN": 2,
+    "DP1l_vPN": 3,
+    "DP1m_adPN": 2,
+    "DP1m_vPN": 4,
+    "D_adPN": 6,
+    "MZ_lv2PN": 2,
+    "M_VPNml66": 6,
+    "M_adPNm3": 2,
+    "M_adPNm4": 2,
+    "M_adPNm5": 9,
+    "M_adPNm7": 3,
+    "M_adPNm8": 6,
+    "M_ilPNm90": 2,
+    "M_imPNl92": 2,
+    "M_l2PN10t19": 4,
+    "M_l2PN3t18": 4,
+    "M_l2PNl20": 2,
+    "M_l2PNl21": 2,
+    "M_l2PNl22": 2,
+    "M_l2PNl23": 2,
+    "M_l2PNm14": 2,
+    "M_l2PNm15": 2,
+    "M_l2PNm16": 4,
+    "M_l2PNm17": 2,
+    "M_lPNm11A": 6,
+    "M_lPNm11B": 2,
+    "M_lPNm11C": 2,
+    "M_lPNm11D": 12,
+    "M_lPNm12": 2,
+    "M_lPNm13": 7,
+    "M_lv2PN9t49_a": 2,
+    "M_lv2PN9t49_b": 2,
+    "M_lvPNm24": 4,
+    "M_lvPNm25": 4,
+    "M_lvPNm26": 4,
+    "M_lvPNm27": 1,
+    "M_lvPNm28": 2,
+    "M_lvPNm29": 2,
+    "M_lvPNm30": 2,
+    "M_lvPNm31": 2,
+    "M_lvPNm32": 2,
+    "M_lvPNm33": 5,
+    "M_lvPNm35": 5,
+    "M_lvPNm37": 5,
+    "M_lvPNm38": 2,
+    "M_lvPNm39": 2,
+    "M_lvPNm40": 4,
+    "M_lvPNm41": 5,
+    "M_lvPNm42": 3,
+    "M_lvPNm43": 4,
+    "M_lvPNm44": 2,
+    "M_lvPNm45": 7,
+    "M_lvPNm46": 4,
+    "M_lvPNm47": 4,
+    "M_lvPNm48": 8,
+    "M_smPN6t2": 2,
+    "M_smPNm1": 2,
+    "M_spPN4t9": 2,
+    "M_spPN5t10": 2,
+    "M_vPNml50": 4,
+    "M_vPNml51": 2,
+    "M_vPNml52": 2,
+    "M_vPNml53": 12,
+    "M_vPNml54": 2,
+    "M_vPNml55": 2,
+    "M_vPNml57": 2,
+    "M_vPNml60": 5,
+    "M_vPNml63": 7,
+    "M_vPNml65": 6,
+    "M_vPNml67": 4,
+    "M_vPNml68": 5,
+    "M_vPNml69": 4,
+    "M_vPNml72": 4,
+    "M_vPNml73": 2,
+    "M_vPNml75": 4,
+    "M_vPNml76": 6,
+    "M_vPNml77": 4,
+    "M_vPNml78": 1,
+    "M_vPNml79": 2,
+    "M_vPNml80": 4,
+    "M_vPNml83": 8,
+    "M_vPNml84": 8,
+    "M_vPNml86": 3,
+    "M_vPNml87": 6,
+    "M_vPNml88": 2,
+    "VA1d_adPN": 6,
+    "VA1d_vPN": 2,
+    "VA1v_adPN": 8,
+    "VA1v_vPN": 4,
+    "VA2_adPN": 2,
+    "VA3_adPN": 4,
+    "VA4_lPN": 2,
+    "VA5_lPN": 6,
+    "VA6_adPN": 2,
+    "VA7l_adPN": 2,
+    "VA7m_lPN": 6,
+    "VC1_lPN": 2,
+    "VC2_lPN": 2,
+    "VC3_adPN": 7,
+    "VC4_adPN": 6,
+    "VC5_lvPN": 6,
+    "VL1_ilPN": 2,
+    "VL1_vPN": 2,
+    "VL2a_adPN": 2,
+    "VL2a_vPN": 6,
+    "VL2p_adPN": 2,
+    "VL2p_vPN": 4,
+    "VM1_lPN": 2,
+    "VM2_adPN": 3,
+    "VM3_adPN": 4,
+    "VM4_adPN": 2,
+    "VM4_lvPN": 6,
+    "VM5d_adPN": 12,
+    "VM5v_adPN": 5,
+    "VM6_adPN": 2,
+    "VM6_lvPN": 6,
+    "VM7d_adPN": 7,
+    "VM7v_adPN": 3,
+    "VP1d+VP4_l2PN1": 2,
+    "VP1d+VP4_l2PN2": 2,
+    "VP1d_il2PN": 2,
+    "VP1l+VP3_ilPN": 2,
+    "VP1l+_lvPN": 9,
+    "VP1m+VP2_lvPN1": 2,
+    "VP1m+VP2_lvPN2": 8,
+    "VP1m+VP5_ilPN": 2,
+    "VP1m+_lvPN": 4,
+    "VP1m_l2PN": 2,
+    "VP2+VC5_l2PN": 2,
+    "VP2+Z_lvPN": 4,
+    "VP2+_adPN": 2,
+    "VP2_adPN": 1,
+    "VP2_l2PN": 2,
+    "VP3+VP1l_ivPN": 2,
+    "VP3+_l2PN": 6,
+    "VP3+_vPN": 2,
+    "VP4+VL1_l2PN": 2,
+    "VP4+_vPN": 2,
+    "VP4_vPN": 2,
+    "VP5+VP3_l2PN": 2,
+    "VP5+Z_adPN": 2,
+    "V_ilPN": 2,
+    "V_l2PN": 2
+   },
+   "by_side": {
+    "L": 343,
+    "R": 343
+   },
+   "transmitter": {
+    "acetylcholine": 469,
+    "gaba": 209,
+    "glutamate": 8
+   }
+  },
+  "DAN_class": {
+   "neurons": 340,
+   "by_type": {
+    "PAM01": 44,
+    "PAM02": 17,
+    "PAM03": 12,
+    "PAM04": 32,
+    "PAM05": 20,
+    "PAM06": 28,
+    "PAM07": 14,
+    "PAM08": 50,
+    "PAM09": 9,
+    "PAM10": 15,
+    "PAM11": 15,
+    "PAM12": 22,
+    "PAM13": 16,
+    "PAM14": 18,
+    "PAM15": 4,
+    "PPL101": 2,
+    "PPL102": 2,
+    "PPL103": 2,
+    "PPL104": 2,
+    "PPL105": 2,
+    "PPL106": 2,
+    "PPL107": 2,
+    "PPL108": 2,
+    "PPL201": 2,
+    "PPL202": 2,
+    "PPL203": 2,
+    "PPL204": 2
+   },
+   "by_side": {
+    "L": 170,
+    "R": 170
+   },
+   "transmitter": {
+    "dopamine": 338,
+    "unclear": 2
+   }
+  },
+  "DN": {
+   "neurons": 1316
+  }
+ },
+ "kc_lobe_system": {
+  "a'b'": 695,
+  "ab": 1810,
+  "g": 1557,
+  "unassigned": 2
+ },
+ "compartment_from_instance": {
+  "MBON01": "y5B'2a",
+  "MBON02": "B2B'2a",
+  "MBON03": "B'2mp",
+  "MBON04": "B'2mp_bilateral",
+  "MBON05": "y4>y1y2",
+  "MBON06": "B1>a",
+  "MBON07": "a1",
+  "MBON09": "y3B'1",
+  "MBON10": "B'1",
+  "MBON11": "y1pedc>a/B",
+  "MBON12": "y2a'1",
+  "MBON13": "a'2",
+  "MBON14": "a3",
+  "MBON15": "a'1",
+  "MBON15-like": "a'1a'2",
+  "MBON16": "a'3ap",
+  "MBON17": "a'3m",
+  "MBON17-like": "a'2a'3",
+  "MBON18": "a2sc",
+  "MBON19": "a2p3p",
+  "MBON20": "y1y2",
+  "MBON21": "y4y5",
+  "MBON22": "calyx",
+  "MBON23": "a2sp",
+  "MBON24": "B2y5",
+  "MBON25": "y1y2",
+  "MBON25-like": "y2",
+  "MBON26": "b'2d",
+  "MBON27": "y5d",
+  "MBON28": "a'3a",
+  "MBON29": "y4y5",
+  "MBON30": "y1y2y3",
+  "MBON31": "a'1a",
+  "MBON32": "y2",
+  "MBON33": "y2y3",
+  "MBON34": "y2",
+  "MBON35": "y2",
+  "PAM01": "y5",
+  "PAM02": "B'2a",
+  "PAM03": "B2B'2a",
+  "PAM04": "B2",
+  "PAM05": "B'2p",
+  "PAM06": "B'2m",
+  "PAM07": "y4<y1y2",
+  "PAM08": "y4",
+  "PAM09": "B1ped",
+  "PAM10": "B1",
+  "PAM11": "a1",
+  "PAM12": "y3",
+  "PAM13": "B'1ap",
+  "PAM14": "B'1m",
+  "PAM15": "y5B'2a",
+  "PPL101": "y1ped",
+  "PPL102": "y1",
+  "PPL103": "y2a'1",
+  "PPL104": "a'3",
+  "PPL105": "a'2a2",
+  "PPL106": null,
+  "PPL107": null,
+  "PPL108": null
+ },
+ "pn_to_kc": {
+  "edges": 22586,
+  "contacts": 390928,
+  "distinct_PN_inputs_per_KC_min1syn": {
+   "mean": 5.5575787401574805,
+   "median": 6.0,
+   "p10": 3.0,
+   "p90": 8.0,
+   "kcs_with_zero": 252
+  },
+  "distinct_PN_inputs_per_KC_min3syn": {
+   "mean": 5.112450787401575,
+   "median": 5.0,
+   "p10": 2.0,
+   "p90": 8.0,
+   "kcs_with_zero": 283
+  },
+  "distinct_PN_inputs_per_KC_min5syn": {
+   "mean": 4.916338582677166,
+   "median": 5.0,
+   "p10": 2.0,
+   "p90": 7.0,
+   "kcs_with_zero": 296
+  },
+  "by_lobe_min3": {
+   "g": {
+    "kcs": 1557,
+    "mean_PN_inputs_min3": 5.759152215799615
+   },
+   "a'b'": {
+    "kcs": 695,
+    "mean_PN_inputs_min3": 4.525179856115108
+   },
+   "ab": {
+    "kcs": 1810,
+    "mean_PN_inputs_min3": 4.78121546961326
+   },
+   "unassigned": {
+    "kcs": 2,
+    "mean_PN_inputs_min3": 5.5
+   }
+  },
+  "kc_input_contacts_by_presynaptic_class_top": {
+   "Kenyon_Cell": {
+    "contacts": 1153845,
+    "fraction": 0.5541
+   },
+   "ALPN": {
+    "contacts": 390928,
+    "fraction": 0.1877
+   },
+   "cb_intrinsic": {
+    "contacts": 289084,
+    "fraction": 0.1388
+   },
+   "DAN": {
+    "contacts": 225127,
+    "fraction": 0.1081
+   },
+   "MBON": {
+    "contacts": 11181,
+    "fraction": 0.0054
+   },
+   "visual_projection": {
+    "contacts": 11094,
+    "fraction": 0.0053
+   },
+   "ascending_neuron": {
+    "contacts": 316,
+    "fraction": 0.0002
+   },
+   "visual_centrifugal": {
+    "contacts": 314,
+    "fraction": 0.0002
+   },
+   "descending_neuron": {
+    "contacts": 202,
+    "fraction": 0.0001
+   },
+   "CX": {
+    "contacts": 99,
+    "fraction": 0.0
+   },
+   "ol_intrinsic": {
+    "contacts": 31,
+    "fraction": 0.0
+   },
+   "cb_endocrine": {
+    "contacts": 8,
+    "fraction": 0.0
+   }
+  }
+ },
+ "kc_to_mbon": {
+  "total": {
+   "edges": 61210,
+   "contacts": 463640,
+   "pre_neurons": 4063,
+   "post_neurons": 97
+  },
+  "per_mbon_type": {
+   "MBON01": {
+    "compartment": "y5B'2a",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 2109,
+    "kc_contacts": 40888,
+    "presynaptic_kcs": 2083,
+    "kc_contacts_by_lobe": {
+     "g": 34697,
+     "a'b'": 6191
+    }
+   },
+   "MBON02": {
+    "compartment": "B2B'2a",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 4346,
+    "kc_contacts": 18671,
+    "presynaptic_kcs": 2386,
+    "kc_contacts_by_lobe": {
+     "ab": 16831,
+     "a'b'": 1808,
+     "g": 32
+    }
+   },
+   "MBON03": {
+    "compartment": "B'2mp",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 1249,
+    "kc_contacts": 24004,
+    "presynaptic_kcs": 709,
+    "kc_contacts_by_lobe": {
+     "a'b'": 23987,
+     "ab": 4,
+     "g": 13
+    }
+   },
+   "MBON04": {
+    "compartment": "B'2mp_bilateral",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 1639,
+    "kc_contacts": 6803,
+    "presynaptic_kcs": 1587,
+    "kc_contacts_by_lobe": {
+     "g": 2189,
+     "a'b'": 4614
+    }
+   },
+   "MBON05": {
+    "compartment": "y4>y1y2",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 1999,
+    "kc_contacts": 36320,
+    "presynaptic_kcs": 1717,
+    "kc_contacts_by_lobe": {
+     "g": 35977,
+     "a'b'": 342,
+     "ab": 1
+    }
+   },
+   "MBON06": {
+    "compartment": "B1>a",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 1944,
+    "kc_contacts": 25465,
+    "presynaptic_kcs": 1942,
+    "kc_contacts_by_lobe": {
+     "ab": 25290,
+     "a'b'": 131,
+     "g": 44
+    }
+   },
+   "MBON07": {
+    "compartment": "a1",
+    "neurons": 4,
+    "transmitter": "glutamate",
+    "kc_edges": 3651,
+    "kc_contacts": 22840,
+    "presynaptic_kcs": 1875,
+    "kc_contacts_by_lobe": {
+     "ab": 22713,
+     "a'b'": 106,
+     "g": 21
+    }
+   },
+   "MBON09": {
+    "compartment": "y3B'1",
+    "neurons": 4,
+    "transmitter": "gaba",
+    "kc_edges": 4682,
+    "kc_contacts": 63579,
+    "presynaptic_kcs": 2257,
+    "kc_contacts_by_lobe": {
+     "g": 44257,
+     "a'b'": 19317,
+     "ab": 5
+    }
+   },
+   "MBON10": {
+    "compartment": "B'1",
+    "neurons": 9,
+    "transmitter": "gaba",
+    "kc_edges": 1279,
+    "kc_contacts": 2695,
+    "presynaptic_kcs": 626,
+    "kc_contacts_by_lobe": {
+     "a'b'": 2653,
+     "g": 40,
+     "ab": 2
+    }
+   },
+   "MBON11": {
+    "compartment": "y1pedc>a/B",
+    "neurons": 2,
+    "transmitter": "gaba",
+    "kc_edges": 4184,
+    "kc_contacts": 41460,
+    "presynaptic_kcs": 3623,
+    "kc_contacts_by_lobe": {
+     "g": 27820,
+     "ab": 13150,
+     "a'b'": 490
+    }
+   },
+   "MBON12": {
+    "compartment": "y2a'1",
+    "neurons": 4,
+    "transmitter": "acetylcholine",
+    "kc_edges": 4126,
+    "kc_contacts": 22603,
+    "presynaptic_kcs": 2177,
+    "kc_contacts_by_lobe": {
+     "a'b'": 10683,
+     "g": 11920
+    }
+   },
+   "MBON13": {
+    "compartment": "a'2",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 673,
+    "kc_contacts": 10194,
+    "presynaptic_kcs": 673,
+    "kc_contacts_by_lobe": {
+     "a'b'": 10194
+    }
+   },
+   "MBON14": {
+    "compartment": "a3",
+    "neurons": 4,
+    "transmitter": "acetylcholine",
+    "kc_edges": 3437,
+    "kc_contacts": 22217,
+    "presynaptic_kcs": 1794,
+    "kc_contacts_by_lobe": {
+     "ab": 22178,
+     "a'b'": 39
+    }
+   },
+   "MBON15": {
+    "compartment": "a'1",
+    "neurons": 4,
+    "transmitter": "acetylcholine",
+    "kc_edges": 687,
+    "kc_contacts": 1306,
+    "presynaptic_kcs": 507,
+    "kc_contacts_by_lobe": {
+     "a'b'": 1305,
+     "g": 1
+    }
+   },
+   "MBON15-like": {
+    "compartment": "a'1a'2",
+    "neurons": 4,
+    "transmitter": "acetylcholine",
+    "kc_edges": 940,
+    "kc_contacts": 3235,
+    "presynaptic_kcs": 555,
+    "kc_contacts_by_lobe": {
+     "a'b'": 3231,
+     "ab": 3,
+     "g": 1
+    }
+   },
+   "MBON16": {
+    "compartment": "a'3ap",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 604,
+    "kc_contacts": 3610,
+    "presynaptic_kcs": 604,
+    "kc_contacts_by_lobe": {
+     "a'b'": 3589,
+     "g": 16,
+     "ab": 5
+    }
+   },
+   "MBON17": {
+    "compartment": "a'3m",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 537,
+    "kc_contacts": 3020,
+    "presynaptic_kcs": 537,
+    "kc_contacts_by_lobe": {
+     "a'b'": 3016,
+     "g": 3,
+     "ab": 1
+    }
+   },
+   "MBON17-like": {
+    "compartment": "a'2a'3",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 473,
+    "kc_contacts": 1889,
+    "presynaptic_kcs": 473,
+    "kc_contacts_by_lobe": {
+     "a'b'": 1887,
+     "ab": 1,
+     "g": 1
+    }
+   },
+   "MBON18": {
+    "compartment": "a2sc",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 1723,
+    "kc_contacts": 13925,
+    "presynaptic_kcs": 1723,
+    "kc_contacts_by_lobe": {
+     "ab": 13884,
+     "a'b'": 41
+    }
+   },
+   "MBON19": {
+    "compartment": "a2p3p",
+    "neurons": 4,
+    "transmitter": "acetylcholine",
+    "kc_edges": 777,
+    "kc_contacts": 1985,
+    "presynaptic_kcs": 571,
+    "kc_contacts_by_lobe": {
+     "ab": 1452,
+     "a'b'": 533
+    }
+   },
+   "MBON20": {
+    "compartment": "y1y2",
+    "neurons": 2,
+    "transmitter": "gaba",
+    "kc_edges": 1392,
+    "kc_contacts": 4604,
+    "presynaptic_kcs": 1392,
+    "kc_contacts_by_lobe": {
+     "g": 4598,
+     "a'b'": 2,
+     "ab": 4
+    }
+   },
+   "MBON21": {
+    "compartment": "y4y5",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 1646,
+    "kc_contacts": 8383,
+    "presynaptic_kcs": 1608,
+    "kc_contacts_by_lobe": {
+     "g": 8269,
+     "ab": 113,
+     "a'b'": 1
+    }
+   },
+   "MBON22": {
+    "compartment": "calyx",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 3185,
+    "kc_contacts": 16084,
+    "presynaptic_kcs": 3128,
+    "kc_contacts_by_lobe": {
+     "a'b'": 129,
+     "g": 8876,
+     "ab": 7076,
+     "unassigned": 3
+    }
+   },
+   "MBON23": {
+    "compartment": "a2sp",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 1198,
+    "kc_contacts": 2934,
+    "presynaptic_kcs": 1198,
+    "kc_contacts_by_lobe": {
+     "ab": 2877,
+     "a'b'": 57
+    }
+   },
+   "MBON24": {
+    "compartment": "B2y5",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 1685,
+    "kc_contacts": 3634,
+    "presynaptic_kcs": 1517,
+    "kc_contacts_by_lobe": {
+     "ab": 3416,
+     "g": 198,
+     "a'b'": 20
+    }
+   },
+   "MBON25": {
+    "compartment": "y1y2",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 657,
+    "kc_contacts": 1071,
+    "presynaptic_kcs": 652,
+    "kc_contacts_by_lobe": {
+     "g": 1070,
+     "a'b'": 1
+    }
+   },
+   "MBON25-like": {
+    "compartment": "y2",
+    "neurons": 4,
+    "transmitter": "glutamate",
+    "kc_edges": 619,
+    "kc_contacts": 924,
+    "presynaptic_kcs": 531,
+    "kc_contacts_by_lobe": {
+     "g": 891,
+     "a'b'": 32,
+     "ab": 1
+    }
+   },
+   "MBON26": {
+    "compartment": "b'2d",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 577,
+    "kc_contacts": 4557,
+    "presynaptic_kcs": 577,
+    "kc_contacts_by_lobe": {
+     "a'b'": 4050,
+     "g": 507
+    }
+   },
+   "MBON27": {
+    "compartment": "y5d",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 618,
+    "kc_contacts": 5609,
+    "presynaptic_kcs": 618,
+    "kc_contacts_by_lobe": {
+     "g": 5534,
+     "a'b'": 75
+    }
+   },
+   "MBON28": {
+    "compartment": "a'3a",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 413,
+    "kc_contacts": 2279,
+    "presynaptic_kcs": 413,
+    "kc_contacts_by_lobe": {
+     "a'b'": 2270,
+     "g": 9
+    }
+   },
+   "MBON29": {
+    "compartment": "y4y5",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 2017,
+    "kc_contacts": 5005,
+    "presynaptic_kcs": 1361,
+    "kc_contacts_by_lobe": {
+     "g": 4990,
+     "a'b'": 15
+    }
+   },
+   "MBON30": {
+    "compartment": "y1y2y3",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 1621,
+    "kc_contacts": 11859,
+    "presynaptic_kcs": 1491,
+    "kc_contacts_by_lobe": {
+     "g": 11837,
+     "a'b'": 21,
+     "ab": 1
+    }
+   },
+   "MBON31": {
+    "compartment": "a'1a",
+    "neurons": 2,
+    "transmitter": "gaba",
+    "kc_edges": 738,
+    "kc_contacts": 10493,
+    "presynaptic_kcs": 738,
+    "kc_contacts_by_lobe": {
+     "a'b'": 10425,
+     "g": 65,
+     "ab": 3
+    }
+   },
+   "MBON32": {
+    "compartment": "y2",
+    "neurons": 2,
+    "transmitter": "gaba",
+    "kc_edges": 1909,
+    "kc_contacts": 13164,
+    "presynaptic_kcs": 1909,
+    "kc_contacts_by_lobe": {
+     "g": 10619,
+     "a'b'": 2545
+    }
+   },
+   "MBON33": {
+    "compartment": "y2y3",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 563,
+    "kc_contacts": 1596,
+    "presynaptic_kcs": 563,
+    "kc_contacts_by_lobe": {
+     "g": 1596
+    }
+   },
+   "MBON34": {
+    "compartment": "y2",
+    "neurons": 2,
+    "transmitter": "glutamate",
+    "kc_edges": 70,
+    "kc_contacts": 80,
+    "presynaptic_kcs": 70,
+    "kc_contacts_by_lobe": {
+     "g": 80
+    }
+   },
+   "MBON35": {
+    "compartment": "y2",
+    "neurons": 2,
+    "transmitter": "acetylcholine",
+    "kc_edges": 1243,
+    "kc_contacts": 4655,
+    "presynaptic_kcs": 1243,
+    "kc_contacts_by_lobe": {
+     "g": 4624,
+     "a'b'": 31
+    }
+   }
+  }
+ },
+ "dan": {
+  "PAM01": {
+   "compartment": "y5",
+   "neurons": 44,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 17464,
+    "contacts": 24037,
+    "kcs": 1682,
+    "by_lobe": {
+     "g": 23841,
+     "a'b'": 179,
+     "ab": 17
+    }
+   },
+   "to_mbon_top": {
+    "MBON01": 1597,
+    "MBON27": 305,
+    "MBON21": 202,
+    "MBON29": 140
+   },
+   "from_mbon_top": {
+    "MBON01": 128,
+    "MBON09": 89,
+    "MBON05": 29,
+    "MBON30": 20
+   },
+   "from_kc": {
+    "edges": 20744,
+    "contacts": 31542
+   }
+  },
+  "PAM02": {
+   "compartment": "B'2a",
+   "neurons": 17,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 3429,
+    "contacts": 4933,
+    "kcs": 960,
+    "by_lobe": {
+     "a'b'": 4317,
+     "g": 614,
+     "ab": 2
+    }
+   },
+   "to_mbon_top": {
+    "MBON01": 550,
+    "MBON03": 245,
+    "MBON02": 65,
+    "MBON26": 13
+   },
+   "from_mbon_top": {
+    "MBON12": 128,
+    "MBON10": 49,
+    "MBON13": 46,
+    "MBON35": 30
+   },
+   "from_kc": {
+    "edges": 5016,
+    "contacts": 9535
+   }
+  },
+  "PAM03": {
+   "compartment": "B2B'2a",
+   "neurons": 12,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 1336,
+    "contacts": 1556,
+    "kcs": 916,
+    "by_lobe": {
+     "a'b'": 622,
+     "ab": 934
+    }
+   },
+   "to_mbon_top": {
+    "MBON03": 92,
+    "MBON02": 45,
+    "MBON24": 24,
+    "MBON04": 17
+   },
+   "from_mbon_top": {
+    "MBON26": 31,
+    "MBON11": 14,
+    "MBON03": 5,
+    "MBON10": 3
+   },
+   "from_kc": {
+    "edges": 1900,
+    "contacts": 2455
+   }
+  },
+  "PAM04": {
+   "compartment": "B2",
+   "neurons": 32,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 9814,
+    "contacts": 12497,
+    "kcs": 1813,
+    "by_lobe": {
+     "ab": 12461,
+     "a'b'": 27,
+     "g": 9
+    }
+   },
+   "to_mbon_top": {
+    "MBON02": 1168,
+    "MBON24": 527,
+    "MBON11": 33,
+    "MBON06": 23
+   },
+   "from_mbon_top": {
+    "MBON13": 50,
+    "MBON11": 47,
+    "MBON06": 35,
+    "MBON02": 31
+   },
+   "from_kc": {
+    "edges": 15623,
+    "contacts": 23094
+   }
+  },
+  "PAM05": {
+   "compartment": "B'2p",
+   "neurons": 20,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 4396,
+    "contacts": 11034,
+    "kcs": 674,
+    "by_lobe": {
+     "a'b'": 10781,
+     "g": 253
+    }
+   },
+   "to_mbon_top": {
+    "MBON26": 1132,
+    "MBON03": 962,
+    "MBON04": 727,
+    "MBON10": 20
+   },
+   "from_mbon_top": {
+    "MBON04": 143,
+    "MBON31": 69,
+    "MBON03": 36,
+    "MBON09": 29
+   },
+   "from_kc": {
+    "edges": 5038,
+    "contacts": 12638
+   }
+  },
+  "PAM06": {
+   "compartment": "B'2m",
+   "neurons": 28,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 9331,
+    "contacts": 18418,
+    "kcs": 692,
+    "by_lobe": {
+     "a'b'": 18396,
+     "g": 22
+    }
+   },
+   "to_mbon_top": {
+    "MBON03": 3296,
+    "MBON04": 677,
+    "MBON26": 67,
+    "MBON11": 32
+   },
+   "from_mbon_top": {
+    "MBON11": 110,
+    "MBON31": 96,
+    "MBON10": 67,
+    "MBON04": 60
+   },
+   "from_kc": {
+    "edges": 8248,
+    "contacts": 14041
+   }
+  },
+  "PAM07": {
+   "compartment": "y4<y1y2",
+   "neurons": 14,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 7309,
+    "contacts": 11865,
+    "kcs": 1549,
+    "by_lobe": {
+     "g": 11865
+    }
+   },
+   "to_mbon_top": {
+    "MBON05": 860,
+    "MBON21": 253,
+    "MBON27": 77,
+    "MBON11": 21
+   },
+   "from_mbon_top": {
+    "MBON05": 407,
+    "MBON25-like": 214,
+    "MBON25": 180,
+    "MBON33": 94
+   },
+   "from_kc": {
+    "edges": 6722,
+    "contacts": 11261
+   }
+  },
+  "PAM08": {
+   "compartment": "y4",
+   "neurons": 50,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 20906,
+    "contacts": 32030,
+    "kcs": 1600,
+    "by_lobe": {
+     "g": 31967,
+     "a'b'": 63
+    }
+   },
+   "to_mbon_top": {
+    "MBON05": 2197,
+    "MBON21": 617,
+    "MBON29": 321,
+    "MBON04": 302
+   },
+   "from_mbon_top": {
+    "MBON30": 287,
+    "MBON05": 205,
+    "MBON33": 173,
+    "MBON25-like": 61
+   },
+   "from_kc": {
+    "edges": 21921,
+    "contacts": 34608
+   }
+  },
+  "PAM09": {
+   "compartment": "B1ped",
+   "neurons": 9,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 1830,
+    "contacts": 6030,
+    "kcs": 580,
+    "by_lobe": {
+     "ab": 6001,
+     "g": 11,
+     "a'b'": 18
+    }
+   },
+   "to_mbon_top": {
+    "MBON06": 381,
+    "MBON07": 32,
+    "MBON11": 8,
+    "MBON02": 5
+   },
+   "from_mbon_top": {
+    "MBON23": 26,
+    "MBON06": 11,
+    "MBON33": 5,
+    "MBON10": 4
+   },
+   "from_kc": {
+    "edges": 2320,
+    "contacts": 6467
+   }
+  },
+  "PAM10": {
+   "compartment": "B1",
+   "neurons": 15,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 11775,
+    "contacts": 18882,
+    "kcs": 1848,
+    "by_lobe": {
+     "ab": 18821,
+     "g": 29,
+     "a'b'": 32
+    }
+   },
+   "to_mbon_top": {
+    "MBON06": 3274,
+    "MBON11": 112,
+    "MBON07": 74,
+    "MBON02": 26
+   },
+   "from_mbon_top": {
+    "MBON06": 166,
+    "MBON23": 133,
+    "MBON02": 94,
+    "MBON11": 52
+   },
+   "from_kc": {
+    "edges": 13964,
+    "contacts": 24191
+   }
+  },
+  "PAM11": {
+   "compartment": "a1",
+   "neurons": 15,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 6702,
+    "contacts": 9049,
+    "kcs": 1864,
+    "by_lobe": {
+     "ab": 8843,
+     "a'b'": 183,
+     "g": 23
+    }
+   },
+   "to_mbon_top": {
+    "MBON07": 1918,
+    "MBON06": 204,
+    "MBON11": 56,
+    "MBON04": 4
+   },
+   "from_mbon_top": {
+    "MBON06": 279,
+    "MBON11": 84,
+    "MBON07": 74,
+    "MBON13": 6
+   },
+   "from_kc": {
+    "edges": 7513,
+    "contacts": 10723
+   }
+  },
+  "PAM12": {
+   "compartment": "y3",
+   "neurons": 22,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 8027,
+    "contacts": 10456,
+    "kcs": 1557,
+    "by_lobe": {
+     "g": 10445,
+     "a'b'": 10,
+     "ab": 1
+    }
+   },
+   "to_mbon_top": {
+    "MBON09": 1804,
+    "MBON05": 196,
+    "MBON33": 102,
+    "MBON30": 61
+   },
+   "from_mbon_top": {
+    "MBON21": 171,
+    "MBON35": 127,
+    "MBON15": 84,
+    "MBON09": 62
+   },
+   "from_kc": {
+    "edges": 8105,
+    "contacts": 11034
+   }
+  },
+  "PAM13": {
+   "compartment": "B'1ap",
+   "neurons": 16,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 2999,
+    "contacts": 5002,
+    "kcs": 581,
+    "by_lobe": {
+     "a'b'": 4931,
+     "g": 71
+    }
+   },
+   "to_mbon_top": {
+    "MBON09": 872,
+    "MBON10": 234,
+    "MBON05": 67,
+    "MBON31": 21
+   },
+   "from_mbon_top": {
+    "MBON15": 144,
+    "MBON03": 83,
+    "MBON05": 50,
+    "MBON15-like": 48
+   },
+   "from_kc": {
+    "edges": 2937,
+    "contacts": 5540
+   }
+  },
+  "PAM14": {
+   "compartment": "B'1m",
+   "neurons": 18,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 4054,
+    "contacts": 6574,
+    "kcs": 634,
+    "by_lobe": {
+     "a'b'": 6551,
+     "ab": 12,
+     "g": 11
+    }
+   },
+   "to_mbon_top": {
+    "MBON09": 812,
+    "MBON10": 143,
+    "MBON03": 98,
+    "MBON06": 13
+   },
+   "from_mbon_top": {
+    "MBON15": 110,
+    "MBON03": 78,
+    "MBON04": 46,
+    "MBON09": 39
+   },
+   "from_kc": {
+    "edges": 3244,
+    "contacts": 4807
+   }
+  },
+  "PAM15": {
+   "compartment": "y5B'2a",
+   "neurons": 4,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 1078,
+    "contacts": 1426,
+    "kcs": 856,
+    "by_lobe": {
+     "g": 1050,
+     "a'b'": 375,
+     "ab": 1
+    }
+   },
+   "to_mbon_top": {
+    "MBON01": 73,
+    "MBON21": 28,
+    "MBON03": 25,
+    "MBON02": 12
+   },
+   "from_mbon_top": {
+    "MBON09": 27,
+    "MBON30": 10,
+    "MBON12": 4,
+    "MBON25-like": 3
+   },
+   "from_kc": {
+    "edges": 1542,
+    "contacts": 2346
+   }
+  },
+  "PPL101": {
+   "compartment": "y1ped",
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 4936,
+    "contacts": 11482,
+    "kcs": 3070,
+    "by_lobe": {
+     "g": 7947,
+     "ab": 3526,
+     "a'b'": 9
+    }
+   },
+   "to_mbon_top": {
+    "MBON11": 2311,
+    "MBON30": 101,
+    "MBON20": 93,
+    "MBON25": 70
+   },
+   "from_mbon_top": {
+    "MBON11": 205,
+    "MBON30": 179,
+    "MBON29": 143,
+    "MBON15": 92
+   },
+   "from_kc": {
+    "edges": 6168,
+    "contacts": 24068
+   }
+  },
+  "PPL102": {
+   "compartment": "y1",
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 474,
+    "contacts": 590,
+    "kcs": 474,
+    "by_lobe": {
+     "g": 590
+    }
+   },
+   "to_mbon_top": {
+    "MBON35": 162,
+    "MBON11": 128,
+    "MBON32": 73,
+    "MBON33": 57
+   },
+   "from_mbon_top": {
+    "MBON33": 204,
+    "MBON30": 16,
+    "MBON29": 16,
+    "MBON15": 14
+   },
+   "from_kc": {
+    "edges": 1207,
+    "contacts": 2755
+   }
+  },
+  "PPL103": {
+   "compartment": "y2a'1",
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 4387,
+    "contacts": 20538,
+    "kcs": 2267,
+    "by_lobe": {
+     "g": 14949,
+     "a'b'": 5561,
+     "ab": 28
+    }
+   },
+   "to_mbon_top": {
+    "MBON32": 972,
+    "MBON12": 802,
+    "MBON31": 681,
+    "MBON35": 676
+   },
+   "from_mbon_top": {
+    "MBON10": 202,
+    "MBON15": 81,
+    "MBON30": 72,
+    "MBON25-like": 63
+   },
+   "from_kc": {
+    "edges": 4373,
+    "contacts": 23300
+   }
+  },
+  "PPL104": {
+   "compartment": "a'3",
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 950,
+    "contacts": 2198,
+    "kcs": 624,
+    "by_lobe": {
+     "a'b'": 2185,
+     "g": 12,
+     "ab": 1
+    }
+   },
+   "to_mbon_top": {
+    "MBON16": 302,
+    "MBON28": 167,
+    "MBON17": 118,
+    "MBON17-like": 49
+   },
+   "from_mbon_top": {
+    "MBON16": 160,
+    "MBON28": 131,
+    "MBON15-like": 116,
+    "MBON17": 68
+   },
+   "from_kc": {
+    "edges": 1080,
+    "contacts": 3135
+   }
+  },
+  "PPL105": {
+   "compartment": "a'2a2",
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 3501,
+    "contacts": 8147,
+    "kcs": 2208,
+    "by_lobe": {
+     "a'b'": 2813,
+     "ab": 5333,
+     "g": 1
+    }
+   },
+   "to_mbon_top": {
+    "MBON13": 657,
+    "MBON18": 434,
+    "MBON23": 125,
+    "MBON19": 98
+   },
+   "from_mbon_top": {
+    "MBON06": 163,
+    "MBON15-like": 67,
+    "MBON11": 43,
+    "MBON13": 17
+   },
+   "from_kc": {
+    "edges": 4224,
+    "contacts": 12689
+   }
+  },
+  "PPL106": {
+   "compartment": null,
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 2889,
+    "contacts": 6287,
+    "kcs": 1731,
+    "by_lobe": {
+     "ab": 6264,
+     "a'b'": 23
+    }
+   },
+   "to_mbon_top": {
+    "MBON14": 860,
+    "MBON06": 13,
+    "MBON11": 7,
+    "MBON29": 6
+   },
+   "from_mbon_top": {
+    "MBON11": 46,
+    "MBON14": 33,
+    "MBON06": 30,
+    "MBON29": 23
+   },
+   "from_kc": {
+    "edges": 3304,
+    "contacts": 11055
+   }
+  },
+  "PPL107": {
+   "compartment": null,
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 11,
+    "contacts": 13,
+    "kcs": 11,
+    "by_lobe": {
+     "a'b'": 13
+    }
+   },
+   "to_mbon_top": {
+    "MBON04": 265,
+    "MBON26": 40,
+    "MBON10": 27,
+    "MBON33": 23
+   },
+   "from_mbon_top": {
+    "MBON04": 671,
+    "MBON15": 134,
+    "MBON33": 30,
+    "MBON26": 30
+   },
+   "from_kc": {
+    "edges": 40,
+    "contacts": 76
+   }
+  },
+  "PPL108": {
+   "compartment": null,
+   "neurons": 2,
+   "transmitter": "dopamine",
+   "to_kc": {
+    "edges": 1,
+    "contacts": 1,
+    "kcs": 1,
+    "by_lobe": {
+     "g": 1
+    }
+   },
+   "to_mbon_top": {
+    "MBON35": 107,
+    "MBON30": 9,
+    "MBON33": 9,
+    "MBON26": 8
+   },
+   "from_mbon_top": {
+    "MBON25-like": 123,
+    "MBON25": 86,
+    "MBON09": 76,
+    "MBON35": 61
+   },
+   "from_kc": {
+    "edges": 9,
+    "contacts": 9
+   }
+  }
+ },
+ "apl": {
+  "kc_to_apl": {
+   "edges": 4693,
+   "contacts": 210352,
+   "pre_neurons": 4063,
+   "post_neurons": 2
+  },
+  "apl_to_kc": {
+   "edges": 4633,
+   "contacts": 196200,
+   "pre_neurons": 2,
+   "post_neurons": 4063
+  },
+  "apl_to_mbon": {
+   "edges": 120,
+   "contacts": 4466,
+   "pre_neurons": 2,
+   "post_neurons": 91
+  },
+  "dpm_to_kc": {
+   "edges": 4082,
+   "contacts": 32795,
+   "pre_neurons": 2,
+   "post_neurons": 3989
+  },
+  "kc_to_dpm": {
+   "edges": 4237,
+   "contacts": 95527,
+   "pre_neurons": 4042,
+   "post_neurons": 2
+  },
+  "kc_to_kc": {
+   "edges": 642933,
+   "contacts": 1153845,
+   "pre_neurons": 4064,
+   "post_neurons": 4064
+  },
+  "kc_to_dan": {
+   "edges": 145663,
+   "contacts": 281862,
+   "pre_neurons": 4061,
+   "post_neurons": 339
+  },
+  "mbon_to_dan": {
+   "edges": 2589,
+   "contacts": 11309,
+   "pre_neurons": 97,
+   "post_neurons": 338
+  },
+  "mbon_to_mbon": {
+   "edges": 1606,
+   "contacts": 26259,
+   "pre_neurons": 97,
+   "post_neurons": 97
+  }
+ },
+ "mbon_to_dn": {
+  "total": {
+   "edges": 409,
+   "contacts": 4347,
+   "pre_neurons": 49,
+   "post_neurons": 170
+  },
+  "top_dn_types": {
+   "DNa03": 657,
+   "DNg104": 377,
+   "DNp42": 334,
+   "DNa02": 250,
+   "DNa13": 216,
+   "DNp52": 213,
+   "DNge138": 206,
+   "DNge150": 167,
+   "DNp68": 141,
+   "DNg34": 140
+  },
+  "by_mbon_type": {
+   "MBON33": 1411,
+   "MBON20": 677,
+   "MBON32": 544,
+   "MBON31": 510,
+   "MBON35": 437,
+   "MBON27": 286,
+   "MBON26": 181,
+   "MBON34": 51,
+   "MBON30": 50,
+   "MBON21": 46,
+   "MBON25-like": 40,
+   "MBON25": 26
+  }
+ },
+ "mbon_to_dna02": {
+  "dna02_input_contacts": {
+   "R": 24168,
+   "L": 23957
+  },
+  "direct_contacts_by_mbon_type": {
+   "MBON31": 133,
+   "MBON32": 104,
+   "MBON26": 7,
+   "MBON27": 6
+  },
+  "two_hop_input_share_by_mbon_type": {
+   "MBON26": 0.00468,
+   "MBON32": 0.00306,
+   "MBON31": 0.00147,
+   "MBON27": 0.00078,
+   "MBON35": 0.00066,
+   "MBON12": 0.00064,
+   "MBON01": 0.00042,
+   "MBON20": 0.00017,
+   "MBON30": 0.00014,
+   "MBON21": 0.00011,
+   "MBON33": 0.0001,
+   "MBON04": 6e-05,
+   "MBON09": 6e-05,
+   "MBON03": 3e-05,
+   "MBON10": 3e-05,
+   "MBON05": 2e-05,
+   "MBON29": 2e-05,
+   "MBON22": 1e-05,
+   "MBON25-like": 1e-05,
+   "MBON34": 1e-05,
+   "MBON15": 1e-05,
+   "MBON15-like": 1e-05,
+   "MBON11": 1e-05,
+   "MBON16": 1e-05,
+   "MBON17": 1e-05,
+   "MBON13": 0.0,
+   "MBON07": 0.0,
+   "MBON25": 0.0,
+   "MBON28": 0.0,
+   "MBON06": 0.0,
+   "MBON19": 0.0,
+   "MBON17-like": 0.0,
+   "MBON02": 0.0
+  },
+  "min_hops_to_dna02_v3_fast_edges": {
+   "min1syn": {
+    "MBON01": 2,
+    "MBON02": 2,
+    "MBON03": 2,
+    "MBON04": 2,
+    "MBON05": 2,
+    "MBON06": 2,
+    "MBON07": 2,
+    "MBON09": 2,
+    "MBON10": 2,
+    "MBON11": 2,
+    "MBON12": 2,
+    "MBON13": 2,
+    "MBON14": 3,
+    "MBON15": 2,
+    "MBON15-like": 2,
+    "MBON16": 2,
+    "MBON17": 2,
+    "MBON17-like": 2,
+    "MBON18": 3,
+    "MBON19": 2,
+    "MBON20": 2,
+    "MBON21": 2,
+    "MBON22": 2,
+    "MBON23": 3,
+    "MBON24": 3,
+    "MBON25": 2,
+    "MBON25-like": 2,
+    "MBON26": 1,
+    "MBON27": 1,
+    "MBON28": 2,
+    "MBON29": 2,
+    "MBON30": 2,
+    "MBON31": 1,
+    "MBON32": 1,
+    "MBON33": 2,
+    "MBON34": 2,
+    "MBON35": 2
+   },
+   "min5syn": {
+    "MBON01": 2,
+    "MBON02": 3,
+    "MBON03": 2,
+    "MBON04": 2,
+    "MBON05": 2,
+    "MBON06": 3,
+    "MBON07": 3,
+    "MBON09": 2,
+    "MBON10": 2,
+    "MBON11": 2,
+    "MBON12": 2,
+    "MBON13": 3,
+    "MBON14": 3,
+    "MBON15": 2,
+    "MBON15-like": 2,
+    "MBON16": 3,
+    "MBON17": 2,
+    "MBON17-like": 3,
+    "MBON18": 3,
+    "MBON19": 3,
+    "MBON20": 2,
+    "MBON21": 2,
+    "MBON22": 2,
+    "MBON23": 3,
+    "MBON24": 3,
+    "MBON25": 2,
+    "MBON25-like": 2,
+    "MBON26": 1,
+    "MBON27": 2,
+    "MBON28": 3,
+    "MBON29": 2,
+    "MBON30": 2,
+    "MBON31": 1,
+    "MBON32": 1,
+    "MBON33": 2,
+    "MBON34": 2,
+    "MBON35": 2
+   },
+   "min10syn": {
+    "MBON01": 2,
+    "MBON02": 3,
+    "MBON03": 2,
+    "MBON04": 3,
+    "MBON05": 2,
+    "MBON06": 3,
+    "MBON07": 3,
+    "MBON09": 3,
+    "MBON10": 3,
+    "MBON11": 2,
+    "MBON12": 2,
+    "MBON13": 3,
+    "MBON14": 3,
+    "MBON15": 2,
+    "MBON15-like": 2,
+    "MBON16": 3,
+    "MBON17": 3,
+    "MBON17-like": 3,
+    "MBON18": 3,
+    "MBON19": 3,
+    "MBON20": 2,
+    "MBON21": 2,
+    "MBON22": 2,
+    "MBON23": 3,
+    "MBON24": 3,
+    "MBON25": 2,
+    "MBON25-like": 2,
+    "MBON26": 2,
+    "MBON27": 2,
+    "MBON28": 3,
+    "MBON29": 2,
+    "MBON30": 2,
+    "MBON31": 1,
+    "MBON32": 1,
+    "MBON33": 3,
+    "MBON34": 3,
+    "MBON35": 2
+   }
+  },
+  "note": "two-hop share = sum_X c(M,X)/C_in(X) * c(X,DNa02)/C_in(DNa02), both DNa02 summed; aminergic presynaptic edges excluded (v3 policy)"
+ },
+ "ppl1_inputs": {
+  "PPL101": {
+   "input_contacts": 39125,
+   "by_superclass": {
+    "cb_intrinsic": 0.993,
+    "descending_neuron": 0.004,
+    "ascending_neuron": 0.002,
+    "visual_projection": 0.0
+   },
+   "top_presynaptic_types": {
+    "KCg-m": 13836,
+    "KCab-s": 2937,
+    "KCab-m": 2751,
+    "KCab-c": 2509,
+    "KCg-d": 1216,
+    "CRE027": 860,
+    "SMP026": 856,
+    "AVLP563": 780
+   }
+  },
+  "PPL102": {
+   "input_contacts": 18847,
+   "by_superclass": {
+    "cb_intrinsic": 0.991,
+    "ascending_neuron": 0.008,
+    "descending_neuron": 0.001,
+    "visual_projection": 0.0
+   },
+   "top_presynaptic_types": {
+    "KCg-m": 2535,
+    "LAL185": 735,
+    "SMP165": 706,
+    "CRE024": 622,
+    "CRE027": 605,
+    "SMP179": 593,
+    "AVLP477": 547,
+    "AVLP563": 521
+   }
+  },
+  "PPL103": {
+   "input_contacts": 31496,
+   "by_superclass": {
+    "cb_intrinsic": 0.998,
+    "descending_neuron": 0.002,
+    "ascending_neuron": 0.0,
+    "visual_projection": 0.0,
+    "ol_intrinsic": 0.0
+   },
+   "top_presynaptic_types": {
+    "KCg-m": 10310,
+    "KCa'b'-ap1": 4759,
+    "KCa'b'-ap2": 3466,
+    "KCg-d": 2459,
+    "KCa'b'-m": 2096,
+    "LAL110": 579,
+    "DPM": 533,
+    "SMP056": 485
+   }
+  },
+  "PPL104": {
+   "input_contacts": 7145,
+   "by_superclass": {
+    "cb_intrinsic": 1.0,
+    "visual_centrifugal": 0.0
+   },
+   "top_presynaptic_types": {
+    "KCa'b'-ap1": 1340,
+    "KCa'b'-ap2": 1220,
+    "KCa'b'-m": 538,
+    "mALB1": 267,
+    "untyped": 225,
+    "SIP071": 222,
+    "FS2": 220,
+    "MBON16": 160
+   }
+  },
+  "PPL105": {
+   "input_contacts": 17233,
+   "by_superclass": {
+    "cb_intrinsic": 1.0
+   },
+   "top_presynaptic_types": {
+    "KCab-s": 2650,
+    "KCab-m": 2632,
+    "KCab-c": 2346,
+    "KCa'b'-ap2": 1984,
+    "KCa'b'-m": 1859,
+    "KCab-p": 804,
+    "DPM": 471,
+    "KCa'b'-ap1": 412
+   }
+  },
+  "PPL106": {
+   "input_contacts": 17090,
+   "by_superclass": {
+    "cb_intrinsic": 0.987,
+    "descending_neuron": 0.013,
+    "ascending_neuron": 0.0
+   },
+   "top_presynaptic_types": {
+    "KCab-s": 3798,
+    "KCab-m": 3742,
+    "KCab-c": 3153,
+    "SMP116": 748,
+    "KCab-p": 320,
+    "SMP194": 307,
+    "SMP026": 236,
+    "SLP073": 234
+   }
+  },
+  "PPL107": {
+   "input_contacts": 12821,
+   "by_superclass": {
+    "cb_intrinsic": 0.995,
+    "ascending_neuron": 0.003,
+    "visual_projection": 0.002,
+    "descending_neuron": 0.001
+   },
+   "top_presynaptic_types": {
+    "MBON04": 671,
+    "SMP115": 574,
+    "CRE095": 348,
+    "CRE055": 293,
+    "CRE003_b": 288,
+    "SIP064": 280,
+    "SMP178": 252,
+    "LHPV10d1": 252
+   }
+  },
+  "PPL108": {
+   "input_contacts": 10343,
+   "by_superclass": {
+    "cb_intrinsic": 0.979,
+    "ascending_neuron": 0.015,
+    "descending_neuron": 0.005,
+    "visual_projection": 0.001,
+    "visual_centrifugal": 0.0
+   },
+   "top_presynaptic_types": {
+    "CL303": 463,
+    "AVLP705m": 381,
+    "CRE022": 353,
+    "AVLP477": 334,
+    "AVLP562": 298,
+    "LAL154": 295,
+    "SMP056": 262,
+    "CRE004": 254
+   }
+  }
+ },
+ "v3_policy": {
+  "modulatory_mb_neurons": {
+   "PAM08": 50,
+   "PAM01": 44,
+   "PAM04": 32,
+   "PAM06": 28,
+   "PAM12": 22,
+   "PAM05": 20,
+   "PAM14": 18,
+   "PAM02": 17,
+   "PAM13": 16,
+   "PAM10": 15,
+   "PAM11": 15,
+   "PAM07": 14,
+   "PAM03": 12,
+   "PAM09": 9,
+   "PAM15": 4,
+   "OA-VPM4": 2,
+   "OA-VPM3": 2,
+   "PPL202": 2,
+   "PPL201": 2,
+   "PPL101": 2,
+   "PPL102": 2,
+   "DPM": 2,
+   "PPL103": 2,
+   "PPL108": 2,
+   "PPL105": 2,
+   "PPL107": 2,
+   "PPL104": 2,
+   "PPL204": 2,
+   "PPL106": 2
+  },
+  "note": "out-edges of these neurons carry zero fast weight under v3-modulatory-only"
+ },
+ "synapse_rois": {
+  "source": "syn-partners.feather",
+  "synapse_rows": 311833243,
+  "synapses_between_retained": 124177617,
+  "kc_to_mbon_synapses_by_type_and_roi": {
+   "MBON01": {
+    "CRE(L)": 125,
+    "CRE(R)": 4952,
+    "CentralBrain-unspecified": 1418,
+    "b'L(L)": 3035,
+    "b'L(R)": 2856,
+    "bL(R)": 13,
+    "gL(L)": 17080,
+    "gL(R)": 11409
+   },
+   "MBON02": {
+    "CRE(R)": 59,
+    "CentralBrain-unspecified": 97,
+    "EB": 1,
+    "SIP(L)": 2,
+    "SIP(R)": 7,
+    "a'L(L)": 23,
+    "a'L(R)": 31,
+    "aL(R)": 33,
+    "b'L(L)": 1135,
+    "b'L(R)": 574,
+    "bL(L)": 9304,
+    "bL(R)": 7251,
+    "gL(L)": 22,
+    "gL(R)": 132
+   },
+   "MBON03": {
+    "CRE(L)": 30,
+    "CRE(R)": 155,
+    "CentralBrain-unspecified": 865,
+    "SMP(R)": 15,
+    "a'L(L)": 1121,
+    "aL(L)": 228,
+    "b'L(L)": 12796,
+    "b'L(R)": 8591,
+    "bL(L)": 20,
+    "bL(R)": 113,
+    "gL(L)": 68,
+    "gL(R)": 2
+   },
+   "MBON04": {
+    "CRE(L)": 142,
+    "CRE(R)": 484,
+    "CentralBrain-unspecified": 182,
+    "SIP(L)": 7,
+    "SMP(R)": 20,
+    "b'L(L)": 2504,
+    "b'L(R)": 1823,
+    "bL(R)": 3,
+    "gL(L)": 1081,
+    "gL(R)": 557
+   },
+   "MBON05": {
+    "CRE(L)": 208,
+    "CRE(R)": 2898,
+    "CentralBrain-unspecified": 145,
+    "LAL(L)": 1,
+    "a'L(R)": 55,
+    "aL(R)": 9,
+    "b'L(L)": 135,
+    "b'L(R)": 152,
+    "bL(R)": 3,
+    "gL(L)": 19241,
+    "gL(R)": 13473
+   },
+   "MBON06": {
+    "CRE(L)": 17,
+    "CRE(R)": 101,
+    "CentralBrain-unspecified": 69,
+    "PED(L)": 11,
+    "SIP(L)": 2,
+    "SIP(R)": 1,
+    "a'L(L)": 63,
+    "a'L(R)": 66,
+    "aL(L)": 433,
+    "aL(R)": 613,
+    "b'L(L)": 41,
+    "b'L(R)": 528,
+    "bL(L)": 11071,
+    "bL(R)": 7224,
+    "gL(L)": 29,
+    "gL(R)": 5196
+   },
+   "MBON07": {
+    "CRE(L)": 669,
+    "CentralBrain-unspecified": 463,
+    "PED(L)": 7,
+    "a'L(L)": 2,
+    "a'L(R)": 853,
+    "aL(L)": 6749,
+    "aL(R)": 8261,
+    "b'L(L)": 15,
+    "b'L(R)": 665,
+    "bL(L)": 2138,
+    "bL(R)": 2067,
+    "gL(L)": 469,
+    "gL(R)": 482
+   },
+   "MBON09": {
+    "CRE(L)": 150,
+    "CRE(R)": 110,
+    "CentralBrain-unspecified": 568,
+    "aL(L)": 35,
+    "b'L(L)": 11948,
+    "b'L(R)": 4455,
+    "bL(L)": 6,
+    "bL(R)": 2,
+    "gL(L)": 24239,
+    "gL(R)": 22066
+   },
+   "MBON10": {
+    "CRE(L)": 4,
+    "CRE(R)": 6,
+    "CentralBrain-unspecified": 1,
+    "b'L(L)": 1638,
+    "b'L(R)": 468,
+    "bL(R)": 2,
+    "gL(L)": 34,
+    "gL(R)": 542
+   },
+   "MBON11": {
+    "CRE(L)": 9,
+    "CRE(R)": 29,
+    "CentralBrain-unspecified": 3026,
+    "ICL(L)": 9,
+    "PED(L)": 4110,
+    "PED(R)": 5079,
+    "SCL(L)": 5,
+    "SCL(R)": 99,
+    "SIP(L)": 9,
+    "SIP(R)": 1,
+    "a'L(L)": 27,
+    "a'L(R)": 26,
+    "aL(L)": 769,
+    "aL(R)": 2102,
+    "b'L(L)": 44,
+    "b'L(R)": 83,
+    "bL(L)": 390,
+    "bL(R)": 359,
+    "gL(L)": 10844,
+    "gL(R)": 14440
+   },
+   "MBON12": {
+    "CRE(L)": 87,
+    "CentralBrain-unspecified": 470,
+    "a'L(L)": 2074,
+    "a'L(R)": 3144,
+    "aL(L)": 471,
+    "aL(R)": 49,
+    "b'L(L)": 2257,
+    "b'L(R)": 874,
+    "gL(L)": 6340,
+    "gL(R)": 6837
+   },
+   "MBON13": {
+    "CRE(L)": 19,
+    "CentralBrain-unspecified": 54,
+    "SIP(R)": 6,
+    "a'L(L)": 5299,
+    "a'L(R)": 4417,
+    "aL(L)": 8,
+    "aL(R)": 383,
+    "b'L(L)": 8
+   },
+   "MBON14": {
+    "CentralBrain-unspecified": 88,
+    "SIP(L)": 7,
+    "aL(L)": 10474,
+    "aL(R)": 11648
+   },
+   "MBON15": {
+    "SIP(L)": 1,
+    "SIP(R)": 1,
+    "a'L(L)": 366,
+    "a'L(R)": 395,
+    "aL(L)": 33,
+    "aL(R)": 3,
+    "b'L(L)": 292,
+    "b'L(R)": 171,
+    "gL(L)": 16,
+    "gL(R)": 28
+   },
+   "MBON15-like": {
+    "CRE(L)": 1,
+    "CentralBrain-unspecified": 32,
+    "SIP(L)": 1,
+    "SIP(R)": 7,
+    "a'L(L)": 1040,
+    "a'L(R)": 1164,
+    "aL(L)": 216,
+    "aL(R)": 141,
+    "b'L(L)": 331,
+    "b'L(R)": 203,
+    "gL(L)": 27,
+    "gL(R)": 72
+   },
+   "MBON16": {
+    "CentralBrain-unspecified": 114,
+    "SIP(L)": 5,
+    "a'L(L)": 1404,
+    "a'L(R)": 1911,
+    "aL(L)": 82,
+    "aL(R)": 94
+   },
+   "MBON17": {
+    "CentralBrain-unspecified": 9,
+    "SIP(L)": 45,
+    "SIP(R)": 28,
+    "a'L(L)": 1032,
+    "a'L(R)": 1260,
+    "aL(L)": 394,
+    "aL(R)": 252
+   },
+   "MBON17-like": {
+    "SIP(L)": 33,
+    "SIP(R)": 6,
+    "a'L(L)": 669,
+    "a'L(R)": 788,
+    "aL(L)": 218,
+    "aL(R)": 175
+   },
+   "MBON18": {
+    "CRE(L)": 166,
+    "CentralBrain-unspecified": 25,
+    "SIP(L)": 23,
+    "SIP(R)": 4,
+    "a'L(L)": 320,
+    "a'L(R)": 108,
+    "aL(L)": 6476,
+    "aL(R)": 6803
+   },
+   "MBON19": {
+    "CentralBrain-unspecified": 7,
+    "SIP(L)": 8,
+    "SIP(R)": 13,
+    "a'L(L)": 689,
+    "a'L(R)": 228,
+    "aL(L)": 454,
+    "aL(R)": 586
+   },
+   "MBON20": {
+    "CRE(L)": 1,
+    "CRE(R)": 6,
+    "CentralBrain-unspecified": 438,
+    "PED(L)": 10,
+    "PED(R)": 4,
+    "SCL(R)": 8,
+    "aL(R)": 23,
+    "bL(L)": 2,
+    "bL(R)": 6,
+    "gL(L)": 1996,
+    "gL(R)": 2110
+   },
+   "MBON21": {
+    "CRE(L)": 81,
+    "CRE(R)": 945,
+    "CentralBrain-unspecified": 136,
+    "PED(L)": 5,
+    "b'L(R)": 5,
+    "bL(L)": 1,
+    "bL(R)": 96,
+    "gL(L)": 3817,
+    "gL(R)": 3297
+   },
+   "MBON22": {
+    "AVLP(R)": 59,
+    "CA(L)": 2836,
+    "CA(R)": 3805,
+    "CRE(L)": 1,
+    "CRE(R)": 34,
+    "CentralBrain-unspecified": 3064,
+    "ICL(L)": 4,
+    "PED(L)": 2388,
+    "PED(R)": 3122,
+    "PLP(L)": 126,
+    "PLP(R)": 253,
+    "SCL(L)": 18,
+    "SCL(R)": 240,
+    "b'L(L)": 1,
+    "b'L(R)": 40,
+    "bL(L)": 1,
+    "bL(R)": 1,
+    "gL(L)": 42,
+    "gL(R)": 49
+   },
+   "MBON23": {
+    "CRE(L)": 46,
+    "CentralBrain-unspecified": 11,
+    "SIP(L)": 2,
+    "a'L(L)": 297,
+    "a'L(R)": 55,
+    "aL(L)": 957,
+    "aL(R)": 1566
+   },
+   "MBON24": {
+    "CRE(L)": 1,
+    "CRE(R)": 19,
+    "CentralBrain-unspecified": 17,
+    "b'L(L)": 18,
+    "b'L(R)": 32,
+    "bL(L)": 1901,
+    "bL(R)": 1445,
+    "gL(L)": 103,
+    "gL(R)": 98
+   },
+   "MBON25": {
+    "CRE(L)": 2,
+    "CRE(R)": 1,
+    "CentralBrain-unspecified": 32,
+    "gL(L)": 557,
+    "gL(R)": 479
+   },
+   "MBON25-like": {
+    "CRE(L)": 1,
+    "CRE(R)": 3,
+    "CentralBrain-unspecified": 69,
+    "a'L(L)": 8,
+    "b'L(L)": 18,
+    "gL(L)": 258,
+    "gL(R)": 567
+   },
+   "MBON26": {
+    "CRE(L)": 82,
+    "CRE(R)": 375,
+    "CentralBrain-unspecified": 20,
+    "SMP(R)": 24,
+    "b'L(L)": 2394,
+    "b'L(R)": 1439,
+    "bL(R)": 6,
+    "gL(L)": 86,
+    "gL(R)": 131
+   },
+   "MBON27": {
+    "CRE(L)": 6,
+    "CRE(R)": 1477,
+    "CentralBrain-unspecified": 120,
+    "b'L(L)": 47,
+    "b'L(R)": 13,
+    "gL(L)": 2301,
+    "gL(R)": 1645
+   },
+   "MBON28": {
+    "CentralBrain-unspecified": 128,
+    "SIP(L)": 25,
+    "SIP(R)": 3,
+    "a'L(L)": 801,
+    "a'L(R)": 1183,
+    "aL(L)": 93,
+    "aL(R)": 46
+   },
+   "MBON29": {
+    "CRE(L)": 56,
+    "CRE(R)": 557,
+    "CentralBrain-unspecified": 82,
+    "b'L(L)": 16,
+    "b'L(R)": 2,
+    "gL(L)": 2589,
+    "gL(R)": 1703
+   },
+   "MBON30": {
+    "CRE(L)": 31,
+    "CRE(R)": 47,
+    "CentralBrain-unspecified": 443,
+    "aL(R)": 1,
+    "b'L(L)": 106,
+    "b'L(R)": 21,
+    "bL(R)": 3,
+    "gL(L)": 6160,
+    "gL(R)": 5047
+   },
+   "MBON31": {
+    "CRE(L)": 30,
+    "CRE(R)": 1,
+    "CentralBrain-unspecified": 221,
+    "a'L(L)": 2516,
+    "a'L(R)": 2880,
+    "aL(L)": 222,
+    "aL(R)": 22,
+    "b'L(L)": 2072,
+    "b'L(R)": 550,
+    "gL(L)": 524,
+    "gL(R)": 1455
+   },
+   "MBON32": {
+    "CentralBrain-unspecified": 589,
+    "a'L(L)": 563,
+    "a'L(R)": 906,
+    "b'L(L)": 459,
+    "b'L(R)": 103,
+    "gL(L)": 5909,
+    "gL(R)": 4635
+   },
+   "MBON33": {
+    "CRE(L)": 11,
+    "CRE(R)": 29,
+    "CentralBrain-unspecified": 179,
+    "b'L(L)": 11,
+    "gL(L)": 812,
+    "gL(R)": 554
+   },
+   "MBON34": {
+    "CRE(L)": 2,
+    "CentralBrain-unspecified": 3,
+    "gL(L)": 33,
+    "gL(R)": 42
+   },
+   "MBON35": {
+    "CRE(L)": 2,
+    "CRE(R)": 8,
+    "CentralBrain-unspecified": 433,
+    "a'L(R)": 24,
+    "b'L(L)": 60,
+    "gL(L)": 1889,
+    "gL(R)": 2239
+   }
+  },
+  "kc_to_mbon_edges_and_synapses_by_type_and_roi": {
+   "MBON01": {
+    "gL(L)": {
+     "edges": 845,
+     "synapses": 17080
+    },
+    "CentralBrain-unspecified": {
+     "edges": 632,
+     "synapses": 1418
+    },
+    "CRE(L)": {
+     "edges": 85,
+     "synapses": 125
+    },
+    "CRE(R)": {
+     "edges": 635,
+     "synapses": 4952
+    },
+    "gL(R)": {
+     "edges": 826,
+     "synapses": 11409
+    },
+    "b'L(L)": {
+     "edges": 275,
+     "synapses": 3035
+    },
+    "b'L(R)": {
+     "edges": 315,
+     "synapses": 2856
+    },
+    "bL(R)": {
+     "edges": 11,
+     "synapses": 13
+    }
+   },
+   "MBON02": {
+    "gL(R)": {
+     "edges": 100,
+     "synapses": 132
+    },
+    "CRE(R)": {
+     "edges": 42,
+     "synapses": 59
+    },
+    "gL(L)": {
+     "edges": 18,
+     "synapses": 22
+    },
+    "bL(L)": {
+     "edges": 1741,
+     "synapses": 9304
+    },
+    "b'L(L)": {
+     "edges": 506,
+     "synapses": 1135
+    },
+    "CentralBrain-unspecified": {
+     "edges": 80,
+     "synapses": 97
+    },
+    "bL(R)": {
+     "edges": 1806,
+     "synapses": 7251
+    },
+    "b'L(R)": {
+     "edges": 379,
+     "synapses": 574
+    },
+    "EB": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a'L(L)": {
+     "edges": 22,
+     "synapses": 23
+    },
+    "aL(R)": {
+     "edges": 26,
+     "synapses": 33
+    },
+    "a'L(R)": {
+     "edges": 24,
+     "synapses": 31
+    },
+    "SIP(R)": {
+     "edges": 7,
+     "synapses": 7
+    },
+    "SIP(L)": {
+     "edges": 2,
+     "synapses": 2
+    }
+   },
+   "MBON03": {
+    "b'L(L)": {
+     "edges": 614,
+     "synapses": 12796
+    },
+    "gL(L)": {
+     "edges": 40,
+     "synapses": 68
+    },
+    "a'L(L)": {
+     "edges": 256,
+     "synapses": 1121
+    },
+    "b'L(R)": {
+     "edges": 586,
+     "synapses": 8591
+    },
+    "CRE(R)": {
+     "edges": 77,
+     "synapses": 155
+    },
+    "gL(R)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "CRE(L)": {
+     "edges": 22,
+     "synapses": 30
+    },
+    "CentralBrain-unspecified": {
+     "edges": 309,
+     "synapses": 865
+    },
+    "bL(L)": {
+     "edges": 18,
+     "synapses": 20
+    },
+    "bL(R)": {
+     "edges": 53,
+     "synapses": 113
+    },
+    "aL(L)": {
+     "edges": 90,
+     "synapses": 228
+    },
+    "SMP(R)": {
+     "edges": 11,
+     "synapses": 15
+    }
+   },
+   "MBON04": {
+    "gL(L)": {
+     "edges": 474,
+     "synapses": 1081
+    },
+    "CRE(R)": {
+     "edges": 260,
+     "synapses": 484
+    },
+    "gL(R)": {
+     "edges": 307,
+     "synapses": 557
+    },
+    "CRE(L)": {
+     "edges": 88,
+     "synapses": 142
+    },
+    "b'L(L)": {
+     "edges": 371,
+     "synapses": 2504
+    },
+    "b'L(R)": {
+     "edges": 352,
+     "synapses": 1823
+    },
+    "CentralBrain-unspecified": {
+     "edges": 122,
+     "synapses": 182
+    },
+    "SMP(R)": {
+     "edges": 13,
+     "synapses": 20
+    },
+    "bL(R)": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "SIP(L)": {
+     "edges": 2,
+     "synapses": 7
+    }
+   },
+   "MBON05": {
+    "gL(L)": {
+     "edges": 1079,
+     "synapses": 19241
+    },
+    "CRE(L)": {
+     "edges": 115,
+     "synapses": 208
+    },
+    "CRE(R)": {
+     "edges": 561,
+     "synapses": 2898
+    },
+    "gL(R)": {
+     "edges": 798,
+     "synapses": 13473
+    },
+    "b'L(L)": {
+     "edges": 79,
+     "synapses": 135
+    },
+    "LAL(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a'L(R)": {
+     "edges": 31,
+     "synapses": 55
+    },
+    "b'L(R)": {
+     "edges": 86,
+     "synapses": 152
+    },
+    "CentralBrain-unspecified": {
+     "edges": 105,
+     "synapses": 145
+    },
+    "bL(R)": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "aL(R)": {
+     "edges": 8,
+     "synapses": 9
+    }
+   },
+   "MBON06": {
+    "gL(L)": {
+     "edges": 27,
+     "synapses": 29
+    },
+    "bL(L)": {
+     "edges": 887,
+     "synapses": 11071
+    },
+    "gL(R)": {
+     "edges": 745,
+     "synapses": 5196
+    },
+    "CRE(L)": {
+     "edges": 16,
+     "synapses": 17
+    },
+    "CRE(R)": {
+     "edges": 80,
+     "synapses": 101
+    },
+    "CentralBrain-unspecified": {
+     "edges": 47,
+     "synapses": 69
+    },
+    "b'L(L)": {
+     "edges": 37,
+     "synapses": 41
+    },
+    "bL(R)": {
+     "edges": 914,
+     "synapses": 7224
+    },
+    "b'L(R)": {
+     "edges": 176,
+     "synapses": 528
+    },
+    "aL(L)": {
+     "edges": 259,
+     "synapses": 433
+    },
+    "aL(R)": {
+     "edges": 315,
+     "synapses": 613
+    },
+    "a'L(R)": {
+     "edges": 55,
+     "synapses": 66
+    },
+    "a'L(L)": {
+     "edges": 52,
+     "synapses": 63
+    },
+    "SIP(L)": {
+     "edges": 1,
+     "synapses": 2
+    },
+    "PED(L)": {
+     "edges": 9,
+     "synapses": 11
+    },
+    "SIP(R)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON07": {
+    "gL(L)": {
+     "edges": 260,
+     "synapses": 469
+    },
+    "b'L(L)": {
+     "edges": 14,
+     "synapses": 15
+    },
+    "bL(L)": {
+     "edges": 1099,
+     "synapses": 2138
+    },
+    "bL(R)": {
+     "edges": 1065,
+     "synapses": 2067
+    },
+    "gL(R)": {
+     "edges": 207,
+     "synapses": 482
+    },
+    "b'L(R)": {
+     "edges": 277,
+     "synapses": 665
+    },
+    "aL(L)": {
+     "edges": 1663,
+     "synapses": 6749
+    },
+    "a'L(R)": {
+     "edges": 471,
+     "synapses": 853
+    },
+    "aL(R)": {
+     "edges": 1760,
+     "synapses": 8261
+    },
+    "a'L(L)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "CRE(L)": {
+     "edges": 395,
+     "synapses": 669
+    },
+    "CentralBrain-unspecified": {
+     "edges": 309,
+     "synapses": 463
+    },
+    "PED(L)": {
+     "edges": 6,
+     "synapses": 7
+    }
+   },
+   "MBON09": {
+    "gL(L)": {
+     "edges": 1652,
+     "synapses": 24239
+    },
+    "CentralBrain-unspecified": {
+     "edges": 175,
+     "synapses": 568
+    },
+    "gL(R)": {
+     "edges": 2203,
+     "synapses": 22066
+    },
+    "CRE(L)": {
+     "edges": 88,
+     "synapses": 150
+    },
+    "CRE(R)": {
+     "edges": 71,
+     "synapses": 110
+    },
+    "b'L(L)": {
+     "edges": 804,
+     "synapses": 11948
+    },
+    "bL(L)": {
+     "edges": 6,
+     "synapses": 6
+    },
+    "b'L(R)": {
+     "edges": 716,
+     "synapses": 4455
+    },
+    "bL(R)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "aL(L)": {
+     "edges": 27,
+     "synapses": 35
+    }
+   },
+   "MBON10": {
+    "gL(L)": {
+     "edges": 30,
+     "synapses": 34
+    },
+    "b'L(L)": {
+     "edges": 702,
+     "synapses": 1638
+    },
+    "gL(R)": {
+     "edges": 310,
+     "synapses": 542
+    },
+    "b'L(R)": {
+     "edges": 316,
+     "synapses": 468
+    },
+    "CRE(L)": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "bL(R)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "CRE(R)": {
+     "edges": 4,
+     "synapses": 6
+    },
+    "CentralBrain-unspecified": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON11": {
+    "CentralBrain-unspecified": {
+     "edges": 617,
+     "synapses": 3026
+    },
+    "gL(L)": {
+     "edges": 964,
+     "synapses": 10844
+    },
+    "gL(R)": {
+     "edges": 1068,
+     "synapses": 14440
+    },
+    "CRE(R)": {
+     "edges": 23,
+     "synapses": 29
+    },
+    "CRE(L)": {
+     "edges": 8,
+     "synapses": 9
+    },
+    "bL(L)": {
+     "edges": 312,
+     "synapses": 390
+    },
+    "b'L(L)": {
+     "edges": 41,
+     "synapses": 44
+    },
+    "bL(R)": {
+     "edges": 291,
+     "synapses": 359
+    },
+    "b'L(R)": {
+     "edges": 71,
+     "synapses": 83
+    },
+    "a'L(R)": {
+     "edges": 21,
+     "synapses": 26
+    },
+    "aL(R)": {
+     "edges": 883,
+     "synapses": 2102
+    },
+    "a'L(L)": {
+     "edges": 23,
+     "synapses": 27
+    },
+    "aL(L)": {
+     "edges": 497,
+     "synapses": 769
+    },
+    "SIP(L)": {
+     "edges": 8,
+     "synapses": 9
+    },
+    "PED(L)": {
+     "edges": 972,
+     "synapses": 4110
+    },
+    "SCL(R)": {
+     "edges": 54,
+     "synapses": 99
+    },
+    "PED(R)": {
+     "edges": 986,
+     "synapses": 5079
+    },
+    "SIP(R)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "ICL(L)": {
+     "edges": 7,
+     "synapses": 9
+    },
+    "SCL(L)": {
+     "edges": 4,
+     "synapses": 5
+    }
+   },
+   "MBON12": {
+    "gL(L)": {
+     "edges": 1546,
+     "synapses": 6340
+    },
+    "CentralBrain-unspecified": {
+     "edges": 288,
+     "synapses": 470
+    },
+    "gL(R)": {
+     "edges": 1754,
+     "synapses": 6837
+    },
+    "b'L(L)": {
+     "edges": 679,
+     "synapses": 2257
+    },
+    "a'L(L)": {
+     "edges": 564,
+     "synapses": 2074
+    },
+    "a'L(R)": {
+     "edges": 685,
+     "synapses": 3144
+    },
+    "b'L(R)": {
+     "edges": 361,
+     "synapses": 874
+    },
+    "CRE(L)": {
+     "edges": 58,
+     "synapses": 87
+    },
+    "aL(L)": {
+     "edges": 196,
+     "synapses": 471
+    },
+    "aL(R)": {
+     "edges": 39,
+     "synapses": 49
+    }
+   },
+   "MBON13": {
+    "a'L(L)": {
+     "edges": 333,
+     "synapses": 5299
+    },
+    "a'L(R)": {
+     "edges": 340,
+     "synapses": 4417
+    },
+    "CentralBrain-unspecified": {
+     "edges": 29,
+     "synapses": 54
+    },
+    "CRE(L)": {
+     "edges": 13,
+     "synapses": 19
+    },
+    "b'L(L)": {
+     "edges": 7,
+     "synapses": 8
+    },
+    "aL(R)": {
+     "edges": 122,
+     "synapses": 383
+    },
+    "aL(L)": {
+     "edges": 8,
+     "synapses": 8
+    },
+    "SIP(R)": {
+     "edges": 4,
+     "synapses": 6
+    }
+   },
+   "MBON14": {
+    "aL(R)": {
+     "edges": 1720,
+     "synapses": 11648
+    },
+    "aL(L)": {
+     "edges": 1713,
+     "synapses": 10474
+    },
+    "CentralBrain-unspecified": {
+     "edges": 70,
+     "synapses": 88
+    },
+    "SIP(L)": {
+     "edges": 7,
+     "synapses": 7
+    }
+   },
+   "MBON15": {
+    "b'L(L)": {
+     "edges": 181,
+     "synapses": 292
+    },
+    "gL(L)": {
+     "edges": 12,
+     "synapses": 16
+    },
+    "a'L(L)": {
+     "edges": 213,
+     "synapses": 366
+    },
+    "gL(R)": {
+     "edges": 27,
+     "synapses": 28
+    },
+    "b'L(R)": {
+     "edges": 116,
+     "synapses": 171
+    },
+    "a'L(R)": {
+     "edges": 245,
+     "synapses": 395
+    },
+    "aL(L)": {
+     "edges": 22,
+     "synapses": 33
+    },
+    "aL(R)": {
+     "edges": 2,
+     "synapses": 3
+    },
+    "SIP(R)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "SIP(L)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON15-like": {
+    "b'L(L)": {
+     "edges": 204,
+     "synapses": 331
+    },
+    "gL(L)": {
+     "edges": 17,
+     "synapses": 27
+    },
+    "a'L(L)": {
+     "edges": 389,
+     "synapses": 1040
+    },
+    "gL(R)": {
+     "edges": 53,
+     "synapses": 72
+    },
+    "a'L(R)": {
+     "edges": 423,
+     "synapses": 1164
+    },
+    "b'L(R)": {
+     "edges": 136,
+     "synapses": 203
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "CentralBrain-unspecified": {
+     "edges": 24,
+     "synapses": 32
+    },
+    "aL(L)": {
+     "edges": 123,
+     "synapses": 216
+    },
+    "aL(R)": {
+     "edges": 71,
+     "synapses": 141
+    },
+    "SIP(R)": {
+     "edges": 7,
+     "synapses": 7
+    },
+    "SIP(L)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON16": {
+    "a'L(R)": {
+     "edges": 307,
+     "synapses": 1911
+    },
+    "CentralBrain-unspecified": {
+     "edges": 66,
+     "synapses": 114
+    },
+    "aL(R)": {
+     "edges": 55,
+     "synapses": 94
+    },
+    "aL(L)": {
+     "edges": 45,
+     "synapses": 82
+    },
+    "a'L(L)": {
+     "edges": 281,
+     "synapses": 1404
+    },
+    "SIP(L)": {
+     "edges": 5,
+     "synapses": 5
+    }
+   },
+   "MBON17": {
+    "aL(R)": {
+     "edges": 108,
+     "synapses": 252
+    },
+    "a'L(R)": {
+     "edges": 256,
+     "synapses": 1260
+    },
+    "aL(L)": {
+     "edges": 177,
+     "synapses": 394
+    },
+    "a'L(L)": {
+     "edges": 247,
+     "synapses": 1032
+    },
+    "SIP(L)": {
+     "edges": 32,
+     "synapses": 45
+    },
+    "SIP(R)": {
+     "edges": 19,
+     "synapses": 28
+    },
+    "CentralBrain-unspecified": {
+     "edges": 7,
+     "synapses": 9
+    }
+   },
+   "MBON17-like": {
+    "a'L(R)": {
+     "edges": 219,
+     "synapses": 788
+    },
+    "aL(R)": {
+     "edges": 89,
+     "synapses": 175
+    },
+    "a'L(L)": {
+     "edges": 218,
+     "synapses": 669
+    },
+    "SIP(L)": {
+     "edges": 26,
+     "synapses": 33
+    },
+    "aL(L)": {
+     "edges": 117,
+     "synapses": 218
+    },
+    "SIP(R)": {
+     "edges": 5,
+     "synapses": 6
+    }
+   },
+   "MBON18": {
+    "aL(L)": {
+     "edges": 835,
+     "synapses": 6476
+    },
+    "CRE(L)": {
+     "edges": 107,
+     "synapses": 166
+    },
+    "a'L(R)": {
+     "edges": 76,
+     "synapses": 108
+    },
+    "a'L(L)": {
+     "edges": 117,
+     "synapses": 320
+    },
+    "aL(R)": {
+     "edges": 864,
+     "synapses": 6803
+    },
+    "CentralBrain-unspecified": {
+     "edges": 19,
+     "synapses": 25
+    },
+    "SIP(L)": {
+     "edges": 16,
+     "synapses": 23
+    },
+    "SIP(R)": {
+     "edges": 4,
+     "synapses": 4
+    }
+   },
+   "MBON19": {
+    "a'L(L)": {
+     "edges": 277,
+     "synapses": 689
+    },
+    "a'L(R)": {
+     "edges": 127,
+     "synapses": 228
+    },
+    "aL(L)": {
+     "edges": 269,
+     "synapses": 454
+    },
+    "aL(R)": {
+     "edges": 274,
+     "synapses": 586
+    },
+    "CentralBrain-unspecified": {
+     "edges": 6,
+     "synapses": 7
+    },
+    "SIP(L)": {
+     "edges": 7,
+     "synapses": 8
+    },
+    "SIP(R)": {
+     "edges": 9,
+     "synapses": 13
+    }
+   },
+   "MBON20": {
+    "gL(L)": {
+     "edges": 680,
+     "synapses": 1996
+    },
+    "CentralBrain-unspecified": {
+     "edges": 219,
+     "synapses": 438
+    },
+    "CRE(R)": {
+     "edges": 5,
+     "synapses": 6
+    },
+    "gL(R)": {
+     "edges": 670,
+     "synapses": 2110
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "bL(L)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "bL(R)": {
+     "edges": 6,
+     "synapses": 6
+    },
+    "aL(R)": {
+     "edges": 14,
+     "synapses": 23
+    },
+    "PED(L)": {
+     "edges": 8,
+     "synapses": 10
+    },
+    "PED(R)": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "SCL(R)": {
+     "edges": 7,
+     "synapses": 8
+    }
+   },
+   "MBON21": {
+    "gL(L)": {
+     "edges": 788,
+     "synapses": 3817
+    },
+    "CentralBrain-unspecified": {
+     "edges": 111,
+     "synapses": 136
+    },
+    "CRE(R)": {
+     "edges": 466,
+     "synapses": 945
+    },
+    "CRE(L)": {
+     "edges": 60,
+     "synapses": 81
+    },
+    "gL(R)": {
+     "edges": 731,
+     "synapses": 3297
+    },
+    "bL(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'L(R)": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "bL(R)": {
+     "edges": 74,
+     "synapses": 96
+    },
+    "PED(L)": {
+     "edges": 4,
+     "synapses": 5
+    }
+   },
+   "MBON22": {
+    "gL(L)": {
+     "edges": 40,
+     "synapses": 42
+    },
+    "gL(R)": {
+     "edges": 44,
+     "synapses": 49
+    },
+    "b'L(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "CRE(R)": {
+     "edges": 9,
+     "synapses": 34
+    },
+    "bL(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'L(R)": {
+     "edges": 8,
+     "synapses": 40
+    },
+    "CentralBrain-unspecified": {
+     "edges": 1398,
+     "synapses": 3064
+    },
+    "bL(R)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "PED(L)": {
+     "edges": 1051,
+     "synapses": 2388
+    },
+    "PED(R)": {
+     "edges": 1123,
+     "synapses": 3122
+    },
+    "SCL(R)": {
+     "edges": 120,
+     "synapses": 240
+    },
+    "SCL(L)": {
+     "edges": 16,
+     "synapses": 18
+    },
+    "AVLP(R)": {
+     "edges": 34,
+     "synapses": 59
+    },
+    "ICL(L)": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "PLP(L)": {
+     "edges": 71,
+     "synapses": 126
+    },
+    "PLP(R)": {
+     "edges": 131,
+     "synapses": 253
+    },
+    "CA(L)": {
+     "edges": 1004,
+     "synapses": 2836
+    },
+    "CA(R)": {
+     "edges": 1264,
+     "synapses": 3805
+    }
+   },
+   "MBON23": {
+    "aL(L)": {
+     "edges": 494,
+     "synapses": 957
+    },
+    "a'L(L)": {
+     "edges": 139,
+     "synapses": 297
+    },
+    "CRE(L)": {
+     "edges": 34,
+     "synapses": 46
+    },
+    "a'L(R)": {
+     "edges": 43,
+     "synapses": 55
+    },
+    "aL(R)": {
+     "edges": 626,
+     "synapses": 1566
+    },
+    "CentralBrain-unspecified": {
+     "edges": 11,
+     "synapses": 11
+    },
+    "SIP(L)": {
+     "edges": 2,
+     "synapses": 2
+    }
+   },
+   "MBON24": {
+    "CentralBrain-unspecified": {
+     "edges": 17,
+     "synapses": 17
+    },
+    "gL(R)": {
+     "edges": 80,
+     "synapses": 98
+    },
+    "gL(L)": {
+     "edges": 89,
+     "synapses": 103
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "bL(L)": {
+     "edges": 862,
+     "synapses": 1901
+    },
+    "CRE(R)": {
+     "edges": 17,
+     "synapses": 19
+    },
+    "bL(R)": {
+     "edges": 630,
+     "synapses": 1445
+    },
+    "b'L(R)": {
+     "edges": 30,
+     "synapses": 32
+    },
+    "b'L(L)": {
+     "edges": 18,
+     "synapses": 18
+    }
+   },
+   "MBON25": {
+    "gL(L)": {
+     "edges": 342,
+     "synapses": 557
+    },
+    "CRE(L)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "CRE(R)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "gL(R)": {
+     "edges": 300,
+     "synapses": 479
+    },
+    "CentralBrain-unspecified": {
+     "edges": 23,
+     "synapses": 32
+    }
+   },
+   "MBON25-like": {
+    "CentralBrain-unspecified": {
+     "edges": 50,
+     "synapses": 69
+    },
+    "CRE(R)": {
+     "edges": 2,
+     "synapses": 3
+    },
+    "gL(L)": {
+     "edges": 190,
+     "synapses": 258
+    },
+    "gL(R)": {
+     "edges": 372,
+     "synapses": 567
+    },
+    "b'L(L)": {
+     "edges": 14,
+     "synapses": 18
+    },
+    "a'L(L)": {
+     "edges": 6,
+     "synapses": 8
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON26": {
+    "gL(R)": {
+     "edges": 91,
+     "synapses": 131
+    },
+    "CRE(R)": {
+     "edges": 154,
+     "synapses": 375
+    },
+    "gL(L)": {
+     "edges": 59,
+     "synapses": 86
+    },
+    "CRE(L)": {
+     "edges": 43,
+     "synapses": 82
+    },
+    "b'L(R)": {
+     "edges": 149,
+     "synapses": 1439
+    },
+    "b'L(L)": {
+     "edges": 181,
+     "synapses": 2394
+    },
+    "bL(R)": {
+     "edges": 5,
+     "synapses": 6
+    },
+    "CentralBrain-unspecified": {
+     "edges": 17,
+     "synapses": 20
+    },
+    "SMP(R)": {
+     "edges": 17,
+     "synapses": 24
+    }
+   },
+   "MBON27": {
+    "gL(L)": {
+     "edges": 283,
+     "synapses": 2301
+    },
+    "CentralBrain-unspecified": {
+     "edges": 84,
+     "synapses": 120
+    },
+    "CRE(R)": {
+     "edges": 196,
+     "synapses": 1477
+    },
+    "gL(R)": {
+     "edges": 213,
+     "synapses": 1645
+    },
+    "CRE(L)": {
+     "edges": 4,
+     "synapses": 6
+    },
+    "b'L(R)": {
+     "edges": 12,
+     "synapses": 13
+    },
+    "b'L(L)": {
+     "edges": 34,
+     "synapses": 47
+    }
+   },
+   "MBON28": {
+    "CentralBrain-unspecified": {
+     "edges": 56,
+     "synapses": 128
+    },
+    "a'L(R)": {
+     "edges": 205,
+     "synapses": 1183
+    },
+    "aL(L)": {
+     "edges": 50,
+     "synapses": 93
+    },
+    "aL(R)": {
+     "edges": 34,
+     "synapses": 46
+    },
+    "SIP(L)": {
+     "edges": 21,
+     "synapses": 25
+    },
+    "a'L(L)": {
+     "edges": 203,
+     "synapses": 801
+    },
+    "SIP(R)": {
+     "edges": 3,
+     "synapses": 3
+    }
+   },
+   "MBON29": {
+    "gL(L)": {
+     "edges": 1065,
+     "synapses": 2589
+    },
+    "CRE(L)": {
+     "edges": 45,
+     "synapses": 56
+    },
+    "CentralBrain-unspecified": {
+     "edges": 69,
+     "synapses": 82
+    },
+    "CRE(R)": {
+     "edges": 363,
+     "synapses": 557
+    },
+    "gL(R)": {
+     "edges": 791,
+     "synapses": 1703
+    },
+    "b'L(L)": {
+     "edges": 13,
+     "synapses": 16
+    },
+    "b'L(R)": {
+     "edges": 2,
+     "synapses": 2
+    }
+   },
+   "MBON30": {
+    "gL(L)": {
+     "edges": 808,
+     "synapses": 6160
+    },
+    "CRE(L)": {
+     "edges": 27,
+     "synapses": 31
+    },
+    "CentralBrain-unspecified": {
+     "edges": 223,
+     "synapses": 443
+    },
+    "gL(R)": {
+     "edges": 761,
+     "synapses": 5047
+    },
+    "CRE(R)": {
+     "edges": 44,
+     "synapses": 47
+    },
+    "b'L(L)": {
+     "edges": 54,
+     "synapses": 106
+    },
+    "bL(R)": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "b'L(R)": {
+     "edges": 18,
+     "synapses": 21
+    },
+    "aL(R)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON31": {
+    "gL(L)": {
+     "edges": 122,
+     "synapses": 524
+    },
+    "CentralBrain-unspecified": {
+     "edges": 90,
+     "synapses": 221
+    },
+    "b'L(L)": {
+     "edges": 327,
+     "synapses": 2072
+    },
+    "gL(R)": {
+     "edges": 241,
+     "synapses": 1455
+    },
+    "a'L(L)": {
+     "edges": 320,
+     "synapses": 2516
+    },
+    "a'L(R)": {
+     "edges": 355,
+     "synapses": 2880
+    },
+    "b'L(R)": {
+     "edges": 189,
+     "synapses": 550
+    },
+    "CRE(L)": {
+     "edges": 23,
+     "synapses": 30
+    },
+    "aL(L)": {
+     "edges": 89,
+     "synapses": 222
+    },
+    "aL(R)": {
+     "edges": 15,
+     "synapses": 22
+    },
+    "CRE(R)": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON32": {
+    "CentralBrain-unspecified": {
+     "edges": 228,
+     "synapses": 589
+    },
+    "gL(L)": {
+     "edges": 826,
+     "synapses": 5909
+    },
+    "gL(R)": {
+     "edges": 846,
+     "synapses": 4635
+    },
+    "b'L(L)": {
+     "edges": 150,
+     "synapses": 459
+    },
+    "a'L(L)": {
+     "edges": 135,
+     "synapses": 563
+    },
+    "a'L(R)": {
+     "edges": 217,
+     "synapses": 906
+    },
+    "b'L(R)": {
+     "edges": 62,
+     "synapses": 103
+    }
+   },
+   "MBON33": {
+    "gL(L)": {
+     "edges": 292,
+     "synapses": 812
+    },
+    "CentralBrain-unspecified": {
+     "edges": 88,
+     "synapses": 179
+    },
+    "gL(R)": {
+     "edges": 246,
+     "synapses": 554
+    },
+    "CRE(R)": {
+     "edges": 18,
+     "synapses": 29
+    },
+    "CRE(L)": {
+     "edges": 7,
+     "synapses": 11
+    },
+    "b'L(L)": {
+     "edges": 8,
+     "synapses": 11
+    }
+   },
+   "MBON34": {
+    "CentralBrain-unspecified": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "gL(L)": {
+     "edges": 30,
+     "synapses": 33
+    },
+    "gL(R)": {
+     "edges": 35,
+     "synapses": 42
+    },
+    "CRE(L)": {
+     "edges": 2,
+     "synapses": 2
+    }
+   },
+   "MBON35": {
+    "CentralBrain-unspecified": {
+     "edges": 149,
+     "synapses": 433
+    },
+    "gL(L)": {
+     "edges": 565,
+     "synapses": 1889
+    },
+    "gL(R)": {
+     "edges": 649,
+     "synapses": 2239
+    },
+    "CRE(R)": {
+     "edges": 5,
+     "synapses": 8
+    },
+    "b'L(L)": {
+     "edges": 36,
+     "synapses": 60
+    },
+    "CRE(L)": {
+     "edges": 1,
+     "synapses": 2
+    },
+    "a'L(R)": {
+     "edges": 12,
+     "synapses": 24
+    }
+   }
+  },
+  "dan_to_kc_synapses_by_type_and_roi": {
+   "PAM01": {
+    "CRE(L)": 48,
+    "CRE(R)": 3537,
+    "CentralBrain-unspecified": 1022,
+    "b'L(L)": 68,
+    "b'L(R)": 162,
+    "bL(L)": 17,
+    "bL(R)": 1,
+    "gL(L)": 11526,
+    "gL(R)": 7656
+   },
+   "PAM02": {
+    "CRE(R)": 9,
+    "CentralBrain-unspecified": 149,
+    "b'L(L)": 2644,
+    "b'L(R)": 1607,
+    "bL(L)": 7,
+    "bL(R)": 66,
+    "gL(L)": 300,
+    "gL(R)": 151
+   },
+   "PAM03": {
+    "CRE(R)": 9,
+    "CentralBrain-unspecified": 48,
+    "b'L(L)": 398,
+    "b'L(R)": 197,
+    "bL(L)": 571,
+    "bL(R)": 323,
+    "gL(R)": 10
+   },
+   "PAM04": {
+    "CRE(R)": 52,
+    "CentralBrain-unspecified": 24,
+    "b'L(L)": 26,
+    "b'L(R)": 97,
+    "bL(L)": 7022,
+    "bL(R)": 5222,
+    "gL(L)": 4,
+    "gL(R)": 50
+   },
+   "PAM05": {
+    "CRE(L)": 16,
+    "CRE(R)": 386,
+    "CentralBrain-unspecified": 71,
+    "SMP(R)": 27,
+    "b'L(L)": 5698,
+    "b'L(R)": 4676,
+    "gL(L)": 20,
+    "gL(R)": 140
+   },
+   "PAM06": {
+    "CRE(L)": 3,
+    "CRE(R)": 17,
+    "CentralBrain-unspecified": 1180,
+    "b'L(L)": 10350,
+    "b'L(R)": 6848,
+    "bL(R)": 8,
+    "gL(R)": 12
+   },
+   "PAM07": {
+    "CRE(L)": 61,
+    "CRE(R)": 1099,
+    "CentralBrain-unspecified": 23,
+    "gL(L)": 6088,
+    "gL(R)": 4594
+   },
+   "PAM08": {
+    "CRE(L)": 304,
+    "CRE(R)": 3005,
+    "CentralBrain-unspecified": 71,
+    "b'L(L)": 32,
+    "b'L(R)": 25,
+    "gL(L)": 16274,
+    "gL(R)": 12319
+   },
+   "PAM09": {
+    "CentralBrain-unspecified": 113,
+    "PED(L)": 677,
+    "PED(R)": 922,
+    "SCL(R)": 3,
+    "a'L(R)": 1,
+    "aL(L)": 254,
+    "aL(R)": 161,
+    "b'L(L)": 2,
+    "b'L(R)": 294,
+    "bL(L)": 1796,
+    "bL(R)": 1202,
+    "gL(L)": 20,
+    "gL(R)": 585
+   },
+   "PAM10": {
+    "CRE(L)": 1,
+    "CRE(R)": 45,
+    "CentralBrain-unspecified": 55,
+    "PED(L)": 110,
+    "PED(R)": 72,
+    "a'L(R)": 40,
+    "aL(L)": 263,
+    "aL(R)": 244,
+    "b'L(L)": 7,
+    "b'L(R)": 500,
+    "bL(L)": 8742,
+    "bL(R)": 5177,
+    "gL(L)": 40,
+    "gL(R)": 3586
+   },
+   "PAM11": {
+    "CRE(L)": 213,
+    "CRE(R)": 2,
+    "CentralBrain-unspecified": 131,
+    "PED(L)": 58,
+    "PED(R)": 36,
+    "a'L(R)": 270,
+    "aL(L)": 2626,
+    "aL(R)": 3099,
+    "b'L(L)": 65,
+    "b'L(R)": 398,
+    "bL(L)": 1033,
+    "bL(R)": 694,
+    "gL(L)": 175,
+    "gL(R)": 249
+   },
+   "PAM12": {
+    "CRE(L)": 7,
+    "CRE(R)": 11,
+    "CentralBrain-unspecified": 139,
+    "aL(R)": 13,
+    "b'L(L)": 39,
+    "b'L(R)": 41,
+    "bL(R)": 30,
+    "gL(L)": 5995,
+    "gL(R)": 4181
+   },
+   "PAM13": {
+    "b'L(L)": 2567,
+    "b'L(R)": 1041,
+    "gL(L)": 40,
+    "gL(R)": 1354
+   },
+   "PAM14": {
+    "CRE(L)": 1,
+    "CRE(R)": 4,
+    "CentralBrain-unspecified": 1,
+    "aL(L)": 9,
+    "aL(R)": 9,
+    "b'L(L)": 3677,
+    "b'L(R)": 2260,
+    "bL(L)": 8,
+    "bL(R)": 2,
+    "gL(R)": 603
+   },
+   "PAM15": {
+    "CRE(R)": 89,
+    "CentralBrain-unspecified": 80,
+    "b'L(L)": 222,
+    "b'L(R)": 163,
+    "bL(L)": 12,
+    "gL(L)": 320,
+    "gL(R)": 540
+   },
+   "PPL101": {
+    "CentralBrain-unspecified": 741,
+    "ICL(L)": 7,
+    "PED(L)": 1445,
+    "PED(R)": 1372,
+    "SCL(R)": 11,
+    "aL(L)": 153,
+    "aL(R)": 399,
+    "bL(L)": 2,
+    "bL(R)": 16,
+    "gL(L)": 3428,
+    "gL(R)": 3908
+   },
+   "PPL102": {
+    "CentralBrain-unspecified": 34,
+    "aL(R)": 1,
+    "bL(R)": 8,
+    "gL(L)": 271,
+    "gL(R)": 276
+   },
+   "PPL103": {
+    "CRE(L)": 48,
+    "CentralBrain-unspecified": 1115,
+    "a'L(L)": 1228,
+    "a'L(R)": 1698,
+    "aL(L)": 556,
+    "aL(R)": 50,
+    "b'L(L)": 1420,
+    "b'L(R)": 323,
+    "gL(L)": 8257,
+    "gL(R)": 5843
+   },
+   "PPL104": {
+    "CentralBrain-unspecified": 39,
+    "SIP(L)": 33,
+    "SIP(R)": 5,
+    "a'L(L)": 863,
+    "a'L(R)": 972,
+    "aL(L)": 188,
+    "aL(R)": 98
+   },
+   "PPL105": {
+    "CRE(L)": 83,
+    "CentralBrain-unspecified": 41,
+    "SIP(L)": 7,
+    "SIP(R)": 4,
+    "a'L(L)": 1959,
+    "a'L(R)": 1233,
+    "aL(L)": 2558,
+    "aL(R)": 2256,
+    "b'L(L)": 6
+   },
+   "PPL106": {
+    "CentralBrain-unspecified": 17,
+    "SIP(L)": 1,
+    "SIP(R)": 3,
+    "a'L(R)": 8,
+    "aL(L)": 3176,
+    "aL(R)": 3082
+   },
+   "PPL107": {
+    "SIP(R)": 2,
+    "a'L(R)": 9,
+    "aL(R)": 2
+   },
+   "PPL108": {
+    "gL(R)": 1
+   }
+  }
+ },
+ "compartments": {
+  "points_source": "syn-points.feather",
+  "synapses": 686685,
+  "unmatched": 0,
+  "kc_to_mbon_by_type_and_compartment": {
+   "MBON01": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 720,
+     "synapses": 5077
+    },
+    "CentralBrain-unspecified": {
+     "edges": 632,
+     "synapses": 1418
+    },
+    "b'2": {
+     "edges": 590,
+     "synapses": 5891
+    },
+    "b2": {
+     "edges": 11,
+     "synapses": 13
+    },
+    "g3": {
+     "edges": 39,
+     "synapses": 67
+    },
+    "g4": {
+     "edges": 446,
+     "synapses": 626
+    },
+    "g5": {
+     "edges": 1622,
+     "synapses": 27796
+    }
+   },
+   "MBON02": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 42,
+     "synapses": 59
+    },
+    "CentralBrain-unspecified": {
+     "edges": 80,
+     "synapses": 97
+    },
+    "EBr5": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "SIP": {
+     "edges": 9,
+     "synapses": 9
+    },
+    "a'2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a'3": {
+     "edges": 45,
+     "synapses": 53
+    },
+    "a2": {
+     "edges": 13,
+     "synapses": 14
+    },
+    "a3": {
+     "edges": 17,
+     "synapses": 19
+    },
+    "b'1": {
+     "edges": 6,
+     "synapses": 6
+    },
+    "b'2": {
+     "edges": 882,
+     "synapses": 1703
+    },
+    "b1": {
+     "edges": 246,
+     "synapses": 275
+    },
+    "b2": {
+     "edges": 3540,
+     "synapses": 16280
+    },
+    "g3": {
+     "edges": 70,
+     "synapses": 91
+    },
+    "g4": {
+     "edges": 17,
+     "synapses": 20
+    },
+    "g5": {
+     "edges": 36,
+     "synapses": 43
+    }
+   },
+   "MBON03": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 99,
+     "synapses": 185
+    },
+    "CentralBrain-unspecified": {
+     "edges": 309,
+     "synapses": 865
+    },
+    "SMP": {
+     "edges": 11,
+     "synapses": 15
+    },
+    "a'1": {
+     "edges": 173,
+     "synapses": 423
+    },
+    "a'2": {
+     "edges": 212,
+     "synapses": 698
+    },
+    "a1": {
+     "edges": 90,
+     "synapses": 228
+    },
+    "b'1": {
+     "edges": 256,
+     "synapses": 1347
+    },
+    "b'2": {
+     "edges": 1185,
+     "synapses": 20040
+    },
+    "b2": {
+     "edges": 71,
+     "synapses": 133
+    },
+    "g2": {
+     "edges": 36,
+     "synapses": 64
+    },
+    "g4": {
+     "edges": 6,
+     "synapses": 6
+    }
+   },
+   "MBON04": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 348,
+     "synapses": 626
+    },
+    "CentralBrain-unspecified": {
+     "edges": 122,
+     "synapses": 182
+    },
+    "SIP": {
+     "edges": 2,
+     "synapses": 7
+    },
+    "SMP": {
+     "edges": 13,
+     "synapses": 20
+    },
+    "b'2": {
+     "edges": 723,
+     "synapses": 4327
+    },
+    "b2": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g3": {
+     "edges": 9,
+     "synapses": 9
+    },
+    "g4": {
+     "edges": 776,
+     "synapses": 1626
+    },
+    "g5": {
+     "edges": 3,
+     "synapses": 3
+    }
+   },
+   "MBON05": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 676,
+     "synapses": 3106
+    },
+    "CentralBrain-unspecified": {
+     "edges": 105,
+     "synapses": 145
+    },
+    "LAL(-GA)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a'1": {
+     "edges": 31,
+     "synapses": 55
+    },
+    "a1": {
+     "edges": 7,
+     "synapses": 8
+    },
+    "a2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'1": {
+     "edges": 61,
+     "synapses": 83
+    },
+    "b'2": {
+     "edges": 117,
+     "synapses": 204
+    },
+    "b1": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g1": {
+     "edges": 756,
+     "synapses": 1393
+    },
+    "g2": {
+     "edges": 479,
+     "synapses": 641
+    },
+    "g3": {
+     "edges": 675,
+     "synapses": 1083
+    },
+    "g4": {
+     "edges": 1830,
+     "synapses": 27950
+    },
+    "g5": {
+     "edges": 917,
+     "synapses": 1647
+    }
+   },
+   "MBON06": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 96,
+     "synapses": 118
+    },
+    "CentralBrain-unspecified": {
+     "edges": 47,
+     "synapses": 69
+    },
+    "PED": {
+     "edges": 9,
+     "synapses": 11
+    },
+    "SIP": {
+     "edges": 2,
+     "synapses": 3
+    },
+    "a'1": {
+     "edges": 29,
+     "synapses": 33
+    },
+    "a'2": {
+     "edges": 58,
+     "synapses": 72
+    },
+    "a'3": {
+     "edges": 21,
+     "synapses": 24
+    },
+    "a1": {
+     "edges": 213,
+     "synapses": 289
+    },
+    "a2": {
+     "edges": 237,
+     "synapses": 295
+    },
+    "a3": {
+     "edges": 333,
+     "synapses": 462
+    },
+    "b'1": {
+     "edges": 188,
+     "synapses": 537
+    },
+    "b'2": {
+     "edges": 28,
+     "synapses": 32
+    },
+    "b1": {
+     "edges": 1796,
+     "synapses": 17267
+    },
+    "b2": {
+     "edges": 657,
+     "synapses": 1028
+    },
+    "g1": {
+     "edges": 108,
+     "synapses": 173
+    },
+    "g2": {
+     "edges": 528,
+     "synapses": 3330
+    },
+    "g3": {
+     "edges": 550,
+     "synapses": 1715
+    },
+    "g4": {
+     "edges": 7,
+     "synapses": 7
+    }
+   },
+   "MBON07": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 395,
+     "synapses": 669
+    },
+    "CentralBrain-unspecified": {
+     "edges": 309,
+     "synapses": 463
+    },
+    "PED": {
+     "edges": 6,
+     "synapses": 7
+    },
+    "a'1": {
+     "edges": 404,
+     "synapses": 682
+    },
+    "a'2": {
+     "edges": 120,
+     "synapses": 173
+    },
+    "a1": {
+     "edges": 3415,
+     "synapses": 14925
+    },
+    "a2": {
+     "edges": 77,
+     "synapses": 85
+    },
+    "b'1": {
+     "edges": 291,
+     "synapses": 680
+    },
+    "b1": {
+     "edges": 2164,
+     "synapses": 4205
+    },
+    "g1": {
+     "edges": 397,
+     "synapses": 779
+    },
+    "g2": {
+     "edges": 87,
+     "synapses": 146
+    },
+    "g3": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "gL": {
+     "edges": 18,
+     "synapses": 25
+    }
+   },
+   "MBON09": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 159,
+     "synapses": 260
+    },
+    "CentralBrain-unspecified": {
+     "edges": 175,
+     "synapses": 568
+    },
+    "a1": {
+     "edges": 27,
+     "synapses": 35
+    },
+    "b'1": {
+     "edges": 1511,
+     "synapses": 16181
+    },
+    "b'2": {
+     "edges": 146,
+     "synapses": 222
+    },
+    "b1": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "b2": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g2": {
+     "edges": 789,
+     "synapses": 2317
+    },
+    "g3": {
+     "edges": 3473,
+     "synapses": 42605
+    },
+    "g4": {
+     "edges": 819,
+     "synapses": 1344
+    },
+    "g5": {
+     "edges": 36,
+     "synapses": 39
+    }
+   },
+   "MBON10": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 8,
+     "synapses": 10
+    },
+    "CentralBrain-unspecified": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'1": {
+     "edges": 999,
+     "synapses": 2016
+    },
+    "b'2": {
+     "edges": 67,
+     "synapses": 90
+    },
+    "b1": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "g2": {
+     "edges": 198,
+     "synapses": 298
+    },
+    "g3": {
+     "edges": 172,
+     "synapses": 278
+    }
+   },
+   "MBON11": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 31,
+     "synapses": 38
+    },
+    "CentralBrain-unspecified": {
+     "edges": 617,
+     "synapses": 3026
+    },
+    "ICL": {
+     "edges": 7,
+     "synapses": 9
+    },
+    "PED": {
+     "edges": 1958,
+     "synapses": 9189
+    },
+    "SCL": {
+     "edges": 58,
+     "synapses": 104
+    },
+    "SIP": {
+     "edges": 9,
+     "synapses": 10
+    },
+    "a'1": {
+     "edges": 14,
+     "synapses": 18
+    },
+    "a'2": {
+     "edges": 27,
+     "synapses": 32
+    },
+    "a'3": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "a1": {
+     "edges": 1133,
+     "synapses": 2349
+    },
+    "a2": {
+     "edges": 293,
+     "synapses": 355
+    },
+    "a3": {
+     "edges": 131,
+     "synapses": 167
+    },
+    "b'1": {
+     "edges": 27,
+     "synapses": 30
+    },
+    "b'2": {
+     "edges": 85,
+     "synapses": 97
+    },
+    "b1": {
+     "edges": 422,
+     "synapses": 523
+    },
+    "b2": {
+     "edges": 208,
+     "synapses": 226
+    },
+    "g1": {
+     "edges": 1946,
+     "synapses": 25025
+    },
+    "g2": {
+     "edges": 81,
+     "synapses": 94
+    },
+    "g3": {
+     "edges": 71,
+     "synapses": 81
+    },
+    "g4": {
+     "edges": 51,
+     "synapses": 58
+    },
+    "g5": {
+     "edges": 24,
+     "synapses": 26
+    }
+   },
+   "MBON12": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 58,
+     "synapses": 87
+    },
+    "CentralBrain-unspecified": {
+     "edges": 288,
+     "synapses": 470
+    },
+    "a'1": {
+     "edges": 1171,
+     "synapses": 4401
+    },
+    "a'2": {
+     "edges": 454,
+     "synapses": 817
+    },
+    "a1": {
+     "edges": 235,
+     "synapses": 520
+    },
+    "b'1": {
+     "edges": 1040,
+     "synapses": 3131
+    },
+    "g1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g2": {
+     "edges": 3298,
+     "synapses": 13175
+    },
+    "g3": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON13": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 13,
+     "synapses": 19
+    },
+    "CentralBrain-unspecified": {
+     "edges": 29,
+     "synapses": 54
+    },
+    "SIP": {
+     "edges": 4,
+     "synapses": 6
+    },
+    "a'1": {
+     "edges": 317,
+     "synapses": 623
+    },
+    "a'2": {
+     "edges": 672,
+     "synapses": 9093
+    },
+    "a2": {
+     "edges": 130,
+     "synapses": 391
+    },
+    "b'1": {
+     "edges": 7,
+     "synapses": 8
+    }
+   },
+   "MBON14": {
+    "CentralBrain-unspecified": {
+     "edges": 70,
+     "synapses": 88
+    },
+    "SIP": {
+     "edges": 7,
+     "synapses": 7
+    },
+    "a2": {
+     "edges": 12,
+     "synapses": 12
+    },
+    "a3": {
+     "edges": 3431,
+     "synapses": 22110
+    }
+   },
+   "MBON15": {
+    "SIP": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "a'1": {
+     "edges": 366,
+     "synapses": 575
+    },
+    "a'2": {
+     "edges": 133,
+     "synapses": 185
+    },
+    "a'3": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a1": {
+     "edges": 21,
+     "synapses": 32
+    },
+    "a2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a3": {
+     "edges": 2,
+     "synapses": 3
+    },
+    "b'1": {
+     "edges": 296,
+     "synapses": 462
+    },
+    "b'2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g2": {
+     "edges": 39,
+     "synapses": 44
+    }
+   },
+   "MBON15-like": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "CentralBrain-unspecified": {
+     "edges": 24,
+     "synapses": 32
+    },
+    "SIP": {
+     "edges": 8,
+     "synapses": 8
+    },
+    "a'1": {
+     "edges": 539,
+     "synapses": 991
+    },
+    "a'2": {
+     "edges": 511,
+     "synapses": 1173
+    },
+    "a'3": {
+     "edges": 29,
+     "synapses": 40
+    },
+    "a1": {
+     "edges": 135,
+     "synapses": 238
+    },
+    "a2": {
+     "edges": 75,
+     "synapses": 113
+    },
+    "a3": {
+     "edges": 5,
+     "synapses": 6
+    },
+    "b'1": {
+     "edges": 340,
+     "synapses": 534
+    },
+    "g2": {
+     "edges": 70,
+     "synapses": 99
+    }
+   },
+   "MBON16": {
+    "CentralBrain-unspecified": {
+     "edges": 66,
+     "synapses": 114
+    },
+    "SIP": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "a'3": {
+     "edges": 588,
+     "synapses": 3315
+    },
+    "a3": {
+     "edges": 100,
+     "synapses": 176
+    }
+   },
+   "MBON17": {
+    "CentralBrain-unspecified": {
+     "edges": 7,
+     "synapses": 9
+    },
+    "SIP": {
+     "edges": 51,
+     "synapses": 73
+    },
+    "a'3": {
+     "edges": 503,
+     "synapses": 2292
+    },
+    "a2": {
+     "edges": 145,
+     "synapses": 248
+    },
+    "a3": {
+     "edges": 202,
+     "synapses": 398
+    }
+   },
+   "MBON17-like": {
+    "SIP": {
+     "edges": 31,
+     "synapses": 39
+    },
+    "a'2": {
+     "edges": 137,
+     "synapses": 321
+    },
+    "a'3": {
+     "edges": 394,
+     "synapses": 1136
+    },
+    "a2": {
+     "edges": 147,
+     "synapses": 260
+    },
+    "a3": {
+     "edges": 92,
+     "synapses": 133
+    }
+   },
+   "MBON18": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 107,
+     "synapses": 166
+    },
+    "CentralBrain-unspecified": {
+     "edges": 19,
+     "synapses": 25
+    },
+    "SIP": {
+     "edges": 20,
+     "synapses": 27
+    },
+    "a'2": {
+     "edges": 184,
+     "synapses": 418
+    },
+    "a'3": {
+     "edges": 9,
+     "synapses": 10
+    },
+    "a1": {
+     "edges": 93,
+     "synapses": 105
+    },
+    "a2": {
+     "edges": 1698,
+     "synapses": 13075
+    },
+    "a3": {
+     "edges": 87,
+     "synapses": 99
+    }
+   },
+   "MBON19": {
+    "CentralBrain-unspecified": {
+     "edges": 6,
+     "synapses": 7
+    },
+    "SIP": {
+     "edges": 16,
+     "synapses": 21
+    },
+    "a'2": {
+     "edges": 366,
+     "synapses": 865
+    },
+    "a'3": {
+     "edges": 50,
+     "synapses": 52
+    },
+    "a1": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "a2": {
+     "edges": 528,
+     "synapses": 999
+    },
+    "a3": {
+     "edges": 31,
+     "synapses": 38
+    }
+   },
+   "MBON20": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 6,
+     "synapses": 7
+    },
+    "CentralBrain-unspecified": {
+     "edges": 219,
+     "synapses": 438
+    },
+    "PED": {
+     "edges": 12,
+     "synapses": 14
+    },
+    "SCL": {
+     "edges": 7,
+     "synapses": 8
+    },
+    "a1": {
+     "edges": 14,
+     "synapses": 23
+    },
+    "b1": {
+     "edges": 7,
+     "synapses": 7
+    },
+    "b2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g1": {
+     "edges": 1142,
+     "synapses": 2822
+    },
+    "g2": {
+     "edges": 629,
+     "synapses": 1014
+    },
+    "g3": {
+     "edges": 156,
+     "synapses": 185
+    },
+    "g4": {
+     "edges": 54,
+     "synapses": 72
+    },
+    "g5": {
+     "edges": 11,
+     "synapses": 13
+    }
+   },
+   "MBON21": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 526,
+     "synapses": 1026
+    },
+    "CentralBrain-unspecified": {
+     "edges": 111,
+     "synapses": 136
+    },
+    "PED": {
+     "edges": 4,
+     "synapses": 5
+    },
+    "b'2": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "b1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b2": {
+     "edges": 74,
+     "synapses": 96
+    },
+    "g1": {
+     "edges": 14,
+     "synapses": 14
+    },
+    "g2": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "g3": {
+     "edges": 253,
+     "synapses": 303
+    },
+    "g4": {
+     "edges": 1404,
+     "synapses": 5249
+    },
+    "g5": {
+     "edges": 890,
+     "synapses": 1543
+    }
+   },
+   "MBON22": {
+    "AVLP": {
+     "edges": 34,
+     "synapses": 59
+    },
+    "CA": {
+     "edges": 2268,
+     "synapses": 6641
+    },
+    "CRE(-ROB)(-RUB)": {
+     "edges": 10,
+     "synapses": 35
+    },
+    "CentralBrain-unspecified": {
+     "edges": 1398,
+     "synapses": 3064
+    },
+    "ICL": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "PED": {
+     "edges": 2174,
+     "synapses": 5510
+    },
+    "PLP": {
+     "edges": 202,
+     "synapses": 379
+    },
+    "SCL": {
+     "edges": 136,
+     "synapses": 258
+    },
+    "b'1": {
+     "edges": 5,
+     "synapses": 37
+    },
+    "b'2": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "b1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b2": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g3": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "g4": {
+     "edges": 64,
+     "synapses": 69
+    },
+    "g5": {
+     "edges": 18,
+     "synapses": 20
+    }
+   },
+   "MBON23": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 34,
+     "synapses": 46
+    },
+    "CentralBrain-unspecified": {
+     "edges": 11,
+     "synapses": 11
+    },
+    "SIP": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "a'2": {
+     "edges": 172,
+     "synapses": 340
+    },
+    "a'3": {
+     "edges": 10,
+     "synapses": 12
+    },
+    "a1": {
+     "edges": 29,
+     "synapses": 31
+    },
+    "a2": {
+     "edges": 1110,
+     "synapses": 2486
+    },
+    "a3": {
+     "edges": 4,
+     "synapses": 6
+    }
+   },
+   "MBON24": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 18,
+     "synapses": 20
+    },
+    "CentralBrain-unspecified": {
+     "edges": 17,
+     "synapses": 17
+    },
+    "b'2": {
+     "edges": 48,
+     "synapses": 50
+    },
+    "b2": {
+     "edges": 1492,
+     "synapses": 3346
+    },
+    "g5": {
+     "edges": 169,
+     "synapses": 201
+    }
+   },
+   "MBON25": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "CentralBrain-unspecified": {
+     "edges": 23,
+     "synapses": 32
+    },
+    "g1": {
+     "edges": 443,
+     "synapses": 646
+    },
+    "g2": {
+     "edges": 270,
+     "synapses": 356
+    },
+    "g3": {
+     "edges": 19,
+     "synapses": 25
+    },
+    "g4": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g5": {
+     "edges": 6,
+     "synapses": 6
+    }
+   },
+   "MBON25-like": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 3,
+     "synapses": 4
+    },
+    "CentralBrain-unspecified": {
+     "edges": 50,
+     "synapses": 69
+    },
+    "a'1": {
+     "edges": 6,
+     "synapses": 8
+    },
+    "b'1": {
+     "edges": 14,
+     "synapses": 18
+    },
+    "g1": {
+     "edges": 320,
+     "synapses": 462
+    },
+    "g2": {
+     "edges": 265,
+     "synapses": 347
+    },
+    "g3": {
+     "edges": 8,
+     "synapses": 8
+    },
+    "g4": {
+     "edges": 5,
+     "synapses": 5
+    },
+    "g5": {
+     "edges": 3,
+     "synapses": 3
+    }
+   },
+   "MBON26": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 197,
+     "synapses": 457
+    },
+    "CentralBrain-unspecified": {
+     "edges": 17,
+     "synapses": 20
+    },
+    "SMP": {
+     "edges": 17,
+     "synapses": 24
+    },
+    "b'1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'2": {
+     "edges": 329,
+     "synapses": 3832
+    },
+    "b2": {
+     "edges": 5,
+     "synapses": 6
+    },
+    "g3": {
+     "edges": 19,
+     "synapses": 23
+    },
+    "g4": {
+     "edges": 114,
+     "synapses": 169
+    },
+    "g5": {
+     "edges": 23,
+     "synapses": 25
+    }
+   },
+   "MBON27": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 200,
+     "synapses": 1483
+    },
+    "CentralBrain-unspecified": {
+     "edges": 84,
+     "synapses": 120
+    },
+    "b'2": {
+     "edges": 46,
+     "synapses": 60
+    },
+    "g2": {
+     "edges": 30,
+     "synapses": 39
+    },
+    "g3": {
+     "edges": 189,
+     "synapses": 560
+    },
+    "g4": {
+     "edges": 352,
+     "synapses": 1842
+    },
+    "g5": {
+     "edges": 373,
+     "synapses": 1505
+    }
+   },
+   "MBON28": {
+    "CentralBrain-unspecified": {
+     "edges": 56,
+     "synapses": 128
+    },
+    "SIP": {
+     "edges": 24,
+     "synapses": 28
+    },
+    "a'3": {
+     "edges": 408,
+     "synapses": 1984
+    },
+    "a2": {
+     "edges": 25,
+     "synapses": 31
+    },
+    "a3": {
+     "edges": 59,
+     "synapses": 108
+    }
+   },
+   "MBON29": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 408,
+     "synapses": 613
+    },
+    "CentralBrain-unspecified": {
+     "edges": 69,
+     "synapses": 82
+    },
+    "b'1": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "b'2": {
+     "edges": 13,
+     "synapses": 16
+    },
+    "g1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g2": {
+     "edges": 97,
+     "synapses": 131
+    },
+    "g3": {
+     "edges": 19,
+     "synapses": 21
+    },
+    "g4": {
+     "edges": 1285,
+     "synapses": 2265
+    },
+    "g5": {
+     "edges": 1189,
+     "synapses": 1874
+    }
+   },
+   "MBON30": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 70,
+     "synapses": 77
+    },
+    "CentralBrain-unspecified": {
+     "edges": 223,
+     "synapses": 443
+    },
+    "RUB": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "a1": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "b'1": {
+     "edges": 68,
+     "synapses": 123
+    },
+    "b'2": {
+     "edges": 4,
+     "synapses": 4
+    },
+    "b1": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g1": {
+     "edges": 1164,
+     "synapses": 3472
+    },
+    "g2": {
+     "edges": 1316,
+     "synapses": 4786
+    },
+    "g3": {
+     "edges": 1033,
+     "synapses": 2657
+    },
+    "g4": {
+     "edges": 242,
+     "synapses": 267
+    },
+    "g5": {
+     "edges": 24,
+     "synapses": 25
+    }
+   },
+   "MBON31": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 24,
+     "synapses": 31
+    },
+    "CentralBrain-unspecified": {
+     "edges": 90,
+     "synapses": 221
+    },
+    "a'1": {
+     "edges": 638,
+     "synapses": 4186
+    },
+    "a'2": {
+     "edges": 449,
+     "synapses": 1210
+    },
+    "a1": {
+     "edges": 104,
+     "synapses": 244
+    },
+    "b'1": {
+     "edges": 516,
+     "synapses": 2622
+    },
+    "g1": {
+     "edges": 6,
+     "synapses": 7
+    },
+    "g2": {
+     "edges": 351,
+     "synapses": 1943
+    },
+    "g3": {
+     "edges": 17,
+     "synapses": 24
+    },
+    "g5": {
+     "edges": 5,
+     "synapses": 5
+    }
+   },
+   "MBON32": {
+    "CentralBrain-unspecified": {
+     "edges": 228,
+     "synapses": 589
+    },
+    "a'1": {
+     "edges": 352,
+     "synapses": 1455
+    },
+    "a'2": {
+     "edges": 9,
+     "synapses": 14
+    },
+    "b'1": {
+     "edges": 212,
+     "synapses": 562
+    },
+    "g2": {
+     "edges": 1671,
+     "synapses": 10480
+    },
+    "g3": {
+     "edges": 40,
+     "synapses": 56
+    },
+    "g5": {
+     "edges": 8,
+     "synapses": 8
+    }
+   },
+   "MBON33": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 25,
+     "synapses": 40
+    },
+    "CentralBrain-unspecified": {
+     "edges": 88,
+     "synapses": 179
+    },
+    "b'1": {
+     "edges": 8,
+     "synapses": 11
+    },
+    "g2": {
+     "edges": 387,
+     "synapses": 869
+    },
+    "g3": {
+     "edges": 262,
+     "synapses": 406
+    },
+    "g4": {
+     "edges": 63,
+     "synapses": 89
+    },
+    "g5": {
+     "edges": 2,
+     "synapses": 2
+    }
+   },
+   "MBON34": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 2,
+     "synapses": 2
+    },
+    "CentralBrain-unspecified": {
+     "edges": 3,
+     "synapses": 3
+    },
+    "g2": {
+     "edges": 63,
+     "synapses": 73
+    },
+    "g3": {
+     "edges": 1,
+     "synapses": 1
+    },
+    "g4": {
+     "edges": 1,
+     "synapses": 1
+    }
+   },
+   "MBON35": {
+    "CRE(-ROB)(-RUB)": {
+     "edges": 6,
+     "synapses": 10
+    },
+    "CentralBrain-unspecified": {
+     "edges": 149,
+     "synapses": 433
+    },
+    "a'1": {
+     "edges": 12,
+     "synapses": 24
+    },
+    "b'1": {
+     "edges": 36,
+     "synapses": 60
+    },
+    "g2": {
+     "edges": 1213,
+     "synapses": 4112
+    },
+    "g3": {
+     "edges": 10,
+     "synapses": 16
+    }
+   }
+  },
+  "kc_to_mbon_edges": {
+   "total": 61210,
+   "single_compartment": 35755
+  },
+  "mbon_named_compartments": {
+   "MBON01": [
+    "b'2",
+    "g5"
+   ],
+   "MBON02": [
+    "b'2",
+    "b2"
+   ],
+   "MBON03": [
+    "b'2"
+   ],
+   "MBON04": [
+    "b'2"
+   ],
+   "MBON05": [
+    "g4"
+   ],
+   "MBON06": [
+    "b1"
+   ],
+   "MBON07": [
+    "a1"
+   ],
+   "MBON09": [
+    "b'1",
+    "g3"
+   ],
+   "MBON10": [
+    "b'1"
+   ],
+   "MBON11": [
+    "PED",
+    "g1"
+   ],
+   "MBON12": [
+    "a'1",
+    "g2"
+   ],
+   "MBON13": [
+    "a'2"
+   ],
+   "MBON14": [
+    "a3"
+   ],
+   "MBON15": [
+    "a'1"
+   ],
+   "MBON15-like": [
+    "a'1",
+    "a'2"
+   ],
+   "MBON16": [
+    "a'3"
+   ],
+   "MBON17": [
+    "a'3"
+   ],
+   "MBON17-like": [
+    "a'2",
+    "a'3"
+   ],
+   "MBON18": [
+    "a2"
+   ],
+   "MBON19": [
+    "a2",
+    "a3"
+   ],
+   "MBON20": [
+    "g1",
+    "g2"
+   ],
+   "MBON21": [
+    "g4",
+    "g5"
+   ],
+   "MBON22": [],
+   "MBON23": [
+    "a2"
+   ],
+   "MBON24": [
+    "b2",
+    "g5"
+   ],
+   "MBON25": [
+    "g1",
+    "g2"
+   ],
+   "MBON25-like": [
+    "g1",
+    "g2"
+   ],
+   "MBON26": [
+    "b'2"
+   ],
+   "MBON27": [
+    "g5"
+   ],
+   "MBON28": [
+    "a'3"
+   ],
+   "MBON29": [
+    "g4",
+    "g5"
+   ],
+   "MBON30": [
+    "g1",
+    "g2",
+    "g3"
+   ],
+   "MBON31": [
+    "a'1"
+   ],
+   "MBON32": [
+    "g2"
+   ],
+   "MBON33": [
+    "g2",
+    "g3"
+   ],
+   "MBON34": [
+    "g2"
+   ],
+   "MBON35": [
+    "g2"
+   ]
+  },
+  "plastic_sets": {
+   "primary": {
+    "compartments": [
+     "g1",
+     "PED",
+     "g2",
+     "a'1"
+    ],
+    "synapses": 86981,
+    "edge_compartment_pairs": 18799,
+    "engine_edges": 16250,
+    "mbon_types": [
+     "MBON11",
+     "MBON12",
+     "MBON15",
+     "MBON15-like",
+     "MBON20",
+     "MBON25",
+     "MBON25-like",
+     "MBON30",
+     "MBON31",
+     "MBON32",
+     "MBON33",
+     "MBON34",
+     "MBON35"
+    ],
+    "synapses_by_mbon_type": {
+     "MBON11": 34214,
+     "MBON12": 17576,
+     "MBON15": 575,
+     "MBON15-like": 991,
+     "MBON20": 3836,
+     "MBON25": 1002,
+     "MBON25-like": 809,
+     "MBON30": 8258,
+     "MBON31": 4186,
+     "MBON32": 10480,
+     "MBON33": 869,
+     "MBON34": 73,
+     "MBON35": 4112
+    },
+    "fraction_of_kc_mbon_synapses": 0.1876
+   },
+   "secondary": {
+    "compartments": [
+     "g1",
+     "PED",
+     "g2",
+     "a'1",
+     "a'2",
+     "a2",
+     "a3",
+     "a'3"
+    ],
+    "synapses": 145003,
+    "edge_compartment_pairs": 28810,
+    "engine_edges": 25910,
+    "mbon_types": [
+     "MBON11",
+     "MBON12",
+     "MBON13",
+     "MBON14",
+     "MBON15",
+     "MBON15-like",
+     "MBON16",
+     "MBON17",
+     "MBON17-like",
+     "MBON18",
+     "MBON19",
+     "MBON20",
+     "MBON23",
+     "MBON25",
+     "MBON25-like",
+     "MBON28",
+     "MBON30",
+     "MBON31",
+     "MBON32",
+     "MBON33",
+     "MBON34",
+     "MBON35"
+    ],
+    "synapses_by_mbon_type": {
+     "MBON11": 34214,
+     "MBON12": 17576,
+     "MBON13": 9093,
+     "MBON14": 22110,
+     "MBON15": 575,
+     "MBON15-like": 2164,
+     "MBON16": 3315,
+     "MBON17": 2292,
+     "MBON17-like": 1457,
+     "MBON18": 13075,
+     "MBON19": 1037,
+     "MBON20": 3836,
+     "MBON23": 2486,
+     "MBON25": 1002,
+     "MBON25-like": 809,
+     "MBON28": 1984,
+     "MBON30": 8258,
+     "MBON31": 4186,
+     "MBON32": 10480,
+     "MBON33": 869,
+     "MBON34": 73,
+     "MBON35": 4112
+    },
+    "fraction_of_kc_mbon_synapses": 0.3127
+   }
+  },
+  "dan_to_kc_synapses_by_type_and_compartment": {
+   "PAM01": {
+    "CRE(-ROB)(-RUB)": 3586,
+    "CentralBrain-unspecified": 1032,
+    "b'2": 237,
+    "b2": 18,
+    "g4": 262,
+    "g5": 18902
+   },
+   "PAM02": {
+    "CRE(-ROB)(-RUB)": 11,
+    "CentralBrain-unspecified": 144,
+    "b'2": 4252,
+    "b2": 78,
+    "g3": 9,
+    "g4": 68,
+    "g5": 371
+   },
+   "PAM03": {
+    "CRE(-ROB)(-RUB)": 7,
+    "CentralBrain-unspecified": 52,
+    "b'2": 595,
+    "b2": 890,
+    "g5": 12
+   },
+   "PAM04": {
+    "CRE(-ROB)(-RUB)": 56,
+    "CentralBrain-unspecified": 31,
+    "b'1": 12,
+    "b'2": 110,
+    "b1": 178,
+    "b2": 12047,
+    "g2": 1,
+    "g3": 15,
+    "g4": 6,
+    "g5": 41
+   },
+   "PAM05": {
+    "CRE(-ROB)(-RUB)": 401,
+    "CentralBrain-unspecified": 70,
+    "SMP": 26,
+    "b'2": 10374,
+    "g4": 99,
+    "g5": 64
+   },
+   "PAM06": {
+    "CRE(-ROB)(-RUB)": 20,
+    "CentralBrain-unspecified": 1193,
+    "b'2": 17185,
+    "b2": 8,
+    "g4": 12
+   },
+   "PAM07": {
+    "CRE(-ROB)(-RUB)": 1184,
+    "CentralBrain-unspecified": 22,
+    "g1": 52,
+    "g2": 34,
+    "g3": 361,
+    "g4": 9749,
+    "g5": 463
+   },
+   "PAM08": {
+    "CRE(-ROB)(-RUB)": 3300,
+    "CentralBrain-unspecified": 70,
+    "b'2": 61,
+    "g2": 8,
+    "g3": 1826,
+    "g4": 25497,
+    "g5": 1268
+   },
+   "PAM09": {
+    "CentralBrain-unspecified": 109,
+    "PED": 1600,
+    "SCL": 4,
+    "a'3": 1,
+    "a1": 421,
+    "b'1": 292,
+    "b'2": 3,
+    "b1": 2641,
+    "b2": 348,
+    "g1": 98,
+    "g2": 445,
+    "g3": 67,
+    "g4": 1
+   },
+   "PAM10": {
+    "CRE(-ROB)(-RUB)": 44,
+    "CentralBrain-unspecified": 54,
+    "PED": 182,
+    "a'1": 29,
+    "a'2": 11,
+    "a1": 505,
+    "b'1": 488,
+    "b'2": 4,
+    "b1": 13553,
+    "b2": 378,
+    "g1": 145,
+    "g2": 2313,
+    "g3": 1176
+   },
+   "PAM11": {
+    "CRE(-ROB)(-RUB)": 201,
+    "CentralBrain-unspecified": 128,
+    "PED": 95,
+    "a'1": 239,
+    "a'2": 38,
+    "a1": 5740,
+    "a2": 4,
+    "b'1": 449,
+    "b'2": 21,
+    "b1": 1706,
+    "b2": 3,
+    "g1": 282,
+    "g2": 118,
+    "g4": 2,
+    "gL": 23
+   },
+   "PAM12": {
+    "CRE(-ROB)(-RUB)": 18,
+    "CentralBrain-unspecified": 143,
+    "a1": 12,
+    "b'1": 82,
+    "b1": 32,
+    "g1": 22,
+    "g2": 49,
+    "g3": 9853,
+    "g4": 237,
+    "g5": 8
+   },
+   "PAM13": {
+    "b'1": 3606,
+    "b'2": 5,
+    "g2": 709,
+    "g3": 680,
+    "g4": 2
+   },
+   "PAM14": {
+    "CRE(-ROB)(-RUB)": 5,
+    "CentralBrain-unspecified": 1,
+    "a1": 18,
+    "b'1": 5647,
+    "b'2": 294,
+    "b1": 9,
+    "g2": 586,
+    "g3": 14
+   },
+   "PAM15": {
+    "CRE(-ROB)(-RUB)": 86,
+    "CentralBrain-unspecified": 76,
+    "b'2": 382,
+    "b2": 17,
+    "g4": 233,
+    "g5": 632
+   },
+   "PPL101": {
+    "CentralBrain-unspecified": 749,
+    "ICL": 7,
+    "PED": 2817,
+    "SCL": 10,
+    "a1": 526,
+    "b1": 16,
+    "g1": 7280,
+    "g2": 77
+   },
+   "PPL102": {
+    "CentralBrain-unspecified": 34,
+    "a1": 1,
+    "b1": 8,
+    "g1": 502,
+    "g2": 45
+   },
+   "PPL103": {
+    "CRE(-ROB)(-RUB)": 47,
+    "CentralBrain-unspecified": 1113,
+    "a'1": 2709,
+    "a'2": 206,
+    "a1": 610,
+    "b'1": 1743,
+    "g2": 13952,
+    "g3": 158
+   },
+   "PPL104": {
+    "CentralBrain-unspecified": 48,
+    "SIP": 39,
+    "a'2": 1,
+    "a'3": 1829,
+    "a2": 33,
+    "a3": 248
+   },
+   "PPL105": {
+    "CRE(-ROB)(-RUB)": 77,
+    "CentralBrain-unspecified": 41,
+    "SIP": 9,
+    "a'1": 121,
+    "a'2": 3076,
+    "a'3": 3,
+    "a1": 126,
+    "a2": 4659,
+    "a3": 31,
+    "b'1": 4
+   },
+   "PPL106": {
+    "CentralBrain-unspecified": 19,
+    "SIP": 4,
+    "a'3": 9,
+    "a2": 7,
+    "a3": 6248
+   },
+   "PPL107": {
+    "SIP": 2,
+    "a'2": 7,
+    "a2": 4
+   },
+   "PPL108": {
+    "g4": 1
+   }
+  }
+ }
+}
