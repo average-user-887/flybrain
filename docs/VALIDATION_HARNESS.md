@@ -65,8 +65,8 @@ last touched the spec, so it shows the spec predates the run.
 | spec | status | gates | what is verified |
 |---|---|---|---|
 | `optomotor_v3.json` | **preregistered** | syndirectional TI; each direction alone; half contrast; minus sham; minus shuffled graph; DNa02-silenced yaw exactly 0 | Every behaviour gate. Duistermars et al. 2007 and Mano et al. 2023 were read in full. The rest are causal controls of the model. |
-| `looming_gf_v3.json` | draft | GF-spike fraction falls with log10(r/v); no GF spike without a stimulus | The slope's sign comes from von Reyn et al. 2014, but only the Fig. 1 caption and abstract were read. The encoder ramps and the stimulus elevation still need owner review. |
-| `tmaze_odour_naive_v3.json` | draft | the fly chooses; OCT vs MCH balanced (PI within ±0.2); OCT and MCH avoided vs air | None of the targets were read. Tully & Quinn 1985 is paywalled, and the Li et al. 2013 control values were not extracted. The ORN encoder is DoOR 2.0 data from a pinned commit. |
+| `looming_gf_v3.json` | draft | GF-spike fraction falls with log10(r/v); no GF spike without a stimulus | The slope's sign comes from von Reyn et al. 2014, but only the Fig. 1 caption, the abstract and (on 2026-09-24) the supplement were read; the main text is paywalled. The encoder ramps and the stimulus elevation still need owner review. |
+| `tmaze_odour_naive_v3.json` | draft | the fly chooses; OCT vs MCH balanced (PI within ±0.2); OCT and MCH avoided vs air | Naive avoidance of each odour vs air was read from Akalal et al. 2006 Table 1, but it is still unverified: Barth et al. 2014 reports slight attraction, and the model's concentration is not mapped to the published ones. The OCT/MCH balance is an experimenter calibration, not a fly property, so it needs an owner decision. The ORN encoder is DoOR 2.0 data from a pinned commit. |
 
 The optomotor spec keeps the WP5 stimulus, encoder, decoder, schedule, seeds
 and controls exactly as they were. Only the gates are new. The receipt also
@@ -78,10 +78,17 @@ decoded yaw in rad/s cannot be compared with a fly's turning speed. For the
 same reason the looming fraction (per loom) is reported beside the published
 short-mode fraction (per takeoff), not gated against it.
 
-**Physiology bounds are all unverified.** The one exception is ORN spontaneous
-rate, which comes from the Hallem & Carlson 2006 data inside DoOR.data. The
-brain-wide mean and the single-neuron maximum are declared design choices.
-The best verdict any spec can reach today is therefore `PASS_PROVISIONAL`.
+**Physiology bounds.** `firing_rate_bounds_v1.json` is kept unchanged, because
+the preregistered optomotor spec points at it. `firing_rate_bounds_v2.json`
+holds the 2026-09-24 literature check, and the two draft specs use it. In v2,
+**ORN** and **KC** are verified. The KC driven ceiling drops from 20 to 5 Hz,
+derived in the file from Turner et al. 2008. **PN** spontaneous is verified
+(4.6 ± 4.2 Hz, Turner 2008), but the PN driven ceiling is not. **MBON**,
+**DNa02**, **GF**, **LC4/LPLC2** and **HS** stay unverified: no read source
+gives rates in Hz for them. LC4 and LPLC2 have only been imaged, and HS cells
+are graded or non-spiking. The brain-wide mean and the single-neuron maximum
+remain declared design choices. The best verdict any spec can reach today is
+therefore still `PASS_PROVISIONAL`.
 
 ## Declared engineering assumptions
 
@@ -102,12 +109,24 @@ The best verdict any spec can reach today is therefore `PASS_PROVISIONAL`.
   spontaneous activity, so trial-to-trial variance comes only from encoder
   noise.
 
-## Library check still needed (before the drafts can be preregistered)
+## Library check (2026-09-24) and what is still open
 
-1. von Reyn et al. 2014 Supp. Figs 2-6 and von Reyn et al. 2017: takeoff probability per r/v, angular size at takeoff, and the GF response to receding and dimming controls.
-2. Tully & Quinn 1985 Table 1: naive OCT/MCH balance, and the 3-min PI needed for P4.
-3. Li et al. 2013 Fig. 1I: naive OCT-vs-air and MCH-vs-air PIs.
-4. Firing rates: Bhandawat et al. 2007 and Wilson et al. 2004 (PN), Turner et al. 2008 (KC), Hige et al. 2015 (MBON), Rayshubskiy et al. 2025 figures (DNa02), von Reyn et al. 2014/2017 (GF, LC4, LPLC2), Schnell et al. 2010 (HS).
+Every value read is recorded, with where it was read, in `values_read` of the
+bounds file and the specs. What could not be read:
+
+1. **Looming.** The von Reyn et al. 2014 main text is paywalled. Its Fig. 1
+   caption values, which gate L1, were read once but not re-read. The loom
+   start and end sizes and the elevation are unread. No published GF response
+   to receding looms was found.
+2. **T-maze.** Tully & Quinn 1985 was read at abstract level only, and the
+   Li et al. 2013 Fig. 1I values are image-only. Naive odour-vs-air avoidance
+   comes from Akalal et al. 2006 Table 1 instead (OCT 0.66-0.78, MCH
+   0.62-0.84). Barth et al. 2014 reports slight attraction in another setup.
+   The naive 50:50 OCT/MCH split is a concentration calibration the
+   experimenters make, so gate T1 needs an owner decision.
+3. **Firing rates.** Wilson et al. 2004 and Bhandawat et al. 2007 (PN peaks)
+   could not be read. No in-vivo MBON spontaneous rate was found. DNa02 rates
+   appear in figures only. H2 and HS have no rates in Hz.
 
 When a value is read, set its `verified` flag in the spec or bounds file,
 record where it was read, and commit the change before any run that uses it.
