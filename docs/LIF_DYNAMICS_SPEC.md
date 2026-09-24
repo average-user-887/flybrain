@@ -452,7 +452,9 @@ neurons do not.** Policy name `v3-modulatory-only`, `unclear_mode='excitatory'`.
   falls back to the shape check, which separates v1 from v2 as before.
 * Default dynamics stays **v1**. v3 does not become the default by existing; §6.7
   states what it would have to pass first, and any change of default is proposed
-  to the owner, never taken.
+  to the owner, never taken. *(Update 2026-09-24: the owner made v3 the default for
+  the daemon (PR #4) and the library (PR #10), as a roadmap decision, before any v3
+  behavioural gate passed.)*
 
 ### 6.5 Predicted consequences — computed before the run, reported whatever happens
 
