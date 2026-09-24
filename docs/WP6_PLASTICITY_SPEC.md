@@ -10,6 +10,13 @@ on the pinned MaleCNS v1.0 graph (`graph_sha256 4b2f87cc…`, 166,700 neurons,
 > `tests/test_wp6_plasticity.py` following Rule R1 (§3.2). The historical specification
 > text is preserved below.
 
+> **Status on 2026-09-24:** the unit tests show that the rule is applied as specified.
+> They say nothing about learning. The only full-graph run is a 1 s smoke test on
+> `brainlab-lif-plastic-v1` (`receipts/connectome_closed_loop_wp6_plasticity.json`).
+> §1.1 below calls the DNa02 decoder "causally validated" because of WP5, but that
+> WP5 claim was withdrawn on 2026-09-20 (v1 artefact, v2 NULL). WP6 cannot be
+> evaluated until the v3 optomotor confirmatory run exists (ROADMAP P1).
+
 Every edge count below was measured read-only from `graph.npz` and
 `connectome_data/malecns_v1/` on 20 September 2026 (see §9 for the method).
 Every citation was retrieved during this session; two are flagged as not
