@@ -192,7 +192,7 @@ These are concrete provenance/control problems, not reasons to abandon the data:
    surrogate running. A scientific controller must not silently change identity.
    This is immediately relevant: the active worktree's default graph path is
    absent. The real graph is in the root checkout at
-   `/home/avg-usr/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz`.
+   `outputs/brainlab/malecns_v1/graph.npz`.
    Starting the RPC server with defaults from the active worktree would select
    the synthetic fallback. The mapping audit explicitly used the real graph and
    verified its neuron IDs against the normalized metadata.

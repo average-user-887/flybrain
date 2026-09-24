@@ -5,11 +5,10 @@ on the pinned MaleCNS v1.0 graph (`graph_sha256 4b2f87cc…`, 166,700 neurons,
 25,582,938 directed edges). Machine-readable companion:
 [`wp6_plastic_subset.json`](wp6_plastic_subset.json).
 
-**Nothing here is implemented.** No learning rule was written, no learning run was
-performed, and no Python file was changed by this work. `ExperimentRegistry`
-still refuses `connectome-plastic` with *"needs a declared plasticity rule (WP6);
-none is registered"* (`experiment_registry.py:299`). This document is the
-declaration that has to be reviewed before that refusal is lifted.
+> **Implementation Update (v0.3.0)**: The specification below was implemented in
+> `brainlab/wp6_plasticity.py` (`VisualHeadingPlasticityRule`) and verified by unit tests in
+> `tests/test_wp6_plasticity.py` following Rule R1 (§3.2). The historical specification
+> text is preserved below.
 
 Every edge count below was measured read-only from `graph.npz` and
 `connectome_data/malecns_v1/` on 20 September 2026 (see §9 for the method).

@@ -1,28 +1,24 @@
-# NeuroFly Session Handoff — September 23, 2026
+> **Historical Archive**: This is an internal working handoff from September 23, 2026.
+> Private paths, credentials, and host identifiers have been redacted for open-source release.
 
-## 1. Quick Resume Commands for Antigravity on Ryzen
+## 1. Quick Resume Commands
 
-When opening the new Antigravity session on Ryzen:
 ```bash
-cd ~/Documents/ChatGPT/flybrain
+cd <repository-root>
 git pull origin master
 source .venv/bin/activate
 NEUROFLY_RUN_PHYSICS=1 pytest -v tests/test_embodied_*.py
 ```
 
-* **Synced Antigravity Conversation ID**: `07d1b34e-2d44-44f3-a39c-4cb45e3ee80e` (copied directly to `~/.gemini/antigravity/brain/07d1b34e-2d44-44f3-a39c-4cb45e3ee80e`).
-* **Artifacts & Walkthrough**: See `walkthrough.md` and `implementation_plan.md` in the brain directory or in this doc.
-
 ---
 
 ## 2. Infrastructure & Environment Status
 
-* **Repository**: `~/Documents/ChatGPT/flybrain`
-* **GitHub Remote**: `origin` (`git@github.com:average-user-887/flybrain.git`), tracking branch `master`.
-* **SSH Key**: `~/.ssh/id_ed25519_github` (authenticated as `average-user-887`).
-* **Python Virtualenv**: `.venv` (Python 3.12, includes `flygym==2.1.0`, `mujoco==3.9.0`, `numba==0.67.0`, `scipy`, `jaxtyping`).
-* **Background Daemon**: PID `4110817` on `http://127.0.0.1:8769` (continuous wind-tunnel learning).
-* **GPUs**: Quadro P620 (GPU 0), NVIDIA GeForce GTX 1660 Ti (GPU 1). Offscreen EGL rendering verified (`MUJOCO_GL=egl`).
+* **Repository**: `<neurofly-repo>`, tracking branch `master`.
+* **GitHub Remote**: `origin` (`git@github.com:average-user-887/flybrain.git`).
+* **Python Virtualenv**: `.venv` (Python 3.12, includes `flygym==2.1.0`, `mujoco==3.9.0`, `numba>=0.65`, `scipy`, `jaxtyping`).
+* **Background Daemon**: Active on `http://127.0.0.1:8769`.
+* **GPUs**: Dual GPU workstation. Offscreen EGL rendering verified (`MUJOCO_GL=egl`).
 
 ---
 

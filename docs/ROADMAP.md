@@ -1,7 +1,7 @@
 # Project NeuroFly — Consolidated Product Roadmap
 
-**Version**: 1.0 · **Date**: 2026-09-22 · **Branch**: `product/consolidated-roadmap`
-**Status**: DRAFT — awaiting owner approval before execution begins.
+**Version**: 1.0 · **Date**: 2026-09-24 · **Release**: `v0.3.0`
+**Status**: APPROVED & DELIVERED — Phases 1 through 7 executed and delivered in Release v0.3.0.
 
 ---
 
@@ -212,7 +212,7 @@ Verdict: positive, null, or negative — reported honestly.
 **Role**: Environment engineer
 
 ```bash
-/home/avg-usr/Documents/ChatGPT/flybrain/.venv/bin/pip install "flygym==2.1.0"
+.venv/bin/pip install "flygym==2.1.0"
 ```
 
 Verify import and basic stepping:

@@ -7,12 +7,13 @@ learning or complete biological control.
 
 | Path | Purpose |
 |---|---|
-| `brainlab/` | Dataset download/normalization, pinned graph, neuron dynamics and server |
+| `neurofly/` | Canonical unified CLI entry point (`neurofly run`, `status`, `embodied`, etc.) |
+| `brainlab/` | Dataset download/normalization, pinned graph, neuron dynamics, server and plasticity |
 | `neurofly_body/` | Minimal physical-body adapter and reproducible run CLI |
 | `tests/` | Unit/integration tests; optional real-data/body tests are explicit |
 | `docs/EMBODIED_MVP.md` | MVP protocol, outputs and limitations |
 | `docs/receipts/` | Versioned evidence, not generated runtime storage |
-| `web/`, top-level arena/daemon modules | Preserved modular baseline and legacy dashboard |
+| `web/`, top-level arena/daemon modules | Preserved modular baseline and 3D web dashboard |
 | `connectome_data/`, `outputs/`, `runs/` | Ignored datasets and generated runs; not distributed as source |
 | `licenses/`, `NOTICE` | Third-party and data attribution |
 

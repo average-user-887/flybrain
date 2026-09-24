@@ -1,9 +1,7 @@
-# Full-connectome co-simulation plan: APPROVED 2026-09-21, NOT IMPLEMENTED
+# Full-connectome co-simulation plan: APPROVED 2026-09-21, IMPLEMENTED in v0.3.0
 
-Antigravity session 139759bc, written 2026-09-21 14:38; owner approved at 14:40 (server-side
-co-simulation on Ryzen + Three.js 3D articulated viewport). The session ran out of quota before any
-implementation. Project references beyond Shiu et al. 2024 and NeLy-EPFL/flygym, and all numeric
-targets, are unverified; see docs/CODEX_HANDOFF.md section 5. File links below are repository-relative.
+> **Implementation Note (v0.3.0)**: Server-side co-simulation (`neurofly_body`), FlyGym 2.1 / MuJoCo 3.9
+> integration, and the Three.js 3D dashboard viewport were implemented and delivered in Release v0.3.0.
 
 ---
 

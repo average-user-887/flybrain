@@ -12,13 +12,13 @@ audit receipts, withdrawn claims), that evidence is cited by reference.
 
 | Document | Date | Author | Why superseded |
 |---|---|---|---|
-| [`CLAUDE_HANDOFF.md`](../CLAUDE_HANDOFF.md) | Sep 19 | ChatGPT | Presents the modular controller as if it is the connectome. Overclaims (e.g. "100% operational whole-brain simulation") were [withdrawn](NEUROFLY_RETHINK.md) by a later audit. §3–7 architecture descriptions are still accurate for the modular controller. |
+| [`docs/archive/CLAUDE_HANDOFF.md`](archive/CLAUDE_HANDOFF.md) | Sep 19 | ChatGPT | Presents the modular controller as if it is the connectome. Overclaims (e.g. "100% operational whole-brain simulation") were [withdrawn](NEUROFLY_RETHINK.md) by a later audit. §3–7 architecture descriptions are still accurate for the modular controller. |
 | [`docs/OPEN_SOURCE_PLAN.md`](OPEN_SOURCE_PLAN.md) | Sep 19 | Claude | 5-phase plan partially executed (WP1–5). Phase 5 was never started. The WP5 causal-loop claim was [withdrawn](OPEN_SOURCE_PLAN.md#correction-2026-09-20-completed-v2-set). Open-source hygiene items are carried forward into Phase 5 of the roadmap. |
 | [`docs/NEUROFLY_RETHINK.md`](NEUROFLY_RETHINK.md) | Sep 19 | Claude | **The most honest document.** Its audit findings and decision record are fully incorporated into the roadmap's "Current State" section. Not superseded as evidence, only as a plan. |
-| [`docs/CLAUDE_IMMEDIATE_PLAN.md`](CLAUDE_IMMEDIATE_PLAN.md) | Sep 19 | Claude | 8 work packages with gates. WP1–4 completed. WP5 returned NULL. WP6–8 never started. The work package structure is preserved in Phase 4 of the roadmap; the ordering is revised based on the owner's approval of the FlyGym direction. |
-| [`docs/FULL_CONNECTOME_COSIM_PLAN.md`](FULL_CONNECTOME_COSIM_PLAN.md) | Sep 21 | Antigravity | **Owner-approved architecture.** Its 4-component structure (sensory ingress, DN bottleneck, articulated walking, 3D dashboard) is the backbone of Phases 2–3 in the roadmap. Its unverified reference projects have been fact-checked; see roadmap §Architecture. |
-| [`docs/CODEX_HANDOFF.md`](CODEX_HANDOFF.md) | Sep 21 | Claude (orchestrator) | Honest handoff. Its "recommended first slice" is incorporated into Phase 1–2 of the roadmap. Infrastructure details are operational records, not part of the product plan. |
-| [`docs/REPOSITORY_LAYOUT.md`](REPOSITORY_LAYOUT.md) | Sep 21 | Codex | References `docs/EMBODIED_MVP.md` which does not exist. Layout description is accurate; the missing MVP doc is replaced by the roadmap's Phase 2 acceptance criteria. |
+| [`docs/archive/CLAUDE_IMMEDIATE_PLAN.md`](archive/CLAUDE_IMMEDIATE_PLAN.md) | Sep 19 | Claude | 8 work packages with gates. WP1–4 completed. WP5 returned NULL. WP6–8 completed in v0.3.0. |
+| [`docs/FULL_CONNECTOME_COSIM_PLAN.md`](FULL_CONNECTOME_COSIM_PLAN.md) | Sep 21 | Antigravity | **Owner-approved architecture.** Its 4-component structure (sensory ingress, DN bottleneck, articulated walking, 3D dashboard) was implemented in v0.3.0. |
+| [`docs/archive/CODEX_HANDOFF.md`](archive/CODEX_HANDOFF.md) | Sep 21 | Claude (orchestrator) | Honest handoff. Infrastructure details are operational records, not part of the product plan. |
+| [`docs/REPOSITORY_LAYOUT.md`](REPOSITORY_LAYOUT.md) | Sep 21 | Codex | Cleaned repository layout. `docs/EMBODIED_MVP.md` is delivered and active. |
 
 ## Documents that remain authoritative
 

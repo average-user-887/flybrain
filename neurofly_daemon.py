@@ -1630,6 +1630,15 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = self.path.split("?")[0].rstrip("/")
 
+        if url == "" and "text/html" in self.headers.get("Accept", ""):
+            index_path = PROJECT_ROOT / "web" / "index.html"
+            if index_path.is_file():
+                self.send_response(200)
+                self._set_cors_headers("text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(index_path.read_bytes())
+                return
+
         if url in ("", "/status", "/api/status"):
             # Plain attribute reads only: status never waits for the simulation lock,
             # so a busy simulation cannot make the dashboard's reconnect probe time out.
@@ -1732,6 +1741,30 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                 slot.release()
 
         else:
+            rel_path = url.lstrip("/")
+            candidate = (PROJECT_ROOT / "web" / rel_path).resolve()
+            web_dir = (PROJECT_ROOT / "web").resolve()
+            if candidate.is_file() and str(candidate).startswith(str(web_dir)):
+                ext_map = {
+                    ".html": "text/html; charset=utf-8",
+                    ".js": "application/javascript; charset=utf-8",
+                    ".css": "text/css; charset=utf-8",
+                    ".json": "application/json; charset=utf-8",
+                    ".png": "image/png",
+                    ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg",
+                    ".svg": "image/svg+xml",
+                    ".ico": "image/x-icon",
+                    ".woff": "font/woff",
+                    ".woff2": "font/woff2",
+                }
+                content_type = ext_map.get(candidate.suffix.lower(), "application/octet-stream")
+                self.send_response(200)
+                self._set_cors_headers(content_type)
+                self.end_headers()
+                self.wfile.write(candidate.read_bytes())
+                return
+
             self.send_response(404)
             self._set_cors_headers()
             self.end_headers()
