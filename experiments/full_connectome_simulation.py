@@ -90,7 +90,7 @@ class UnifiedConnectomeBrain:
         )
 
         graph_path = self.graph_dir / "graph.npz"
-        self.brain = Brain(graph_path, dynamics="v3", seed=seed)
+        self.brain = Brain(graph_path, dynamics="v3")
         self.total_neurons = self.brain.n
 
         # 2. Setup WP6 Visual-Heading Plasticity Circuit (ER4d + ER2 -> EPG compass synapses)
@@ -99,7 +99,7 @@ class UnifiedConnectomeBrain:
             try:
                 vh_io = resolve_visual_heading_io(self.connectome_dir, self.graph_dir)
                 edges = vh_io.plastic_edges
-                weights = self.brain.weights[edges] if hasattr(self.brain, "weights") else np.zeros(len(edges))
+                weights = self.brain.weight[edges] if hasattr(self.brain, "weight") else np.zeros(len(edges))
                 self.plasticity_rule = VisualHeadingPlasticityRule(
                     edges=edges,
                     initial_weights=weights,
@@ -224,8 +224,8 @@ class UnifiedConnectomeBrain:
             # Rate estimation
             rates = (spikes / dt_s).astype(np.float32)
             rule_res = self.plasticity_rule.step(rates)
-            if hasattr(self.brain, "weights"):
-                self.brain.weights[self.plasticity_rule.edges] = self.plasticity_rule.weights
+            if hasattr(self.brain, "weight"):
+                self.brain.weight[self.plasticity_rule.edges] = self.plasticity_rule.weights
             wp6_metrics["mean_delta"] = float(np.mean(rule_res.get("delta", [0.0])))
             wp6_metrics["max_delta"] = float(np.max(np.abs(rule_res.get("delta", [0.0]))))
 
