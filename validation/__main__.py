@@ -28,7 +28,8 @@ def main(argv=None):
     if args.command == 'check':
         spec = harness.load_spec(args.spec)
         bounds = harness.load_bounds(spec)
-        missing = [c['bound'] for c in spec['physiology']['checks'] if c['bound'] not in bounds['bounds']]
+        missing = [c['bound'] for c in spec['physiology']['checks'] + spec['physiology'].get('reported', [])
+                   if c['bound'] not in bounds['bounds']]
         if missing:
             raise SystemExit(f'bounds missing: {missing}')
         print(json.dumps(dict(id=spec['id'], status=spec['status'], sha256=spec['_sha256'],
