@@ -74,6 +74,13 @@ def cmd_embodied(args: list[str]) -> int:
     return body_cli.main(args)
 
 
+def cmd_full_sim(args: list[str]) -> int:
+    """Run unified full-connectome multi-task simulation across paradigms."""
+    from experiments.full_connectome_simulation import main as sim_main
+    sys.argv = [sys.argv[0]] + args
+    return sim_main()
+
+
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
     matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
@@ -96,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
+    subparsers.add_parser("full-sim", help="Run unified life-long multi-task simulation across 14 paradigms")
     subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
@@ -110,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if cmd == "run":
         return cmd_run(rest)
+    elif cmd == "full-sim":
+        return cmd_full_sim(rest)
     elif cmd == "embodied":
         return cmd_embodied(rest)
     elif cmd == "download-data":
