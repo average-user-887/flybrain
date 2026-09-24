@@ -5754,6 +5754,7 @@ class ScientificHUD {
         const selBackend = document.getElementById('selectBackend');
         if (selBackend && pkt.identity?.backend && document.activeElement !== selBackend) {
             selBackend.value = pkt.identity.backend;
+            selBackend.style.color = isPlastic ? '#c084fc' : isConn ? '#22c55e' : '#38bdf8';
         }
 
         const badge = document.getElementById('controllerBadge');

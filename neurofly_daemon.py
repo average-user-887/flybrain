@@ -1865,7 +1865,7 @@ def run_daemon():
     parser.add_argument("--host", default="0.0.0.0", help="Host address to bind HTTP API (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=8769, help="Port to bind HTTP API (default: 8769)")
     parser.add_argument("--paradigm", default="multisensory-sandbox", help="Initial experimental paradigm")
-    parser.add_argument("--speed", type=float, default=10.0, help="Initial simulation speed multiplier (default: 10.0x)")
+    parser.add_argument("--speed", type=float, default=5.0, help="Initial simulation speed multiplier (default: 5.0x for real connectome)")
     parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
     parser.add_argument("--trial-seconds", type=float, default=60.0,
                         help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
@@ -1877,8 +1877,8 @@ def run_daemon():
         "controller backend", "Which controller drives the fly (provenance.BACKENDS). Graph backends need the "
         "prepared MaleCNS graph: --graph-dir or NEUROFLY_GRAPH_DIR=/path/to/malecns_v1.")
     backend_group.add_argument("--backend", choices=DAEMON_BACKENDS,
-                               default=os.environ.get("NEUROFLY_BACKEND") or "modular",
-                               help="Controller backend (env: NEUROFLY_BACKEND; default modular)")
+                               default=os.environ.get("NEUROFLY_BACKEND") or "connectome-fixed",
+                               help="Controller backend (env: NEUROFLY_BACKEND; default connectome-fixed)")
     backend_group.add_argument("--graph-dir", default=None,
                                help="Prepared graph directory (default: NEUROFLY_GRAPH_DIR, then "
                                     "<checkout>/outputs/brainlab/malecns_v1). Missing graph = startup error.")
