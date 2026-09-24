@@ -21,7 +21,7 @@ def cmd_run(args: list[str]) -> int:
     """Run the continuous neurofly daemon / simulation server."""
     import neurofly_daemon
     sys.argv = [sys.argv[0]] + args
-    neurofly_daemon.main()
+    neurofly_daemon.run_daemon()
     return 0
 
 
@@ -153,9 +153,13 @@ def main(argv: list[str] | None = None) -> int:
     elif cmd in ("-h", "--help"):
         parser.print_help()
         return 0
-    else:
-        # Default: if arguments look like daemon flags, forward to run
+    elif cmd.startswith("-"):
+        # Bare daemon flags (e.g. `neurofly --port 8769`) are forwarded to run
         return cmd_run(argv)
+    else:
+        print(f"neurofly: unknown command {cmd!r}", file=sys.stderr)
+        parser.print_help(sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
