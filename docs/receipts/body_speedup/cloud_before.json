@@ -1,0 +1,39 @@
+{
+  "schema": "neurofly.host-benchmark.v1",
+  "started_at": "2026-09-24T13:24:50+0000",
+  "args": {
+    "out": "/tmp/claude-0/before_2.json",
+    "stages": "body",
+    "brain_ms": 500.0,
+    "body_ms": 1000.0,
+    "daemon_s": 5.0,
+    "seed": 7,
+    "quick": false
+  },
+  "host": {
+    "hostname": "vm",
+    "platform": "Linux-6.18.44-fc-v37-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 4,
+    "git_sha": "3e031a10054c53e652358cead7f248280f699933",
+    "git_dirty": false,
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "ram_gib": 15.7,
+    "nvidia_smi": null,
+    "numpy_version": "2.5.3",
+    "numba_version": "0.67.0",
+    "mujoco_version": "3.9.0",
+    "flygym_version": null,
+    "cupy_version": null,
+    "numba_cuda_available": false
+  },
+  "stages": {
+    "body": {
+      "sim_s": 1.0,
+      "wall_s": 9.324,
+      "physics_dt_s": 0.0001,
+      "sim_s_per_wall_s": 0.1073
+    }
+  },
+  "finished_at": "2026-09-24T13:25:01+0000"
+}

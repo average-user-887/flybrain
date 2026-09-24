@@ -30,6 +30,7 @@ class FlyGymBody:
         physics_dt_s: float = 0.0001,
         warmup_s: float = 0.05,
         video_path: Path | None = None,
+        fast_loop: bool = True,
     ) -> None:
         if physics_dt_s <= 0 or warmup_s < 0:
             raise ValueError("physics_dt_s must be positive and warmup_s non-negative")
@@ -82,6 +83,15 @@ class FlyGymBody:
             preprogrammed_steps=self._preprogrammed_steps,
             output_dof_order=fly.get_actuated_jointdofs_order("position"),
         )
+        # Bit-identical, low-overhead replacement for the stock per-substep
+        # Python loop (see fast_controller.py); fast_loop=False keeps the stock path.
+        self._fast_loop = None
+        if fast_loop:
+            from .fast_controller import FastHybridLoop
+
+            self._fast_loop = FastHybridLoop(
+                self.sim, self.FLY_NAME, self.controller, self._preprogrammed_steps
+            )
         self.renderer = None
         if self._camera is not None:
             self.renderer = self.sim.set_renderer(
@@ -126,7 +136,13 @@ class FlyGymBody:
             raise ValueError("cpg_drive values cannot be negative")
         if substeps <= 0:
             raise ValueError("substeps must be positive")
+        fast_loop = self._fast_loop
         for _ in range(int(substeps)):
+            if fast_loop is not None:
+                fast_loop.substep(command)
+                if self.renderer is not None:
+                    self.sim.render_as_needed()
+                continue
             controller_obs = self._HybridControllerObservation.from_sim(
                 self.sim, self.FLY_NAME
             )
@@ -192,6 +208,7 @@ class FlyGymBody:
             "model": "FlyGym stock NeuroMechFly articulated locomotion model",
             "controller": "flygym_demo.complex_terrain.HybridTurningController",
             "physics_dt_s": self.physics_dt_s,
+            "controller_loop": "fast" if self._fast_loop is not None else "stock",
             "warmup_s": self._warmup_s,
             "joint_order": self._joint_names,
             "actuated_joint_order": self._actuated_joint_names,
