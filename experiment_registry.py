@@ -28,8 +28,8 @@ from typing import Dict, Optional
 import numpy as np
 
 from brainlab.brain import Brain, STATE_ARRAYS
-from brainlab.graph_identity import (LIF_DYNAMICS, GraphIdentity, GraphUnavailable,
-                                     synthetic_test_graph, verify_graph)
+from brainlab.graph_identity import (GraphIdentity, GraphUnavailable, active_dynamics,
+                                     active_dynamics_version, synthetic_test_graph, verify_graph)
 from provenance import (BACKENDS, GRAPH_BACKENDS, BackendError, RunManifest, atomic_write_bytes,
                         restore_rng, rng_state, source_revision)
 
@@ -65,6 +65,13 @@ def _derive_seed(assay: str, backend: str) -> int:
 # ---------------------------------------------------------------------------
 # Shared immutable graph
 # ---------------------------------------------------------------------------
+def default_registry_dir(output_dir: Path, dynamics: Optional[str] = None) -> Path:
+    """Per-dynamics registry root: checkpoints never cross dynamics versions,
+    so v1 brains stay in ``registry/`` and v2/v3 brains get their own root."""
+    version = dynamics or active_dynamics_version()
+    return Path(output_dir) / ('registry' if version == 'v1' else f'registry-{version}')
+
+
 class SharedGraph:
     """Read-only graph arrays plus verified identity, loaded once per process."""
 
@@ -89,6 +96,20 @@ class SharedGraph:
             raise GraphUnavailable('Graph changed on disk between verification and load')
         from brainlab.graph_identity import DN_CHANNELS
         return cls(arrays, identity, dict(DN_CHANNELS))
+
+    @classmethod
+    def load_for_dynamics(cls, graph_dir=None, connectome_dir=None, dynamics=None) -> 'SharedGraph':
+        """Load the real graph with the weights the dynamics version declares.
+
+        v3 is defined together with the v3 transmitter policy (aminergic
+        neurons carry no fast weight; docs/LIF_DYNAMICS_SPEC.md §4.3), applied
+        in memory with its own graph_sha256.  v1/v2 use the pinned weights.
+        """
+        shared = cls.load(graph_dir, connectome_dir)
+        if (dynamics or active_dynamics_version()) == 'v3':
+            from brainlab.transmitter_policy import apply_to_shared
+            shared, _ = apply_to_shared(shared, connectome_dir=connectome_dir)
+        return shared
 
     @classmethod
     def synthetic(cls, *, allow_synthetic: bool = False, **kwargs) -> 'SharedGraph':
@@ -310,7 +331,7 @@ class ExperimentRegistry:
         seed = _derive_seed(assay, backend)
         manifest = RunManifest.create(
             backend=backend, assay=assay, instance_id=instance_id, seed=seed,
-            graph=self.shared.identity.to_dict(), dynamics=dict(LIF_DYNAMICS),
+            graph=self.shared.identity.to_dict(), dynamics=active_dynamics(),
             learned_parameter_locations=self._learned_locations(backend, assay, instance_id),
             rng=np.random.default_rng(seed), test_mode=self.test_mode,
             source=source_revision(files=BACKENDS[backend].source_files))
