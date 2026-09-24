@@ -8,11 +8,16 @@ with the declared per-sign PSP-preserving calibration.  Select per instance
 with ``Brain(..., dynamics='v3')`` or process-wide with
 ``NEUROFLY_LIF_DYNAMICS=v3``.
 
-``backend='cuda'`` (or ``NEUROFLY_BRAIN_BACKEND=cuda``) runs v3 on an NVIDIA GPU
-through ``brainlab.cuda_engine``; the default ``'cpu'`` is the numba reference.  They are not interchangeable and their
+``backend`` selects where v3 runs: ``'cuda'`` (NVIDIA GPU via
+``brainlab.cuda_engine``), ``'cpu'`` (the numba reference kernel) or ``'auto'``,
+the default, which uses the GPU for v3 when a CUDA device is usable and the CPU
+otherwise.  ``NEUROFLY_BRAIN_BACKEND`` overrides the default process-wide.  The
+GPU matches the CPU within the model's own float-rounding sensitivity
+(``scripts/gpu_parity.py``); v1 and v2 always run on the CPU.  They are not interchangeable and their
 checkpoints are mutually refused: v1's synaptic state array has a different
 shape, and every snapshot carries its dynamics version explicitly.
 """
+import logging
 import math
 import os
 import time
@@ -21,6 +26,9 @@ from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
                      advance_v3)
 from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
 
+
+log = logging.getLogger('brainlab')
+_announced = set()
 
 GRAPH_ARRAYS = (('ptr', np.int64), ('post', np.int32), ('weight', np.float32), ('ids', np.int64))
 # Every mutable array of the LIF state; together with the scalars below this is
@@ -45,6 +53,7 @@ class Brain:
         quantum follows it, because the v3 calibration DERIVES that quantum
         from the driving force at rest: ``g_inh = 1/(V_rest - E_inh)``.
         """
+        self._gpu = None
         self.dynamics = dynamics or active_dynamics_version()
         if self.dynamics not in DYNAMICS_VERSIONS:
             raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
@@ -90,8 +99,14 @@ class Brain:
         self.nactive = np.zeros(1, dtype=np.int32)
         self.total_spikes = 0
         self.sim_ms = 0.
-        self.backend = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'cpu')
-        self._gpu = None
+        requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
+        if requested == 'auto':
+            from .cuda_engine import cuda_available
+            requested = 'cuda' if self.dynamics == 'v3' and cuda_available() else 'cpu'
+        self.backend = requested
+        if self.backend not in _announced:
+            _announced.add(self.backend)
+            log.info('brainlab: LIF %s running on the %s backend', self.dynamics, self.backend.upper())
         if self.backend == 'cuda':
             if self.dynamics != 'v3':
                 raise ValueError('The CUDA backend implements LIF dynamics v3 only')
@@ -102,11 +117,43 @@ class Brain:
                                     delay_slots=self.queue.shape[0])
             self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
                                    self.queue_count, self.counts, self.active_flag)
-            # Weights live on the GPU from here on: refuse silent in-place edits.
-            self.weight = self.weight.view()
-            self.weight.setflags(write=False)
+            self._refresh_weight_view()
         elif self.backend != 'cpu':
             raise ValueError(f"Unknown brain backend {self.backend!r}; choose 'cpu' or 'cuda'")
+
+    @property
+    def weight(self):
+        """Edge weights.  Read-only on the CUDA backend: the device copy is
+        authoritative, so change weights by assigning a new array or with
+        ``set_edge_weights`` / ``update_weights`` rather than editing in place."""
+        return self._weight_view if self._gpu is not None else self._weight
+
+    @weight.setter
+    def weight(self, value):
+        self._weight = value
+        if self._gpu is not None:
+            self._gpu.set_weights(value)
+            self._refresh_weight_view()
+
+    def _refresh_weight_view(self):
+        self._weight_view = self._weight.view()
+        self._weight_view.setflags(write=False)
+
+    def set_edge_weights(self, edges, values):
+        """Write ``values`` into ``weight[edges]`` on the host and, if active, the GPU."""
+        if not self._weight.flags.writeable:
+            self._weight = self._weight.copy()
+            if self._gpu is not None:
+                self._refresh_weight_view()
+        self._weight[edges] = values
+        self.update_weights(edges)
+
+    def update_weights(self, edges):
+        """Push ``weight[edges]`` to the GPU after the caller edited the array it
+        assigned to ``weight`` (a no-op on the CPU backend)."""
+        if self._gpu is not None:
+            edges = np.asarray(edges, dtype=np.int64)
+            self._gpu.update_edges(edges, self._weight[edges])
 
     def graph_arrays(self):
         return {name: getattr(self, name) for name, _ in GRAPH_ARRAYS}

@@ -73,3 +73,45 @@ def test_cuda_refuses_other_dynamics_and_weight_edits():
     with pytest.raises(ValueError):
         brain.weight[0] = 1.0
     arrays['weight'][0] = arrays['weight'][0]  # the shared graph itself stays writable
+
+
+def test_plastic_edge_updates_match_cpu():
+    arrays = _graph(seed=9)
+    edges = np.arange(0, len(arrays['post']), 7)
+    new = (arrays['weight'][edges] * 1.5).astype(np.float32)
+    results = []
+    for backend in ('cpu', 'cuda'):
+        brain = Brain(arrays=dict(arrays, weight=arrays['weight'].copy()), dynamics='v3', backend=backend)
+        _run(brain, ms=4.0)
+        brain.set_edge_weights(edges, new)
+        results.append(_run(brain, ms=8.0))
+    assert results[0].sum() > 0
+    assert np.array_equal(results[0], results[1])
+
+
+def test_weight_assignment_and_shared_device_graph():
+    arrays = _graph(seed=11)
+    for value in arrays.values():
+        value.flags.writeable = False            # like SharedGraph
+    a = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    b = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    assert a._gpu.d_post is b._gpu.d_post      # one device copy of the graph
+    assert a._gpu.d_edge_inc is b._gpu.d_edge_inc
+    working = arrays['weight'].copy()
+    working[:50] *= 2.0
+    b.weight = working                           # registry-style materialize
+    assert a._gpu.d_edge_inc is not b._gpu.d_edge_inc
+    ref = Brain(arrays=dict(arrays, weight=working), dynamics='v3', backend='cpu')
+    assert np.array_equal(_run(b), _run(ref))
+    b.update_weights(np.arange(10))              # in-place edit path of the registry
+    working[:10] = 0.0
+    b.update_weights(np.arange(10))
+    ref.set_edge_weights(np.arange(10), np.zeros(10, dtype=np.float32))
+    assert np.array_equal(_run(b), _run(ref))
+
+
+def test_auto_backend_selects_gpu_for_v3_only(monkeypatch):
+    monkeypatch.setenv('NEUROFLY_BRAIN_BACKEND', 'auto')
+    arrays = _graph()
+    assert Brain(arrays=arrays, dynamics='v3').backend == 'cuda'
+    assert Brain(arrays=arrays, dynamics='v1').backend == 'cpu'

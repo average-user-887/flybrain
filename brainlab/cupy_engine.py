@@ -7,7 +7,7 @@ implementations expose the same state class interface, and
 """
 import numpy as np
 
-from .cuda_engine import FIXED_SCALE, THREADS_PER_BLOCK, edge_increments
+from .cuda_engine import FIXED_SCALE, THREADS_PER_BLOCK, cached_device_array, edge_increments
 from .engine import (DELAY_MS, E_EXC_MV, REFRACTORY_MS, TAU_M_MS, TAU_SYN_MS,
                      V_RESET_MV, V_THRESHOLD_MV, V_REST_MV)
 
@@ -130,14 +130,35 @@ class CupyV3State:
         self.delay_slots = int(delay_slots)
         self.kernel = cp.RawKernel(_SOURCE, 'advance_v3', options=('-std=c++17',),
                                    enable_cooperative_groups=True)
-        self.d_ptr = cp.asarray(ptr)
-        self.d_post = cp.asarray(post)
-        self.d_edge_inc = cp.asarray(edge_increments(weight, g_unit_exc, g_unit_inh))
+        self.g_unit_exc = float(g_unit_exc)
+        self.g_unit_inh = float(g_unit_inh)
+        self.d_ptr = cached_device_array('cupy', ptr, cp.asarray)
+        self.d_post = cached_device_array('cupy', post, cp.asarray)
+        self.set_weights(weight)
         self.d_acc = cp.zeros((2, self.n), dtype=cp.uint64)
         self.d_spiked = cp.zeros(self.n, dtype=cp.uint8)
         self.d_drive = cp.zeros(self.n, dtype=cp.float32)
         self._blocks = blocks
         self._last_drive = None
+
+    def _increments(self, weight):
+        return edge_increments(weight, self.g_unit_exc, self.g_unit_inh)
+
+    def set_weights(self, weight):
+        """(Re)upload all edge weights; shared read-only weights share one device copy."""
+        self.d_edge_inc = cached_device_array('cupy', weight, self.cp.asarray, self._increments,
+                                              tag=f'inc {self.g_unit_exc!r} {self.g_unit_inh!r}')
+        self._edge_inc_private = weight.flags.writeable
+
+    def update_edges(self, edges, values):
+        """Rewrite the increments of ``edges`` (e.g. plastic synapses) on the device."""
+        cp = self.cp
+        if not self._edge_inc_private:   # never write into a shared device copy
+            self.d_edge_inc = self.d_edge_inc.copy()
+            self._edge_inc_private = True
+        if len(edges):
+            inc = self._increments(np.asarray(values, dtype=np.float32))
+            self.d_edge_inc[cp.asarray(np.asarray(edges, dtype=np.int64))] = cp.asarray(inc)
 
     def upload_state(self, v, g, refractory, queue, queue_count, counts, active_flag):
         cp = self.cp

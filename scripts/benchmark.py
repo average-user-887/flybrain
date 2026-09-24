@@ -15,7 +15,8 @@ Stages (each is skipped, with the reason recorded, when its inputs are missing):
   transmitter policy, if the dataset is present.
 * ``body``            -- FlyGym/MuJoCo physics alone (FlyGym 2.1.0 required).
 * ``daemon-<backend>`` -- ``ContinuousExperimentRunner.step_once`` for the
-  modular controller and, with the dataset, the connectome backend.
+  modular controller and, with the dataset, the connectome backend on the CPU
+  brain (``daemon-connectome``) and the GPU brain (``daemon-connectome-cuda``).
 
 The headline number of every stage is ``sim_s_per_wall_s`` (1.0 = real time).
 
@@ -215,9 +216,25 @@ def stage_body(args) -> dict:
         body.close()
 
 
-def stage_daemon(args, backend: str) -> dict:
+def stage_daemon(args, backend: str, brain_backend: str = 'cpu') -> dict:
     import tempfile
     from neurofly_daemon import ContinuousExperimentRunner
+    if brain_backend == 'cuda':
+        from brainlab.cuda_engine import cuda_available
+        if not cuda_available():
+            return {'skipped': 'no CUDA device visible'}
+    previous = os.environ.get('NEUROFLY_BRAIN_BACKEND')
+    os.environ['NEUROFLY_BRAIN_BACKEND'] = brain_backend
+    try:
+        return _stage_daemon(args, backend, brain_backend, ContinuousExperimentRunner, tempfile)
+    finally:
+        if previous is None:
+            os.environ.pop('NEUROFLY_BRAIN_BACKEND', None)
+        else:
+            os.environ['NEUROFLY_BRAIN_BACKEND'] = previous
+
+
+def _stage_daemon(args, backend, brain_backend, ContinuousExperimentRunner, tempfile) -> dict:
     with tempfile.TemporaryDirectory() as out_dir:
         try:
             clock = time.perf_counter()
@@ -235,7 +252,7 @@ def stage_daemon(args, backend: str) -> dict:
                 runner.step_once(publish=False)
             wall = time.perf_counter() - wall
         sim_s = steps * runner.dt
-        return dict(backend=backend, paradigm='open-arena', dt_s=runner.dt, sim_s=round(sim_s, 3),
+        return dict(backend=backend, brain_backend=brain_backend, paradigm='open-arena', dt_s=runner.dt, sim_s=round(sim_s, 3),
                     wall_s=round(wall, 3), init_s=round(init_s, 2),
                     sim_s_per_wall_s=round(sim_s / wall, 4))
 
@@ -244,7 +261,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--out', type=Path, help='write the JSON receipt here')
     parser.add_argument('--stages', default='brain-synthetic,brain-synthetic-cuda,brain-malecns,brain-malecns-cuda,'
-                                'body,daemon-modular,daemon-connectome',
+                                'body,daemon-modular,daemon-connectome,daemon-connectome-cuda',
                         help='comma-separated stages to run')
     parser.add_argument('--brain-ms', type=float, default=500.0, help='simulated ms per brain stage')
     parser.add_argument('--body-ms', type=float, default=1000.0, help='simulated ms for the body stage')
@@ -263,6 +280,7 @@ def main(argv=None) -> int:
         'body': stage_body,
         'daemon-modular': lambda a: stage_daemon(a, 'modular'),
         'daemon-connectome': lambda a: stage_daemon(a, 'connectome-fixed'),
+        'daemon-connectome-cuda': lambda a: stage_daemon(a, 'connectome-fixed', 'cuda'),
     }
     receipt = {'schema': 'neurofly.host-benchmark.v1', 'started_at': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
                'args': {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},

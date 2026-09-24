@@ -245,8 +245,9 @@ class UnifiedConnectomeBrain:
                 full_counts=spikes,
             )
             if hasattr(self.brain, "weight"):
-                self.brain.weight[self.plasticity_rule.edges] = (
-                    self.plasticity_rule.initial_weights + self.plasticity_delta
+                self.brain.set_edge_weights(
+                    self.plasticity_rule.edges,
+                    self.plasticity_rule.initial_weights + self.plasticity_delta,
                 )
             wp6_metrics["mean_delta"] = float(np.mean(self.plasticity_delta))
             wp6_metrics["max_delta"] = float(np.max(self.plasticity_delta))
