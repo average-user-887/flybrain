@@ -1,12 +1,16 @@
 """Direct current input and spike output; no sensory or motor policy.
 
 The dynamics are explicitly versioned (``docs/LIF_DYNAMICS_SPEC.md``).  ``v1``
-is the current-based proxy every WP1-WP5 result was produced under and stays
-the default; ``v2`` is the conductance-based model with reversal potentials and
+is the current-based proxy every WP1-WP5 result was produced under; ``v2`` is the conductance-based model with reversal potentials and
 one conductance quantum for both signs; ``v3`` is the same conductance model
-with the declared per-sign PSP-preserving calibration.  Select per instance
-with ``Brain(..., dynamics='v3')`` or process-wide with
-``NEUROFLY_LIF_DYNAMICS=v3``.
+with the declared per-sign PSP-preserving calibration and is the default.
+Select another per instance with ``Brain(..., dynamics='v1')`` or process-wide
+with ``NEUROFLY_LIF_DYNAMICS=v1``.
+
+v3 is defined together with its transmitter policy (aminergic neurons carry no
+fast weight).  A v3 Brain loaded from a graph *path* applies it when the
+MaleCNS transmitter table matches the graph; callers passing ``arrays`` supply
+v3 weights themselves (``SharedGraph.load_for_dynamics``).
 
 ``backend`` selects where v3 runs: ``'cuda'`` (NVIDIA GPU via
 ``brainlab.cuda_engine``), ``'cpu'`` (the numba reference kernel) or ``'auto'``,
@@ -27,6 +31,7 @@ from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
 from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
 
 
+MALECNS_NEURONS = 166_700
 log = logging.getLogger('brainlab')
 _announced = set()
 
@@ -38,6 +43,30 @@ STATE_ARRAYS = ('v', 'g', 'refractory', 'queue', 'queue_count', 'counts',
 STATE_SCALARS = ('cursor', 'total_spikes', 'sim_ms')
 
 
+def _v3_policy_weight(arrays: dict) -> np.ndarray:
+    """The v3 fast weights for a graph loaded from a path.
+
+    Applies the declared v3 transmitter policy when the MaleCNS transmitter
+    table matches the graph's neuron count.  Graphs without one (synthetic
+    test graphs) keep their weights; the real graph without its table is
+    refused rather than silently run on v1 weights.
+    """
+    from .graph_identity import GraphUnavailable
+    from .transmitter_policy import apply_policy, load_transmitters
+    n = len(arrays['ids'])
+    try:
+        labels = load_transmitters()
+    except (FileNotFoundError, OSError, GraphUnavailable, ImportError):
+        labels = None
+    if labels is not None and len(labels) == n:
+        weight, _ = apply_policy(arrays['ptr'], arrays['post'], arrays['weight'], labels)
+        return weight
+    if n == MALECNS_NEURONS:
+        raise ValueError('v3 needs the MaleCNS transmitter table (connectome_data/.../neurons.feather) '
+                         'to apply its transmitter policy; pass dynamics="v1" to run the pinned weights')
+    return arrays['weight']
+
+
 class Brain:
     def __init__(self, path=None, *, arrays=None, validate=True, dynamics=None, e_inh_mV=None,
                  backend=None):
@@ -46,7 +75,7 @@ class Brain:
         ``arrays`` lets several instances share one immutable graph; pass
         ``validate=False`` only for arrays already validated by another Brain.
         ``dynamics`` selects the declared LIF version ('v1', 'v2' or 'v3');
-        the default comes from ``NEUROFLY_LIF_DYNAMICS`` and is 'v1'.
+        the default comes from ``NEUROFLY_LIF_DYNAMICS`` and is 'v3'.
         ``e_inh_mV`` overrides the inhibitory reversal potential and exists
         only for the declared sensitivity arms of
         ``docs/LIF_DYNAMICS_SPEC.md``.  Under v3 the inhibitory conductance
@@ -71,6 +100,8 @@ class Brain:
         if arrays is None:
             with np.load(path, allow_pickle=False) as graph:
                 arrays = {name: graph[name] for name, _ in GRAPH_ARRAYS}
+            if self.dynamics == 'v3':
+                arrays['weight'] = _v3_policy_weight(arrays)
         for name, dtype in GRAPH_ARRAYS:
             value = arrays[name]
             if value.ndim != 1 or value.dtype != dtype or not value.flags.c_contiguous:

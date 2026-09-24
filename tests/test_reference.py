@@ -15,7 +15,7 @@ def test_kernel_against_brian2_with_refractory_inputs(tmp_path, cadence_ms):
       post=post, weight=w, ids=np.arange(n,dtype=np.int64), retina=np.array([],dtype=np.int32),
       uv=np.empty((0,2),dtype=np.float32), lamina=np.array([0,3],dtype=np.int32),
       sugar=np.array([],dtype=np.int32), superclass=np.array(['test']*n))
-    brain = Brain(path)
+    brain = Brain(path, dynamics='v1')  # the oracle encodes the v1 equations
     neurons = b2.NeuronGroup(n, '''
       dv/dt = (-52*mV - v + drive + g)/(20*ms) : volt (unless refractory)
       dg/dt = -g/(5*ms) : volt (unless refractory)

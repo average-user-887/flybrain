@@ -40,7 +40,7 @@ def main():
     report = dict(host=platform.node(), platform=platform.platform(), python=platform.python_version(),
                   started_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), rss_mib_start=rss_mib())
     clock = time.perf_counter()
-    shared = SharedGraph.load()
+    shared = SharedGraph.load_for_dynamics()
     report['graph_verify_and_load_s'] = time.perf_counter() - clock
     report['rss_mib_after_graph_load'] = rss_mib()
     report['identity'] = shared.identity.to_dict()

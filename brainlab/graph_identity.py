@@ -197,14 +197,14 @@ LIF_DYNAMICS_V3 = {
 
 DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
-DEFAULT_DYNAMICS = 'v1'
+DEFAULT_DYNAMICS = 'v3'
 
 
 def active_dynamics_version() -> str:
     """The process-wide default dynamics version (``NEUROFLY_LIF_DYNAMICS``).
 
-    Defaults to ``v1`` so that every pre-existing script, test and checkpoint
-    keeps the meaning it had.  A dynamics change is never implicit.
+    Defaults to ``v3`` (owner decision, 2026-09-24).  ``v1`` and ``v2`` stay
+    selectable here or per instance; their checkpoints are refused by v3 brains.
     """
     version = os.environ.get(DYNAMICS_ENV) or DEFAULT_DYNAMICS
     if version not in DYNAMICS_VERSIONS:

@@ -72,10 +72,13 @@ def test_dynamics_pins_differ_and_are_stable():
         dynamics_pin('v4')
 
 
-def test_default_is_v1_so_existing_results_keep_their_meaning(monkeypatch):
+def test_default_is_v3_and_v1_stays_selectable(monkeypatch):
     monkeypatch.delenv(DYNAMICS_ENV, raising=False)
-    assert active_dynamics_version() == 'v1'
-    assert LIF_DYNAMICS['dynamics_version'] == 'v1'
+    assert active_dynamics_version() == 'v3'
+    assert LIF_DYNAMICS['dynamics_version'] == 'v3'
+    assert Brain(arrays=graph([1.0])).dynamics == 'v3'
+    assert Brain(arrays=graph([1.0]), dynamics='v1').dynamics == 'v1'
+    monkeypatch.setenv(DYNAMICS_ENV, 'v1')
     assert Brain(arrays=graph([1.0])).dynamics == 'v1'
 
 
@@ -204,8 +207,8 @@ def test_cosim_server_identity_names_the_dynamics_version(tmp_path):
     from brainlab.cosim_server import ConnectomeServer
     server = ConnectomeServer(graph_dir=tmp_path, allow_synthetic=True)
     fields = server.identity_fields()
-    assert fields['lif_dynamics_version'] == server.brain.dynamics == 'v1'
-    assert fields['lif_dynamics_pin'] == dynamics_pin('v1')
+    assert fields['lif_dynamics_version'] == server.brain.dynamics == 'v3'
+    assert fields['lif_dynamics_pin'] == dynamics_pin('v3')
     server.reset()                      # must work for either g shape
     assert not server.brain.g.any()
 
