@@ -95,19 +95,23 @@ class UnifiedConnectomeBrain:
 
         # 2. Setup WP6 Visual-Heading Plasticity Circuit (ER4d + ER2 -> EPG compass synapses)
         self.plasticity_rule: Optional[VisualHeadingPlasticityRule] = None
+        self.plasticity_delta: Optional[np.ndarray] = None
+        self.plastic_edge_pre: Optional[np.ndarray] = None
+        self.plastic_edge_post: Optional[np.ndarray] = None
+
         if self.enable_plasticity:
             try:
-                vh_io = resolve_visual_heading_io(self.connectome_dir, self.graph_dir)
-                edges = vh_io.plastic_edges
-                weights = self.brain.weight[edges] if hasattr(self.brain, "weight") else np.zeros(len(edges))
-                self.plasticity_rule = VisualHeadingPlasticityRule(
-                    edges=edges,
-                    initial_weights=weights,
-                    el_nodes=vh_io.el_nodes,
-                    pre_nodes=vh_io.er_nodes,
-                    post_nodes=vh_io.epg_nodes,
+                self.plasticity_rule = VisualHeadingPlasticityRule.from_connectome(
+                    graph_dir=self.graph_dir,
+                    connectome_dir=self.connectome_dir,
+                    dt=0.02,
                 )
-                print(f"[UnifiedBrain] WP6 Plasticity Active: {len(edges):,} ER->EPG synapses (depression-only STDP).", flush=True)
+                self.plasticity_delta = np.zeros(len(self.plasticity_rule.edges), dtype=np.float32)
+                with np.load(graph_path, allow_pickle=False) as g:
+                    ptr, post = g["ptr"], g["post"]
+                    self.plastic_edge_pre = (np.searchsorted(ptr, self.plasticity_rule.edges, side="right") - 1).astype(np.int64)
+                    self.plastic_edge_post = post[self.plasticity_rule.edges].astype(np.int64)
+                print(f"[UnifiedBrain] WP6 Plasticity Active: {len(self.plasticity_rule.edges):,} ER->EPG synapses (depression-only STDP).", flush=True)
             except Exception as e:
                 print(f"[UnifiedBrain] WP6 Plasticity circuit initialization warning: {e}", flush=True)
 
@@ -231,14 +235,21 @@ class UnifiedConnectomeBrain:
 
         # 3. Apply WP6 Synaptic Plasticity update (if active)
         wp6_metrics = {"mean_delta": 0.0, "max_delta": 0.0}
-        if self.plasticity_rule is not None:
-            # Rate estimation
-            rates = (spikes / dt_s).astype(np.float32)
-            rule_res = self.plasticity_rule.step(rates)
+        if self.plasticity_rule is not None and self.plasticity_delta is not None and self.plastic_edge_pre is not None:
+            pre_counts = spikes[self.plastic_edge_pre]
+            post_counts = spikes[self.plastic_edge_post]
+            self.plasticity_rule.update(
+                self.plasticity_delta,
+                pre_counts=pre_counts,
+                post_counts=post_counts,
+                full_counts=spikes,
+            )
             if hasattr(self.brain, "weight"):
-                self.brain.weight[self.plasticity_rule.edges] = self.plasticity_rule.weights
-            wp6_metrics["mean_delta"] = float(np.mean(rule_res.get("delta", [0.0])))
-            wp6_metrics["max_delta"] = float(np.max(np.abs(rule_res.get("delta", [0.0]))))
+                self.brain.weight[self.plasticity_rule.edges] = (
+                    self.plasticity_rule.initial_weights + self.plasticity_delta
+                )
+            wp6_metrics["mean_delta"] = float(np.mean(self.plasticity_delta))
+            wp6_metrics["max_delta"] = float(np.max(self.plasticity_delta))
 
         # 4. Decode real descending motor signals
         rate_dna02_l = float(spikes[self.dna02_l] / dt_s)
