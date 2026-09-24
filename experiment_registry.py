@@ -168,6 +168,11 @@ class GraphInstance:
         self.manifest = manifest
         self.rng = np.random.default_rng(seed)
         self.brain = Brain(arrays=self.shared.arrays, validate=False)
+        identity = self.shared.identity
+        if (self.brain.dynamics == 'v3' and not identity.synthetic
+                and 'v3-modulatory-only' not in identity.dataset):
+            raise BackendError('v3 brains need the v3 transmitter-policy weights; load the graph with '
+                               'SharedGraph.load_for_dynamics() (or select v1 explicitly)')
         self.step_index = 0
         self.world_state: dict = {}
         self.checkpoint_version = 0
