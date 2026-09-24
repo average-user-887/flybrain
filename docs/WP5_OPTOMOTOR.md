@@ -2,9 +2,10 @@
 
 > **Status on 2026-09-24:** there is **no valid optomotor result on the current
 > engine.** v1 was POSITIVE, but as an engine artefact (§1–§10). v2 was NULL (§11).
-> The preregistered v3 confirmatory set has **not** been run; its only v3 data so far
-> is one exploratory run per direction (`receipts/lif_dynamics_v3.json`, probe C).
-> Running it is the ROADMAP P1 gate. See `receipts/README.md`.
+> The first preregistered v3 confirmatory run, through the validation harness
+> (`validation/specs/optomotor_v3.json`), **FAILED** on 2026-09-24: behaviour passed
+> 7/7 gates, physiology failed the HS spike ceiling (`receipts/validation/optomotor-yaw-v3-1.md`).
+> A rerun under `optomotor_v3_2.json` is pending; it is the ROADMAP P1 gate.
 
 Run of 19 September 2026 on the pinned MaleCNS v1.0 graph
 (`graph_sha256 4b2f87cc…091d01`, 166,700 neurons, 25,582,938 edges), backend

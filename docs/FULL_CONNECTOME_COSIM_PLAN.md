@@ -6,6 +6,10 @@
 > **Status on 2026-09-24:** "implemented" means the software exists and runs. No embodied connectome
 > run has a committed receipt, and no paradigm has been tested on v3. See `docs/CAPABILITY_MATRIX.md`
 > and `docs/receipts/README.md`.
+>
+> **Also stale below:** the reference host is a Ryzen 5 5600X (12 threads, 31 GiB) with a
+> GTX 1660 Ti, not a Ryzen 3900X / 128 GB (`docs/receipts/ryzen/bench-ryzen-1f4a58a.json`).
+> In-browser WebGPU (Option B) is cut by `docs/ROADMAP.md`. Measured speeds are in the README.
 
 ---
 
