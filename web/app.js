@@ -3719,12 +3719,14 @@ class DaemonBridgeClient {
 
     scheduleReconnect() {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.replayMode) return;   // a recording is playing; exitReplay() reconnects
         this.reconnectTimer = setTimeout(() => this.initConnection(false), this.reconnectDelayMs);
         this.reconnectDelayMs = Math.min(30000, Math.round(this.reconnectDelayMs * 1.5));
     }
 
     async initConnection(force = false) {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.replayMode) return;
         if (this.probing && !force) return;
         this.probing = true;
         if (force) this.reconnectDelayMs = 4000;
@@ -3789,6 +3791,7 @@ class DaemonBridgeClient {
     }
 
     onDaemonDisconnected(reason = '') {
+        if (this.replayMode) return;
         this.connected = false;
         this.readOnly = false;
         this.disconnectReason = reason;
@@ -3819,6 +3822,10 @@ class DaemonBridgeClient {
     /** Data-age indicator, achieved speed and the LIVE / STALE pill state (4 Hz). */
     updateFreshness() {
         const ageEl = document.getElementById('statDataAge');
+        if (this.replayMode) {
+            if (ageEl) { ageEl.textContent = 'replay'; ageEl.style.color = '#c084fc'; }
+            return;
+        }
         const age = this.lastValidDataTime ? (performance.now() - this.lastValidDataTime) / 1000 : null;
         if (ageEl) {
             ageEl.textContent = age === null ? '--' : `${age < 10 ? age.toFixed(1) : Math.round(age)}s${this.connected ? '' : ' (frozen)'}`;
@@ -3988,7 +3995,7 @@ class DaemonBridgeClient {
             // Export one measured row per distinct daemon tick. No synthetic FPS samples.
             if (this.lastRecordedSegment !== segment || this.lastRecordedStep !== pkt.step) {
                 if (this.arena.telemetryBuffer[0]?.source === 'local_preview') this.arena.telemetryBuffer = [];
-                this.arena.telemetryBuffer.push({source:'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
+                this.arena.telemetryBuffer.push({source:pkt.timing?.replay ? 'recording' : 'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
                     controller_run_id:pkt.identity?.run_id || '', instance_id:pkt.identity?.instance_id || '',
                     backend:pkt.identity?.backend || '', synthetic:!!pkt.identity?.synthetic,
                     motor_source:pkt.motor?.motor_source || '', assists:!!pkt.motor?.motor_assists_enabled,
@@ -4133,6 +4140,49 @@ class DaemonBridgeClient {
                 p.totalEnergy = num(m.total_energy_atp, p.totalEnergy);
             }
         }
+        // Per-region activity and spike raster panel (web/replay.js), live and replay alike.
+        window.neuroflyActivityPanel?.update(pkt);
+    }
+
+    /**
+     * Stop the live stream and let a recording drive the same panels (web/replay.js).
+     * Frames then enter through handleDaemonPacket exactly like SSE frames.
+     */
+    enterReplay(label) {
+        this.replayMode = true;
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.eventSource) {
+            this.eventSource.onerror = null;
+            this.eventSource.onmessage = null;
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.connected = false;
+        this.resetReplayView();
+        if (this.statusPill) {
+            this.statusPill.textContent = `▶ REPLAY · ${label}`;
+            this.statusPill.style.background = 'rgba(168, 85, 247, 0.2)';
+            this.statusPill.style.border = '1px solid #a855f7';
+            this.statusPill.style.color = '#d8b4fe';
+            this.statusPill.title = 'Playing a recorded run at its recorded simulation time. Nothing is computed live; exit the replay to reconnect to the daemon.';
+        }
+    }
+
+    /** Forget ordering state so a seek (including backwards) applies the next frame. */
+    resetReplayView() {
+        this.lastOrderedPacket = null;
+        this.lastSwitchAck = null;
+        this.lastTrailStep = -1;
+        this.arena.remoteSegment = null;
+        if (this.arena.fly) this.arena.fly.trail = [];
+    }
+
+    exitReplay() {
+        if (!this.replayMode) return;
+        this.replayMode = false;
+        this.resetReplayView();
+        this.arena.remoteDriven = false;
+        this.initConnection(true);
     }
 
     /** Marks the daemon as read-only (it runs with --public and refuses /api/command). */
@@ -4833,7 +4883,9 @@ class ScientificHUD {
         const selSpeed = document.getElementById('selectSpeed');
         if (selSpeed) selSpeed.value = String(this.simSpeed);
 
-        if (this.daemonBridge && this.daemonBridge.connected) {
+        if (this.daemonBridge?.replayMode) {
+            window.neuroflyReplay?.setSpeed(this.simSpeed);
+        } else if (this.daemonBridge && this.daemonBridge.connected) {
             this.daemonBridge.sendCommand('set_speed', { speed: this.simSpeed });
         }
     }
@@ -4850,6 +4902,11 @@ class ScientificHUD {
     }
 
     selectParadigm(pid) {
+        if (this.daemonBridge?.replayMode) {
+            const label = document.getElementById('arenaRunState');
+            if (label) label.textContent = 'Replaying a recording: exit the replay to switch assays.';
+            return;
+        }
         if (this.daemonBridge?.connected || this.arena.remoteDriven || this.arena.awaitingDaemon) {
             return this.daemonBridge?.requestParadigmSwitch(pid);
         }
@@ -6365,6 +6422,10 @@ function startNeuroflyApp() {
     const btnPause = document.getElementById('btnPauseToggle');
     if (btnPause) {
         btnPause.addEventListener('click', () => {
+            if (hud.daemonBridge?.replayMode) {
+                window.neuroflyReplay?.toggle();
+                return;
+            }
             if (hud.daemonBridge?.connected) {
                 hud.daemonBridge.sendCommand('set_paused', {paused:!arena.remotePacket?.paused});
                 return;
