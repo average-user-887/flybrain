@@ -1,0 +1,379 @@
+{
+ "schema": "flybrain.firing-rate-bounds.v1",
+ "id": "firing-rate-bounds-v2",
+ "declared_at": "2026-09-24",
+ "meaning": "Plausible in-vivo adult Drosophila spike-rate ranges (Hz, population mean per cell over the window). spontaneous_hz applies to baseline windows, driven_hz to stimulus windows. A bound is a sanity range, not a target. verified:true means both ends of both intervals rest on values read from the cited sources (or are wider than every read value by the stated margin); anything recalled, inferred, or read only from figure axes stays verified:false.",
+ "bounds": {
+  "ORN": {
+   "cell_types": "ORN_*",
+   "spontaneous_hz": [
+    0.5,
+    50.0
+   ],
+   "driven_hz": [
+    0.0,
+    300.0
+   ],
+   "verified": true,
+   "basis": "spontaneous: Hallem 2006 empty-neuron SFR 1-47 Hz for 24 Ors (DoOR.data), Hallem 2006 text 'receptors with spontaneous firing rates of <5 spikes/s (Or9a, Or22a, Or43b, Or47a, and Or59b)'; Kazama & Wilson 2008 'ORNs fire spontaneously at about 7 spikes/s' (VM2). driven: Hallem 2006 '69 ... 3%, resulted in very strong responses of >=200 spikes/s' (500 ms window, spontaneous subtracted, 1e-2 dilution); Kazama & Wilson 2008 'odors can easily trigger sustained ORN firing rates well above 200 spikes/s'; 300 Hz ceiling = 'the maximum ORN firing rate (~300 spikes/s)' in Wilson 2013 (review, secondary for Hallem 2006).",
+   "sources": [
+    "hallem2006",
+    "kazama2008",
+    "wilson2013",
+    "munch2016"
+   ]
+  },
+  "PN": {
+   "cell_types": "uniglomerular projection neurons",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    250.0
+   ],
+   "verified": false,
+   "basis": "spontaneous VERIFIED: Turner, Bazhenov & Laurent 2008 Fig. 3F legend 'spontaneous spike rates in PNs (4.6 +/- 4.2 s^-1, n = 37 PNs)'; 20 Hz upper end is mean + ~3.7 SD. driven UNVERIFIED at the ceiling: Kazama & Wilson 2008 Discussion 'can evoke much stronger responses in postsynaptic PNs (>100 spikes/s)' (500 ms odour window) supports >100 Hz; no read source gives a PN maximum, so the 250 Hz ceiling is declared, not read. Wilson 2004 and Bhandawat 2007 could not be read.",
+   "sources": [
+    "turner2008",
+    "kazama2008"
+   ]
+  },
+  "KC": {
+   "cell_types": "Kenyon cells",
+   "spontaneous_hz": [
+    0.0,
+    1.0
+   ],
+   "driven_hz": [
+    0.0,
+    5.0
+   ],
+   "verified": true,
+   "basis": "spontaneous: Turner 2008 p.736 'very low spontaneous firing (0.1 +/- 0.4 spike/s)'. driven: Turner 2008 'a given odor evoked a spiking response in only 6 +/- 5% of the cells' (n = 71), responders fire 'alpha'/beta' 4.9 +/- 3.0 spikes ... alpha/beta 2.2 +/- 1.2' in the 0-2 s window; Murthy, Fiete & Laurent 2008: up to 49% of GFP- KCs respond under a >=1-spike criterion, 'with few spikes'. Even if every KC fired like an alpha'/beta' responder (4.9 spikes / 2 s = 2.45 Hz) the population mean would be ~2.5 Hz; the 5 Hz ceiling is twice that. Changed from v1 (20 Hz), which no source supported.",
+   "sources": [
+    "turner2008",
+    "murthy2008"
+   ]
+  },
+  "MBON": {
+   "cell_types": "MBONs",
+   "spontaneous_hz": [
+    0.0,
+    30.0
+   ],
+   "driven_hz": [
+    0.0,
+    150.0
+   ],
+   "verified": false,
+   "basis": "spontaneous UNVERIFIED: no in-vivo MBON spontaneous rate found in Hige et al. 2015a/b (both subtract baseline without reporting it); an ex-vivo value (MBON-alpha3 12.1 Hz, n = 5, eLife 2022 77578) is not in vivo and is not used. driven (partly read): Hige et al. 2015 Neuron, MBON-gamma1pedc>alpha/beta OCT response '118 +/- 8.3 spikes' (0-1.4 s, spontaneous subtracted, n = 7), i.e. ~84 Hz above baseline; the 150 Hz ceiling is declared, not read.",
+   "sources": [
+    "hige2015neuron",
+    "hige2015nature"
+   ]
+  },
+  "DNa02": {
+   "cell_types": "DNa02",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    100.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: no absolute DNa02 rate appears in the text of Rayshubskiy et al. 2025 (rates in figures only) or Yang et al. 2024 Cell. Read: stride-locked modulation 'only about 15 spikes/sec' (Yang 2024, bioRxiv 2023.10.15.562426); DNa02 'hyperpolarizes during immobility' (Rayshubskiy Fig. 6). Figure axis limits in Rayshubskiy (e.g. Fig. 6D mean rate 0-120 spikes/s, Fig. 3C L-R difference -100..100) hint that the 100 Hz driven ceiling may be too tight; axis limits are not measurements, so the v1 values are kept.",
+   "sources": [
+    "rayshubskiy2025",
+    "yang2024"
+   ]
+  },
+  "GF": {
+   "cell_types": "DNp01",
+   "spontaneous_hz": [
+    0.0,
+    1.0
+   ],
+   "driven_hz": [
+    0.0,
+    50.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED (no measured rate exists in the sources read): the GF is quiet at rest (recordings kept only with resting potential below -55 mV, Ache 2019; below -50 mV, Jang 2023) and 'looming stimuli generate GF spikes in only a small subset of tethered flies' (von Reyn 2017); von Reyn 2014 Supp. Fig. 5 shows spiking in 10 flies and subthreshold responses in 33. 0-1 Hz spontaneous is an inference from these, not a read value.",
+   "sources": [
+    "vonreyn2014",
+    "vonreyn2017",
+    "ache2019",
+    "jang2023"
+   ]
+  },
+  "LC_looming": {
+   "cell_types": "LC4, LPLC2",
+   "spontaneous_hz": [
+    0.0,
+    10.0
+   ],
+   "driven_hz": [
+    0.0,
+    150.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED and currently unverifiable: every study read (von Reyn 2017, Ache 2019, Klapoetke 2017, Morimoto 2020) measured LC4/LPLC2 by calcium imaging or via GF subthreshold responses; no LC4 or LPLC2 firing rate in Hz was found. This bound is a modelling assumption.",
+   "sources": [
+    "vonreyn2017",
+    "ache2019",
+    "klapoetke2017"
+   ]
+  },
+  "LPTC": {
+   "cell_types": "HS (HSN, HSE, HSS); the optomotor spec checks HS only",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    50.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: HS cells respond with graded potentials; Fujiwara et al. 2017 call them non-spiking during walking; Joesch 2008 (VS) reports graded responses 'superimposed by small action potentials of irregular amplitude'. Schnell et al. 2010 recorded HSN, HSE and HSS (not H2, as v1 implied) and only its abstract was readable. No HS spike rate in Hz was found. The LIF proxy can only spike, so this bound tests that it does not spike at high rates; the numbers are declared.",
+   "sources": [
+    "schnell2010",
+    "joesch2008",
+    "fujiwara2017"
+   ]
+  },
+  "brain_mean": {
+   "cell_types": "all neurons",
+   "spontaneous_hz": [
+    0.0,
+    5.0
+   ],
+   "driven_hz": [
+    0.0,
+    5.0
+   ],
+   "verified": false,
+   "basis": "DESIGN CHOICE, not a literature value: excludes the v1 runaway (~6 Hz mean, 1e6 spikes/s). Shiu 2024 used 0 Hz baselines and warns absolute rates are unreliable.",
+   "sources": [
+    "shiu2024"
+   ]
+  },
+  "brain_max_single_neuron": {
+   "cell_types": "any neuron",
+   "spontaneous_hz": [
+    0.0,
+    300.0
+   ],
+   "driven_hz": [
+    0.0,
+    300.0
+   ],
+   "verified": false,
+   "basis": "DESIGN CHOICE: no neuron sustained above 300 Hz over a window, well below the 1/t_ref ~ 450 Hz refractory ceiling where LIF output saturates.",
+   "sources": []
+  }
+ },
+ "citations": {
+  "hallem2006": {
+   "citation": "Hallem EA, Carlson JR (2006) Coding of odors by a receptor repertoire. Cell 125:143-160",
+   "doi": "10.1016/j.cell.2006.01.050",
+   "doi_status": "resolved",
+   "read": "data via DoOR.data (column Hallem.2006.EN) and full text (ScienceDirect)",
+   "values_read": [
+    "spontaneous firing of 24 Ors in the empty-neuron system, 1-47 Hz (SFR row)",
+    "OCT and MCH were NOT in the 110-odour set",
+    "17% of odorant-receptor combinations >=50 spikes/s, 9% >=100, 3% (69) >=200 spikes/s; spikes counted 500 ms after onset minus 500 ms baseline; odours at 1e-2",
+    "receptors with spontaneous rates <5 spikes/s: Or9a, Or22a, Or43b, Or47a, Or59b"
+   ]
+  },
+  "munch2016": {
+   "citation": "Münch D, Galizia CG (2016) DoOR 2.0 - Comprehensive mapping of Drosophila melanogaster odorant responses. Sci Rep 6:21841",
+   "doi": "10.1038/srep21841",
+   "doi_status": "not resolved online (matches DoOR.data records)",
+   "read": "data: github.com/ropensci/DoOR.data commit db323a496577c4b4a72b5c2fcd1859e07521ffb5, package 2.0.1.9001",
+   "values_read": [
+    "consensus responses (0-1 per receptor, spontaneous-subtracted as reset_sfr does) for 3-octanol and 4-methylcyclohexanol; receptor -> glomerulus mapping (sources/door2_orn_responses_oct_mch_bza.json)"
+   ]
+  },
+  "rayshubskiy2025": {
+   "citation": "Rayshubskiy A, et al., Wilson RI (2025) eLife 13:RP102230 (preprint bioRxiv 2020.04.04.024703)",
+   "doi": "10.7554/eLife.102230",
+   "doi_status": "resolved",
+   "read": "full text, figure captions and PDF; no absolute DNa02 rates in the text",
+   "values_read": [
+    "DNa02 activity predicts and unilateral activation evokes ipsilateral turning (decoder convention, inherited from WP5)",
+    "DNa02 hyperpolarizes during immobility; firing-rate increase precedes movement onset by ~250 ms (Fig. 6, n = 7)"
+   ]
+  },
+  "vonreyn2014": {
+   "citation": "von Reyn CR, et al., Card GM (2014) A spike-timing mechanism for action selection. Nat Neurosci 17:962-970",
+   "doi": "10.1038/nn.3741",
+   "doi_status": "resolved",
+   "read": "Fig. 1 caption and abstract (earlier check); supplementary PDF (this check). Main text paywalled, not re-read.",
+   "values_read": [
+    "short/long takeoff split at 6.87 ms wing-raise+jump duration; pooled r/v 14, 40, 70 ms: 95 short vs 355 long (n = 450)",
+    "short-mode fraction declines linearly with log(r/v): slope -19.27 (units as printed), R^2 = 0.903; n = 108, 115, 202, 133, 102 flies at r/v 8, 14, 40, 70, 140 ms",
+    "a GF spike forces a short-mode takeoff; the GF has a higher activation threshold than the parallel pathways (abstract)",
+    "Supp. Fig. 5: GF whole-cell example spike responses (from 10 flies) and subthreshold responses (from 33 flies) to looms at three r/v"
+   ]
+  },
+  "vonreyn2017": {
+   "citation": "von Reyn CR, et al., Card GM (2017) Feature integration drives probabilistic behavior in the Drosophila escape response. Neuron 94:1190-1204",
+   "doi": "10.1016/j.neuron.2017.05.036",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "LC4 conveys angular velocity, LPLC2 angular size; the GF integrates them (qualitative; encoder assumption)",
+    "'looming stimuli generate GF spikes in only a small subset of tethered flies'",
+    "'Both single GF spikes and GF-mediated takeoffs occur, on average, at a fixed delay after a looming disk surpasses 39 deg'",
+    "looms r/v 10, 20, 40, 80 ms, 10 to 90 deg"
+   ]
+  },
+  "ache2019": {
+   "citation": "Ache JM, et al., Card GM (2019) Neural basis for looming size and velocity encoding in the Drosophila giant fiber escape pathway. Curr Biol 29:1073-1081",
+   "doi": "10.1016/j.cub.2019.01.079",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "LC4 (velocity) and LPLC2 (size) inputs to the GF, summed approximately linearly (qualitative; encoder assumption)",
+    "GF recordings kept if resting potential below -55 mV; only trials without a GF action potential analysed",
+    "no LC4/LPLC2 electrophysiology rates"
+   ]
+  },
+  "shiu2024": {
+   "citation": "Shiu PK, et al. (2024) A Drosophila computational brain model reveals sensorimotor processing. Nature 634:210-219",
+   "doi": "10.1038/s41586-024-07763-9",
+   "doi_status": "resolved",
+   "read": "Nature page and bioRxiv full text",
+   "values_read": [
+    "whole-brain LIF with 0 Hz baseline for every neuron; authors state absolute firing-rate predictions are unlikely to be accurate"
+   ]
+  },
+  "turner2008": {
+   "citation": "Turner GC, Bazhenov M, Laurent G (2008) Olfactory representations by Drosophila mushroom body neurons. J Neurophysiol 99:734-746",
+   "doi": "10.1152/jn.01283.2007",
+   "doi_status": "resolved",
+   "read": "full text (author PDF, bazhlab.ucsd.edu)",
+   "values_read": [
+    "PN spontaneous 4.6 +/- 4.2 s^-1, n = 37 (Fig. 3F legend)",
+    "PN response probability 59 +/- 14% (Fig. 2A)",
+    "KC spontaneous 0.1 +/- 0.4 spike/s (p. 736)",
+    "KC response probability 6 +/- 5%, n = 71; responders fire 4.9 +/- 3.0 (alpha'/beta') and 2.2 +/- 1.2 (alpha/beta) spikes, window 0-2 s, odour 1:1000"
+   ]
+  },
+  "murthy2008": {
+   "citation": "Murthy M, Fiete I, Laurent G (2008) Testing odor response stereotypy in the Drosophila mushroom body. Neuron 59:1009-1023",
+   "doi": "10.1016/j.neuron.2008.07.040",
+   "doi_status": "title matched by search (PubMed 18817738, FlyBase: Neuron 59(6):1009-1023)",
+   "read": "full text (author PDF, fietelab.mit.edu)",
+   "values_read": [
+    "KCs respond with few spikes; response = >=1 spike in 0-2 s on >=3 trials; 18.6% (GFP+ L-LP) vs 49% (GFP-) response probability; 6.7% with the locust criterion; n = 50 KCs; no rates in Hz"
+   ]
+  },
+  "kazama2008": {
+   "citation": "Kazama H, Wilson RI (2008) Homeostatic matching and nonlinear amplification at identified central synapses. Neuron 58:401-413",
+   "doi": "10.1016/j.neuron.2008.02.030",
+   "doi_status": "title matched by search (ScienceDirect S0896627308001840)",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "ORNs fire spontaneously at about 7 spikes/s (VM2)",
+    "odors can trigger sustained ORN rates well above 200 spikes/s",
+    "small ORN responses (<20 spikes/s) can evoke PN responses >100 spikes/s (500 ms odour window)"
+   ]
+  },
+  "wilson2013": {
+   "citation": "Wilson RI (2013) Early olfactory processing in Drosophila: mechanisms and principles. Annu Rev Neurosci 36 (pages not checked)",
+   "doi": "10.1146/annurev-neuro-062111-150533",
+   "doi_status": "title and DOI matched by search (annualreviews.org, PMC3933953)",
+   "read": "full text (review; secondary)",
+   "values_read": [
+    "ORN fires 8 spikes/s without odour (citing de Bruyne 1999/2001)",
+    "'the maximum ORN firing rate (~300 spikes/s)' (citing Hallem & Carlson 2006)"
+   ]
+  },
+  "hige2015neuron": {
+   "citation": "Hige T, Aso Y, Modi MN, Rubin GM, Turner GC (2015) Heterosynaptic plasticity underlies aversive olfactory learning in Drosophila. Neuron 88:985",
+   "doi": "10.1016/j.neuron.2015.11.003",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "MBON-gamma1pedc>alpha/beta OCT response 118 +/- 8.3 spikes before and 24 +/- 7.4 after pairing (n = 7); MCH 110 +/- 11 -> 83 +/- 14; counted 0-1.4 s, spontaneous subtracted; spontaneous rates not reported"
+   ]
+  },
+  "hige2015nature": {
+   "citation": "Hige T, Aso Y, Rubin GM, Turner GC (2015) Plasticity-driven individualization of olfactory coding in mushroom body output neurons. Nature 526:258-262",
+   "doi": "10.1038/nature15396",
+   "doi_status": "resolved",
+   "read": "full text (Janelia PDF)",
+   "values_read": [
+    "whole-cell data for MBON-alpha2sc only; rates computed 0.5-3.5 s after valve opening, baseline subtracted; no rate values in the text"
+   ]
+  },
+  "yang2024": {
+   "citation": "Fine-grained descending control of steering in walking Drosophila. Cell 2024 (S0092-8674(24)00962-0; PMID 39293446; bioRxiv 10.1101/2023.10.15.562426). Author list not confirmed in this check",
+   "doi": "10.1101/2023.10.15.562426",
+   "doi_status": "bioRxiv DOI read; journal DOI not confirmed",
+   "read": "bioRxiv v2 Results and Discussion",
+   "values_read": [
+    "'this stride-locked firing rate modulation was only about 15 spikes/sec' (DNa02, walking)",
+    "DNa02 spike rate inversely related to ipsilateral stride length"
+   ]
+  },
+  "jang2023": {
+   "citation": "Jang H, Goodman DP, Ausborn J, von Reyn CR (2023) Azimuthal invariance to looming stimuli in the Drosophila giant fiber escape circuit. J Exp Biol 226(8):jeb244790",
+   "doi": "10.1242/jeb.244790",
+   "doi_status": "resolved",
+   "read": "methods (bioRxiv 10.1101/2022.07.15.500271)",
+   "values_read": [
+    "GF accepted if resting potential less than -50 mV; looms 10 to 63 deg at r/v 10, 20, 40, 80 ms"
+   ]
+  },
+  "klapoetke2017": {
+   "citation": "Klapoetke NC, et al., Reiser MB (2017) Ultra-selective looming detection from radial motion opponency. Nature 551:237-241",
+   "doi": "10.1038/nature24626",
+   "doi_status": "resolved",
+   "read": "full text (PMC7457385)",
+   "values_read": [
+    "LPLC2 measured by calcium imaging only (no Hz)",
+    "'LPLC2 neurons did not respond to dark receding looming or to luminance-matched motion-free darkening stimulus'"
+   ]
+  },
+  "schnell2010": {
+   "citation": "Schnell B, Joesch M, Forstner F, Raghu SV, Otsuna H, Ito K, Borst A, Reiff DF (2010) Processing of horizontal optic flow in three visual interneurons of the Drosophila brain. J Neurophysiol 103:1646-1657",
+   "doi": "10.1152/jn.00950.2009",
+   "doi_status": "resolved",
+   "read": "abstract only (full text 403)",
+   "values_read": [
+    "first whole-cell recordings from HSN, HSE and HSS; excited by front-to-back, inhibited by back-to-front motion"
+   ]
+  },
+  "joesch2008": {
+   "citation": "Joesch M, Plett J, Borst A, Reiff DF (2008) Response properties of motion-sensitive visual interneurons in the lobula plate of Drosophila melanogaster. Curr Biol 18:368-374",
+   "doi": "10.1016/j.cub.2008.02.022",
+   "doi_status": "title matched by search (PubMed 18328703, ScienceDirect S096098220800167X)",
+   "read": "full text (ScienceDirect); VS cells only",
+   "values_read": [
+    "VS resting potential about -45 mV (-55 mV junction-corrected); graded responses superimposed by small action potentials of irregular amplitude"
+   ]
+  },
+  "fujiwara2017": {
+   "citation": "Fujiwara T, Cruz TL, Bohnslav JP, Chiappe ME (2017) A faithful internal representation of walking movements in the Drosophila visual system. Nat Neurosci 20 (pages not checked)",
+   "doi": "10.1038/nn.4435",
+   "doi_status": "title and DOI matched by search (nature.com, PubMed 27798632)",
+   "read": "abstract only",
+   "values_read": [
+    "HS cells non-spiking, graded membrane-potential changes during walking"
+   ]
+  }
+ },
+ "supersedes": "firing-rate-bounds-v1 (kept unchanged so receipts already scored against it stay reproducible)",
+ "literature_check": {
+  "date": "2026-09-24",
+  "method": "primary sources read via web (full text where open); every value below was read, none recalled. Blind: no simulation output was consulted.",
+  "access_failures": "Wilson 2004 (Science) and Bhandawat 2007 (Nat Neurosci) full text not reachable (paywall; PMC captcha; Europe PMC rate limit). von Reyn 2014 main text paywalled. Schnell 2010 full text 403."
+ }
+}
