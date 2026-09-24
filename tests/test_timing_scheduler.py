@@ -40,6 +40,75 @@ def served(runner):
     nd.NeuroflyHTTPHandler.runner, nd.NeuroflyHTTPHandler.gateway = orig_runner, orig_gateway
 
 
+class _FakeClock:
+    """Simulated wall clock for the scheduler: waits advance it, steps cost ~nothing.
+
+    The scheduler's pacing is then independent of how fast (or how loaded) the test
+    machine is, so these tests check the scheduling logic, not host speed.  Each read
+    advances the clock by 1 us, as a real clock does between reads; a frozen clock
+    lets the loop spin on a deadline that float rounding puts a hair in the future.
+    """
+
+    TICK_S = 1e-6
+
+    def __init__(self):
+        self.t = 1000.0
+        self._lock = threading.Lock()
+
+    def perf_counter(self):
+        with self._lock:
+            self.t += self.TICK_S
+            return self.t
+
+    monotonic = time = perf_counter
+
+    def sleep(self, seconds):
+        with self._lock:
+            self.t += max(0.0, seconds)
+        time.sleep(0)               # still hand the GIL over, like the real sleep
+
+
+class _FakeWake:
+    """``threading.Event`` whose timed wait advances the fake clock instead of blocking."""
+
+    def __init__(self, clock):
+        self._clock, self._event = clock, threading.Event()
+
+    def set(self):
+        self._event.set()
+
+    def clear(self):
+        self._event.clear()
+
+    def is_set(self):
+        return self._event.is_set()
+
+    def wait(self, timeout=None):
+        if not self._event.is_set() and timeout is not None:
+            self._clock.sleep(timeout)
+        return self._event.is_set()
+
+
+@pytest.fixture
+def fake_clock(runner, monkeypatch):
+    clock = _FakeClock()
+    monkeypatch.setattr(nd, "time", clock)
+    runner._wake = _FakeWake(clock)
+    return clock
+
+
+def _run_for(runner, clock, sim_wall_s):
+    """Run the loop until ``sim_wall_s`` of fake wall time has passed, then stop it."""
+    start = clock.t
+    runner.start()
+    assert _wait(lambda: clock.t - start >= sim_wall_s, timeout=120.0), "scheduler stalled"
+    timing = runner.timing_snapshot()
+    runner.running = False
+    runner._wake.set()
+    runner.sim_thread.join(timeout=5)
+    return timing
+
+
 def _wait(pred, timeout=10.0):
     end = time.time() + timeout
     while time.time() < end:
@@ -49,28 +118,26 @@ def _wait(pred, timeout=10.0):
     return False
 
 
-def test_achieved_speed_tracks_requested_without_overshoot(runner):
-    runner.start()
-    time.sleep(2.5)
-    timing = runner.timing_snapshot()
+def test_achieved_speed_tracks_requested_without_overshoot(runner, fake_clock):
+    timing = _run_for(runner, fake_clock, 2.5)
     assert timing["requested_speed"] == 20.0
     assert timing["integration_dt_s"] == 0.02
-    # The old threshold pacing overshot 20x to ~23.7x; deadlines must not.
-    assert 17.0 <= timing["achieved_speed"] <= 20.6, timing
+    # The old threshold pacing overshot 20x to ~23.7x; deadlines must not.  On the fake
+    # clock steps are free, so the scheduler alone decides the speed and must hit it.
+    assert 19.5 <= timing["achieved_speed"] <= 20.6, timing
+    assert timing["overloaded"] is False and timing["schedule_rebases"] == 0
 
 
-def test_overload_is_visible_and_never_bursts(runner):
+def test_overload_is_visible_and_never_bursts(runner, fake_clock):
     original = runner.step_once
 
     def slow_step(publish=True):
-        time.sleep(0.002)          # ~10x is the most this "machine" can do
+        fake_clock.sleep(0.002)    # ~10x is the most this "machine" can do
         return original(publish)
 
     runner.step_once = slow_step
     runner.sim_speed = 100.0
-    runner.start()
-    time.sleep(2.5)
-    timing = runner.timing_snapshot()
+    timing = _run_for(runner, fake_clock, 2.5)
     assert timing["requested_speed"] == 100.0
     assert timing["achieved_speed"] < 15.0, timing
     assert timing["overloaded"] is True

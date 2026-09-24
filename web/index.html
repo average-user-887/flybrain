@@ -908,6 +908,31 @@
             background: rgba(56, 189, 248, 0.04);
         }
     
+    
+        /* Run replay and brain activity (web/replay.js) */
+        .replay-bar { display:flex; align-items:center; gap:8px; padding:4px 12px; background:rgba(88,28,135,0.22);
+            border-bottom:1px solid #6b21a8; font:10px monospace; color:#e9d5ff; flex-wrap:wrap; }
+        .replay-bar[hidden], .replay-chooser[hidden] { display:none; }
+        .replay-bar input[type=range] { flex:1 1 160px; min-width:120px; accent-color:#a855f7; }
+        .replay-time { min-width:110px; text-align:right; color:#f5f3ff; }
+        .replay-info { flex:1 1 200px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#c4b5fd; }
+        .replay-chooser { padding:8px 12px; background:#140c24; border-bottom:1px solid #6b21a8; font:10px monospace; color:#e9d5ff;
+            display:flex; flex-direction:column; gap:6px; }
+        .replay-chooser-row { display:flex; gap:8px; align-items:center; }
+        .replay-chooser-note { color:#a78bfa; }
+        .replay-list { display:flex; flex-direction:column; gap:3px; max-height:140px; overflow:auto; }
+        .replay-list button { text-align:left; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.35);
+            color:#ede9fe; font:10px monospace; padding:3px 6px; border-radius:4px; cursor:pointer; }
+        .replay-list button:hover { background:rgba(168,85,247,0.2); }
+        .activity-regions { display:grid; grid-template-columns:minmax(70px,auto) 1fr 58px; gap:2px 6px; font-size:9px;
+            align-items:center; max-height:180px; overflow:auto; }
+        .activity-regions .bar { height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+        .activity-regions .bar > div { height:100%; background:#a855f7; }
+        .activity-regions .val { text-align:right; font-family:monospace; color:#e2e8f0; }
+        .activity-regions .name { color:#cbd5e1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        #rasterCanvas[hidden] { display:none; }
+        #rasterCanvas { width:100%; height:70px; background:#020617; border-radius:4px; border:1px solid rgba(168,85,247,0.25); display:block; }
+        .activity-note { font-size:8.5px; color:var(--text-dim); }
     </style>
     <link rel="stylesheet" href="training.css">
 </head>
@@ -1102,6 +1127,7 @@
                     <span class="badge badge-cyan" style="font-weight:800;">v1.0-release</span>
                     <span class="badge badge-purple" id="navbarParadigmBadge">OPEN ARENA</span>
                     <button class="nav-btn" id="researchLink">Training &amp; Data</button>
+                    <button class="nav-btn" id="btnReplay" title="Play a recorded run (.nfrec) at 1x in these panels">Replay</button>
                     <span class="badge" id="clusterStatusPill" style="font-weight:700; background:rgba(34, 197, 94, 0.15); border:1px solid #22c55e; color:#22c55e; cursor:pointer;" title="Continuous Learning Cluster Daemon Connection">● LOCAL ENGINE</span>
                 </div>
                 <div class="navbar-stats">
@@ -1158,6 +1184,30 @@
                 <label title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist</label>
             </div>
             <div id="identityBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.14);border-bottom:1px solid #92400e;color:#fcd34d;font:10px monospace;font-weight:700"></div>
+            <!-- Run replay (web/replay.js): chooser and transport bar -->
+            <div id="replayChooser" class="replay-chooser" hidden>
+                <div class="replay-chooser-row">
+                    <label class="nav-btn primary" for="replayFileInput" style="cursor:pointer">Open .nfrec file…</label>
+                    <input type="file" id="replayFileInput" accept=".nfrec,application/gzip" hidden>
+                    <button class="nav-btn" id="btnReplayChooserClose">Close</button>
+                </div>
+                <div class="replay-chooser-note">Recordings from the connected daemon (<code>neurofly record</code> or <code>--record</code>):</div>
+                <div id="replayList" class="replay-list"><i>No daemon connected.</i></div>
+            </div>
+            <div id="replayBar" class="replay-bar" hidden>
+                <button class="nav-btn primary" id="btnReplayPlay" title="Play / pause the recording (also the Pause button)">Pause</button>
+                <input type="range" id="replaySeek" min="0" max="1000" value="0" step="1" title="Seek (simulated time)">
+                <span id="replayTime" class="replay-time">0.00 / 0.00 s</span>
+                <select id="replaySpeed" class="speed-select" title="Playback speed; 1x = real simulated time">
+                    <option value="0.5">0.5x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="2">2x</option>
+                    <option value="5">5x</option>
+                    <option value="10">10x</option>
+                </select>
+                <span id="replayInfo" class="replay-info"></span>
+                <button class="nav-btn" id="btnReplayExit" title="Stop the replay and reconnect to the live daemon">Exit replay</button>
+            </div>
             <!-- Main Canvas Stage -->
             <div class="arena-wrapper">
                 <div class="arena-overlay-tools">
@@ -1621,6 +1671,17 @@
                 </div>
             </div>
 
+            <!-- E. Per-region activity and spike raster (web/replay.js; live and replay) -->
+            <div class="hud-card" id="activityCard">
+                <div class="hud-card-header">
+                    <span>[4] Brain Activity</span>
+                    <span id="activityGrouping" style="color:var(--text-dim); font-family:monospace; font-weight:400;">--</span>
+                </div>
+                <div id="activityRegions" class="activity-regions"><i>Waiting for telemetry.</i></div>
+                <canvas id="rasterCanvas" hidden></canvas>
+                <div id="rasterNote" class="activity-note">Spike raster: recorded graph runs only.</div>
+            </div>
+
         </div>
 
     </div>
@@ -1630,6 +1691,7 @@
     <script src="vendor/OrbitControls.js"></script>
     <script src="live_assays.js"></script>
     <script src="app.js"></script>
+    <script src="replay.js"></script>
     <script src="training.js"></script>
 
     <!-- =====================================================================
