@@ -6,17 +6,29 @@ the default; ``v2`` is the conductance-based model with reversal potentials and
 one conductance quantum for both signs; ``v3`` is the same conductance model
 with the declared per-sign PSP-preserving calibration.  Select per instance
 with ``Brain(..., dynamics='v3')`` or process-wide with
-``NEUROFLY_LIF_DYNAMICS=v3``.  They are not interchangeable and their
+``NEUROFLY_LIF_DYNAMICS=v3``.
+
+``backend`` selects where v3 runs: ``'cuda'`` (NVIDIA GPU via
+``brainlab.cuda_engine``), ``'cpu'`` (the numba reference kernel) or ``'auto'``,
+the default, which uses the GPU for v3 when a CUDA device is usable and the CPU
+otherwise.  ``NEUROFLY_BRAIN_BACKEND`` overrides the default process-wide.  The
+GPU matches the CPU within the model's own float-rounding sensitivity
+(``scripts/gpu_parity.py``); v1 and v2 always run on the CPU.  They are not interchangeable and their
 checkpoints are mutually refused: v1's synaptic state array has a different
 shape, and every snapshot carries its dynamics version explicitly.
 """
+import logging
 import math
+import os
 import time
 import numpy as np
 from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
                      advance_v3)
 from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
 
+
+log = logging.getLogger('brainlab')
+_announced = set()
 
 GRAPH_ARRAYS = (('ptr', np.int64), ('post', np.int32), ('weight', np.float32), ('ids', np.int64))
 # Every mutable array of the LIF state; together with the scalars below this is
@@ -27,7 +39,8 @@ STATE_SCALARS = ('cursor', 'total_spikes', 'sim_ms')
 
 
 class Brain:
-    def __init__(self, path=None, *, arrays=None, validate=True, dynamics=None, e_inh_mV=None):
+    def __init__(self, path=None, *, arrays=None, validate=True, dynamics=None, e_inh_mV=None,
+                 backend=None):
         """Load a CSR graph from ``path`` (file or file-like) or reuse ``arrays``.
 
         ``arrays`` lets several instances share one immutable graph; pass
@@ -40,6 +53,7 @@ class Brain:
         quantum follows it, because the v3 calibration DERIVES that quantum
         from the driving force at rest: ``g_inh = 1/(V_rest - E_inh)``.
         """
+        self._gpu = None
         self.dynamics = dynamics or active_dynamics_version()
         if self.dynamics not in DYNAMICS_VERSIONS:
             raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
@@ -85,6 +99,61 @@ class Brain:
         self.nactive = np.zeros(1, dtype=np.int32)
         self.total_spikes = 0
         self.sim_ms = 0.
+        requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
+        if requested == 'auto':
+            from .cuda_engine import cuda_available
+            requested = 'cuda' if self.dynamics == 'v3' and cuda_available() else 'cpu'
+        self.backend = requested
+        if self.backend not in _announced:
+            _announced.add(self.backend)
+            log.info('brainlab: LIF %s running on the %s backend', self.dynamics, self.backend.upper())
+        if self.backend == 'cuda':
+            if self.dynamics != 'v3':
+                raise ValueError('The CUDA backend implements LIF dynamics v3 only')
+            from .cuda_engine import make_state
+            self._gpu = make_state(self.ptr, self.post, self.weight, n=self.n,
+                                    e_inh=self.e_inh_mV, g_unit_exc=self.g_unit_exc,
+                                    g_unit_inh=self.g_unit_inh, dt=self.dt,
+                                    delay_slots=self.queue.shape[0])
+            self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
+                                   self.queue_count, self.counts, self.active_flag)
+            self._refresh_weight_view()
+        elif self.backend != 'cpu':
+            raise ValueError(f"Unknown brain backend {self.backend!r}; choose 'cpu' or 'cuda'")
+
+    @property
+    def weight(self):
+        """Edge weights.  Read-only on the CUDA backend: the device copy is
+        authoritative, so change weights by assigning a new array or with
+        ``set_edge_weights`` / ``update_weights`` rather than editing in place."""
+        return self._weight_view if self._gpu is not None else self._weight
+
+    @weight.setter
+    def weight(self, value):
+        self._weight = value
+        if self._gpu is not None:
+            self._gpu.set_weights(value)
+            self._refresh_weight_view()
+
+    def _refresh_weight_view(self):
+        self._weight_view = self._weight.view()
+        self._weight_view.setflags(write=False)
+
+    def set_edge_weights(self, edges, values):
+        """Write ``values`` into ``weight[edges]`` on the host and, if active, the GPU."""
+        if not self._weight.flags.writeable:
+            self._weight = self._weight.copy()
+            if self._gpu is not None:
+                self._refresh_weight_view()
+        self._weight[edges] = values
+        self.update_weights(edges)
+
+    def update_weights(self, edges):
+        """Push ``weight[edges]`` to the GPU after the caller edited the array it
+        assigned to ``weight`` (a no-op on the CPU backend)."""
+        if self._gpu is not None:
+            edges = np.asarray(edges, dtype=np.int64)
+            self._gpu.update_edges(edges, self._weight[edges])
 
     def graph_arrays(self):
         return {name: getattr(self, name) for name, _ in GRAPH_ARRAYS}
@@ -92,6 +161,7 @@ class Brain:
     def snapshot_state(self):
         """Copy every mutable transient (membrane, conductance, refractory,
         delay queue, active set, clocks).  Excludes the immutable graph."""
+        self._sync_from_gpu()
         state = {name: getattr(self, name).copy() for name in STATE_ARRAYS}
         state.update(cursor=int(self.cursor), total_spikes=int(self.total_spikes),
                      sim_ms=float(self.sim_ms), dynamics=self.dynamics)
@@ -118,6 +188,9 @@ class Brain:
                     'A checkpoint written under a different dynamics version is refused, '
                     'never reinterpreted; see docs/LIF_DYNAMICS_SPEC.md.')
             target[...] = value
+        if self._gpu is not None:
+            self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
+                                   self.queue_count, self.counts, self.active_flag)
         self.cursor = int(state['cursor'])
         self.total_spikes = int(state['total_spikes'])
         self.sim_ms = float(state['sim_ms'])
@@ -132,6 +205,13 @@ class Brain:
         steps = round(duration_ms / self.dt)
         if steps < 1 or not math.isclose(steps*self.dt, duration_ms, abs_tol=1e-9):
             raise ValueError('Duration must be a multiple of 0.1 ms')
+        if self._gpu is not None:
+            clock = time.perf_counter()
+            self.cursor = self._gpu.advance(drive, self.cursor, steps, self.counts)
+            elapsed = time.perf_counter()-clock
+            self.total_spikes += int(self.counts.sum())
+            self.sim_ms += steps*self.dt
+            return self.counts.copy(), elapsed
         newly_active = np.flatnonzero((drive != 0) & (self.active_flag == 0))
         start = int(self.nactive[0])
         self.active[start:start+len(newly_active)] = newly_active
@@ -157,3 +237,15 @@ class Brain:
         self.total_spikes += int(self.counts.sum())
         self.sim_ms += steps*self.dt
         return self.counts.copy(), elapsed
+
+    def _sync_from_gpu(self):
+        """Copy device state into the host arrays (CPU layout, for snapshots and probes)."""
+        if self._gpu is None:
+            return
+        self._gpu.download_state(self.v, self.g, self.refractory, self.queue,
+                                 self.queue_count, self.active_flag)
+        # The GPU keeps an activity mask, not an ordered list; rebuild the list.
+        idx = np.flatnonzero(self.active_flag).astype(np.int32)
+        self.active[:] = 0
+        self.active[:len(idx)] = idx
+        self.nactive[0] = len(idx)
