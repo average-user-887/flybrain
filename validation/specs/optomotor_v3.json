@@ -1,0 +1,323 @@
+{
+ "schema": "flybrain.validation-spec.v1",
+ "id": "optomotor-yaw-v3-1",
+ "paradigm": "optomotor",
+ "status": "preregistered",
+ "declared_at": "2026-09-24",
+ "summary": "Open-loop (tethered) optomotor yaw on the full MaleCNS graph under LIF v3: does rotation of a full-field grating in either direction, at full and half contrast, produce syndirectional steering through DNa02, and are the firing rates on the way physiological?",
+ "supersedes_for_v3": "docs/wp5_optomotor_prereg.json (v1 protocol). Stimulus, encoder, decoder, schedule, seeds and controls are copied from it unchanged; the gates are new and literature-anchored.",
+ "dynamics": {
+  "version": "v3",
+  "transmitter_policy": "v3-modulatory-only",
+  "unclear_mode": "excitatory"
+ },
+ "backend": "auto (GPU when a CUDA device is usable, CPU otherwise); recorded in the receipt",
+ "stimulus": {
+  "angular_velocity_rad_s": 0.7853981633974483,
+  "spatial_period_deg": 30.0,
+  "temporal_frequency_hz": 1.5,
+  "step_ms": 2.0,
+  "initial_gray_ms": 500,
+  "block_ms": 1000,
+  "gray_between_ms": 500,
+  "blocks": [
+   [
+    1,
+    1.0
+   ],
+   [
+    -1,
+    1.0
+   ],
+   [
+    -1,
+    0.5
+   ],
+   [
+    1,
+    0.5
+   ],
+   [
+    -1,
+    1.0
+   ],
+   [
+    1,
+    1.0
+   ],
+   [
+    1,
+    0.5
+   ],
+   [
+    -1,
+    0.5
+   ]
+  ],
+  "blocks_format": "[direction s, contrast]; s=+1 = pattern rotates counter-clockwise seen from above (leftward)",
+  "mode": "open loop (tethered)",
+  "literature_match": "Duistermars 2007 used 30 deg periods (flight); Mano 2023 used 60 deg at 1 Hz (walking). 1.5 Hz lies on the rising flank of the flight TF curve (plateau 3-10 Hz), so only the SIGN and presence of the response are gated, never its size."
+ },
+ "encoder": {
+  "module": "brainlab.io_map.OptomotorEncoder",
+  "i_max": 20.0,
+  "noise_sd": 0.1,
+  "populations": "T4a+T5a (front-to-back) and T4b+T5b (back-to-front) per eye, matched counts, lowest source IDs; pinned OPTOMOTOR_IO_PIN",
+  "assumption": "direction selectivity is supplied by the encoder (Maisak 2013 subtype directions), not computed by the graph"
+ },
+ "decoder": {
+  "module": "brainlab.io_map.DNa02YawDecoder",
+  "gain_rad_s_per_hz": 0.02,
+  "tau_ms": 50.0,
+  "note": "the gain is a unit conversion, not fitted; absolute yaw magnitudes are therefore not comparable to fly turning speeds and are reported only"
+ },
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5
+ ],
+ "seed_role": "encoder per-cell phases and per-step noise; the network starts from rest in every trial",
+ "conditions": [
+  "intact",
+  "sham_no_input",
+  "dna02_silenced",
+  "shuffled_graph"
+ ],
+ "controls": {
+  "shuffle_seed": 777,
+  "silence_drive": -200.0
+ },
+ "behaviour": {
+  "analysis": {
+   "unit": "seed",
+   "bootstrap_seed": 20260924,
+   "bootstrap_resamples": 10000,
+   "ci": 0.95,
+   "response": "R = mean over the named blocks of s_b * (mean decoded yaw in block b); the whole 1 s block is the window (Mano 2023: syndirectional for ~1 s even at high contrast)"
+  },
+  "gates": [
+   {
+    "id": "O1_syndirectional",
+    "type": "ci_lower_above",
+    "sample": "TI",
+    "threshold": 0.0,
+    "claim": "Turning index over all blocks is syndirectional (95% CI above 0).",
+    "basis": "published: flies turn with the direction of full-field rotation",
+    "verified": true,
+    "sources": [
+     "duistermars2007",
+     "mano2023"
+    ]
+   },
+   {
+    "id": "O2_leftward_rotation",
+    "type": "ci_lower_above",
+    "sample": "R_pos",
+    "threshold": 0.0,
+    "claim": "Leftward rotation (s=+1) alone evokes leftward yaw.",
+    "basis": "published: syndirectional to rotation in either direction; guards against the one-sided WP5 v1 result",
+    "verified": true,
+    "sources": [
+     "duistermars2007",
+     "mano2023"
+    ]
+   },
+   {
+    "id": "O3_rightward_rotation",
+    "type": "ci_lower_above",
+    "sample": "R_neg",
+    "threshold": 0.0,
+    "claim": "Rightward rotation (s=-1) alone evokes rightward yaw.",
+    "basis": "as O2",
+    "verified": true,
+    "sources": [
+     "duistermars2007",
+     "mano2023"
+    ]
+   },
+   {
+    "id": "O4_half_contrast",
+    "type": "ci_lower_above",
+    "sample": "R_c05",
+    "threshold": 0.0,
+    "claim": "Contrast 0.5 still evokes syndirectional yaw.",
+    "basis": "published: syndirectional at contrast 0.25 throughout, early response plateaus near 0.5 contrast (walking)",
+    "verified": true,
+    "sources": [
+     "mano2023"
+    ]
+   },
+   {
+    "id": "O5_needs_input",
+    "type": "ci_lower_above",
+    "sample": "TI_minus_sham_no_input",
+    "threshold": 0.0,
+    "claim": "Intact minus sham (encoder runs, nothing delivered), paired by seed, above 0.",
+    "basis": "causal control of the model itself; not a literature value",
+    "verified": true,
+    "sources": []
+   },
+   {
+    "id": "O6_needs_wiring",
+    "type": "ci_lower_above",
+    "sample": "TI_minus_shuffled_graph",
+    "threshold": 0.0,
+    "claim": "Intact minus degree-preserving shuffled graph, paired by seed, above 0.",
+    "basis": "causal control of the model itself; not a literature value",
+    "verified": true,
+    "sources": []
+   },
+   {
+    "id": "O7_needs_DNa02",
+    "type": "all_equal",
+    "sample": "silenced_yaw_abs_max",
+    "value": 0.0,
+    "claim": "With both DNa02 clamped, decoded yaw is exactly 0 at every step of every seed.",
+    "basis": "causal control of the model itself; not a literature value",
+    "verified": true,
+    "sources": []
+   }
+  ],
+  "reported": [
+   {
+    "id": "contrast_ratio",
+    "type": "ratio_ci_lower_above",
+    "num": "R_c05",
+    "den": "R_c1",
+    "threshold": 0.7,
+    "claim": "Half-contrast response is at least 0.7 of the full-contrast response (plateau near 0.5 contrast).",
+    "basis": "Mano 2023 plateau statement; the 0.7 cut-off is a judgement, so this is reported, not gated",
+    "verified": false,
+    "sources": [
+     "mano2023"
+    ]
+   },
+   {
+    "id": "TI_magnitude",
+    "type": "ci_lower_above",
+    "sample": "TI",
+    "threshold": 0.0,
+    "claim": "TI in rad/s (decoder units; no biological magnitude claim).",
+    "basis": "report only",
+    "verified": false,
+    "sources": []
+   }
+  ]
+ },
+ "physiology": {
+  "bounds_file": "firing_rate_bounds_v1.json",
+  "checks": [
+   {
+    "id": "P1_DNa02_L_driven",
+    "population": "DNa02_L",
+    "window": "stimulus",
+    "bound": "DNa02",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P2_DNa02_R_driven",
+    "population": "DNa02_R",
+    "window": "stimulus",
+    "bound": "DNa02",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P3_DNa02_L_spont",
+    "population": "DNa02_L",
+    "window": "baseline",
+    "bound": "DNa02",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P4_HS_L_driven",
+    "population": "HS_L",
+    "window": "stimulus",
+    "bound": "LPTC",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P5_HS_R_driven",
+    "population": "HS_R",
+    "window": "stimulus",
+    "bound": "LPTC",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P6_brain_mean_driven",
+    "population": "__brain__",
+    "measure": "mean_hz",
+    "window": "stimulus",
+    "bound": "brain_mean",
+    "conditions": [
+     "intact"
+    ]
+   },
+   {
+    "id": "P7_brain_max_driven",
+    "population": "__brain__",
+    "measure": "max_hz",
+    "window": "stimulus",
+    "bound": "brain_max_single_neuron",
+    "conditions": [
+     "intact"
+    ]
+   }
+  ]
+ },
+ "decision_rule": "Behaviour PASS iff every gate passes. Physiology PASS iff every check lies in its bound. Verdict PASS iff both pass on a confirmatory run (real graph, this spec committed and unchanged, these seeds, clean tree); PASS_PROVISIONAL if any gating value is marked unverified; FAIL if any gate or check fails; INCONCLUSIVE if one cannot be evaluated. Full rule: validation/harness.py VERDICTS.",
+ "citations": {
+  "duistermars2007": {
+   "citation": "Duistermars BJ, Chow DM, Condro M, Frye MA (2007) The spatial, temporal and contrast properties of expansion and rotation flight optomotor responses in Drosophila. J Exp Biol 210(18):3218",
+   "doi": "10.1242/jeb.007807",
+   "doi_status": "resolved",
+   "read": "full text (journal web page)",
+   "values_read": [
+    "flight rotation responses consistent 0.1-0.6 Hz, rise steeply to a plateau at 3-10 Hz, roll off at 30 Hz (Results, Fig. 3)",
+    "optomotor responses reach steady state within roughly 1 s (Methods)",
+    "syndirectional turning to rotation"
+   ]
+  },
+  "mano2023": {
+   "citation": "Mano O, et al., Clark DA (2023) Long-timescale anti-directional rotation in Drosophila optomotor behavior. eLife 12:e86076",
+   "doi": "10.7554/eLife.86076",
+   "doi_status": "resolved",
+   "read": "full text (eLife); author list beyond first and last not verified",
+   "values_read": [
+    "walking flies, 60 deg wavelength, 1 Hz: high-contrast gratings evoke syndirectional turning for ~1 s, then reversal (Fig. 1b)",
+    "contrast 0.25: syndirectional throughout the 5 s stimulus (Fig. 1b)",
+    "early turning speed rises with contrast, plateau around 0.5 contrast (Fig. 1c)"
+   ]
+  },
+  "maisak2013": {
+   "citation": "Maisak MS, et al., Borst A (2013) A directional tuning map of Drosophila elementary motion detectors. Nature 500:212-216",
+   "doi": "10.1038/nature12320",
+   "doi_status": "resolved",
+   "read": "abstract only",
+   "values_read": [
+    "T4/T5 subtypes a-d respond to front-to-back, back-to-front, upward, downward motion (encoder assumption, inherited from WP5)"
+   ]
+  },
+  "rayshubskiy2025": {
+   "citation": "Rayshubskiy A, et al., Wilson RI (2025) eLife 13:RP102230 (preprint bioRxiv 2020.04.04.024703)",
+   "doi": "10.7554/eLife.102230",
+   "doi_status": "resolved",
+   "read": "text; no absolute DNa02 firing rates in the text (figures only)",
+   "values_read": [
+    "DNa02 activity predicts and unilateral activation evokes ipsilateral turning (decoder convention, inherited from WP5)"
+   ]
+  }
+ }
+}

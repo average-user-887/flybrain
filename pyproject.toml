@@ -30,7 +30,7 @@ test = ["pytest", "brian2"]
 neurofly = "neurofly.cli:main"
 
 [tool.setuptools]
-packages = ["neurofly", "brainlab", "experiments", "neurofly_body"]
+packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "validation", "validation.paradigms"]
 py-modules = [
     "arena",
     "assay_controls",
@@ -58,6 +58,7 @@ py-modules = [
 
 [tool.setuptools.package-data]
 brainlab = ["datasets.json", "graph_pins.json"]
+validation = ["specs/*.json", "specs/sources/*.json"]
 experiments = ["data/*.csv", "data/*.json", "data/*.md"]
 
 [tool.pytest.ini_options]

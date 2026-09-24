@@ -1,0 +1,543 @@
+{
+ "schema": "flybrain.validation-spec.v1",
+ "id": "tmaze-odour-naive-v3-1",
+ "paradigm": "tmaze_odor",
+ "status": "draft",
+ "status_reason": "the gating targets (balanced naive OCT vs MCH choice; naive avoidance of each odour vs air) are standard but their published values were NOT read (Tully & Quinn 1985 paywalled; Li 2013 Fig. 1I not extracted). A library check must fill them before preregistration.",
+ "declared_at": "2026-09-24",
+ "summary": "Naive T-maze choice at the choice point, before any learning: OCT vs MCH should be balanced, and each odour vs air should be avoided.",
+ "dynamics": {
+  "version": "v3",
+  "transmitter_policy": "v3-modulatory-only",
+  "unclear_mode": "excitatory"
+ },
+ "stimulus": {
+  "pre_ms": 500,
+  "decision_ms": 2000,
+  "step_ms": 2.0,
+  "design": "one fly at the choice point, arm A left and arm B right, then reciprocal (swapped); relative concentration 1 = the DoOR consensus scale",
+  "literature_match": "T-maze: ~100 flies per trial, reciprocal half-PIs (Li 2013 methods); OCT 1.5e-3 and MCH 1e-3 v/v there. The body and the maze geometry are not simulated (roadmap P2/P3)."
+ },
+ "encoder": {
+  "r_max_hz": 200.0,
+  "contralateral_fraction": 0.0,
+  "noise_sd": 0.1,
+  "default_spontaneous_hz": 12.5,
+  "default_spontaneous_basis": "median of the Hallem 2006 spontaneous rates of 24 Ors (1.0-47.0 Hz), for glomeruli without a Hallem value",
+  "r_max_basis": "engineering scale for DoOR (0-1 per receptor): Hallem 2004 via DoOR gives 245 spikes/s for Or85b to OCT; not a fitted value",
+  "contralateral_basis": "declared design choice: maximal lateralisation at the choice point; no verified value",
+  "rate_to_drive": "validation.paradigms.tmaze_odor.drive_for_rate: inverse of the resting LIF rate for the declared engine constants",
+  "table_source": "validation/specs/sources/door2_orn_responses_oct_mch_bza.json (DoOR.data db323a4). Units with no single glomerulus dropped; duplicate units in one glomerulus averaged; a missing odour entry means no DoOR data and is treated as no evoked response.",
+  "dropped_units": [
+   "OCT:Or85c(None)",
+   "OCT:Or45a(None)",
+   "OCT:ac2(VL1+DP1l+VC5)",
+   "OCT:ac1(VL1+VM1+VL2p)",
+   "OCT:ac3_noOr35a(DL2d/v+VC3)",
+   "OCT:Or94b(None)",
+   "OCT:Or59a(None)",
+   "OCT:Or1a(None)",
+   "OCT:ac4(?)",
+   "OCT:Or74a(None)",
+   "OCT:Or45b(None)",
+   "OCT:Or30a(None)",
+   "OCT:Or94a(None)",
+   "OCT:Or33b(DM5+DM3)",
+   "MCH:ac1(VL1+VM1+VL2p)",
+   "MCH:ac2(VL1+DP1l+VC5)",
+   "MCH:ac3_noOr35a(DL2d/v+VC3)",
+   "MCH:ac4(?)"
+  ],
+  "glomeruli": {
+   "D": {
+    "response": {
+     "OCT": 0.740786,
+     "MCH": 0.635135
+    },
+    "spontaneous_hz": null
+   },
+   "DA2": {
+    "response": {
+     "OCT": 0.135461,
+     "MCH": 0.274317
+    },
+    "spontaneous_hz": null
+   },
+   "DA4m": {
+    "response": {
+     "OCT": 0.132523
+    },
+    "spontaneous_hz": 8.0
+   },
+   "DC1": {
+    "response": {
+     "OCT": 0.37379,
+     "MCH": -0.048293
+    },
+    "spontaneous_hz": 29.0
+   },
+   "DC2": {
+    "response": {
+     "OCT": 0.578598,
+     "MCH": 0.077615
+    },
+    "spontaneous_hz": null
+   },
+   "DC3": {
+    "response": {
+     "OCT": 0.046083,
+     "MCH": 0.078341
+    },
+    "spontaneous_hz": null
+   },
+   "DL1": {
+    "response": {
+     "OCT": 0.118067,
+     "MCH": 0.130675
+    },
+    "spontaneous_hz": 14.0
+   },
+   "DL4": {
+    "response": {
+     "OCT": 0.115107
+    },
+    "spontaneous_hz": 7.0
+   },
+   "DL5": {
+    "response": {
+     "OCT": 0.03197,
+     "MCH": 0.060116
+    },
+    "spontaneous_hz": 17.0
+   },
+   "DM1": {
+    "response": {
+     "OCT": 0.062651,
+     "MCH": -0.011541
+    },
+    "spontaneous_hz": null
+   },
+   "DM2": {
+    "response": {
+     "OCT": 0.337339,
+     "MCH": 0.25377
+    },
+    "spontaneous_hz": 4.0
+   },
+   "DM3": {
+    "response": {
+     "OCT": 0.340707,
+     "MCH": -0.001518
+    },
+    "spontaneous_hz": 1.0
+   },
+   "DM4": {
+    "response": {
+     "OCT": 0.022353,
+     "MCH": 0.030539
+    },
+    "spontaneous_hz": 2.0
+   },
+   "DM5": {
+    "response": {
+     "OCT": 0.036257,
+     "MCH": 0.014037
+    },
+    "spontaneous_hz": 14.0
+   },
+   "DM6": {
+    "response": {
+     "OCT": 0.319303
+    },
+    "spontaneous_hz": 11.0
+   },
+   "V": {
+    "response": {
+     "OCT": -0.011516
+    },
+    "spontaneous_hz": null
+   },
+   "VA1v": {
+    "response": {
+     "OCT": -0.059628,
+     "MCH": 0.011426
+    },
+    "spontaneous_hz": 47.0
+   },
+   "VA2": {
+    "response": {
+     "OCT": -0.019173,
+     "MCH": -0.018813
+    },
+    "spontaneous_hz": null
+   },
+   "VA3": {
+    "response": {
+     "OCT": 0.123332,
+     "MCH": 0.875571
+    },
+    "spontaneous_hz": null
+   },
+   "VA4": {
+    "response": {
+     "OCT": 0.368504
+    },
+    "spontaneous_hz": null
+   },
+   "VA5": {
+    "response": {
+     "OCT": 0.029942,
+     "MCH": 0.029942
+    },
+    "spontaneous_hz": 8.0
+   },
+   "VA6": {
+    "response": {
+     "OCT": 0.054715,
+     "MCH": 0.023637
+    },
+    "spontaneous_hz": 16.0
+   },
+   "VA7l": {
+    "response": {
+     "OCT": -0.097763
+    },
+    "spontaneous_hz": null
+   },
+   "VC1": {
+    "response": {
+     "OCT": 0.150844
+    },
+    "spontaneous_hz": null
+   },
+   "VC2": {
+    "response": {
+     "OCT": 0.009559,
+     "MCH": 0.083311
+    },
+    "spontaneous_hz": null
+   },
+   "VC3": {
+    "response": {
+     "OCT": 0.43412
+    },
+    "spontaneous_hz": 17.0
+   },
+   "VC4": {
+    "response": {
+     "OCT": 0.048129,
+     "MCH": 0.048129
+    },
+    "spontaneous_hz": 6.0
+   },
+   "VM5d": {
+    "response": {
+     "OCT": 0.676272,
+     "MCH": 0.079718
+    },
+    "spontaneous_hz": 13.0
+   },
+   "VM5v": {
+    "response": {
+     "OCT": 0.592135,
+     "MCH": 0.084724
+    },
+    "spontaneous_hz": 12.0
+   },
+   "VM7d": {
+    "response": {
+     "OCT": 0.094125,
+     "MCH": 0.060638
+    },
+    "spontaneous_hz": null
+   },
+   "VM7v": {
+    "response": {
+     "OCT": 0.20367
+    },
+    "spontaneous_hz": null
+   }
+  }
+ },
+ "decoder": {
+  "rule": "choice = side with more DNa02 spikes over the decision window (ipsilateral steering); tie = no choice, excluded from the PI"
+ },
+ "populations": {
+  "DNa02_L": {
+   "types": [
+    "DNa02"
+   ],
+   "side": "L"
+  },
+  "DNa02_R": {
+   "types": [
+    "DNa02"
+   ],
+   "side": "R"
+  },
+  "PN": {
+   "pattern": "^[A-Za-z0-9]+_(l|ad|v|il|lv|m)PN"
+  },
+  "KC": {
+   "pattern": "^KC"
+  },
+  "MBON": {
+   "pattern": "^MBON"
+  }
+ },
+ "optional_populations": [
+  "PN",
+  "KC",
+  "MBON"
+ ],
+ "comparisons": [
+  {
+   "a": "OCT",
+   "b": "MCH"
+  },
+  {
+   "a": "OCT",
+   "b": "air"
+  },
+  {
+   "a": "MCH",
+   "b": "air"
+  }
+ ],
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  46,
+  47,
+  48,
+  49
+ ],
+ "seed_role": "encoder per-cell noise; each seed is one fly tested in both side assignments",
+ "behaviour": {
+  "analysis": {
+   "unit": "seed (reciprocal pair)",
+   "bootstrap_seed": 20260924,
+   "bootstrap_resamples": 10000,
+   "ci": 0.95,
+   "PI": "PI(a) = (choices of a - choices of b) / choosers, resampled by seed"
+  },
+  "gates": [
+   {
+    "id": "T0_flies_choose",
+    "type": "proportion_ci_lower_above",
+    "sample": "choice_rate_OCT_vs_MCH",
+    "threshold": 0.5,
+    "claim": "More than half the trials end in a choice (otherwise the PI is not informative).",
+    "basis": "design precondition; not a literature value",
+    "verified": true,
+    "sources": []
+   },
+   {
+    "id": "T1_OCT_MCH_balanced",
+    "type": "ratio_ci_within",
+    "sample": "PI_OCT_vs_MCH",
+    "interval": [
+     -0.2,
+     0.2
+    ],
+    "claim": "Naive OCT vs MCH choice is balanced: PI 95% CI inside [-0.2, 0.2].",
+    "basis": "standard: odour concentrations are set so naive flies split evenly (Tully & Quinn 1985); the tolerance is a judgement",
+    "verified": false,
+    "sources": [
+     "tully1985"
+    ]
+   },
+   {
+    "id": "T2_OCT_avoided",
+    "type": "ratio_ci_within",
+    "sample": "PI_OCT_vs_air",
+    "interval": [
+     -1.0,
+     0.0
+    ],
+    "claim": "Naive flies avoid OCT against air (PI for OCT below 0).",
+    "basis": "naive odour avoidance is measured against air as a control in T-maze work (Li 2013 methods); values not read",
+    "verified": false,
+    "sources": [
+     "li2013"
+    ]
+   },
+   {
+    "id": "T3_MCH_avoided",
+    "type": "ratio_ci_within",
+    "sample": "PI_MCH_vs_air",
+    "interval": [
+     -1.0,
+     0.0
+    ],
+    "claim": "Naive flies avoid MCH against air.",
+    "basis": "as T2",
+    "verified": false,
+    "sources": [
+     "li2013"
+    ]
+   }
+  ]
+ },
+ "physiology": {
+  "bounds_file": "firing_rate_bounds_v1.json",
+  "checks": [
+   {
+    "id": "P1_ORN_spont",
+    "population": "ORN_*",
+    "window": "baseline",
+    "bound": "ORN",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P2_ORN_driven",
+    "population": "ORN_*",
+    "window": "stimulus",
+    "bound": "ORN",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P3_PN_driven",
+    "population": "PN",
+    "window": "stimulus",
+    "bound": "PN",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P4_KC_driven",
+    "population": "KC",
+    "window": "stimulus",
+    "bound": "KC",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P5_MBON_driven",
+    "population": "MBON",
+    "window": "stimulus",
+    "bound": "MBON",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P6_brain_mean_driven",
+    "population": "__brain__",
+    "measure": "mean_hz",
+    "window": "stimulus",
+    "bound": "brain_mean",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   },
+   {
+    "id": "P7_brain_max_driven",
+    "population": "__brain__",
+    "measure": "max_hz",
+    "window": "stimulus",
+    "bound": "brain_max_single_neuron",
+    "conditions": [
+     "OCT_vs_MCH"
+    ]
+   }
+  ]
+ },
+ "decision_rule": "Behaviour PASS iff every gate passes. Physiology PASS iff every check lies in its bound. Verdict PASS iff both pass on a confirmatory run (real graph, this spec committed and unchanged, these seeds, clean tree); PASS_PROVISIONAL if any gating value is marked unverified; FAIL if any gate or check fails; INCONCLUSIVE if one cannot be evaluated. Full rule: validation/harness.py VERDICTS.",
+ "citations": {
+  "tully1985": {
+   "citation": "Tully T, Quinn WG (1985) Classical conditioning and retention in normal and mutant Drosophila melanogaster. J Comp Physiol A 157:263-277",
+   "doi": "10.1007/BF01350033",
+   "doi_status": "Crossref metadata only",
+   "read": "NOT READ (paywalled)",
+   "values_read": []
+  },
+  "li2013": {
+   "citation": "Li W, et al. (2013) J Neurosci (T-maze methods: naive odour avoidance, reciprocal half-PIs)",
+   "doi": "10.1523/JNEUROSCI.4004-12.2013",
+   "doi_status": "resolved (PMC3640307)",
+   "read": "methods only; control values are in Fig. 1I and were NOT extracted",
+   "values_read": [
+    "~100 flies per trial; MCH 1e-3 v/v, OCT 1.5e-3 v/v; half-PI = (n_air - n_odour)/total, PI = mean of reciprocal half-PIs"
+   ]
+  },
+  "munch2016": {
+   "citation": "Münch D, Galizia CG (2016) DoOR 2.0 - Comprehensive mapping of Drosophila melanogaster odorant responses. Sci Rep 6:21841",
+   "doi": "10.1038/srep21841",
+   "doi_status": "not resolved online (matches DoOR.data records)",
+   "read": "data: github.com/ropensci/DoOR.data commit db323a496577c4b4a72b5c2fcd1859e07521ffb5, package 2.0.1.9001",
+   "values_read": [
+    "consensus responses (0-1 per receptor, spontaneous-subtracted as reset_sfr does) for 3-octanol and 4-methylcyclohexanol; receptor -> glomerulus mapping (sources/door2_orn_responses_oct_mch_bza.json)"
+   ]
+  },
+  "hallem2006": {
+   "citation": "Hallem EA, Carlson JR (2006) Coding of odors by a receptor repertoire. Cell 125:143-160",
+   "doi": "10.1016/j.cell.2006.01.050",
+   "doi_status": "matches DoOR.data records; not resolved online",
+   "read": "data via DoOR.data (column Hallem.2006.EN)",
+   "values_read": [
+    "spontaneous firing of 24 Ors in the empty-neuron system, 1-47 Hz (SFR row)",
+    "OCT and MCH were NOT in the 110-odour set"
+   ]
+  },
+  "rayshubskiy2025": {
+   "citation": "Rayshubskiy A, et al., Wilson RI (2025) eLife 13:RP102230 (preprint bioRxiv 2020.04.04.024703)",
+   "doi": "10.7554/eLife.102230",
+   "doi_status": "resolved",
+   "read": "text; no absolute DNa02 firing rates in the text (figures only)",
+   "values_read": [
+    "DNa02 activity predicts and unilateral activation evokes ipsilateral turning (decoder convention, inherited from WP5)"
+   ]
+  }
+ }
+}
