@@ -43,6 +43,8 @@ backend ran. The real graph is found through `NEUROFLY_GRAPH_DIR` and
 | `EXPLORATORY` | the spec is a draft, the seeds were changed, the tree was dirty, or the spec is uncommitted |
 | `SYNTHETIC_PLUMBING_ONLY` | synthetic graph; no claim |
 
+A spec's `physiology.reported` checks are measured and written to every receipt, but they never enter the verdict.
+
 A run is **confirmatory** only if all of these hold: the graph is real, the
 spec status is `preregistered`, the spec's own seeds are used, the source tree
 is clean, and the spec file is committed. The receipt names the commit that
@@ -64,7 +66,8 @@ last touched the spec, so it shows the spec predates the run.
 
 | spec | status | gates | what is verified |
 |---|---|---|---|
-| `optomotor_v3.json` | **preregistered** | syndirectional TI; each direction alone; half contrast; minus sham; minus shuffled graph; DNa02-silenced yaw exactly 0 | Every behaviour gate. Duistermars et al. 2007 and Mano et al. 2023 were read in full. The rest are causal controls of the model. |
+| `optomotor_v3.json` (v3-1) | **preregistered**; confirmatory run FAILED on the HS spike ceiling ([record](receipts/validation/optomotor-yaw-v3-1.md)) | syndirectional TI; each direction alone; half contrast; minus sham; minus shuffled graph; DNa02-silenced yaw exactly 0 | Every behaviour gate. Duistermars et al. 2007 and Mano et al. 2023 were read in full. The rest are causal controls of the model. |
+| `optomotor_v3_2.json` (v3-2) | **preregistered** | identical behaviour gates | Amended after the v3-1 FAIL: the HS spike-rate checks became report-only because HS cells signal with graded potentials and no published HS spike rate exists. It uses bounds v2 and new seeds 100-105. See its `amendment` block. |
 | `looming_gf_v3.json` | draft | GF-spike fraction falls with log10(r/v); no GF spike without a stimulus | The slope's sign comes from von Reyn et al. 2014, but only the Fig. 1 caption, the abstract and (on 2026-09-24) the supplement were read; the main text is paywalled. The encoder ramps and the stimulus elevation still need owner review. |
 | `tmaze_odour_naive_v3.json` | draft | the fly chooses; OCT and MCH avoided vs air (OCT vs MCH balance reported only) | Naive avoidance of each odour vs air was read from Akalal et al. 2006 Table 1, but it is still unverified: Barth et al. 2014 reports slight attraction, and the model's concentration is not mapped to the published ones. The OCT/MCH balance is an experimenter calibration, not a fly property, so it is reported, not gated. The ORN encoder is DoOR 2.0 data from a pinned commit. |
 

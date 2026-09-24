@@ -17,7 +17,7 @@ from validation.cells import CellTable
 
 ROOT = Path(__file__).resolve().parents[1]
 SPECS = ROOT / 'validation/specs'
-SPEC_FILES = ('optomotor_v3.json', 'looming_gf_v3.json', 'tmaze_odour_naive_v3.json')
+SPEC_FILES = ('optomotor_v3.json', 'optomotor_v3_2.json', 'looming_gf_v3.json', 'tmaze_odour_naive_v3.json')
 
 
 # --- specs -----------------------------------------------------------------
@@ -157,3 +157,21 @@ def test_out_dir_is_never_overwritten(tmp_path):
     with pytest.raises(FileExistsError):
         harness.run(SPECS / 'looming_gf_v3.json', tmp_path / 'exists', synthetic=True, backend='cpu', seeds=[0],
                     log=lambda *_: None)
+
+
+def test_optomotor_v3_2_amends_only_what_it_declares():
+    v1 = harness.load_spec(SPECS / 'optomotor_v3.json')
+    v2 = harness.load_spec(SPECS / 'optomotor_v3_2.json')
+    for key in ('behaviour', 'stimulus', 'encoder', 'decoder', 'conditions', 'controls', 'decision_rule', 'dynamics'):
+        assert v1[key] == v2[key], key
+    assert v2['amendment']['prompted_by'] and set(v2['seeds']).isdisjoint(v1['seeds'])
+    moved = {c['population'] for c in v2['physiology']['reported']}
+    assert moved == {'HS_L', 'HS_R'}
+    assert [c for c in v1['physiology']['checks'] if c['population'] not in moved] == v2['physiology']['checks']
+
+
+def test_reported_physiology_never_enters_the_verdict(tmp_path):
+    receipt = harness.run(SPECS / 'optomotor_v3_2.json', tmp_path / 'r', synthetic=True, backend='cpu',
+                          seeds=[100], log=lambda *_: None)
+    assert {c['id'] for c in receipt['physiology_reported']} == {'R1_HS_L_driven', 'R2_HS_R_driven'}
+    assert not {c['id'] for c in receipt['physiology']} & {'R1_HS_L_driven', 'R2_HS_R_driven'}
