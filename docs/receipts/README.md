@@ -19,9 +19,9 @@ kept 435,541 fast out-edges that v3 sets to zero (`lif_dynamics_v3.json`,
 is suspect and must be re-run.
 
 `neurofly full-sim` (`experiments/full_connectome_simulation.py`) has the same defect
-and PR #4 does not fix it: it builds `Brain(graph_path, dynamics="v3")` from the raw
-graph without applying the transmitter policy. Its outputs are v3 equations on v1
-weights until that is fixed.
+and PR #4 does not fix it: it built `Brain(graph_path, dynamics="v3")` from the raw
+graph without applying the transmitter policy. PR #7 fixed this. Outputs from before
+PR #7 are v3 equations on v1 weights.
 
 The paths that do apply the policy are `brainlab/cosim_server.py` (used by
 `neurofly_body` and the WP5 scripts), `scripts/gpu_parity.py`, and the `brain-malecns`
@@ -84,7 +84,7 @@ commit its JSON here with `dynamics`, `transmitter_policy`, `graph_sha256`, back
 8. **Any daemon registry brain or run saved with a "v3" label before PR #4** (outside
    git, under `outputs/registry/` on the Ryzen). Discard them or re-run them; they
    are v3 equations on v1 weights.
-9. **`neurofly full-sim` outputs**. Do not re-run until the script applies the v3
-   transmitter policy. Until then, anything under `outputs/full_simulation/` is suspect.
+9. **`neurofly full-sim` outputs from before PR #7** (under `outputs/full_simulation/`).
+   They are v3 equations on v1 weights; re-run them on current master.
 10. **`experiment_data/ryzen_battery/`**: re-run with identity recorded, or move it out
     of the tracked tree.
