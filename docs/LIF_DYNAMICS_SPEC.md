@@ -195,6 +195,10 @@ the synaptic model alone.
 * The active version is selected per `Brain` (`Brain(..., dynamics='v2')`) or
   process-wide by `NEUROFLY_LIF_DYNAMICS=v2`. The default is **v1**, so every
   existing script, test and checkpoint keeps its current meaning.
+  *(Update 2026-09-24: the library default is still v1. The daemon, `neurofly run`,
+  now defaults to v3 and applies the v3 transmitter policy (PR #4). Before PR #4,
+  `NEUROFLY_LIF_DYNAMICS=v3` in the daemon ran the v3 equations on v1 weights. See
+  `docs/receipts/README.md`.)*
 * **Old checkpoints are refused, never reinterpreted.** The synaptic state
   array `g` has shape `(n,)` under v1 and `(2, n)` under v2 (row 0 excitatory,
   row 1 inhibitory). `Brain.restore_state` rejects a shape mismatch with an
