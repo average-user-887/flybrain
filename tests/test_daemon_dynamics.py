@@ -27,6 +27,36 @@ def test_daemon_cli_defaults_to_v3_and_keeps_v1(monkeypatch):
     assert neurofly_daemon.build_arg_parser().parse_args([]).dynamics == 'v1'
 
 
+def test_v3_brain_from_a_path_gets_the_transmitter_policy(tmp_path, monkeypatch):
+    import numpy as np
+    from brainlab import transmitter_policy
+    from brainlab.brain import Brain
+    path = tmp_path / 'graph.npz'
+    np.savez(path, ptr=np.array([0, 1, 2, 2], dtype=np.int64), post=np.array([1, 2], dtype=np.int32),
+             weight=np.array([5.0, 7.0], dtype=np.float32), ids=np.array([10, 11, 12], dtype=np.int64))
+    labels = transmitter_policy.normalise(['dopamine', 'acetylcholine', 'gaba'])
+    monkeypatch.setattr(transmitter_policy, 'load_transmitters', lambda connectome_dir=None: labels)
+    np.testing.assert_array_equal(Brain(path, dynamics='v3').weight, [0.0, 7.0])
+    np.testing.assert_array_equal(Brain(path, dynamics='v1').weight, [5.0, 7.0])
+
+
+def test_registry_refuses_v3_on_pinned_real_weights(monkeypatch):
+    import dataclasses
+    import pytest
+    from experiment_registry import GraphInstance, SharedGraph
+    from provenance import BackendError
+    shared = SharedGraph.synthetic(allow_synthetic=True)
+    real = SharedGraph(shared.arrays, dataclasses.replace(shared.identity, synthetic=False), shared.io_map)
+
+    class Registry:
+        pass
+    registry = Registry()
+    registry.shared = real
+    monkeypatch.setenv('NEUROFLY_LIF_DYNAMICS', 'v3')
+    with pytest.raises(BackendError, match='transmitter-policy'):
+        GraphInstance(registry, 'optomotor', 'connectome-fixed', 'x', 0, manifest=None)
+
+
 def test_full_sim_brain_runs_v3_on_policy_weights(tmp_path, monkeypatch):
     import numpy as np
     from experiment_registry import SharedGraph
