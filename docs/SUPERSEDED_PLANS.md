@@ -19,6 +19,7 @@ audit receipts, withdrawn claims), that evidence is cited by reference.
 | [`docs/FULL_CONNECTOME_COSIM_PLAN.md`](FULL_CONNECTOME_COSIM_PLAN.md) | Sep 21 | Antigravity | **Owner-approved architecture.** Its 4-component structure (sensory ingress, DN bottleneck, articulated walking, 3D dashboard) was implemented in v0.3.0. |
 | [`docs/archive/CODEX_HANDOFF.md`](archive/CODEX_HANDOFF.md) | Sep 21 | Claude (orchestrator) | Honest handoff. Infrastructure details are operational records, not part of the product plan. |
 | [`docs/REPOSITORY_LAYOUT.md`](REPOSITORY_LAYOUT.md) | Sep 21 | Codex | Cleaned repository layout. `docs/EMBODIED_MVP.md` is delivered and active. |
+| [`docs/archive/ROADMAP_v1.0.md`](archive/ROADMAP_v1.0.md) | Sep 24 | Mixed | Marked phases "delivered" on the strength of v1 results. Replaced by roadmap v2.0, which resets claims to v3 receipts. |
 
 ## Documents that remain authoritative
 
