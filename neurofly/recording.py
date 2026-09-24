@@ -204,6 +204,14 @@ def frame_from_telemetry(telemetry: Dict[str, Any], segments: _Ordinals) -> Dict
     return frame
 
 
+def _lif_dynamics(runner) -> Optional[str]:
+    """LIF dynamics version of a graph run (``NEUROFLY_LIF_DYNAMICS``); None for modular."""
+    if getattr(runner, "shared_graph", None) is None:
+        return None
+    from brainlab.graph_identity import active_dynamics_version
+    return active_dynamics_version()
+
+
 # ---------------------------------------------------------------------------
 # Writer
 # ---------------------------------------------------------------------------
@@ -257,6 +265,7 @@ class RunRecorder:
             initial_state["graph_step_index"] = int(getattr(instance, "step_index", 0) or 0)
         provenance = dict(
             backend=runner.backend, assay=runner.active_paradigm_id,
+            lif_dynamics=_lif_dynamics(runner),
             seed=int(instance.seed) if instance is not None else int(getattr(brain, "seed", 0)),
             controller_version=getattr(manifest, "controller_version", ""),
             label=getattr(manifest, "label", ""), synthetic=bool(getattr(manifest, "synthetic", False)),
@@ -430,15 +439,20 @@ def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", reco
                raster: str = "io", schedule: Optional[List[dict]] = None, state_dir=None,
                test_synthetic_graph: bool = False, graph_dir=None, graph_step_ms: Optional[float] = None,
                trial_length_s: float = 60.0, continuous: bool = False, label: str = "",
-               progress_every: int = 0) -> dict:
+               progress_every: int = 0, dynamics: Optional[str] = None) -> dict:
     """Run ``steps`` fixed-dt steps of a fresh runner and write one recording.
 
     ``state_dir`` defaults to a new temporary directory, so the run starts from the
     paradigm's naive brain; pass a directory to continue a saved brain (the header
     then records ``initial_state.restored``).  ``schedule`` is a list of
     ``{"step": n, "cmd": {...}}`` applied exactly at step ``n`` (the recorded inputs).
+    ``dynamics`` sets the process-wide LIF dynamics (``NEUROFLY_LIF_DYNAMICS``) for
+    graph backends, as the daemon's ``--dynamics`` does; None keeps the environment.
     """
     import tempfile
+    if dynamics is not None:
+        # Process-wide, before any Brain or registry manifest is created (as the daemon).
+        os.environ["NEUROFLY_LIF_DYNAMICS"] = dynamics
     from neurofly_daemon import ContinuousExperimentRunner
 
     schedule = sorted((dict(step=int(e["step"]), cmd=dict(e["cmd"])) for e in (schedule or [])),
@@ -485,6 +499,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="Use the labelled synthetic test graph (graph backends, tests only)")
     parser.add_argument("--graph-dir", default=None)
     parser.add_argument("--graph-step-ms", type=float, default=None)
+    parser.add_argument("--dynamics", choices=("v1", "v2", "v3"),
+                        default=os.environ.get("NEUROFLY_LIF_DYNAMICS") or "v3",
+                        help="LIF dynamics of the connectome backends (default: v3, as the daemon; "
+                             "env NEUROFLY_LIF_DYNAMICS)")
     parser.add_argument("--record-every", type=int, default=1)
     parser.add_argument("--raster", choices=RASTER_MODES, default="io")
     parser.add_argument("--schedule", default=None,
@@ -502,7 +520,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                          state_dir=args.state_dir, test_synthetic_graph=args.test_synthetic_graph,
                          graph_dir=args.graph_dir, graph_step_ms=args.graph_step_ms,
                          trial_length_s=args.trial_seconds, continuous=args.continuous, label=args.label,
-                         progress_every=max(1, steps // 10))
+                         progress_every=max(1, steps // 10), dynamics=args.dynamics)
     print(json.dumps(summary, indent=2))
     return 0 if not summary.get("error") else 1
 

@@ -69,6 +69,18 @@ def test_synthetic_graph_recording_provenance_and_determinism(tmp_path):
     assert header["channels"]["raster"]["n"] > 0
 
 
+def test_record_cli_defaults_to_v3_dynamics(tmp_path, monkeypatch):
+    from neurofly import recording
+    monkeypatch.delenv("NEUROFLY_LIF_DYNAMICS", raising=False)
+    base = ["--paradigm", "t-maze", "--steps", "3", "--backend", "connectome-fixed", "--test-synthetic-graph"]
+    assert recording.main(base + ["--out", str(tmp_path / "v3")]) == 0
+    assert read_recording(tmp_path / "v3.nfrec")["header"]["provenance"]["lif_dynamics"] == "v3"
+    assert recording.main(base + ["--out", str(tmp_path / "v1"), "--dynamics", "v1"]) == 0
+    assert read_recording(tmp_path / "v1.nfrec")["header"]["provenance"]["lif_dynamics"] == "v1"
+    assert recording.main(["--paradigm", "t-maze", "--steps", "2", "--out", str(tmp_path / "m")]) == 0
+    assert read_recording(tmp_path / "m.nfrec")["header"]["provenance"]["lif_dynamics"] is None
+
+
 def test_region_rates_and_sparse_spikes(tmp_path):
     runner = ContinuousExperimentRunner(initial_paradigm="t-maze", output_dir=tmp_path, backend="connectome-fixed",
                                         test_synthetic_graph=True, checkpoint_interval=1e9)
