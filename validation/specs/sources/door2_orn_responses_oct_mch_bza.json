@@ -1,0 +1,2865 @@
+{
+ "odours": {
+  "3-octanol": {
+   "code": "OCT",
+   "cas": "589-98-0",
+   "inchikey": "NMRPBPVERJPACX-UHFFFAOYSA-N",
+   "n_units_with_door_data": 48,
+   "responses": [
+    {
+     "receptor": "Or85c",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.875065135481802,
+     "door_response_minus_sfr": 0.845743,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85b",
+     "osn": "ab3B",
+     "glomerulus": "VM5d",
+     "door_response": 0.741226617328438,
+     "door_response_minus_sfr": 0.676272,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 245.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or69a",
+     "osn": "ab9",
+     "glomerulus": "D",
+     "door_response": 0.740786240786241,
+     "door_response_minus_sfr": 0.740786,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or13a",
+     "osn": "ab6A",
+     "glomerulus": "DC2",
+     "door_response": 0.658400874807494,
+     "door_response_minus_sfr": 0.578598,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or98a",
+     "osn": "ab7A",
+     "glomerulus": "VM5v",
+     "door_response": 0.607306994991386,
+     "door_response_minus_sfr": 0.592135,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or47a",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.520009730616517,
+     "door_response_minus_sfr": 0.468064,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or35a",
+     "osn": "ac3B",
+     "glomerulus": "VC3",
+     "door_response": 0.515687260761257,
+     "door_response_minus_sfr": 0.43412,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or19a",
+     "osn": "at3",
+     "glomerulus": "DC1",
+     "door_response": 0.473859077540008,
+     "door_response_minus_sfr": 0.37379,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2A in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Or22a",
+     "osn": "ab3A",
+     "glomerulus": "DM2",
+     "door_response": 0.421824458898445,
+     "door_response_minus_sfr": 0.337339,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85d",
+     "osn": "pb3B",
+     "glomerulus": "VA4",
+     "door_response": 0.415670977421809,
+     "door_response_minus_sfr": 0.368504,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67a",
+     "osn": "ab10A",
+     "glomerulus": "DM6",
+     "door_response": 0.343850762838618,
+     "door_response_minus_sfr": 0.319303,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 110.167,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab4B",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.305927684033243,
+     "door_response_minus_sfr": 0.241068,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or45a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.251791276325885,
+     "door_response_minus_sfr": 0.24313,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59c",
+     "osn": "pb3A",
+     "glomerulus": "VM7v",
+     "door_response": 0.239471659661079,
+     "door_response_minus_sfr": 0.20367,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab5B",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.238196202915044,
+     "door_response_minus_sfr": 0.213349,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2",
+     "osn": "ac2A+B+C",
+     "glomerulus": "VL1+DP1l+VC5",
+     "door_response": 0.23265306122449,
+     "door_response_minus_sfr": 0.061224,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "ac1",
+     "osn": "ac1A+B+C",
+     "glomerulus": "VL1+VM1+VL2p",
+     "door_response": 0.216799750189588,
+     "door_response_minus_sfr": 0.030713,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or33c",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.198754040246064,
+     "door_response_minus_sfr": 0.153138,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or2a",
+     "osn": "at3",
+     "glomerulus": "DA4m",
+     "door_response": 0.180975442441156,
+     "door_response_minus_sfr": 0.132523,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2 in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Or42a",
+     "osn": "pb1A",
+     "glomerulus": "VM7d",
+     "door_response": 0.176166804484979,
+     "door_response_minus_sfr": 0.094125,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67b",
+     "osn": "ab9",
+     "glomerulus": "VA3",
+     "door_response": 0.174246311647343,
+     "door_response_minus_sfr": 0.123332,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or10a",
+     "osn": "ab1D",
+     "glomerulus": "DL1",
+     "door_response": 0.169727859499921,
+     "door_response_minus_sfr": 0.118067,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3_noOr35a",
+     "osn": "ac3A+B",
+     "glomerulus": "DL2d/v+VC3",
+     "door_response": 0.155188291327233,
+     "door_response_minus_sfr": 0.05872,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from the ac3 sensillum, Or35a was knocked down (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or85e",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.148550724637681,
+     "door_response_minus_sfr": 0.148551,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.142076269005286,
+     "door_response_minus_sfr": 0.13848,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or47b",
+     "osn": "at4A",
+     "glomerulus": "VA1v",
+     "door_response": 0.138227655335011,
+     "door_response_minus_sfr": -0.059628,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.131689131792421,
+     "door_response_minus_sfr": 0.124846,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Gr21a.Gr63a",
+     "osn": "ab1C",
+     "glomerulus": "V",
+     "door_response": 0.129622479401401,
+     "door_response_minus_sfr": -0.011516,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or1a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.127946127946128,
+     "door_response_minus_sfr": 0.127946,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or83c",
+     "osn": "at2A",
+     "glomerulus": "DC3",
+     "door_response": 0.124423963133641,
+     "door_response_minus_sfr": 0.046083,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2A in Ronderos et al. 2014"
+    },
+    {
+     "receptor": "Or49a",
+     "osn": "ab10B",
+     "glomerulus": "DL4",
+     "door_response": 0.115106532093369,
+     "door_response_minus_sfr": 0.115107,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42b",
+     "osn": "ab1A",
+     "glomerulus": "DM1",
+     "door_response": 0.114245591783558,
+     "door_response_minus_sfr": 0.062651,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or82a",
+     "osn": "ab5A",
+     "glomerulus": "VA6",
+     "door_response": 0.0813243990333552,
+     "door_response_minus_sfr": 0.054715,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or49b",
+     "osn": "ab6B",
+     "glomerulus": "VA5",
+     "door_response": 0.0779896848403772,
+     "door_response_minus_sfr": 0.029942,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac4",
+     "osn": "ac4",
+     "glomerulus": "?",
+     "door_response": 0.0725210677131388,
+     "door_response_minus_sfr": -0.020174,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or67c",
+     "osn": "ab7B",
+     "glomerulus": "VC4",
+     "door_response": 0.0709990086242188,
+     "door_response_minus_sfr": 0.048129,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or74a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0685722890353315,
+     "door_response_minus_sfr": 0.055756,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or7a",
+     "osn": "ab4A",
+     "glomerulus": "DL5",
+     "door_response": 0.057294200509859,
+     "door_response_minus_sfr": 0.03197,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59b",
+     "osn": "ab2A",
+     "glomerulus": "DM4",
+     "door_response": 0.0460808480667164,
+     "door_response_minus_sfr": 0.022353,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or45b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0435386789828396,
+     "door_response_minus_sfr": 0.018749,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab2B",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.0432284609109338,
+     "door_response_minus_sfr": 0.036257,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or71a",
+     "osn": "pb1B",
+     "glomerulus": "VC2",
+     "door_response": 0.0400458712851348,
+     "door_response_minus_sfr": 0.009559,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or30a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0347152940836112,
+     "door_response_minus_sfr": 0.022282,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33a",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.0298540965207632,
+     "door_response_minus_sfr": 0.029854,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0210598903720362,
+     "door_response_minus_sfr": -0.022297,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33b",
+     "osn": "ab2B+ab5B",
+     "glomerulus": "DM5+DM3",
+     "door_response": 0.0199047572992332,
+     "door_response_minus_sfr": -0.042896,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or92a",
+     "osn": "ab1B",
+     "glomerulus": "VA2",
+     "door_response": 0.0149395024784077,
+     "door_response_minus_sfr": -0.019173,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or46a",
+     "osn": "pb2B",
+     "glomerulus": "VA7l",
+     "door_response": 0.000383691987029055,
+     "door_response_minus_sfr": -0.097763,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    }
+   ]
+  },
+  "4-methylcyclohexanol": {
+   "code": "MCH",
+   "cas": "589-91-3",
+   "inchikey": "MQWCXKGKQLNYQG-UHFFFAOYSA-N",
+   "n_units_with_door_data": 26,
+   "responses": [
+    {
+     "receptor": "Or67b",
+     "osn": "ab9",
+     "glomerulus": "VA3",
+     "door_response": 0.92648550672136,
+     "door_response_minus_sfr": 0.875571,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or69a",
+     "osn": "ab9",
+     "glomerulus": "D",
+     "door_response": 0.635135135135135,
+     "door_response_minus_sfr": 0.635135,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab4B",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.339176173367663,
+     "door_response_minus_sfr": 0.274317,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or22a",
+     "osn": "ab3A",
+     "glomerulus": "DM2",
+     "door_response": 0.33825534686507,
+     "door_response_minus_sfr": 0.25377,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1",
+     "osn": "ac1A+B+C",
+     "glomerulus": "VL1+VM1+VL2p",
+     "door_response": 0.290872998171031,
+     "door_response_minus_sfr": 0.104787,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or47b",
+     "osn": "at4A",
+     "glomerulus": "VA1v",
+     "door_response": 0.209280936234345,
+     "door_response_minus_sfr": 0.011426,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or10a",
+     "osn": "ab1D",
+     "glomerulus": "DL1",
+     "door_response": 0.182335725095656,
+     "door_response_minus_sfr": 0.130675,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or13a",
+     "osn": "ab6A",
+     "glomerulus": "DC2",
+     "door_response": 0.157418357276083,
+     "door_response_minus_sfr": 0.077615,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or83c",
+     "osn": "at2A",
+     "glomerulus": "DC3",
+     "door_response": 0.15668202764977,
+     "door_response_minus_sfr": 0.078341,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2A in Ronderos et al. 2014"
+    },
+    {
+     "receptor": "ac2",
+     "osn": "ac2A+B+C",
+     "glomerulus": "VL1+DP1l+VC5",
+     "door_response": 0.146938775510204,
+     "door_response_minus_sfr": -0.02449,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or85b",
+     "osn": "ab3B",
+     "glomerulus": "VM5d",
+     "door_response": 0.144672163784542,
+     "door_response_minus_sfr": 0.079718,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42a",
+     "osn": "pb1A",
+     "glomerulus": "VM7d",
+     "door_response": 0.142679440244334,
+     "door_response_minus_sfr": 0.060638,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or71a",
+     "osn": "pb1B",
+     "glomerulus": "VC2",
+     "door_response": 0.113798225345937,
+     "door_response_minus_sfr": 0.083311,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or98a",
+     "osn": "ab7A",
+     "glomerulus": "VM5v",
+     "door_response": 0.0998952403585685,
+     "door_response_minus_sfr": 0.084724,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3_noOr35a",
+     "osn": "ac3A+B",
+     "glomerulus": "DL2d/v+VC3",
+     "door_response": 0.0943712582395334,
+     "door_response_minus_sfr": -0.002097,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from the ac3 sensillum, Or35a was knocked down (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or7a",
+     "osn": "ab4A",
+     "glomerulus": "DL5",
+     "door_response": 0.0854401889271052,
+     "door_response_minus_sfr": 0.060116,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or49b",
+     "osn": "ab6B",
+     "glomerulus": "VA5",
+     "door_response": 0.0779896848403772,
+     "door_response_minus_sfr": 0.029942,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67c",
+     "osn": "ab7B",
+     "glomerulus": "VC4",
+     "door_response": 0.0709990086242188,
+     "door_response_minus_sfr": 0.048129,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59b",
+     "osn": "ab2A",
+     "glomerulus": "DM4",
+     "door_response": 0.0542664279139335,
+     "door_response_minus_sfr": 0.030539,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or19a",
+     "osn": "at3",
+     "glomerulus": "DC1",
+     "door_response": 0.0517759403323907,
+     "door_response_minus_sfr": -0.048293,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2A in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Or82a",
+     "osn": "ab5A",
+     "glomerulus": "VA6",
+     "door_response": 0.0502461920250091,
+     "door_response_minus_sfr": 0.023637,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42b",
+     "osn": "ab1A",
+     "glomerulus": "DM1",
+     "door_response": 0.0400534157598057,
+     "door_response_minus_sfr": -0.011541,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac4",
+     "osn": "ac4",
+     "glomerulus": "?",
+     "door_response": 0.0296280572140364,
+     "door_response_minus_sfr": -0.063067,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "ab5B",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.023328993301612,
+     "door_response_minus_sfr": -0.001518,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab2B",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.0210087421599029,
+     "door_response_minus_sfr": 0.014037,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or92a",
+     "osn": "ab1B",
+     "glomerulus": "VA2",
+     "door_response": 0.0152994931895248,
+     "door_response_minus_sfr": -0.018813,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    }
+   ]
+  },
+  "benzaldehyde": {
+   "code": "BEN",
+   "cas": "100-52-7",
+   "inchikey": "HUMNYLRZRPPJDN-UHFFFAOYSA-N",
+   "n_units_with_door_data": 64,
+   "responses": [
+    {
+     "receptor": "Or45b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.777292778288928,
+     "door_response_minus_sfr": 0.752503,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67b",
+     "osn": "ab9",
+     "glomerulus": "VA3",
+     "door_response": 0.745567562306808,
+     "door_response_minus_sfr": 0.694653,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or30a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.597181027069249,
+     "door_response_minus_sfr": 0.584748,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or7a",
+     "osn": "ab4A",
+     "glomerulus": "DL5",
+     "door_response": 0.576183066800948,
+     "door_response_minus_sfr": 0.550859,
+     "hallem_delta_hz": 217.0,
+     "hallem2004_delta_hz": 206.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN; Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67a",
+     "osn": "ab10A",
+     "glomerulus": "DM6",
+     "door_response": 0.469880388831481,
+     "door_response_minus_sfr": 0.445333,
+     "hallem_delta_hz": 211.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3B",
+     "osn": "ac3B",
+     "glomerulus": "VC3",
+     "door_response": 0.389644203631574,
+     "door_response_minus_sfr": 0.34498,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or35a",
+     "osn": "ac3B",
+     "glomerulus": "VC3",
+     "door_response": 0.308675586941626,
+     "door_response_minus_sfr": 0.227109,
+     "hallem_delta_hz": 100.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or9a",
+     "osn": "ab8B",
+     "glomerulus": "VM3",
+     "door_response": 0.291932724302794,
+     "door_response_minus_sfr": 0.227587,
+     "hallem_delta_hz": 60.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or83c",
+     "osn": "at2A",
+     "glomerulus": "DC3",
+     "door_response": 0.276497695852535,
+     "door_response_minus_sfr": 0.198157,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "named ai2A in Ronderos et al. 2014"
+    },
+    {
+     "receptor": "Or10a",
+     "osn": "ab1D",
+     "glomerulus": "DL1",
+     "door_response": 0.273735022238986,
+     "door_response_minus_sfr": 0.222074,
+     "hallem_delta_hz": 137.0,
+     "hallem2004_delta_hz": 70.833,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN; Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85e",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.264492753623188,
+     "door_response_minus_sfr": 0.264493,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1",
+     "osn": "ac1A+B+C",
+     "glomerulus": "VL1+VM1+VL2p",
+     "door_response": 0.247513048133113,
+     "door_response_minus_sfr": 0.061427,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or43a",
+     "osn": "at3",
+     "glomerulus": "DA4l",
+     "door_response": 0.229446943118861,
+     "door_response_minus_sfr": 0.134163,
+     "hallem_delta_hz": 57.0,
+     "hallem2004_delta_hz": 72.667,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN; Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": "named ai2 in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Gr21a.Gr63a",
+     "osn": "ab1C",
+     "glomerulus": "V",
+     "door_response": 0.224450440562671,
+     "door_response_minus_sfr": 0.083312,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33c",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.195495777291211,
+     "door_response_minus_sfr": 0.14988,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or22a",
+     "osn": "ab3A",
+     "glomerulus": "DM2",
+     "door_response": 0.182588449662252,
+     "door_response_minus_sfr": 0.098103,
+     "hallem_delta_hz": 36.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85f",
+     "osn": "ab10B",
+     "glomerulus": "DL4",
+     "door_response": 0.163248028512017,
+     "door_response_minus_sfr": 0.129339,
+     "hallem_delta_hz": 56.0,
+     "hallem2004_delta_hz": 41.667,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN; Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or19a",
+     "osn": "at3",
+     "glomerulus": "DC1",
+     "door_response": 0.153474460798289,
+     "door_response_minus_sfr": 0.053406,
+     "hallem_delta_hz": 14.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": "named ai2A in Dweck et al. 2013"
+    },
+    {
+     "receptor": "ac1B",
+     "osn": "ac1B",
+     "glomerulus": "?",
+     "door_response": 0.152531009051291,
+     "door_response_minus_sfr": 0.082803,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or43b",
+     "osn": "ab8A",
+     "glomerulus": "VM2",
+     "door_response": 0.151547100813169,
+     "door_response_minus_sfr": 0.136651,
+     "hallem_delta_hz": 14.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or69a",
+     "osn": "ab9",
+     "glomerulus": "D",
+     "door_response": 0.146191646191646,
+     "door_response_minus_sfr": 0.146192,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or46a",
+     "osn": "pb2B",
+     "glomerulus": "VA7l",
+     "door_response": 0.145725182492232,
+     "door_response_minus_sfr": 0.047578,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or98a",
+     "osn": "ab7A",
+     "glomerulus": "VM5v",
+     "door_response": 0.143418840283693,
+     "door_response_minus_sfr": 0.128247,
+     "hallem_delta_hz": 42.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85d",
+     "osn": "pb3B",
+     "glomerulus": "VA4",
+     "door_response": 0.142540651186891,
+     "door_response_minus_sfr": 0.095374,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2",
+     "osn": "ac2A+B+C",
+     "glomerulus": "VL1+DP1l+VC5",
+     "door_response": 0.138775510204082,
+     "door_response_minus_sfr": -0.032653,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or42a",
+     "osn": "pb1A",
+     "glomerulus": "VM7d",
+     "door_response": 0.137744167004738,
+     "door_response_minus_sfr": 0.055703,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or49b",
+     "osn": "ab6B",
+     "glomerulus": "VA5",
+     "door_response": 0.135220740469237,
+     "door_response_minus_sfr": 0.087173,
+     "hallem_delta_hz": 109.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85b",
+     "osn": "ab3B",
+     "glomerulus": "VM5d",
+     "door_response": 0.134621238664176,
+     "door_response_minus_sfr": 0.069667,
+     "hallem_delta_hz": 50.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3_noOr35a",
+     "osn": "ac3A+B",
+     "glomerulus": "DL2d/v+VC3",
+     "door_response": 0.132119761535347,
+     "door_response_minus_sfr": 0.035651,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from the ac3 sensillum, Or35a was knocked down (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or47b",
+     "osn": "at4A",
+     "glomerulus": "VA1v",
+     "door_response": 0.128947632586571,
+     "door_response_minus_sfr": -0.068908,
+     "hallem_delta_hz": 29.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.124089994971634,
+     "door_response_minus_sfr": 0.080733,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or45a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.119709094093067,
+     "door_response_minus_sfr": 0.111048,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or74a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.113239685664345,
+     "door_response_minus_sfr": 0.100423,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or47a",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.113236357618768,
+     "door_response_minus_sfr": 0.061291,
+     "hallem_delta_hz": 23.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac4",
+     "osn": "ac4",
+     "glomerulus": "?",
+     "door_response": 0.111317718064992,
+     "door_response_minus_sfr": 0.018622,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "ac3A",
+     "osn": "ac3A",
+     "glomerulus": "DL2d/v",
+     "door_response": 0.106280260771848,
+     "door_response_minus_sfr": 0.03763,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "mapping to DL2d&v, separation unclear"
+    },
+    {
+     "receptor": "Or13a",
+     "osn": "ab6A",
+     "glomerulus": "DC2",
+     "door_response": 0.104765300050939,
+     "door_response_minus_sfr": 0.024962,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42b",
+     "osn": "ab1A",
+     "glomerulus": "DM1",
+     "door_response": 0.100253378148429,
+     "door_response_minus_sfr": 0.048659,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85c",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0996440103620526,
+     "door_response_minus_sfr": 0.070322,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or1a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.085297418630752,
+     "door_response_minus_sfr": 0.085297,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1A",
+     "osn": "ac1A",
+     "glomerulus": "?",
+     "door_response": 0.0762992149459628,
+     "door_response_minus_sfr": 0.013585,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85a",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.0701119011685374,
+     "door_response_minus_sfr": 0.024403,
+     "hallem_delta_hz": 21.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2A",
+     "osn": "ac2A",
+     "glomerulus": "?",
+     "door_response": 0.0658042087221692,
+     "door_response_minus_sfr": 0.009754,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or71a",
+     "osn": "pb1B",
+     "glomerulus": "VC2",
+     "door_response": 0.0556103043162239,
+     "door_response_minus_sfr": 0.025123,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or2a",
+     "osn": "at3",
+     "glomerulus": "DA4m",
+     "door_response": 0.0554172668805724,
+     "door_response_minus_sfr": 0.006965,
+     "hallem_delta_hz": 13.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": "named ai2 in Dweck et al. 2013"
+    },
+    {
+     "receptor": "ac2B",
+     "osn": "ac2B",
+     "glomerulus": "?",
+     "door_response": 0.0531708667959014,
+     "door_response_minus_sfr": -0.017724,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59c",
+     "osn": "pb3A",
+     "glomerulus": "VM7v",
+     "door_response": 0.0529502210511303,
+     "door_response_minus_sfr": 0.017149,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or88a",
+     "osn": "at4C",
+     "glomerulus": "VA1d",
+     "door_response": 0.0500355543814927,
+     "door_response_minus_sfr": -0.006282,
+     "hallem_delta_hz": 23.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0441913347516434,
+     "door_response_minus_sfr": 0.037348,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33b",
+     "osn": "ab2B+ab5B",
+     "glomerulus": "DM5+DM3",
+     "door_response": 0.0437348143517324,
+     "door_response_minus_sfr": -0.019066,
+     "hallem_delta_hz": 20.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or92a",
+     "osn": "ab1B",
+     "glomerulus": "VA2",
+     "door_response": 0.0420158695999001,
+     "door_response_minus_sfr": 0.007903,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab5B",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.040921908312936,
+     "door_response_minus_sfr": 0.016075,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0397424267633534,
+     "door_response_minus_sfr": 0.036146,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67c",
+     "osn": "ab7B",
+     "glomerulus": "VC4",
+     "door_response": 0.037148188308321,
+     "door_response_minus_sfr": 0.014278,
+     "hallem_delta_hz": 12.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or82a",
+     "osn": "ab5A",
+     "glomerulus": "VA6",
+     "door_response": 0.0362210847176618,
+     "door_response_minus_sfr": 0.009612,
+     "hallem_delta_hz": 6.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59b",
+     "osn": "ab2A",
+     "glomerulus": "DM4",
+     "door_response": 0.0281018769327448,
+     "door_response_minus_sfr": 0.004374,
+     "hallem_delta_hz": 8.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2BC",
+     "osn": "ac2B+C",
+     "glomerulus": "?",
+     "door_response": 0.0244339314354096,
+     "door_response_minus_sfr": 0.003977,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from ac2B and C ORNs, only A neuron could be separated (Marshall et al. 2010)"
+    },
+    {
+     "receptor": "ab4B",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.022954867015244,
+     "door_response_minus_sfr": -0.041905,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or65a",
+     "osn": "at4B",
+     "glomerulus": "DL3",
+     "door_response": 0.0201432565752158,
+     "door_response_minus_sfr": -0.03934,
+     "hallem_delta_hz": 8.0,
+     "hallem2004_delta_hz": 9.833,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN; Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1BC",
+     "osn": "ac1B+C",
+     "glomerulus": "?",
+     "door_response": 0.0174611973392461,
+     "door_response_minus_sfr": -0.003234,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from ac1B and C ORNs, only A neuron could be separated (Marshall et al. 2010)"
+    },
+    {
+     "receptor": "Or33a",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.0127946127946128,
+     "door_response_minus_sfr": 0.012795,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab2B",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.0122779282642706,
+     "door_response_minus_sfr": 0.005306,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or23a",
+     "osn": "at2B",
+     "glomerulus": "DA3",
+     "door_response": 0.00858516170751432,
+     "door_response_minus_sfr": -0.010731,
+     "hallem_delta_hz": 4.0,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem&Carlson2006 via DoOR.data Hallem.2006.EN",
+     "mapping_note": "named ai2B in Ronderos et al. 2014"
+    },
+    {
+     "receptor": "Or49a",
+     "osn": "ab10B",
+     "glomerulus": "DL4",
+     "door_response": 0.00702240849997362,
+     "door_response_minus_sfr": 0.007022,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    }
+   ]
+  },
+  "solvent (DoOR \"solvent\" row, mineral/paraffin oil)": {
+   "code": "solvent",
+   "cas": null,
+   "inchikey": null,
+   "n_units_with_door_data": 73,
+   "responses": [
+    {
+     "receptor": "ac2",
+     "osn": "ac2A+B+C",
+     "glomerulus": "VL1+DP1l+VC5",
+     "door_response": 0.286620408163265,
+     "door_response_minus_sfr": 0.115192,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Ir64a.DC4",
+     "osn": "sacII",
+     "glomerulus": "DC4",
+     "door_response": 0.258500376274201,
+     "door_response_minus_sfr": 0.2585,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1",
+     "osn": "ac1A+B+C",
+     "glomerulus": "VL1+VM1+VL2p",
+     "door_response": 0.257240130258286,
+     "door_response_minus_sfr": 0.071154,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Or69a",
+     "osn": "ab9",
+     "glomerulus": "D",
+     "door_response": 0.226044226044226,
+     "door_response_minus_sfr": 0.226044,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or47b",
+     "osn": "at4A",
+     "glomerulus": "VA1v",
+     "door_response": 0.206159723335033,
+     "door_response_minus_sfr": 0.008304,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 72.576,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85b",
+     "osn": "ab3B",
+     "glomerulus": "VM5d",
+     "door_response": 0.182583413450069,
+     "door_response_minus_sfr": 0.117629,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 58.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3_noOr35a",
+     "osn": "ac3A+B",
+     "glomerulus": "DL2d/v+VC3",
+     "door_response": 0.165577518289869,
+     "door_response_minus_sfr": 0.069109,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from the ac3 sensillum, Or35a was knocked down (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "Ir84a",
+     "osn": "ac4",
+     "glomerulus": "VL2a",
+     "door_response": 0.163315313808611,
+     "door_response_minus_sfr": -0.01133,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or13a",
+     "osn": "ab6A",
+     "glomerulus": "DC2",
+     "door_response": 0.160062398097785,
+     "door_response_minus_sfr": 0.080259,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir41a",
+     "osn": "ac2",
+     "glomerulus": "VC5",
+     "door_response": 0.155006275725315,
+     "door_response_minus_sfr": -0.007653,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Gr21a.Gr63a",
+     "osn": "ab1C",
+     "glomerulus": "V",
+     "door_response": 0.143178815839841,
+     "door_response_minus_sfr": 0.00204,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67b",
+     "osn": "ab9",
+     "glomerulus": "VA3",
+     "door_response": 0.115594800409267,
+     "door_response_minus_sfr": 0.06468,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir31a",
+     "osn": "ac1",
+     "glomerulus": "VL2p",
+     "door_response": 0.11104839757639,
+     "door_response_minus_sfr": -0.005645,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1B",
+     "osn": "ac1B",
+     "glomerulus": "?",
+     "door_response": 0.108950720750922,
+     "door_response_minus_sfr": 0.039222,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir75a",
+     "osn": "ac2",
+     "glomerulus": "DP1l",
+     "door_response": 0.103712199229567,
+     "door_response_minus_sfr": 0.019316,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "Ir75a is the sole receptor expressed in some ac2 neurons projecting to glomerulus DP1l,\nIr75a is also expressed in ac3A neurons projecting to glomerulus DL2d+v, here along with Ir75b and Ir75c (see data set ac3A for responses)"
+    },
+    {
+     "receptor": "Or88a",
+     "osn": "at4C",
+     "glomerulus": "VA1d",
+     "door_response": 0.10330324022884,
+     "door_response_minus_sfr": 0.046986,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 1.25,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42a",
+     "osn": "pb1A",
+     "glomerulus": "VM7d",
+     "door_response": 0.100737741560706,
+     "door_response_minus_sfr": 0.018696,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or42b",
+     "osn": "ab1A",
+     "glomerulus": "DM1",
+     "door_response": 0.098614751214843,
+     "door_response_minus_sfr": 0.04702,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac4",
+     "osn": "ac4",
+     "glomerulus": "?",
+     "door_response": 0.0879686090198937,
+     "door_response_minus_sfr": -0.004727,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses, individual ORNs could not be separated (Silbering et al. 2011)"
+    },
+    {
+     "receptor": "ac2B",
+     "osn": "ac2B",
+     "glomerulus": "?",
+     "door_response": 0.0856641742822856,
+     "door_response_minus_sfr": 0.01477,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85c",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0842554197626668,
+     "door_response_minus_sfr": 0.054934,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3A",
+     "osn": "ac3A",
+     "glomerulus": "DL2d/v",
+     "door_response": 0.0800035096747026,
+     "door_response_minus_sfr": 0.011354,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "mapping to DL2d&v, separation unclear"
+    },
+    {
+     "receptor": "Or33b",
+     "osn": "ab2B+ab5B",
+     "glomerulus": "DM5+DM3",
+     "door_response": 0.0776179876304993,
+     "door_response_minus_sfr": 0.014817,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 0.5,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or7a",
+     "osn": "ab4A",
+     "glomerulus": "DL5",
+     "door_response": 0.0714568858140974,
+     "door_response_minus_sfr": 0.046133,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 27.667,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or46a",
+     "osn": "pb2B",
+     "glomerulus": "VA7l",
+     "door_response": 0.0700230562196023,
+     "door_response_minus_sfr": -0.028124,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2A",
+     "osn": "ac2A",
+     "glomerulus": "?",
+     "door_response": 0.0678532322591857,
+     "door_response_minus_sfr": 0.011803,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or10a",
+     "osn": "ab1D",
+     "glomerulus": "DL1",
+     "door_response": 0.0666077638660496,
+     "door_response_minus_sfr": 0.014947,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 17.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1A",
+     "osn": "ac1A",
+     "glomerulus": "?",
+     "door_response": 0.0648906947967429,
+     "door_response_minus_sfr": 0.002176,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85d",
+     "osn": "pb3B",
+     "glomerulus": "VA4",
+     "door_response": 0.0637632736497055,
+     "door_response_minus_sfr": 0.016597,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or71a",
+     "osn": "pb1B",
+     "glomerulus": "VC2",
+     "door_response": 0.0618813637504645,
+     "door_response_minus_sfr": 0.031394,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or9a",
+     "osn": "ab8B",
+     "glomerulus": "VM3",
+     "door_response": 0.0616238630437575,
+     "door_response_minus_sfr": -0.002722,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 11.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or22a",
+     "osn": "ab3A",
+     "glomerulus": "DM2",
+     "door_response": 0.0579337176270748,
+     "door_response_minus_sfr": -0.026551,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 10.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or43a",
+     "osn": "at3",
+     "glomerulus": "DA4l",
+     "door_response": 0.0560088978271558,
+     "door_response_minus_sfr": -0.039275,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 25.167,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": "named ai2 in Dweck et al. 2013"
+    },
+    {
+     "receptor": "ab5B",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.0552650540733368,
+     "door_response_minus_sfr": 0.030418,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or35a",
+     "osn": "ac3B",
+     "glomerulus": "VC3",
+     "door_response": 0.0521530366695725,
+     "door_response_minus_sfr": -0.029414,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 26.833,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or67c",
+     "osn": "ab7B",
+     "glomerulus": "VC4",
+     "door_response": 0.0518278523823006,
+     "door_response_minus_sfr": 0.028958,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 4.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33c",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.0456156813679491,
+     "door_response_minus_sfr": 0.0,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir64a.DP1m",
+     "osn": "sacII",
+     "glomerulus": "DP1m",
+     "door_response": 0.0449057097613656,
+     "door_response_minus_sfr": 0.028916,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85a",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.043478471324981,
+     "door_response_minus_sfr": -0.00223,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 11.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or47a",
+     "osn": "ab5B",
+     "glomerulus": "DM3",
+     "door_response": 0.0408295010792228,
+     "door_response_minus_sfr": -0.011116,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 13.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85e",
+     "osn": "pb2A",
+     "glomerulus": "VC1",
+     "door_response": 0.0398550724637681,
+     "door_response_minus_sfr": 0.039855,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or19a",
+     "osn": "at3",
+     "glomerulus": "DC1",
+     "door_response": 0.0397238997452612,
+     "door_response_minus_sfr": -0.060345,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 16.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": "named ai2A in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Ir92a",
+     "osn": "ac1",
+     "glomerulus": "VM1",
+     "door_response": 0.0379152454401636,
+     "door_response_minus_sfr": -0.037722,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or43b",
+     "osn": "ab8A",
+     "glomerulus": "VM2",
+     "door_response": 0.03789993081602,
+     "door_response_minus_sfr": 0.023004,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 7.667,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir76a",
+     "osn": "ac4",
+     "glomerulus": "VM4",
+     "door_response": 0.0377060426182221,
+     "door_response_minus_sfr": -0.007096,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or92a",
+     "osn": "ab1B",
+     "glomerulus": "VA2",
+     "door_response": 0.0367292477933983,
+     "door_response_minus_sfr": 0.002616,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or82a",
+     "osn": "ab5A",
+     "glomerulus": "VA6",
+     "door_response": 0.0363753680334409,
+     "door_response_minus_sfr": 0.009766,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 13.667,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab4B",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.034790537732371,
+     "door_response_minus_sfr": -0.030069,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59c",
+     "osn": "pb3A",
+     "glomerulus": "VM7v",
+     "door_response": 0.0345992146249056,
+     "door_response_minus_sfr": -0.001202,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59b",
+     "osn": "ab2A",
+     "glomerulus": "DM4",
+     "door_response": 0.0323644553790377,
+     "door_response_minus_sfr": 0.008637,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 10.921,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or65a",
+     "osn": "at4B",
+     "glomerulus": "DL3",
+     "door_response": 0.0308738217601803,
+     "door_response_minus_sfr": -0.028609,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 13.167,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or49b",
+     "osn": "ab6B",
+     "glomerulus": "VA5",
+     "door_response": 0.0306468937761629,
+     "door_response_minus_sfr": -0.017401,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 7.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0285498139889113,
+     "door_response_minus_sfr": -0.014807,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or30a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0264113176384928,
+     "door_response_minus_sfr": 0.013978,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac3B",
+     "osn": "ac3B",
+     "glomerulus": "VC3",
+     "door_response": 0.025258324213617,
+     "door_response_minus_sfr": -0.019406,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac1BC",
+     "osn": "ac1B+C",
+     "glomerulus": "?",
+     "door_response": 0.0252217294900222,
+     "door_response_minus_sfr": 0.004527,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from ac1B and C ORNs, only A neuron could be separated (Marshall et al. 2010)"
+    },
+    {
+     "receptor": "Or98a",
+     "osn": "ab7A",
+     "glomerulus": "VM5v",
+     "door_response": 0.0220898417509551,
+     "door_response_minus_sfr": 0.006918,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 21.167,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ac2BC",
+     "osn": "ac2B+C",
+     "glomerulus": "?",
+     "door_response": 0.0210244663638391,
+     "door_response_minus_sfr": 0.000568,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "summed responses from ac2B and C ORNs, only A neuron could be separated (Marshall et al. 2010)"
+    },
+    {
+     "receptor": "Or74a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0183529812650732,
+     "door_response_minus_sfr": 0.005536,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or45b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.017675272309057,
+     "door_response_minus_sfr": -0.007114,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or33a",
+     "osn": "ab4B",
+     "glomerulus": "DA2",
+     "door_response": 0.0170594837261504,
+     "door_response_minus_sfr": 0.017059,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or45a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0169879310236985,
+     "door_response_minus_sfr": 0.008326,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or1a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0142162364384587,
+     "door_response_minus_sfr": 0.014216,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or94b",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.0110129910026169,
+     "door_response_minus_sfr": 0.007417,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "ab2B",
+     "osn": "ab2B",
+     "glomerulus": "DM5",
+     "door_response": 0.00905821091652971,
+     "door_response_minus_sfr": 0.002087,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or23a",
+     "osn": "at2B",
+     "glomerulus": "DA3",
+     "door_response": 0.00870507742746736,
+     "door_response_minus_sfr": -0.010612,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 8.833,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": "named ai2B in Ronderos et al. 2014"
+    },
+    {
+     "receptor": "Or67a",
+     "osn": "ab10A",
+     "glomerulus": "DM6",
+     "door_response": 0.00421729967874576,
+     "door_response_minus_sfr": -0.02033,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 15.833,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or59a",
+     "osn": null,
+     "glomerulus": null,
+     "door_response": 0.00413038671955589,
+     "door_response_minus_sfr": -0.002713,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or49a",
+     "osn": "ab10B",
+     "glomerulus": "DL4",
+     "door_response": 0.00312718687281425,
+     "door_response_minus_sfr": 0.003127,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or2a",
+     "osn": "at3",
+     "glomerulus": "DA4m",
+     "door_response": 0.0,
+     "door_response_minus_sfr": -0.048452,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 16.333,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": "named ai2 in Dweck et al. 2013"
+    },
+    {
+     "receptor": "Or22b",
+     "osn": "ab3A",
+     "glomerulus": "DM2",
+     "door_response": 0.0,
+     "door_response_minus_sfr": null,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Or85f",
+     "osn": "ab10B",
+     "glomerulus": "DL4",
+     "door_response": 0.0,
+     "door_response_minus_sfr": -0.03391,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": 4.0,
+     "source": "DoOR2.0 consensus (door_response_matrix); Hallem et al.2004 via DoOR.data Hallem.2004.EN",
+     "mapping_note": null
+    },
+    {
+     "receptor": "Ir75d",
+     "osn": null,
+     "glomerulus": "VL1",
+     "door_response": 0.0,
+     "door_response_minus_sfr": -0.026891,
+     "hallem_delta_hz": null,
+     "hallem2004_delta_hz": null,
+     "source": "DoOR2.0 consensus (door_response_matrix)",
+     "mapping_note": "Ir75a is expressed in one ORN of each of the ac1, ac2 and the ac4 sensilla"
+    }
+   ]
+  }
+ },
+ "spontaneous_rates": [
+  {
+   "receptor": "ac1A",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0627144154948233,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac1B",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.06972846128059,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac2A",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0560499756806606,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac2B",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0708944890612019,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac3A",
+   "glomerulus": "DL2d/v",
+   "door_sfr_normalised": 0.0686498715043326,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac3B",
+   "glomerulus": "VC3",
+   "door_sfr_normalised": 0.044663894431287,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac4",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0926953864567086,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or1a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or2a",
+   "glomerulus": "DA4m",
+   "door_sfr_normalised": 0.0484519594259682,
+   "hallem2006_spontaneous_hz": 8.0
+  },
+  {
+   "receptor": "Or7a",
+   "glomerulus": "DL5",
+   "door_sfr_normalised": 0.0253242636834234,
+   "hallem2006_spontaneous_hz": 17.0
+  },
+  {
+   "receptor": "Or9a",
+   "glomerulus": "VM3",
+   "door_sfr_normalised": 0.0643454304035451,
+   "hallem2006_spontaneous_hz": 3.0
+  },
+  {
+   "receptor": "Or10a",
+   "glomerulus": "DL1",
+   "door_sfr_normalised": 0.0516610256503943,
+   "hallem2006_spontaneous_hz": 14.0
+  },
+  {
+   "receptor": "Or13a",
+   "glomerulus": "DC2",
+   "door_sfr_normalised": 0.0798033726361042,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or19a",
+   "glomerulus": "DC1",
+   "door_sfr_normalised": 0.100068632791183,
+   "hallem2006_spontaneous_hz": 29.0
+  },
+  {
+   "receptor": "Or22a",
+   "glomerulus": "DM2",
+   "door_sfr_normalised": 0.0844851594432195,
+   "hallem2006_spontaneous_hz": 4.0
+  },
+  {
+   "receptor": "Or22b",
+   "glomerulus": "DM2",
+   "door_sfr_normalised": null,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or22c",
+   "glomerulus": null,
+   "door_sfr_normalised": null,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or23a",
+   "glomerulus": "DA3",
+   "door_sfr_normalised": 0.0193166138419072,
+   "hallem2006_spontaneous_hz": 9.0
+  },
+  {
+   "receptor": "Or24a",
+   "glomerulus": null,
+   "door_sfr_normalised": null,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or30a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0124334561664348,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or33a",
+   "glomerulus": "DA2",
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or33b",
+   "glomerulus": "DM5+DM3",
+   "door_sfr_normalised": 0.0628010984874142,
+   "hallem2006_spontaneous_hz": 25.0
+  },
+  {
+   "receptor": "Or33c",
+   "glomerulus": "VC1",
+   "door_sfr_normalised": 0.0456156813679491,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or35a",
+   "glomerulus": "VC3",
+   "door_sfr_normalised": 0.0815668824900846,
+   "hallem2006_spontaneous_hz": 17.0
+  },
+  {
+   "receptor": "Or42a",
+   "glomerulus": "VM7d",
+   "door_sfr_normalised": 0.0820413429755042,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or42b",
+   "glomerulus": "DM1",
+   "door_sfr_normalised": 0.0515947301664287,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or43a",
+   "glomerulus": "DA4l",
+   "door_sfr_normalised": 0.0952840397914614,
+   "hallem2006_spontaneous_hz": 21.0
+  },
+  {
+   "receptor": "Or43b",
+   "glomerulus": "VM2",
+   "door_sfr_normalised": 0.0148958069850658,
+   "hallem2006_spontaneous_hz": 2.0
+  },
+  {
+   "receptor": "Or45a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.00866147299082981,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or45b",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0247896923532088,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or46a",
+   "glomerulus": "VA7l",
+   "door_sfr_normalised": 0.0981468215617922,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or47a",
+   "glomerulus": "DM3",
+   "door_sfr_normalised": 0.0519458009983182,
+   "hallem2006_spontaneous_hz": 1.0
+  },
+  {
+   "receptor": "Or47b",
+   "glomerulus": "VA1v",
+   "door_sfr_normalised": 0.197855275636551,
+   "hallem2006_spontaneous_hz": 47.0
+  },
+  {
+   "receptor": "Or49a",
+   "glomerulus": "DL4",
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or49b",
+   "glomerulus": "VA5",
+   "door_sfr_normalised": 0.0480480678185146,
+   "hallem2006_spontaneous_hz": 8.0
+  },
+  {
+   "receptor": "Or59a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.00684354055728657,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or59b",
+   "glomerulus": "DM4",
+   "door_sfr_normalised": 0.0237278953572533,
+   "hallem2006_spontaneous_hz": 2.0
+  },
+  {
+   "receptor": "Or59c",
+   "glomerulus": "VM7v",
+   "door_sfr_normalised": 0.035801330295347,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or65a",
+   "glomerulus": "DL3",
+   "door_sfr_normalised": 0.0594830827654459,
+   "hallem2006_spontaneous_hz": 18.0
+  },
+  {
+   "receptor": "Or67a",
+   "glomerulus": "DM6",
+   "door_sfr_normalised": 0.0245475610642235,
+   "hallem2006_spontaneous_hz": 11.0
+  },
+  {
+   "receptor": "Or67b",
+   "glomerulus": "VA3",
+   "door_sfr_normalised": 0.0509146775904631,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or67c",
+   "glomerulus": "VC4",
+   "door_sfr_normalised": 0.022870176331353,
+   "hallem2006_spontaneous_hz": 6.0
+  },
+  {
+   "receptor": "Or67d",
+   "glomerulus": "DA1",
+   "door_sfr_normalised": null,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or71a",
+   "glomerulus": "VC2",
+   "door_sfr_normalised": 0.0304873278033626,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or74a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0128166788424219,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or82a",
+   "glomerulus": "VA6",
+   "door_sfr_normalised": 0.0266089279218359,
+   "hallem2006_spontaneous_hz": 16.0
+  },
+  {
+   "receptor": "Or85a",
+   "glomerulus": "DM5",
+   "door_sfr_normalised": 0.0457087530072997,
+   "hallem2006_spontaneous_hz": 14.0
+  },
+  {
+   "receptor": "Or85b",
+   "glomerulus": "VM5d",
+   "door_sfr_normalised": 0.0649544208071264,
+   "hallem2006_spontaneous_hz": 13.0
+  },
+  {
+   "receptor": "Or85c",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0293216402340449,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or85d",
+   "glomerulus": "VA4",
+   "door_sfr_normalised": 0.0471665244524903,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or85e",
+   "glomerulus": "VC1",
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or85f",
+   "glomerulus": "DL4",
+   "door_sfr_normalised": 0.0339095272706805,
+   "hallem2006_spontaneous_hz": 7.0
+  },
+  {
+   "receptor": "Or88a",
+   "glomerulus": "VA1d",
+   "door_sfr_normalised": 0.0563173771366528,
+   "hallem2006_spontaneous_hz": 26.0
+  },
+  {
+   "receptor": "Or92a",
+   "glomerulus": "VA2",
+   "door_sfr_normalised": 0.0341129784480607,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or94a",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.0433570074602826,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or94b",
+   "glomerulus": null,
+   "door_sfr_normalised": 0.00359601940696041,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or98a",
+   "glomerulus": "VM5v",
+   "door_sfr_normalised": 0.0151717392437132,
+   "hallem2006_spontaneous_hz": 12.0
+  },
+  {
+   "receptor": "Gr21a.Gr63a",
+   "glomerulus": "V",
+   "door_sfr_normalised": 0.141138771187769,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ab2B",
+   "glomerulus": "DM5",
+   "door_sfr_normalised": 0.00697154784854252,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ab4B",
+   "glomerulus": "DA2",
+   "door_sfr_normalised": 0.0648594697405211,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ab5B",
+   "glomerulus": "DM3",
+   "door_sfr_normalised": 0.0248470762891088,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "pb2A",
+   "glomerulus": "VC1",
+   "door_sfr_normalised": null,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or69a",
+   "glomerulus": "D",
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac1",
+   "glomerulus": "VL1+VM1+VL2p",
+   "door_sfr_normalised": 0.186086452246063,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac2",
+   "glomerulus": "VL1+DP1l+VC5",
+   "door_sfr_normalised": 0.171428571428571,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac3_noOr35a",
+   "glomerulus": "DL2d/v+VC3",
+   "door_sfr_normalised": 0.096468397311523,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir31a",
+   "glomerulus": "VL2p",
+   "door_sfr_normalised": 0.116693154528814,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir41a",
+   "glomerulus": "VC5",
+   "door_sfr_normalised": 0.162659167726898,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir75a",
+   "glomerulus": "DP1l",
+   "door_sfr_normalised": 0.0843960688911337,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir75d",
+   "glomerulus": "VL1",
+   "door_sfr_normalised": 0.0268912731497301,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir76a",
+   "glomerulus": "VM4",
+   "door_sfr_normalised": 0.0448016919334678,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir84a",
+   "glomerulus": "VL2a",
+   "door_sfr_normalised": 0.174645551848023,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir92a",
+   "glomerulus": "VM1",
+   "door_sfr_normalised": 0.0756374678126319,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir64a.DC4",
+   "glomerulus": "DC4",
+   "door_sfr_normalised": 0.0,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Ir64a.DP1m",
+   "glomerulus": "DP1m",
+   "door_sfr_normalised": 0.0159901637132459,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac1BC",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0206947524020695,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "ac2BC",
+   "glomerulus": "?",
+   "door_sfr_normalised": 0.0204567904294227,
+   "hallem2006_spontaneous_hz": null
+  },
+  {
+   "receptor": "Or83c",
+   "glomerulus": "DC3",
+   "door_sfr_normalised": 0.0783410138248848,
+   "hallem2006_spontaneous_hz": null
+  }
+ ],
+ "sources": {
+  "DoOR": {
+   "citation": "Münch D, Galizia CG (2016) DoOR 2.0 - Comprehensive Mapping of Drosophila melanogaster Odorant Responses. Sci Rep 6:21841",
+   "doi": "10.1038/srep21841",
+   "doi_verified": "unverified (not resolved online per coordinator instruction to minimise domains)",
+   "data_repo": "https://github.com/ropensci/DoOR.data",
+   "commit": "db323a496577c4b4a72b5c2fcd1859e07521ffb5 (2026-07-17)",
+   "package_version": "2.0.1.9001",
+   "files": [
+    "https://raw.githubusercontent.com/ropensci/DoOR.data/db323a496577c4b4a72b5c2fcd1859e07521ffb5/data/door_response_matrix.csv",
+    "https://raw.githubusercontent.com/ropensci/DoOR.data/db323a496577c4b4a72b5c2fcd1859e07521ffb5/data/door_mappings.csv",
+    "https://raw.githubusercontent.com/ropensci/DoOR.data/db323a496577c4b4a72b5c2fcd1859e07521ffb5/data/<receptor>.csv (per-receptor raw datasets, Hallem columns)"
+   ]
+  },
+  "Hallem2006": {
+   "citation": "Hallem EA, Carlson JR (2006) Coding of odors by a receptor repertoire. Cell 125:143-160",
+   "doi": "10.1016/j.cell.2006.01.050",
+   "doi_verified": "matches DOI recorded in DoOR.data door_dataset_info.csv; not resolved online",
+   "extracted_from": "DoOR.data per-receptor CSVs, column Hallem.2006.EN (24 Ors, empty-neuron ab3A expression, 10^-2 in paraffin oil; 110 odours + SFR row). Values are net spikes/s (spontaneous subtracted; negative = inhibition); SFR row = spontaneous spikes/s."
+  },
+  "Hallem2004": {
+   "citation": "Hallem EA, Ho MG, Carlson JR (2004) The molecular basis of odor coding in the Drosophila antenna. Cell 117:965-979",
+   "doi": "10.1016/j.cell.2004.05.012",
+   "doi_verified": "matches DOI recorded in DoOR.data; not resolved online",
+   "extracted_from": "DoOR.data column Hallem.2004.EN"
+  }
+ },
+ "caveats": [
+  "door_response is DoOR consensus, normalised 0-1 per responding unit across odours (max response of that unit = 1); NOT Hz and not comparable in absolute magnitude across receptors. The DoOR matrix is NOT SFR-subtracted: an SFR row exists and DoOR::reset_sfr() subtracts it; door_response_minus_sfr = door_response - SFR row value (can be negative = inhibition).",
+  "Hallem & Carlson 2006 did NOT test 3-octanol or 4-methylcyclohexanol (absent from the 110-odour Hallem.2006.EN set); hallem_delta_hz is null for OCT/MCH. Benzaldehyde is present for all 24 Ors.",
+  "Hallem et al. 2004 (empty-neuron) has 3-octanol values for only a few Ors (hallem2004_delta_hz); MCH absent.",
+  "The DoOR solvent row is the solvent/mineral-oil control; there is no pure-air row. Using SFR (spontaneous) as the air baseline is a modelling choice.",
+  "Glomerulus null = receptor not expressed in adult antenna/palp or not mapped in DoOR (e.g. larval Ors Or85c, Or45b, Or30a, Or1a, Or22c, Or24a, Or45a, Or59a, Or74a, Or94a/b). Some units are sensillum-level summed recordings (ac1, ac2, ac4, ac3_noOr35a, pb2A, ab2B, ab3B, ab4B, ab5B) mapping to multiple glomeruli (e.g. \"VL1+VM1+VL2p\"); split or drop them when mapping to single ORN_<glom> types. Duplicate units map to the same glomerulus (e.g. Or85a & ab2B -> DM5; Or47a & ab5B -> DM3; Or33a & ab4B -> DA2; Or85b & ab3B -> VM5d; Or35a & ac3B -> VC3; Or33c/Or85e/pb2A -> VC1; Or49a & Or85f -> DL4; Or22a & Or22b -> DM2). Or33b is co-expressed in two classes (DM5+DM3).",
+  "DoOR glomerulus names: Or69a -> \"D\" (current nomenclature D), Gr21a.Gr63a -> \"V\", ac3A -> \"DL2d/v\" ambiguous, Or42a -> VM7d, Or59c -> VM7v, Or46a -> VA7l; check hemibrain/FlyWire naming (e.g. VM7d vs \"VM7\", VC3 vs VC3l/VC3m, VM5d/VM5v, VA1d/VA1v) when joining to ORN_<glom> cell types.",
+  "Mapping taken verbatim from DoOR.data door_mappings.csv; nothing here was invented. OCT used by DoOR is racemic 3-octanol (CAS 589-98-0); MCH is mixed cis/trans (CAS 589-91-3).",
+  "DoOR consensus for OCT/MCH rests on relatively few datasets (MCH: 26 units with data; OCT: 48), mostly de Bruyne 1999/2001, Kreher 2005/2008, Silbering 2011, Münch 2016 GC-imaging; values at mixed concentrations.",
+  "hallem2004_delta_hz values are copied as stored in DoOR.data (Hallem.2004.EN, spikes/s); whether they are spontaneous-subtracted and at which dilution was not independently checked against the paper (unverified). Their solvent-row values look like raw rates rather than deltas, so treat them with caution."
+ ]
+}
