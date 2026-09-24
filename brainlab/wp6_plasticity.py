@@ -178,6 +178,19 @@ class VisualHeadingPlasticityRule:
         self.pre_trace.fill(0.0)
         self.mod_trace = 0.0
 
+    def substeps(self, duration_ms: float) -> int:
+        """How many rule steps of ``dt`` make up one brain step of ``duration_ms``.
+
+        The traces and rate normalisations assume one ``update`` per ``dt`` of
+        simulated time (spec §3.3, 2 ms), so a caller stepping the brain in larger
+        chunks must split them into this many ``dt`` sub-steps.
+        """
+        n = round(duration_ms / (self.dt * 1000.0))
+        if n < 1 or not math.isclose(n * self.dt * 1000.0, duration_ms, abs_tol=1e-9):
+            raise ValueError(f'step of {duration_ms} ms is not a whole multiple of the '
+                             f'plasticity rule dt ({self.dt * 1000.0} ms)')
+        return n
+
     def update(
         self,
         delta: np.ndarray,
