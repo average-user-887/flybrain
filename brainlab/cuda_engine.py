@@ -53,12 +53,19 @@ def numba_cuda_available() -> bool:
         return False
 
 
+_AVAILABLE = None
+
+
 def cuda_available() -> bool:
-    """True when either GPU build (numba.cuda or CuPy) can run on this host."""
-    if numba_cuda_available():
-        return True
-    from .cupy_engine import cupy_available
-    return cupy_available()
+    """True when either GPU build (numba.cuda or CuPy) can run on this host (cached)."""
+    global _AVAILABLE
+    if _AVAILABLE is None:
+        if numba_cuda_available():
+            _AVAILABLE = True
+        else:
+            from .cupy_engine import cupy_available
+            _AVAILABLE = cupy_available()
+    return _AVAILABLE
 
 
 def make_state(*args, **kwargs):
@@ -170,6 +177,31 @@ def _advance_v3_kernel(ptr, post, edge_inc, v, g, acc, refractory, drive, queue,
         grid.sync()
 
 
+@cuda.jit
+def _scatter_int64(dst, idx, values):
+    k = cuda.grid(1)
+    if k < idx.shape[0]:
+        dst[idx[k]] = values[k]
+
+
+# Device copies of immutable graph arrays, shared by every Brain on this
+# process (e.g. the daemon's per-assay instances).  Keyed by the host buffer;
+# only read-only host arrays are cached, so a key can never go stale.
+_DEVICE_CACHE = {}
+
+
+def cached_device_array(impl: str, host: np.ndarray, upload, build=None, tag=''):
+    """Upload ``build(host)``; reuse one device copy per read-only host array."""
+    build = build or (lambda a: a)
+    if host.flags.writeable:
+        return upload(build(host))
+    key = (impl, host.__array_interface__['data'][0], host.nbytes, host.dtype.str, tag)
+    if key not in _DEVICE_CACHE:
+        # Holding ``host`` keeps its buffer alive, so its address is never reused.
+        _DEVICE_CACHE[key] = (host, upload(build(host)))
+    return _DEVICE_CACHE[key][1]
+
+
 def edge_increments(weight: np.ndarray, g_unit_exc: float, g_unit_inh: float) -> np.ndarray:
     """Per-edge conductance increment in fixed point; the sign marks inhibition."""
     w = weight.astype(np.float64)
@@ -185,15 +217,37 @@ class CudaV3State:
         self.n = int(n)
         self.dt = float(dt)
         self.e_inh = float(e_inh)
-        self.d_ptr = cuda.to_device(ptr)
-        self.d_post = cuda.to_device(post)
-        self.d_edge_inc = cuda.to_device(edge_increments(weight, g_unit_exc, g_unit_inh))
+        self.g_unit_exc = float(g_unit_exc)
+        self.g_unit_inh = float(g_unit_inh)
+        self.d_ptr = cached_device_array('numba', ptr, cuda.to_device)
+        self.d_post = cached_device_array('numba', post, cuda.to_device)
+        self.set_weights(weight)
         self.d_acc = cuda.to_device(np.zeros((2, self.n), dtype=np.int64))
         self.d_spiked = cuda.to_device(np.zeros(self.n, dtype=np.uint8))
         self.d_drive = cuda.device_array(self.n, dtype=np.float32)
         self.delay_slots = int(delay_slots)
         self._blocks = blocks
         self._last_drive = None
+
+    def _increments(self, weight):
+        return edge_increments(weight, self.g_unit_exc, self.g_unit_inh)
+
+    def set_weights(self, weight):
+        """(Re)upload all edge weights; shared read-only weights share one device copy."""
+        self.d_edge_inc = cached_device_array('numba', weight, cuda.to_device, self._increments,
+                                              tag=f'inc {self.g_unit_exc!r} {self.g_unit_inh!r}')
+        self._edge_inc_private = weight.flags.writeable
+
+    def update_edges(self, edges, values):
+        """Rewrite the increments of ``edges`` (e.g. plastic synapses) on the device."""
+        if not self._edge_inc_private:   # never write into a shared device copy
+            self.d_edge_inc = cuda.to_device(self.d_edge_inc.copy_to_host())
+            self._edge_inc_private = True
+        if len(edges):
+            inc = self._increments(np.asarray(values, dtype=np.float32))
+            _scatter_int64[(len(edges) + 255) // 256, 256](
+                self.d_edge_inc, cuda.to_device(np.ascontiguousarray(edges, dtype=np.int64)),
+                cuda.to_device(inc))
 
     def upload_state(self, v, g, refractory, queue, queue_count, counts, active_flag):
         self.d_v = cuda.to_device(v)
