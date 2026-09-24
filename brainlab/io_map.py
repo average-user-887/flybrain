@@ -252,10 +252,14 @@ class DNa02YawDecoder:
 # current-based dynamics this drags the membrane to about -200 mV, which no
 # neuron can do; under the v2 conductance-based dynamics the same value pins the
 # membrane at the inhibitory (chloride) reversal, -70 mV, which is what a Kir2.1
-# experiment approximates.  The silencing *effect* is identical in both — the
-# clamped neuron is far below threshold and emits no spike — so the WP5
-# silencing control means the same thing under either version.
-# See docs/LIF_DYNAMICS_SPEC.md §3.3.
+# experiment approximates.  Caveat (audit 2026-09-24): under v2/v3 the drive is
+# divided by the total conductance, so the clamp holds only while
+# (V_rest + g_e*E_exc + g_i*E_inh + drive) / (1 + g_e + g_i) stays below
+# threshold, i.e. roughly g_e < 4.6 with no inhibition.  Under v2 it did not:
+# the "silenced" DNa02 fired about 240 Hz (docs/receipts/lif_dynamics_v2.json,
+# optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz).  The validation
+# harness checks it on every run: gate O7 requires the silenced yaw to be exactly
+# zero, which in practice means no DNa02 spikes.  See docs/LIF_DYNAMICS_SPEC.md §3.3.
 SILENCE_DRIVE = -200.0
 
 

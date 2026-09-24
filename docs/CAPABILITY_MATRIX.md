@@ -77,7 +77,10 @@ They are not behavioural evidence and are no longer cited as such.
   withdrawn on 2026-09-20 (`OPEN_SOURCE_PLAN.md`, "Correction").
 - **Optomotor, v2** (`lif_dynamics_v2.json`, `optomotor_rerun.v2`): 24 runs, verdict
   **NULL**. Silencing DNa02 does not abolish the turning (paired −0.0115
-  [−0.0247, +0.0059]). The network sits at 3.6 × 10⁶ spikes/s with no stimulus.
+  [−0.0247, +0.0059]). *Caveat (2026-09-24): the silencing clamp did not silence
+  under v2; the "silenced" DNa02 still fired about 240 Hz
+  (`optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz`), so this control
+  does not show that the residual yaw bypasses DNa02.* The network sits at 3.6 × 10⁶ spikes/s with no stimulus.
 - **v3 calibration** (`lif_dynamics_v3.json`): the membrane stays within
   [−70, −45] mV, the random-network probe does not self-sustain at weight gains 1 to 4 (it does at 8
   and 16, `probe_b[0].sweep`), and the high-conductance

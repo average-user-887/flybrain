@@ -213,16 +213,28 @@ class GraphInstance:
     def step(self, currents, duration_ms: float, *, target: Optional[int] = None) -> StepResult:
         if self.brain is None or self.registry.active is not self:
             raise RuntimeError(f'Instance {self.instance_id} is not active; inactive instances never step')
-        counts, _ = self.brain.step(currents, duration_ms)
-        result = StepResult(step=self.step_index, counts=counts)
         if self.rule is not None and self.registry.learning_enabled:
-            try:
-                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post], full_counts=counts)
-            except TypeError:
-                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post])
-            self._working_weight[self.plastic_edges] = (
-                self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
-            self.brain.update_weights(self.plastic_edges)
+            # The rule is declared per ``rule.dt`` of simulated time, so a longer
+            # control step is split into rule-sized brain steps, each followed by
+            # one rule update and a weight refresh.
+            n_sub = self.rule.substeps(duration_ms) if hasattr(self.rule, 'substeps') else 1
+            sub_ms = duration_ms / n_sub
+            counts = None
+            for _ in range(n_sub):
+                sub_counts, _ = self.brain.step(currents, sub_ms)
+                sub_counts = np.array(sub_counts, copy=True)
+                counts = sub_counts if counts is None else counts + sub_counts
+                try:
+                    self.rule.update(self.plastic_delta, sub_counts[self._pre], sub_counts[self._post],
+                                     full_counts=sub_counts)
+                except TypeError:
+                    self.rule.update(self.plastic_delta, sub_counts[self._pre], sub_counts[self._post])
+                self._working_weight[self.plastic_edges] = (
+                    self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
+                self.brain.update_weights(self.plastic_edges)
+        else:
+            counts, _ = self.brain.step(currents, duration_ms)
+        result = StepResult(step=self.step_index, counts=counts)
         if self.readout is not None:
             from brainlab.learning import features_from_counts
             features = features_from_counts(counts, 0.0, slice(None))
