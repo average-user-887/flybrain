@@ -1,0 +1,34 @@
+{
+  "schema": "neurofly.gpu-parity.v1",
+  "graph": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+  "ms": 2000.0,
+  "seed": 7,
+  "perturb_mV": 1e-05,
+  "cpu_vs_cpu_perturbed": {
+    "total_spikes": [
+      1282997,
+      1280224
+    ],
+    "total_rel_diff": -0.002161,
+    "identical": false,
+    "first_differing_window_ms": 34.0,
+    "neurons_active": 13471,
+    "rate_pearson": 0.9993270535000347,
+    "rate_mean_abs_diff_hz": 1.0902308663053968,
+    "population_pearson": 0.8971505649544919
+  },
+  "cpu_vs_gpu": {
+    "total_spikes": [
+      1282997,
+      1277005
+    ],
+    "total_rel_diff": -0.00467,
+    "identical": false,
+    "first_differing_window_ms": 34.0,
+    "neurons_active": 13484,
+    "rate_pearson": 0.9986029689780919,
+    "rate_mean_abs_diff_hz": 1.2052803322456245,
+    "population_pearson": 0.9045949693174635
+  },
+  "gpu_repeat_identical": true
+}
