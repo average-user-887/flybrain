@@ -3,7 +3,7 @@
  "id": "tmaze-odour-naive-v3-1",
  "paradigm": "tmaze_odor",
  "status": "draft",
- "status_reason": "literature check 2026-09-24: the naive odour-vs-air avoidance direction is published at training concentrations (Akalal 2006 Table 1), but one other setup found OCT and MCH slightly attractive vs mineral oil (Barth 2014), and the naive OCT-vs-MCH 50:50 split is a concentration calibration made by the experimenters, not a property of the fly. The model's odour concentration is not mapped to the published ones. Owner decision needed on T1 and on the concentration mapping before preregistration.",
+ "status_reason": "literature check 2026-09-24: the naive odour-vs-air avoidance direction is published at training concentrations (Akalal 2006 Table 1), but one other setup found OCT and MCH slightly attractive vs mineral oil (Barth 2014), and the naive OCT-vs-MCH 50:50 split is a concentration calibration made by the experimenters, not a property of the fly. The model's odour concentration is not mapped to the published ones. The OCT/MCH balance is now reported as a calibration check, not gated. The concentration mapping still needs an owner decision before preregistration.",
  "declared_at": "2026-09-24",
  "summary": "Naive T-maze choice at the choice point, before any learning: OCT vs MCH should be balanced, and each odour vs air should be avoided.",
  "dynamics": {
@@ -377,23 +377,6 @@
     "sources": []
    },
    {
-    "id": "T1_OCT_MCH_balanced",
-    "type": "ratio_ci_within",
-    "sample": "PI_OCT_vs_MCH",
-    "interval": [
-     -0.2,
-     0.2
-    ],
-    "claim": "Naive OCT vs MCH choice is balanced: PI 95% CI inside [-0.2, 0.2].",
-    "basis": "NOT a biological target: labs adjust the relative OCT/MCH concentrations until naive flies split ~50:50 ('Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze', Goodwin 1997; same in Akalal 2006). No paper read reports a numeric naive split. In the model both odours are at DoOR scale 1, so this gate tests the encoder's concentration choice, not the fly. Tolerance is a judgement.",
-    "verified": false,
-    "sources": [
-     "goodwin1997",
-     "akalal2006",
-     "tully1985"
-    ]
-   },
-   {
     "id": "T2_OCT_avoided",
     "type": "ratio_ci_within",
     "sample": "PI_OCT_vs_air",
@@ -425,6 +408,25 @@
      "akalal2006",
      "li2013",
      "barth2014"
+    ]
+   }
+  ],
+  "reported": [
+   {
+    "id": "R1_OCT_MCH_balance_calibration",
+    "type": "ratio_ci_within",
+    "sample": "PI_OCT_vs_MCH",
+    "interval": [
+     -0.2,
+     0.2
+    ],
+    "claim": "Naive OCT vs MCH PI and its 95% CI, reported as a calibration check of the relative odour concentration (not gated).",
+    "basis": "REPORTED, NOT GATED (decision 2026-09-24): NOT a biological target: labs adjust the relative OCT/MCH concentrations until naive flies split ~50:50 ('Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze', Goodwin 1997; same in Akalal 2006). No paper read reports a numeric naive split. In the model both odours are at DoOR scale 1, so this gate tests the encoder's concentration choice, not the fly. Tolerance is a judgement.",
+    "verified": false,
+    "sources": [
+     "goodwin1997",
+     "akalal2006",
+     "tully1985"
     ]
    }
   ]
