@@ -10,6 +10,9 @@
 > **Also stale below:** the reference host is a Ryzen 5 5600X (12 threads, 31 GiB) with a
 > GTX 1660 Ti, not a Ryzen 3900X / 128 GB (`docs/receipts/ryzen/bench-ryzen-1f4a58a.json`).
 > In-browser WebGPU (Option B) is cut by `docs/ROADMAP.md`. Measured speeds are in the README.
+> The verification section's test descriptions overstate them: `test_connectome_stability.py`
+> runs a 10-neuron ring, not the 166.7k graph, and `test_biomechanics_closed_loop.py` has no DNa02
+> differential check.
 
 ---
 

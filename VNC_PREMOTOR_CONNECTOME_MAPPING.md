@@ -173,7 +173,7 @@ The Giant Fiber (GF / DNp01) system is the fastest known sensorimotor circuit in
                  │
                  │ (Monosynaptic Chemical & Gap Junctions)
                  ▼
-[Giant Fiber (DNp01 / Source ID: 10001)]
+[Giant Fiber (DNp01 / Source IDs: 10001 R, 10010 L)]
                  │
                  │ (Giant axon: ~6-8 µm diameter, conduction > 5 m/s)
                  ▼  (Entering T2 Neuromere)
@@ -232,7 +232,7 @@ The sign of phase progression is inverted, reversing the metachronal sequence fr
 | **Ipsilateral Joint Antagonism** | Hemilineage 13A (Ipsilateral reciprocal inhibition) | Stance/swing mutual exclusion and stance force gating | `test_walknet_rule_one_stance_hold` |
 | **Looming Escape Takeoff** | LC4/LPLC2 $\rightarrow$ GF (DNp01) $\rightarrow$ TTMn/PSI | Optical expansion rate detector triggering 42 mm/s ballistic surge | `test_dnp01_giant_fiber_escape_trigger` |
 | **Olfactory Plasticity** | Antennal Lobe PNs $\rightarrow$ KCs $\rightarrow$ MBONs + PAM/PPL1 | 120-KC sparse coding + Huang/Luo anti-Hebbian rate rule | `test_appetitive_learning_shifts_valence` |
-| **Aversive Avoidance** | MBON-avoidance $\rightarrow$ LAL steering $\rightarrow$ MDN backward walk | Negative MB valence triggers MDN backward rate | `test_aversive_learning_triggers_mdn_retreat` |
+| **Aversive Avoidance** | MBON-avoidance $\rightarrow$ LAL steering $\rightarrow$ MDN backward walk | Negative MB valence triggers MDN backward rate | `test_aversive_learning_triggers_mdn_retreat` (archived with the root duplicate `docs/archive/root_duplicates_20260924/test_whole_brain.py`; not in `tests/`) |
 | **Empirical Data Export** | Tully & Quinn (1985) T-maze assay protocol | `ScientificDataLogger` & `LearningAssay` producing CSV/JSON/NPZ | `test_assay_saves_experiment_data` |
 
 This specification provides the definitive connectomic and biophysical substrate linking the 166,700-neuron MaleCNS v1.0 central brain with the 23,000-neuron MANC v1.0 ventral nerve cord for embodied simulation.
