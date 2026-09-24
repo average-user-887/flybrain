@@ -34,6 +34,7 @@ import argparse
 import json
 import math
 import os
+import re
 import signal
 import sys
 import threading
@@ -127,6 +128,7 @@ class GraphArenaController:
         self.step_ms = float(step_ms)
         self._currents = None
         self.last_total_spikes = 0
+        self.last_counts = None              # per-neuron spike counts of the last graph step
         # WP5 optomotor loop, resolved once: an OptomotorIOMap, or False when this
         # graph has none (the reason is kept in ``optomotor_unavailable``).
         self._optomotor_io = None
@@ -213,6 +215,7 @@ class GraphArenaController:
         return loop
 
     def __call__(self, fly=None, sensory=None, dt=0.02, **kwargs):
+        self.last_counts = None
         registry = self.runner.registry
         instance = registry.active if registry is not None else None
         if instance is None or instance.assay != self.runner.active_paradigm_id:
@@ -224,6 +227,7 @@ class GraphArenaController:
                 record = loop.step(float(kwargs.get("optomotor_slip_rad_s", 0.0)),
                                    float(kwargs.get("optomotor_contrast", 1.0)))
                 self.last_total_spikes = int(record["total_spikes"])
+                self.last_counts = getattr(loop, "last_counts", None)
                 epg_wedges = [0.0] * 16
                 bump_phase = 0.0
                 wp6_mean_delta = 0.0
@@ -359,6 +363,7 @@ class GraphArenaController:
         # Step the graph instance
         result = instance.step(currents, self.step_ms)
         counts = result.counts
+        self.last_counts = counts
         self.last_total_spikes = int(counts.sum())
 
         # Decode descending neuron firing rates (Hz)
@@ -654,6 +659,8 @@ class ContinuousExperimentRunner:
         self.command_latency: deque = deque(maxlen=1024)
         self.stop_at_step: Optional[int] = None   # test/replay hook: hold at this step
         self.step_hook = None                     # test hook: called under lock after each step
+        self.recorder = None                      # neurofly.recording.RunRecorder while recording
+        self.recordings_dir = self.output_dir / "recordings"
         self.sched_stats = {"rebases": 0, "forgiven_wall_s": 0.0, "batches": 0,
                             "max_batch_hold_ms": 0.0, "steps_since_publish": 0, "achieved_speed": 0.0,
                             "published_snapshots": 0}
@@ -836,6 +843,10 @@ class ContinuousExperimentRunner:
         self._wake.set()
         if hasattr(self, "sim_thread"):
             self.sim_thread.join(timeout=3.0)
+        with self.lock:
+            summary = self.stop_recording()
+        if summary is not None:
+            print(f"[Daemon] Recording saved: {summary['path']} ({summary['frames']} frames)", flush=True)
         self.save_checkpoint("final_shutdown")
 
     # ------------------------------------------------------------------ scheduling
@@ -1035,6 +1046,8 @@ class ContinuousExperimentRunner:
             self._last_step_result = {}
             if publish:
                 self.latest_telemetry = self._assemble_telemetry({})
+            if self.recorder is not None:
+                self.recorder.capture(self, {})
             return {}
 
         # 1. Step simulation arena
@@ -1066,6 +1079,8 @@ class ContinuousExperimentRunner:
         self._last_step_result = step_result
         if publish:
             self.latest_telemetry = self._assemble_telemetry(step_result)
+        if self.recorder is not None:
+            self.recorder.capture(self, step_result)
 
         # 4. Periodic Checkpointing
         now = time.time()
@@ -1202,7 +1217,7 @@ class ContinuousExperimentRunner:
                 leg_contacts = [bool(f > 0.5) for f in b_obs["contacts"]["found"][:6]]
 
         motor = self.motor_summary()
-        return {
+        packet = {
             "type": "telemetry",
             "run_id": self.run_id,
             "controller_id": controller_id,
@@ -1299,6 +1314,8 @@ class ContinuousExperimentRunner:
             "connectome": conn_telem if conn_telem else None,
             "metrics": p_metrics
         }
+        packet["activity"] = self.activity_snapshot(packet)
+        return packet
 
     def _trial_metric(self, metrics: Dict[str, Any]) -> float:
         """The paradigm's headline score for the learning curve, scaled to about [0, 1]."""
@@ -1372,6 +1389,8 @@ class ContinuousExperimentRunner:
     def _apply_command(self, cmd: dict) -> dict:
         """Apply one command now. Caller holds ``self.lock``; adds the acknowledgement."""
         result = self._apply_command_unacked(cmd)
+        if self.recorder is not None and isinstance(result, dict):
+            self.recorder.command(self, cmd, result)
         if isinstance(result, dict):
             result = dict(result)
             result["ack"] = {"action": cmd.get("action", ""), "run_id": self.run_id,
@@ -1404,6 +1423,9 @@ class ContinuousExperimentRunner:
 
         elif action in ("switch_backend", "switch_controller"):
             target = cmd.get("backend") or p.get("backend")
+            if self.recorder is not None and target != self.backend:
+                return {"status": "error", "message": "Stop the recording before switching backend "
+                                                      "(a recording covers one graph)"}
             if target not in DAEMON_BACKENDS:
                 return {"status": "error", "message": f"Unknown backend {target!r}; choose one of {DAEMON_BACKENDS}"}
             try:
@@ -1522,12 +1544,92 @@ class ContinuousExperimentRunner:
             self.latest_telemetry = self._assemble_telemetry({})
             return {"status": "ok", "current_trial": self.current_trial}
 
+        elif action == "record_start":
+            try:
+                summary = self.start_recording(name=cmd.get("name", p.get("name")),
+                                               record_every=cmd.get("record_every", p.get("record_every", 1)),
+                                               raster=cmd.get("raster", p.get("raster", "io")),
+                                               label=cmd.get("label", p.get("label", "")))
+            except (ValueError, OSError) as exc:
+                return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            return {"status": "ok", "recording": summary}
+
+        elif action == "record_stop":
+            summary = self.stop_recording()
+            if summary is None:
+                return {"status": "error", "message": "Not recording"}
+            return {"status": "ok", "recording": summary}
+
         elif action == "save_checkpoint":
             path = self.save_checkpoint(cmd.get("label", "manual"))
             return {"status": "ok", "checkpoint": str(path)}
 
         else:
             return {"status": "error", "message": f"Unknown action: '{action}'"}
+
+    # ------------------------------------------------------------------ activity
+    MODULAR_ACTIVITY = ("KC", "PAM", "PPL1", "MB valence")
+
+    def region_map(self):
+        """Region partition of the active graph (cached per graph), None for modular."""
+        if self.shared_graph is None:
+            return None
+        cached = getattr(self, "_region_map_cache", None)
+        if cached is None or cached[0] is not self.shared_graph:
+            from neurofly.recording import region_map_for
+            cached = (self.shared_graph, region_map_for(self))
+            self._region_map_cache = cached
+        return cached[1]
+
+    def activity_snapshot(self, packet: Dict[str, Any]) -> Dict[str, Any]:
+        """Per-region activity for the Brain Activity panel and recordings.
+
+        Graph backends: mean spike rate (Hz) per region over the last graph step.
+        Modular: the model's own KC / DAN / valence signals (model units).
+        """
+        regions = self.region_map()
+        if regions is not None:
+            controller = self.graph_controller
+            counts = getattr(controller, "last_counts", None)
+            rates = regions.rates(counts, controller.step_ms / 1000.0) if counts is not None else None
+            return {"grouping": regions.grouping, "names": regions.names, "sizes": regions.sizes.tolist(),
+                    "units": "Hz", "rates": rates}
+        neural = packet.get("neural") or {}
+        kc = neural.get("kc_hz") or []
+        rates = [round(float(np.mean(kc)), 4) if len(kc) else 0.0,
+                 round(float(neural.get("pam_trace") or 0.0), 4),
+                 round(float(neural.get("ppl1_trace") or 0.0), 4),
+                 round(float(neural.get("net_valence") or 0.0), 4)]
+        return {"grouping": "modular-circuit", "names": list(self.MODULAR_ACTIVITY), "sizes": None,
+                "units": "model units", "rates": rates}
+
+    # ------------------------------------------------------------------ recording
+    def start_recording(self, name: Optional[str] = None, record_every: int = 1, raster: str = "io",
+                        label: str = "", path: Optional[Path] = None) -> Dict[str, Any]:
+        """Start a deterministic run recording (docs/RECORDING_FORMAT.md). Caller holds the lock."""
+        from neurofly.recording import RunRecorder
+        if self.recorder is not None:
+            raise ValueError(f"Already recording to {self.recorder.path.name}")
+        if path is None:
+            stem = name or f"{time.strftime('%Y%m%dT%H%M%S')}-{self.active_paradigm_id}-{self.backend}"
+            if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}", str(stem)) or str(stem).startswith("."):
+                raise ValueError("Recording name may use letters, digits, '.', '_' and '-' only")
+            path = self.recordings_dir / str(stem)
+        self.recorder = RunRecorder(self, path, record_every=int(record_every), raster=str(raster), label=str(label))
+        return {"name": self.recorder.path.name, "start_step": self.recorder.start_step,
+                "record_every": self.recorder.record_every}
+
+    def stop_recording(self) -> Optional[Dict[str, Any]]:
+        """Finish the active recording; returns its summary or None. Caller holds the lock."""
+        recorder, self.recorder = self.recorder, None
+        return recorder.close() if recorder is not None else None
+
+    def recording_status(self) -> Optional[Dict[str, Any]]:
+        rec = self.recorder
+        if rec is None:
+            return None
+        return {"name": rec.path.name, "frames": rec.frames, "start_step": rec.start_step,
+                "last_step": rec.last_step, "record_every": rec.record_every}
 
     def save_checkpoint(self, tag: str = "periodic") -> Path:
         """Saves current continuous synaptic weights and trial ledger to disk."""
@@ -1596,6 +1698,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "active_paradigm_title": self.runner.active_paradigm_title,
             "current_trial": self.runner.current_trial,
             "trials_completed": len(self.runner.trial_history),
+            "recording": getattr(self.runner, "recording_status", lambda: None)(),
             "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
             "trial_length_s": getattr(self.runner, "trial_length_s", None),
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
@@ -1695,6 +1798,34 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(data).encode("utf-8"))
 
+        elif url == "/api/recordings":
+            from neurofly.recording import list_recordings
+            payload = {"recordings": list_recordings(self.runner.recordings_dir),
+                       "active": self.runner.recording_status()}
+            self.send_response(200)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(payload).encode("utf-8"))
+        elif url.startswith("/api/recordings/"):
+            # Finished recordings only (the .partial of an active one is hidden).
+            name = url[len("/api/recordings/"):]
+            path = (self.runner.recordings_dir / name).resolve()
+            ok = (re.fullmatch(r"[A-Za-z0-9._-]+\.nfrec", name) is not None and not name.startswith(".")
+                  and path.parent == self.runner.recordings_dir.resolve() and path.is_file())
+            if not ok:
+                self.send_response(404)
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(b'{"error": "Recording not found"}')
+                return
+            data = path.read_bytes()
+            self.send_response(200)
+            # Served as the gzip file itself (no Content-Encoding): the player inflates it.
+            self._set_cors_headers("application/gzip")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+            self.end_headers()
+            self.wfile.write(data)
         elif url == "/api/paradigms":
             self.send_response(200)
             self._set_cors_headers("application/json")
@@ -1954,6 +2085,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
                               help="Seconds between telemetry summary lines (default 60)")
     record_group.add_argument("--no-record", action="store_true",
                               help="Disable the durable JSONL learning records")
+    replay_group = parser.add_argument_group(
+        "run recording", "Deterministic .nfrec recordings for 1x replay (docs/RECORDING_FORMAT.md).")
+    replay_group.add_argument("--record", default=None, metavar="NAME",
+                              help="Record from the first step to <output-dir>/recordings/NAME.nfrec "
+                                   "(also: POST /api/command record_start / record_stop)")
+    replay_group.add_argument("--record-every", type=int, default=1,
+                              help="Record one frame every N steps (default 1: every 20 ms step)")
+    replay_group.add_argument("--record-raster", choices=("none", "io", "all"), default="io",
+                              help="Spike raster: IO/annotated neurons (default), all neurons, or none")
     return parser
 
 
@@ -2009,6 +2149,11 @@ def run_daemon():
     ident = runner.identity()
     print(f"[Daemon] Backend: {ident.get('backend')} | label: {ident.get('label')} | "
           f"graph_sha256: {ident.get('graph_sha256')} | synthetic: {ident.get('synthetic')}", flush=True)
+    if args.record:
+        with runner.lock:
+            info = runner.start_recording(name=args.record, record_every=args.record_every,
+                                          raster=args.record_raster)
+        print(f"[Daemon] Recording to {runner.recordings_dir / info['name']}", flush=True)
     runner.start()
 
     # Durable learning records: a poller thread that never touches the sim loop.
