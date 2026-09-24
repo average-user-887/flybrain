@@ -104,8 +104,8 @@ class UnifiedConnectomeBrain:
                     edges=edges,
                     initial_weights=weights,
                     el_nodes=vh_io.el_nodes,
-                    pre_nodes=vh_io.pre_nodes,
-                    post_nodes=vh_io.post_nodes,
+                    pre_nodes=vh_io.er_nodes,
+                    post_nodes=vh_io.epg_nodes,
                 )
                 print(f"[UnifiedBrain] WP6 Plasticity Active: {len(edges):,} ER->EPG synapses (depression-only STDP).", flush=True)
             except Exception as e:
@@ -122,16 +122,22 @@ class UnifiedConnectomeBrain:
     def _init_sensorimotor_indices(self) -> None:
         """Resolve stable neuron indices for sensory ingress and motor egress."""
         neurons_feather = self.connectome_dir / "normalized" / "neurons.feather"
+        ann_feather = self.connectome_dir / "annotations.feather"
         self.sensory_map: Dict[str, List[int]] = {}
         self.motor_map: Dict[str, int] = {}
 
         if neurons_feather.is_file():
             import pyarrow.feather as feather
             df = feather.read_table(neurons_feather).to_pandas()
-            body_to_idx = {int(b): i for i, b in enumerate(df["source_id"])}
+            if ann_feather.is_file():
+                ann = feather.read_table(ann_feather, columns=['bodyId', 'somaSide']).to_pandas().drop_duplicates('bodyId').set_index('bodyId')
+                df = df.join(ann, on='source_id')
+            else:
+                df['somaSide'] = '?'
 
             # Descending motor decoders
             # DNa02 (L: 523769 -> 131957, R: 10360 -> 332)
+            body_to_idx = {int(b): i for i, b in enumerate(df["source_id"])}
             self.dna02_l = body_to_idx.get(523769, 131957 if 131957 < self.total_neurons else 0)
             self.dna02_r = body_to_idx.get(10360, 332 if 332 < self.total_neurons else 1)
             # DNp09 (forward drive)
@@ -147,8 +153,13 @@ class UnifiedConnectomeBrain:
             # Sensory receptor populations
             self.sensory_map["orn_food"] = df[df["cell_type"].str.contains("ORN|Or42b|Or59b", case=False, na=False)].index.tolist()[:30]
             self.sensory_map["orn_danger"] = df[df["cell_type"].str.contains("Or85a|Gr28b", case=False, na=False)].index.tolist()[:30]
-            self.sensory_map["visual_l"] = df[(df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2", case=False, na=False)) & (df["soma_side"] == "L")].index.tolist()[:40]
-            self.sensory_map["visual_r"] = df[(df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2", case=False, na=False)) & (df["soma_side"] == "R")].index.tolist()[:40]
+            side = df["somaSide"].fillna("?")
+            self.sensory_map["visual_l"] = df[(df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2|T4|T5", case=False, na=False)) & (side == "L")].index.tolist()[:40]
+            if not self.sensory_map["visual_l"]:
+                self.sensory_map["visual_l"] = df[df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2|T4|T5", case=False, na=False)].index.tolist()[:20]
+            self.sensory_map["visual_r"] = df[(df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2|T4|T5", case=False, na=False)) & (side == "R")].index.tolist()[:40]
+            if not self.sensory_map["visual_r"]:
+                self.sensory_map["visual_r"] = df[df["cell_type"].str.contains("R1|R2|R3|R4|R5|R6|L1|L2|T4|T5", case=False, na=False)].index.tolist()[20:40]
             self.sensory_map["er_ring"] = df[df["cell_type"].str.contains("ER4d|ER2", case=False, na=False)].index.tolist()
             self.sensory_map["el_mod"] = df[df["cell_type"].str.contains("EL", case=False, na=False)].index.tolist()
             self.sensory_map["looming"] = df[df["cell_type"].str.contains("LC4|LPLC2", case=False, na=False)].index.tolist()
