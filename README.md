@@ -13,7 +13,7 @@ Project NeuroFly couples the MaleCNS v1.0 *Drosophila* connectome (166,700 neuro
 This is research software at the ground-truth stage (ROADMAP Phase 0). What the receipts in [`docs/receipts/`](docs/receipts/README.md) support today:
 
 - **The connectome has not passed a behavioural test on the current engine.** Every paradigm is *Mapped, untested on v3* in the [capability matrix](docs/CAPABILITY_MATRIX.md).
-- **The only positive optomotor result came from the v1 engine**, which runs away at about 10⁶ spikes/s. It was withdrawn on 2026-09-20. The v2 re-run was NULL. The v3 preregistered confirmatory run has not been done yet.
+- **The only positive optomotor result came from the v1 engine**, which runs away at about 10⁶ spikes/s. It was withdrawn on 2026-09-20. The v2 re-run was NULL. The v3 preregistered confirmatory run (`optomotor_v3.json`, 2026-09-24) **FAILED**: behaviour passed 7/7 gates, but HS cells fired above the preregistered 50 Hz ceiling ([record](docs/receipts/validation/optomotor-yaw-v3-1.md)). A rerun under spec `optomotor_v3_2.json`, declared before it ran, is pending.
 - **The connectome closed-loop receipts are 1 s smoke tests on v1.** They show that the loop runs, not that the fly behaves.
 - **The modular controller runs all 14 assays in the live dashboard** (automated Firefox sign-off). Its behaviour has not been compared with published fly data.
 - **Receipts that need re-running** are listed in the [re-run queue](docs/receipts/README.md#re-run-queue). They include anything the daemon labelled "v3" before PR #4, because until then it ran v3 equations on v1 weights.
@@ -48,14 +48,14 @@ Simulated seconds per wall-clock second (1.0 = real time). The CPU kernel is the
 
 | Workload | Laptop i5-1334U | Ryzen 5600X CPU | Ryzen GTX 1660 Ti | Source |
 |---|---|---|---|---|
-| Brain, MaleCNS, v3 | 0.0085 | 0.041 | 0.40 | PR #2 (`scripts/benchmark.py`) |
-| Full daemon, connectome, open-arena | 0.017 | 0.0405 | 0.398 | PR #2; measured on v1 weights (see note) |
+| Brain, MaleCNS, v3 | 0.0085 | 0.042 | 0.38 | Ryzen: `docs/receipts/ryzen/bench-ryzen-1f4a58a.json` (0.5 s); laptop: PR #2, no receipt |
+| Full daemon, connectome v3, open-arena | | 0.043 | 0.43 | `docs/receipts/ryzen/bench-ryzen-1f4a58a.json` (5 s) |
 | Body alone (FlyGym, fast controller loop, bit-identical physics) | | | | 0.55 on a 4-vCPU cloud Xeon (0.107 before); `docs/receipts/body_speedup/` |
 | Modular daemon, wind tunnel, 100x requested | | about 30 | | `docs/receipts/wp1_wp2/stress_100x_current.json` |
 
 - **The GPU is the default** for v3 brains whenever CuPy or numba.cuda can see a CUDA device. `NEUROFLY_BRAIN_BACKEND=cpu|cuda|auto` overrides it. v1 and v2 always run on the CPU.
-- **GPU vs CPU accuracy** (MaleCNS, 2 s, `scripts/gpu_parity.py`): per-neuron rate correlation 0.9986 and 0.47 % spike difference. A 1e-5 mV nudge makes the CPU diverge from itself by a similar amount (r 0.9993) at the same moment (34 ms). Two GPU runs are identical, and on small graphs the GPU matches the CPU spike for spike.
-- **Note:** the full-daemon row was measured before PR #4, so the daemon ran v3 equations on v1 weights. The brain rows used the real v3 policy. The GPU JSON receipts are not committed yet; both are in the [re-run queue](docs/receipts/README.md#re-run-queue).
+- **GPU vs CPU accuracy** (MaleCNS, 2 s, `scripts/gpu_parity.py`): per-neuron rate correlation 0.9986 and 0.47 % spike difference (`docs/receipts/ryzen/gpu-parity-malecns-1f4a58a.json`). A 1e-5 mV nudge makes the CPU diverge from itself by a similar amount (r 0.9993) at the same moment (34 ms). Two GPU runs are identical, and on small graphs the GPU matches the CPU spike for spike.
+- **Note:** the Ryzen rows come from the PR #11 receipts at commit `1f4a58a`, after PR #4, so the daemon ran true v3 (transmitter policy applied). The older PR #2 daemon figures (0.398x GPU, 0.0405x CPU, 0.017x laptop) ran v3 equations on v1 weights and are retired. The Ryzen body figure (0.648x, PR #3) has no committed receipt.
 - The connectome does not run in real time on any measured host. Full accuracy takes priority over speed, and runs are meant to be queued and replayed.
 
 ---

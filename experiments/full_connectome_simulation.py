@@ -232,25 +232,33 @@ class UnifiedConnectomeBrain:
             for idx in self.sensory_map.get("jon_wind", []):
                 if idx < self.total_neurons: currents[idx] += i_wind
 
-        # 2. Advance authentic conductance LIF v3 simulation kernel
-        spikes, elapsed_wall_s = self.brain.step(currents, duration_ms=duration_ms)
-
-        # 3. Apply WP6 Synaptic Plasticity update (if active)
+        # 2 + 3. Advance the LIF kernel and apply the WP6 plasticity update.  The
+        # rule is declared per ``rule.dt`` of simulated time (2 ms), so a longer
+        # step is split into rule-sized brain steps, each followed by one update.
         wp6_metrics = {"mean_delta": 0.0, "max_delta": 0.0}
-        if self.plasticity_rule is not None and self.plasticity_delta is not None and self.plastic_edge_pre is not None:
-            pre_counts = spikes[self.plastic_edge_pre]
-            post_counts = spikes[self.plastic_edge_post]
-            self.plasticity_rule.update(
-                self.plasticity_delta,
-                pre_counts=pre_counts,
-                post_counts=post_counts,
-                full_counts=spikes,
-            )
-            if hasattr(self.brain, "weight"):
-                self.brain.set_edge_weights(
-                    self.plasticity_rule.edges,
-                    self.plasticity_rule.initial_weights + self.plasticity_delta,
+        plastic = (self.plasticity_rule is not None and self.plasticity_delta is not None
+                   and self.plastic_edge_pre is not None)
+        n_sub = self.plasticity_rule.substeps(duration_ms) if plastic else 1
+        spikes = None
+        elapsed_wall_s = 0.0
+        for _ in range(n_sub):
+            sub_spikes, sub_wall_s = self.brain.step(currents, duration_ms=duration_ms / n_sub)
+            sub_spikes = np.array(sub_spikes, copy=True)
+            spikes = sub_spikes if spikes is None else spikes + sub_spikes
+            elapsed_wall_s += sub_wall_s
+            if plastic:
+                self.plasticity_rule.update(
+                    self.plasticity_delta,
+                    pre_counts=sub_spikes[self.plastic_edge_pre],
+                    post_counts=sub_spikes[self.plastic_edge_post],
+                    full_counts=sub_spikes,
                 )
+                if hasattr(self.brain, "weight"):
+                    self.brain.set_edge_weights(
+                        self.plasticity_rule.edges,
+                        self.plasticity_rule.initial_weights + self.plasticity_delta,
+                    )
+        if plastic:
             wp6_metrics["mean_delta"] = float(np.mean(self.plasticity_delta))
             wp6_metrics["max_delta"] = float(np.max(self.plasticity_delta))
 

@@ -224,7 +224,8 @@ backend, assay, instance and run ids, seed, graph identity, dynamics with
 units, learned parameter locations, source revision and file hashes,
 intervention schedule and events (activations, checkpoints, restores). Modular
 manifests are written to `<output-dir>/manifests/<run_id>.json`; graph
-manifests live in the registry (`<output-dir>/registry/<assay>/<backend>/<instance_id>/manifest.json`).
+manifests live in the registry (`<output-dir>/registry-v3/<assay>/<backend>/<instance_id>/manifest.json`
+under the default v3 dynamics; v1 brains stay in `<output-dir>/registry/`).
 The dashboard's JSON export embeds `identity`, `manifest` and `motor`; its CSV
 rows carry `controller_run_id`, `instance_id`, `backend`, `synthetic`,
 `motor_source`, `assists` and `controller_fault`.
