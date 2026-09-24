@@ -1,575 +1,338 @@
-# Project NeuroFly — Consolidated Product Roadmap
+# Project NeuroFly: Roadmap
 
-**Version**: 1.0 · **Date**: 2026-09-24 · **Release**: `v0.3.0`
-**Status**: APPROVED & DELIVERED — Phases 1 through 7 executed and delivered in Release v0.3.0.
+**Version**: 2.0 · **Date**: 2026-09-24 · **Status**: approved by the owner on 2026-09-24
+**Replaces**: [`docs/archive/ROADMAP_v1.0.md`](archive/ROADMAP_v1.0.md)
 
----
+This plan turns NeuroFly into a research tool people can trust and a
+citizen-science instrument people can run at home. It starts by resetting the
+claims to what the receipts prove, then earns each capability back with a
+preregistered test.
 
-## Preamble
+## Principles
 
-This document is the **single authoritative roadmap** for Project NeuroFly.
-It consolidates and supersedes all prior plan documents (listed in
-[`docs/SUPERSEDED_PLANS.md`](SUPERSEDED_PLANS.md)). Where those documents
-conflict, this one governs. Where they contain valid technical findings or
-evidence, they are referenced by citation rather than duplicated.
+- **Accuracy first.** float64 brain, physics dt 0.1 ms, noslip on. A speed-up is
+  accepted only when it is bit-identical or proven equivalent. Lower-fidelity
+  modes are opt-in and report their accuracy cost.
+- **Receipts over docs.** A capability exists only when a v3 receipt with a
+  preregistered verdict backs it.
+- **Real learning.** Brain training means plasticity inside the connectome.
+  Mushroom-body odor learning comes first.
+- **Science for the people.** Local installs, curated runs to start,
+  tweak-and-run experiments, open citable data.
 
-The prior plans were written by different AI agents at different times and
-contained contradictions (e.g. claiming the connectome controls the fly while
-simultaneously documenting that it does not). This plan resolves those
-contradictions by adopting the most honest assessment
-([`docs/NEUROFLY_RETHINK.md`](NEUROFLY_RETHINK.md)) as the ground truth and
-the owner-approved co-simulation architecture
-([`docs/FULL_CONNECTOME_COSIM_PLAN.md`](FULL_CONNECTOME_COSIM_PLAN.md)) as
-the product direction.
+## Decisions this plan rests on
 
----
+Settled with the owner on 2026-09-24.
 
-## Product Definition
+| Question | Decision |
+|---|---|
+| Audience | Both a research tool for labs running their own experiments and a public showcase that popularises citizen research. |
+| Brain training | Real synaptic plasticity inside the connectome. Decoder tuning is optional and later. |
+| Where it runs | Server-side Python on the user's own machine, streamed to a browser dashboard. The Ryzen is the reference install. |
+| Hosting | None for now. Local installs only. Hosting gets decided after the flagship paradigms pass. |
+| Docs | Reset the capability matrix and roadmap to what receipts prove, before any new features. |
+| Citizen role | Pick a paradigm, change a few parameters (stimulus, odor, silence a neuron), run it. Curated runs are the way in. |
+| Validity | Both: behaviour matches published fly numbers within a declared tolerance (the gate), and firing rates stay physiological (the sanity check). |
+| Real time | Not required. Full accuracy always. Runs finish, then replay at 1x. |
+| Paradigm scope | Three flagships first (optomotor, looming escape, T-maze odor learning), then all 14. |
+| Modular controller | Kept as a researcher baseline, hidden from citizens. |
+| Default dynamics | v3 everywhere. v1 stays as a historical option only. |
+| First plasticity | Mushroom-body odor conditioning in the T-maze. WP6 heading map (ER→EPG) second. |
+| Deadline | None. Phase by phase, gate by gate. |
+| Data | Every run is open, citable data with full provenance from the first public release. |
 
-### What NeuroFly Is
+## Where we start (checked 2026-09-24)
 
-An open-source, server-side whole-brain co-simulation platform that couples the
-**MaleCNS v1.0 connectome** (166,700 neurons, 25.6M synapses) to an
-**articulated 3D fruit fly body** (FlyGym/NeuroMechFly v2 + MuJoCo) and
-exposes it through an interactive browser dashboard with real-time
-telemetry and 14 neuroethology paradigms.
-
-### Who It's For
-
-Computational neuroscientists, neuroethologists, and advanced students who want
-to:
-- Run closed-loop experiments on a connectome-derived controller
-- Compare connectome-driven vs. hand-built (modular) baselines
-- Explore the 14 classical *Drosophila* paradigms in simulation
-- Export reproducible, provenance-tracked experimental data
-
-### What "Done" Looks Like
-
-A clean `git clone` on a Linux machine with ≥32 GB RAM and Python 3.12+ can:
-1. Download the MaleCNS dataset (automated, verified)
-2. Install dependencies (`pip install -e ".[body]"`)
-3. Start the daemon (`neurofly run`)
-4. Open the dashboard in a browser and switch between modular and connectome
-   controllers across all 14 paradigms
-5. Export run data with full provenance (graph hash, controller version, seeds)
-
-### Distribution
-
-- **Now**: Local development only. Git repository with no remote.
-  Backup via snapshot bundles to `/mnt/hpserver-storage/neurofly/snapshots/`.
-- **Phase 5**: Public git hosting (GitHub). `pip install neurofly`.
-  No paid compute. MIT license (already in place).
-
-### What NeuroFly Is Not
-
-- Not a biological validation of the connectome's learning capacity
-- Not a real-time robotics controller
-- Not a replacement for Brian2 or NEURON for detailed biophysics
-
----
-
-## Current State (Ground Truth)
-
-| Component | Status | Evidence |
+| Area | State | Evidence |
 |---|---|---|
-| 14 paradigm environments | ✅ Working | 158 tests passing |
-| Modular controller (120 KC, compass, CPG) | ✅ Working | Drives the dashboard fly |
-| Browser dashboard + SSE telemetry | ✅ Working | Port 8769/8780 |
-| `brainlab/` LIF spiking engine (v1/v2/v3) | ✅ Steps full graph | ~0.3× real-time on CPU |
-| `neurofly_body/` FlyGym adapter | ✅ Skeleton exists | 332 lines, `FlyGymBody` + `DNa02CPGDecoder` |
-| Connectome controlling the fly | ❌ Not working | WP5 optomotor: NULL result; causal claim withdrawn |
-| v3 dynamics (PSP-preserving calibration) | ✅ Declared & implemented | Committed at `a544bfa`; marginally subthreshold (−45.13 mV) |
-| v3 confirmatory optomotor run | ❌ Not done | Blocked on owner decision (see Phase 1) |
-| Internal synaptic plasticity (WP6) | ❌ Spec only | Blocked by biophysics validation |
-| FlyGym installed | ❌ Not in venv | Available on PyPI as `flygym==2.1.0` |
-| 3D dashboard viewport | ❌ Not started | — |
-| Clean-clone reproducibility | ❌ Not done | — |
-| Git remote | ❌ None | Manual snapshot sync |
+| Brain on GPU | Done, in review. v3 only, 0.40x real time on a GTX 1660 Ti vs 0.041x on the Ryzen CPU. Rate correlation 0.9986 with the CPU reference. | PR #2 |
+| Body speed | Done, in review. Compiled FlyGym controller, bit-identical, 0.648x on the Ryzen. | PR #3 |
+| Brain + body loop | Not measured. Estimated about 0.25x run back to back. | none yet |
+| Optomotor steering | Unproven on v3. The only POSITIVE verdict is from v1 (runaway, about 1e6 spikes/s). The v2 re-run disagreed. No v3 receipt exists. | `docs/receipts/wp5_optomotor.json` |
+| Closed-loop receipts | Weak: 1 s runs on the v1 controller. | `docs/receipts/connectome_closed_loop_*.json` |
+| Capability matrix | Overclaims "Validated" for optomotor, open arena and the sandbox, and "Active" learning in several paradigms. | `docs/CAPABILITY_MATRIX.md` |
+| Live daemon | Fix in review. Defaults to v1 (CPU only). Its "v3" mode ran v3 equations on v1 weights because the v3 transmitter policy was skipped, so any daemon or closed-loop result labelled v3 is suspect. | PR #4 |
+| Mushroom-body learning | Modular only (hand-built 120-KC model). Nothing is wired into the connectome. | `circuit.py` |
 
-### The Blocking Scientific Problem
+## Phase map
 
-The LIF dynamics v2 produced a suprathreshold network fixed point (−26.75 mV
-vs −45 mV threshold) because the conductance calibration inadvertently weakened
-inhibition by 3×. The v3 recalibration (per-sign PSP preservation + aminergic
-neurons lose fast weight) brings the fixed point to −45.13 mV — marginally
-subthreshold — but has **not been validated on the full graph in a confirmatory
-run**. This is the first gate.
-
----
-
-## Architecture
+Each phase ends at a gate that needs explicit owner sign-off. Phases run in
+order, except P5, which starts once P2 ships the run recording format and
+proceeds alongside P3 and P4.
 
 ```mermaid
-flowchart TB
-    subgraph Server["AMD Ryzen 3900X (24 threads, 128 GB)"]
-        ENV[14 Paradigm Environments<br/>arena.py / maze.py]
-        ENC[Sensory Encoder<br/>vision.py / mechanosensory.py]
-        BRAIN_MOD[Modular Controller<br/>circuit.py / central_complex.py]
-        BRAIN_CON[brainlab/ LIF Engine<br/>166.7K neurons, v3 dynamics]
-        DEC[DN→CPG Decoder<br/>neurofly_body/decoder.py]
-        BODY[FlyGym 2.1 / MuJoCo<br/>18-DOF articulated body]
-        DAEMON[neurofly_daemon.py<br/>SSE + REST API]
-    end
-    subgraph Client["Browser (any)"]
-        DASH[Dashboard<br/>web/app.js + Three.js 3D]
-    end
-
-    ENV -->|observations| ENC
-    ENC -->|sensory_dict| BRAIN_MOD
-    ENC -->|sensory_dict| BRAIN_CON
-    BRAIN_MOD -->|motor commands| ENV
-    BRAIN_CON -->|DN rates| DEC
-    DEC -->|cpg_drive L/R| BODY
-    BODY -->|joint angles, contacts| DAEMON
-    ENV -->|telemetry| DAEMON
-    DAEMON -->|SSE stream| DASH
-
-    style BRAIN_CON fill:#2d5016,color:#fff
-    style BODY fill:#1a3a5c,color:#fff
-    style DASH fill:#5c3a1a,color:#fff
+flowchart LR
+  P0[P0 Ground truth] --> P1[P1 Validation harness]
+  P1 --> P2[P2 Embodied loop]
+  P2 --> P3[P3 Flagship behaviours]
+  P3 --> P4[P4 Odor learning]
+  P2 -.recording format.-> P5[P5 Experiment studio]
+  P4 --> P6[P6 First public release]
+  P5 --> P6
+  P6 --> P7[P7 All 14 paradigms]
 ```
 
-### External Dependencies (Verified)
+---
 
-| Package | Version | Role | PyPI | License |
-|---|---|---|---|---|
-| `flygym` | 2.1.0 | Articulated body + HybridTurningController | ✅ | MIT |
-| `mujoco` | 3.9.0 | Physics engine (required by flygym) | ✅ | Apache-2.0 |
-| `brian2` | 2.10.1 | Already installed; test-only dependency | ✅ installed | CeCILL-2.1 |
-| `numpy` | ≥2.0 | Core numerics | ✅ installed | BSD |
-| `numba` | ≥0.65 | JIT for brainlab kernel | ✅ installed | BSD |
+## P0: Reset to ground truth
 
-### Reference Projects (Verified to Exist)
+**Goal**: make the repo say only what it can prove, land the speed work
+already done, and put the live fly on v3 and the GPU.
 
-| Project | Author | What We Learn From It |
+**Deliverables**
+- Rewrite `docs/CAPABILITY_MATRIX.md` from receipts. Each cell is Validated (v3
+  receipt with a verdict), Mapped (wired, untested on v3), or Unmapped. The v1
+  results move to a history column.
+- Replace this roadmap (done) and make the README claims match the matrix.
+- Merge PRs #1, #2, #3 and #4 after review.
+- Switch the daemon default to v3 with the v3 transmitter policy applied
+  (PR #4), using the GPU when a CUDA device is present and the CPU otherwise.
+  v1 is kept behind a flag and labelled historical.
+- Audit every daemon and closed-loop receipt labelled v3. They ran v3 equations
+  on v1 weights, so they're relabelled invalid and re-run, or retired. From now
+  on each receipt records the graph hash after the policy is applied.
+- Record a brain-plus-body benchmark receipt on the Ryzen (x real time, GPU
+  memory, CPU load), and a determinism check that the same seed gives the same
+  trajectory.
+
+**Depends on**: nothing.
+
+**Risk**: the live fly may stop steering once v1 is off. That is the correct
+outcome, and the dashboard should say "connectome, v3, steering unvalidated".
+
+**Gate 0 exit criteria**
+- Every "Validated" in the matrix links to a v3 receipt.
+- CI is green on master with #1 to #4 merged.
+- No receipt labelled v3 was produced by the old daemon path.
+- The live dashboard runs v3 on the GPU, checked in the browser per `AGENTS.md`.
+- A full-loop benchmark receipt exists.
+
+## P1: Validation harness and the v3 question
+
+**Goal**: build the machinery that turns "does the fly do X?" into a
+preregistered, repeatable verdict, then answer the question the old Gate 1
+never answered: does the v3 connectome steer?
+
+**Deliverables**
+- A benchmark spec format (JSON, hashed before the run): paradigm, metric,
+  published target with citation, tolerance, seeds, conditions, controls and
+  the verdict rule.
+- A runner, `neurofly validate <spec>`, that runs every condition headless and
+  writes a receipt with graph hash, code SHA, seeds and verdict.
+- Physiology sanity checks for every run: spontaneous rate distribution,
+  fraction of silent and saturated neurons, and DN rates at baseline. These are
+  reported beside every behavioural verdict.
+- Re-run v3 probes A, B and C on the GPU backend.
+- The WP5 confirmatory optomotor run on v3 (6 seeds × 4 conditions: intact,
+  DNa02-silenced, sham, shuffled), reported as positive, null or negative.
+
+**Depends on**: P0.
+
+**Risk**: v3 optomotor comes back null. This is the biggest risk in the plan.
+The response is a diagnosis pass first: check the left/right visual input
+mapping, T4/T5 drive strength, the DNa02 readout and decoder gain. Each fix
+gets its own preregistered retest, with no tuning to the result.
+
+**Gate 1 (owner decides)**
+- Positive: go on to P2 with the connectome as the steering controller.
+- Null or negative: choose between a bounded diagnosis loop, or going ahead
+  with the connectome labelled "does not yet steer" while the harness keeps
+  value for researchers.
+
+## P2: Embodied loop at full fidelity
+
+**Goal**: the GPU brain drives the FlyGym body in a deterministic multi-rate
+loop, and every run is saved as a replayable recording.
+
+**Deliverables**
+- A co-sim runner: 2 ms brain steps (20 × 0.1 ms LIF substeps), 0.1 ms MuJoCo
+  substeps, and a sensory encoder at 500 Hz.
+- DN decoders for DNa02 (yaw), DNp09 (forward), MDN (reverse) and GF (takeoff),
+  plus leg-load feedback into the brain.
+- Brain and body overlapped on separate threads (GPU brain, CPU body). This is
+  an exact speed-up with the same results, and could take the loop from about
+  0.25x toward the brain's 0.40x.
+- A run recording format: joint angles, contacts, pose, DN rates, a
+  spike-raster summary and full provenance. The browser replays it at 1x.
+- A local run queue, so experiments run one after another and people watch the
+  recording afterwards.
+
+**Depends on**: P1 harness.
+
+**Risk**: running brain and body concurrently must not change the order of
+data flow. It is accepted only with a bit-identical trajectory against the
+sequential loop.
+
+**Gate 2 exit criteria**
+- A 10 s embodied run replays bit-identically from its seed.
+- The modular and connectome controllers both walk, with video and telemetry.
+- A throughput receipt for the full loop on the Ryzen.
+
+## P3: Three flagship behaviours
+
+**Goal**: show three innate behaviours against published fly data, each with
+its own preregistered spec, before anything learns.
+
+**Deliverables**
+- **Optomotor**, embodied: turning index vs drum speed and direction, with
+  DNa02 silencing as the causal control.
+- **Looming escape**: the LC4/LPLC2 → giant fiber pathway. Metrics are escape
+  probability and latency vs looming speed (l/v), matched to published curves,
+  with GF silencing as the control.
+- **T-maze odor valence (untrained)**: the innate attraction and avoidance
+  baseline for the odors P4 will use.
+- A validation page per paradigm: spec, result, plots, controls and known limits.
+
+**Depends on**: P2.
+
+**Risk**: mapping rendered stimuli onto photoreceptor and ORN inputs involves
+modelling choices. Each one is declared in the spec, and alternatives are
+tested as preregistered variants, never picked after seeing the result.
+
+**Gate 3 (owner decides)**
+- Each flagship is marked pass, partial or fail, with its receipt.
+- Decide whether the T-maze baseline is solid enough to train on.
+
+## P4: Brain training (mushroom-body odor learning)
+
+**Goal**: a fly that learns to avoid an odor paired with punishment, through
+plasticity in its own connectome.
+
+**Deliverables**
+- A WP7 spec in the style of [`WP6_PLASTICITY_SPEC.md`](WP6_PLASTICITY_SPEC.md):
+  the plastic edge set (KC → MBON synapses in the compartments innervated by
+  PPL1 dopaminergic neurons), the rule (dopamine-gated depression of recently
+  active KC synapses), and every parameter with its source or marked as an
+  assumption.
+- Wire the pathway: ORN → PN → KC odor coding, a punishment input onto PPL1
+  DANs, and MBON output into the steering readout.
+- A protocol modelled on classic T-maze aversive conditioning: train with CS+
+  paired with punishment and CS− alone, then test the choice. The metric is the
+  performance index against published values cited in the spec.
+- Controls: unpaired presentation, DANs silenced, plasticity off, and a
+  shuffled graph.
+- A GPU plasticity kernel with the same parity rules as the static brain,
+  checked against a CPU reference.
+- Then WP6 (the ER→EPG heading map) through the same pipeline.
+
+**Depends on**: P3 (T-maze baseline) and the P1 harness.
+
+**Risks**
+- Learning rates and eligibility windows are partly unknown. They are declared
+  as hypotheses, a small preregistered sweep is allowed, and the result is
+  reported as "learning under assumptions X", not as a biological claim.
+- Training plus test is minutes of simulated time per fly, so each condition
+  set is an overnight batch.
+
+**Gate 4 (owner decides)**
+- Learning verdict with controls: positive, null or negative.
+- Whether learning is headline-ready for the first public release, or ships
+  labelled experimental.
+
+## P5: Experiment studio (parallel with P3 and P4)
+
+**Goal**: the browser experience that makes this a citizen-science tool and the
+API that makes it a research tool, both built on the P2 recording format.
+
+**For citizens**
+- A gallery of curated runs shipped with the install: watch the fly, its brain
+  activity, and an explanation of what's happening.
+- An experiment builder: pick a paradigm, change a few parameters (stimulus
+  speed, odor, silence a named neuron type), then queue it.
+- Side-by-side replay (intact vs silenced) to answer "what does this neuron do?"
+- Badges on each paradigm (Validated, Mapped or Exploratory) taken straight
+  from the matrix.
+
+**For researchers**
+- A Python API and CLI for headless batches, with experiment specs as files.
+- The modular controller as a baseline backend (hidden from the citizen UI).
+- Export to open formats (Parquet or NWB, chosen in this phase) with provenance.
+
+**Risk**: the UI outruns the science. A paradigm shows as Validated only once
+its gate has passed. Browser verification follows `AGENTS.md`.
+
+**Gate 5 exit criteria**: a non-expert can install, watch a curated run, run a
+silencing experiment and compare it, all without the CLI. Tested with at least
+one real person.
+
+## P6: First public release
+
+**Goal**: something a stranger can install on their own machine and cite.
+
+**Deliverables**
+- One-command install plus `neurofly download-data`, with GPU detection and the
+  CPU path documented as about 10x slower.
+- A hardware page with measured numbers: NVIDIA GPU recommended (GTX 1660 Ti is
+  the reference), and the RAM floor measured, not guessed.
+- A clean-clone test on a second machine that passes.
+- `CITATION.cff`, a DOI for the release, and a public dataset of the validation
+  receipts and curated runs.
+- Docs written for two readers: a researcher guide and a citizen guide.
+
+**Depends on**: P4 and P5.
+
+**Risk**: most people lack an NVIDIA GPU. Curated runs work on any machine,
+since replay needs no simulation.
+
+**Gate 6 (owner decides)**
+- Publish, or hold for another iteration.
+- Revisit hosting: a public gallery and small queue, or stay local-only.
+
+## P7: All 14 paradigms
+
+**Goal**: extend validation to the rest of the matrix, batched by shared
+sensory pathway, each paradigm through the same spec, run and gate.
+
+| Batch | Paradigms | Shared work |
 |---|---|---|
-| [`philshiu/Drosophila_brain_model`](https://github.com/philshiu/Drosophila_brain_model) | Shiu et al. (Nature 2024) | LIF parameters, validation methodology |
-| [`NeLy-EPFL/flygym`](https://github.com/NeLy-EPFL/flygym) | Ramdya Lab, EPFL | Body model, CPG controller, MuJoCo integration |
-| [`erojasoficial-byte/fly-brain`](https://github.com/erojasoficial-byte/fly-brain) | Community | Brain-body bridge architecture pattern |
-| [`ZeroXClem/closed-loop-fly`](https://github.com/ZeroXClem/closed-loop-fly) | Community | WebGPU in-browser approach (reference, not adopted) |
+| A · Visual | Buridan, visual operant | Reuses the P3 visual ingress. Buridan brings in WP6 heading. |
+| B · Olfactory and wind | Y-maze, wind tunnel, courtship | Reuses the P4 olfactory ingress. Adds JON/WED wind input and P1 pursuit. |
+| C · Thermal and body | Heat-maze, gap crossing, circadian | Thermosensory ingress and leg proprioception. Circadian needs long runs. |
+| D · Composite | Open arena, labyrinth, multisensory sandbox | Validated only after A to C, as integration tests. |
+
+**Gate per batch**: the matrix updates only from receipts. Null results are
+published too.
 
 ---
 
-## Phase Structure
+## Top risks
 
-Each phase has a **gate** that requires explicit owner confirmation before the
-next phase begins. Within a phase, steps proceed without user input.
-
-```mermaid
-graph LR
-    P1[Phase 1<br/>Validate v3 Dynamics] -->|GATE 1| P2[Phase 2<br/>Embodied Co-Sim]
-    P2 -->|GATE 2| P3[Phase 3<br/>Dashboard Integration]
-    P3 -->|GATE 3| P4[Phase 4<br/>Roster Extension]
-    P4 -->|GATE 4| P5[Phase 5<br/>Release]
-
-    style P1 fill:#8b0000,color:#fff
-    style P2 fill:#1a3a5c,color:#fff
-    style P3 fill:#5c3a1a,color:#fff
-    style P4 fill:#2d5016,color:#fff
-    style P5 fill:#4a0080,color:#fff
-```
-
----
-
-## Phase 1 — Validate v3 Dynamics & Unblock the Graph
-
-**Goal**: Prove or disprove that the v3-calibrated full connectome can produce a
-measurable, causal sensorimotor response. This is the scientific foundation
-everything else depends on.
-
-**Estimated effort**: 1–2 sessions. Primarily compute-bound (graph simulation).
-
-### Step 1.1 — Run v3 Probes
-
-**Role**: Simulation engineer (automated script execution)
-
-Run the predeclared probes from [`docs/LIF_DYNAMICS_SPEC.md`](LIF_DYNAMICS_SPEC.md) §6.8:
-
-| Probe | What It Tests | Pass Criteria |
+| Risk | Impact | Response |
 |---|---|---|
-| Probe A (2 neurons) | Unitary PSP calibration | v3 IPSP within 1% of v1 IPSP |
-| Probe B (2,000 random) | Self-sustained state | Report rate; compare v1/v2/v3 |
-| Probe C (full graph) | Quiet baseline + responsiveness | Q1: gray rate < 10⁵ sp/s, DNa02 < 20 Hz; R1: rate > 0 during stim, |L−R| ≥ 1 Hz |
-
-**Files**: `brainlab/engine.py`, `brainlab/brain.py`, existing probe scripts under
-`scripts/` and `docs/receipts/`.
-
-**Output**: `docs/receipts/lif_dynamics_v3.json` with all measurements.
-
-### Step 1.2 — Confirmatory Optomotor Run (conditional on Q1+R1 passing)
-
-**Role**: Simulation engineer
-
-Execute the WP5 preregistered protocol (`docs/wp5_optomotor_prereg.json`):
-6 seeds × 4 conditions (intact, DNa02-silenced, sham, shuffled) with
-`--dynamics v3`. Report the turning index beside v1 and v2 numbers.
-
-**Output**: Receipt in `docs/receipts/wp5_v3_optomotor.json`.
-Verdict: positive, null, or negative — reported honestly.
-
-### Step 1.3 — Install FlyGym in the Project Venv
-
-**Role**: Environment engineer
-
-```bash
-.venv/bin/pip install "flygym==2.1.0"
-```
-
-Verify import and basic stepping:
-```python
-from flygym import Simulation
-from flygym.compose import FlatGroundWorld
-sim = Simulation(FlatGroundWorld(), timestep=0.0001)
-sim.reset()
-sim.step({})  # empty action → default pose
-print(f"FlyGym {sim.__class__.__module__} working, t={sim.time}")
-```
-
-Run existing tests to confirm no regressions: `pytest tests/ -q`.
-
-**Output**: Updated `requirements-lock.txt` with pinned flygym+mujoco versions.
-
-### Gate 1 — Owner Decision
-
-Present:
-- v3 probe results (pass/fail on Q1, R1, R2)
-- v3 optomotor verdict (if run)
-- FlyGym installation confirmation
-- Remaining test count
-
-**Owner decides**:
-1. If v3 probes fail: stop scientific claims, proceed with modular-only
-   embodiment (Phase 2 still works — it just uses the modular controller)
-2. If v3 probes pass but optomotor is null: proceed with embodiment; the
-   connectome backend is available but does not yet steer
-3. If v3 optomotor is positive: proceed with full connectome embodiment
-
----
-
-## Phase 2 — Embodied Co-Simulation (Server-Side)
-
-**Goal**: Connect the spiking brain (or modular controller) to FlyGym's
-articulated body so the fly walks with real joint physics. This is the core
-architecture from
-[`FULL_CONNECTOME_COSIM_PLAN.md`](FULL_CONNECTOME_COSIM_PLAN.md).
-
-**Estimated effort**: 2–4 sessions. Primarily integration work.
-
-### Step 2.1 — Validate and Extend `neurofly_body/`
-
-**Role**: Integration engineer
-
-The embryonic `neurofly_body/` package already has:
-- [`interfaces.py`](../neurofly_body/interfaces.py): `NeuralBackend` and `BodyBackend` protocols
-- [`decoder.py`](../neurofly_body/decoder.py): `DNa02CPGDecoder` (DN rates → CPG drive)
-- [`flygym_body.py`](../neurofly_body/flygym_body.py): `FlyGymBody` wrapping FlyGym 2.1's
-  `Simulation`, `FlatGroundWorld`, and `HybridTurningController`
-
-Tasks:
-1. **Add `DNp09` forward-velocity channel** to decoder: `v_fwd = v_base + β × R_DNp09`.
-   Currently only DNa02 yaw is decoded. Forward velocity is needed for plume tracking.
-2. **Add `MDN` backward-walking toggle**: when MDN rate exceeds threshold, reverse
-   CPG phase coupling direction.
-3. **Add `GF` escape trigger**: ballistic takeoff when DNp01 rate exceeds threshold.
-4. **Wire ascending sensory feedback**: extract ground-contact forces from
-   `FlyGymBody.observe()` → feed back as Campaniform Sensilla input to the brain.
-5. **Write `neurofly_body/runner.py`** (referenced in `__init__.py` but missing):
-   the `EmbodiedConfig` dataclass and `run_embodied()` CLI entry point.
-
-**Acceptance**: A headless 1000-step co-simulation with the modular controller
-completes without error, producing a JSON telemetry file with joint angles,
-contacts, and body position.
-
-### Step 2.2 — Multi-Rate Co-Simulation Loop
-
-**Role**: Systems engineer
-
-The brain and body run at different rates:
-- Brain (brainlab LIF): dt = 0.1 ms (10 kHz)
-- Body (FlyGym/MuJoCo): dt = 0.1 ms (10 kHz, matching flygym default)
-- Sensory encoder: dt = 2 ms (500 Hz, matching brainlab `step()` default)
-- Telemetry export: dt = 20 ms (50 Hz)
-
-Implement in `neurofly_body/runner.py`:
-```
-for each brain_step (2 ms = 20 × 0.1 ms LIF substeps):
-    1. Encode sensory observations from last body state
-    2. brain.step(sensory_dict, duration_ms=2.0) → DN rates
-    3. decoder.decode(DN_rates, dt_ms=2.0) → cpg_drive
-    4. body.step(cpg_drive, substeps=20)  # 20 × 0.1 ms = 2 ms
-    5. Every 10th brain_step: emit telemetry snapshot
-```
-
-**Acceptance**: Deterministic replay — same seed, same initial state → identical
-trajectories at different wall-clock speeds (1×, 5×, max).
-
-### Step 2.3 — Wire Sensory Ingress for the Optomotor Paradigm
-
-**Role**: Neuroscience engineer
-
-Map the optomotor drum's visual stimulation into the graph's sensory neurons:
-1. Use the existing `vision.py` 72-ray visual model
-2. Map rays to optic-lobe columnar entries (R1–R6 → lamina → medulla → T4/T5)
-   using the neuron-ID annotations from `brainlab/io_map.py`
-3. Verify left-eye and right-eye neuron assignments against MaleCNS side
-   annotations (the WP5 audit found mixing; use the corrected mapping from
-   commit `ca7b71b`)
-
-**Acceptance**: With the optomotor drum rotating clockwise, the left-eye visual
-neurons receive higher contrast change than the right. Measurable in a
-1-second probe.
-
-### Step 2.4 — Smoke-Test: Modular Controller Walks in FlyGym
-
-**Role**: Integration engineer
-
-Run the full co-sim loop with `brain_backend='modular'`:
-- Open arena, 10 seconds simulated time
-- The fly should walk forward with a tripod gait
-- Export video (FlyGym renderer, 25 fps)
-
-**Acceptance**: Video shows articulated walking. Joint angles are physiological
-(within FlyGym's documented ranges). Body moves forward > 5 mm in 10 seconds.
-
-### Step 2.5 — Smoke-Test: Connectome Controller in FlyGym (if v3 passed)
-
-**Role**: Simulation engineer
-
-Same as 2.4 but with `brain_backend='connectome-fixed'` and `--dynamics v3`.
-Record DN rates alongside joint angles.
-
-**Acceptance**: The fly moves (or doesn't — reported honestly). DN rates are
-logged. Controller identity bar says `connectome (MaleCNS v1.0, v3)`.
-
-### Gate 2 — Owner Decision
-
-Present:
-- Video of modular fly walking in FlyGym
-- Video of connectome fly (if applicable)
-- Telemetry comparison: modular vs connectome DN rates and walking speed
-- Measured compute budget: wall-seconds per simulated second
-- Any blocking issues
-
-**Owner decides**: proceed to dashboard integration, or iterate on the co-sim.
-
----
-
-## Phase 3 — Dashboard Integration
-
-**Goal**: Make the embodied co-simulation visible and controllable through the
-browser dashboard, including a Three.js 3D articulated viewport.
-
-**Estimated effort**: 2–3 sessions. Frontend + streaming work.
-
-### Step 3.1 — Extend SSE Telemetry for Body State
-
-**Role**: Backend engineer
-
-Add to the daemon's SSE snapshot (already in `neurofly_daemon.py`):
-- `joint_angles_rad`: 18-DOF array
-- `leg_contacts`: 6-element boolean array (stance/swing per leg)
-- `body_position_mm`: [x, y, z] from MuJoCo
-- `body_quaternion_wxyz`: [w, x, y, z]
-- `dn_rates`: `{dna02_l, dna02_r, dnp09, mdn, gf}` in Hz
-- `controller_id`: `"modular"` or `"connectome-v3"`
-
-**Acceptance**: `curl http://localhost:8769/api/status` returns body fields;
-SSE stream includes joint angles at 50 Hz.
-
-### Step 3.2 — Three.js 3D Articulated Viewport
-
-**Role**: Frontend engineer
-
-Add a toggle-able 3D viewport to `web/index.html`:
-- Import Three.js (CDN or bundled)
-- Build a skeletal fly mesh with 6 legs × 3 joints (Coxa, Femur, Tibia)
-- Animate from the SSE `joint_angles_rad` stream
-- Show ground-contact indicators (green=stance, blue=swing)
-- Camera: tracking, user-orbitable
-
-**Acceptance**: The 3D fly visually walks with the tripod gait in sync with
-the 2D arena view. Frame rate ≥ 30 fps.
-
-### Step 3.3 — Connectome Premotor HUD
-
-**Role**: Frontend engineer
-
-Add to the dashboard:
-- Real-time DN rate bars: DNa02 L/R, DNp09, MDN, GF
-- Controller identity badge: `modular` / `connectome (MaleCNS v1.0, v3)`
-- CPG gait phase diagram (6 oscillators)
-
-### Step 3.4 — Paradigm Switching with Body State
-
-**Role**: Full-stack engineer
-
-When the user switches paradigms in the dashboard:
-1. Checkpoint the current assay's brain state + body state
-2. Reset the body into the new paradigm's arena geometry
-3. Load (or create) the new assay's brain instance
-4. Stream the new paradigm's telemetry
-
-**Acceptance**: Switching T-maze → Buridan → Optomotor preserves each assay's
-learned weights and is visually smooth.
-
-### Gate 3 — Owner Decision
-
-Present:
-- Live dashboard with 3D viewport, all 14 paradigms switchable
-- DN rate HUD
-- Controller switching (modular ↔ connectome)
-- Firefox + Chromium screenshots
-- Performance budget (CPU, memory, FPS)
-
----
-
-## Phase 4 — Roster Extension & Scientific Validation
-
-**Goal**: Wire each of the 14 paradigms to the connectome backend with verified
-sensory/motor mappings, producing a 14-row capability matrix.
-
-**Estimated effort**: 4–8 sessions. Iterative, per-paradigm.
-
-### Step 4.1 — Build the Capability Matrix
-
-**Role**: Documentation engineer
-
-Create `docs/CAPABILITY_MATRIX.md`:
-
-| Paradigm | Sensory Encoder | DN Motor Map | Modular | Connectome | Learning |
-|---|---|---|---|---|---|
-| T-Maze | olfactory (PN) | DNa02, DNp09 | ✅ | ⬜ unmapped | ⬜ |
-| Optomotor | visual (T4/T5) | DNa02 | ✅ | ⚠️ tested, NULL | ⬜ |
-| Looming Escape | visual (LC4) | GF (DNp01) | ✅ | ⬜ unmapped | N/A |
-| ... | ... | ... | ... | ... | ... |
-
-### Step 4.2 — Wire Paradigms in Batches by Shared Pathway
-
-**Role**: Neuroscience engineer + Integration engineer
-
-**Batch A — Visual motor** (share visual ingress):
-Optomotor, Buridan, Looming Escape, Visual Operant
-
-**Batch B — Olfactory + Mechanosensory**:
-T-Maze, Y-Maze, Wind Tunnel, Courtship
-
-**Batch C — Thermal + Spatial**:
-Heat-Maze, Gap Crossing, Circadian DAM
-
-**Batch D — Complex**:
-Labyrinth, Multisensory Benchmark
-
-For each paradigm:
-1. Identify the sensory neurons by cell type in the MaleCNS annotations
-2. Map environment observations → neuron input currents
-3. Identify the motor DN readout neurons
-4. Run a 3-seed baseline comparison (modular vs connectome)
-5. Update the capability matrix
-
-### Step 4.3 — Plasticity Protocol (if v3 passes and owner approves)
-
-**Role**: Neuroscience engineer
-
-Implement the ER4d+ER2 → EPG heading-map plasticity from
-[`docs/WP6_PLASTICITY_SPEC.md`](WP6_PLASTICITY_SPEC.md):
-- 3,081 declared plastic edges (0.012% of graph)
-- Depression-only STDP gated by dopaminergic modulator
-- Predeclared evaluation: heading accuracy before/after training
-
-### Gate 4 — Owner Decision
-
-Present:
-- Completed capability matrix with evidence links
-- Per-paradigm connectome vs modular comparison
-- Plasticity results (if attempted)
-- Known failures and NULL results documented honestly
-
----
-
-## Phase 5 — Release Preparation
-
-**Goal**: Make the project installable, reproducible, and publishable.
-
-**Estimated effort**: 1–2 sessions.
-
-### Step 5.1 — Clean-Clone Reproducibility
-
-**Role**: Packaging engineer
-
-1. Canonical entry point: `python -m neurofly` or `neurofly run`
-2. Automated data download: `neurofly download-data` → fetches MaleCNS from
-   Janelia, verifies SHA-256 against `data-provenance/`
-3. `pyproject.toml`: single version, `[project.scripts]` entry points
-4. `Dockerfile` for reproducible environment
-5. CI: GitHub Actions running `pytest` + private-infra grep guard
-
-### Step 5.2 — Documentation Consolidation
-
-**Role**: Technical writer
-
-1. Rewrite `README.md`: honest capability claims, quick-start, architecture
-2. Remove or archive `CLAUDE_HANDOFF.md` (overclaims)
-3. Consolidate `NEUROFLY_RETHINK.md`, `OPEN_SOURCE_PLAN.md`,
-   `CLAUDE_IMMEDIATE_PLAN.md` → references from this roadmap
-4. Generate API docs for `neurofly_body/` and `brainlab/`
-
-### Step 5.3 — Release Audit Completion
-
-**Role**: Release engineer
-
-Complete the remaining items from [`docs/RELEASE_AUDIT.md`](RELEASE_AUDIT.md):
-- [x] MIT license + NOTICE
-- [x] README rewritten
-- [ ] Remove root-level duplicate files (`app.js`, `index.html`,
-      `test_whole_brain.py`, `whole_brain_scientific_battery.py`)
-- [ ] Rename `*_ryzen.sh` → `start_daemon.sh` / `stop_daemon.sh`
-- [ ] Scrub remaining private infra references (items 5–12)
-- [ ] `git remote add origin <url>` + first push
-
-### Step 5.4 — HPServer Backup & Snapshot
-
-**Role**: Operations engineer
-
-```bash
-SHA=$(git rev-parse --short=7 HEAD)
-S=/mnt/hpserver-storage/neurofly/snapshots/$SHA
-mkdir -p $S
-git bundle create $S/neurofly-$SHA.bundle --all
-git archive --format=tar.gz -o $S/flybrain-$SHA.tar.gz HEAD
-sha256sum $S/*.bundle $S/*.tar.gz > $S/SHA256SUMS
-```
-
-Update `/mnt/hpserver-storage/neurofly/CURRENT_HANDOFF.md`.
-
-### Gate 5 — Owner Decision
-
-Present:
-- Clean-clone test result (fresh venv, `pip install -e ".[body,test]"`, `pytest`)
-- README preview
-- Proposed git remote URL
-- Final capability matrix
-
-**Owner decides**: push to public, or keep private and iterate.
-
----
-
-## Appendix A — Standing Rules (from `AGENTS.md`)
-
-These outrank everything in this document:
-
-1. Stop at every phase gate for explicit human confirmation.
+| v3 connectome doesn't steer | Weakens the showcase story | Bounded diagnosis in P1, preregistered retests, publish the null. The tool and harness still serve researchers. |
+| Plasticity parameters unknown | Learning result depends on assumptions | Declare the assumptions, run a small preregistered sweep, word the claims to match. |
+| Throughput about 0.25 to 0.4x | Batteries take hours | Queue and replay, overnight batches, exact speed-ups only. |
+| 6 GB VRAM on the 1660 Ti | Limits batch or multi-fly runs | Measure in P0. Plasticity state is small (0.012% of edges for WP6). |
+| Docs drift into overclaiming again | Loss of credibility | A CI check that every Validated matrix cell points to an existing receipt. |
+| Citizens lack GPUs | Small active audience | Curated replay works everywhere. Hosting decided at Gate 6. |
+
+## Compute budget (estimates)
+
+Loop speed is estimated from brain 0.40x and body 0.648x run back to back
+(about 0.25x). P0 replaces this with a measurement.
+
+| Job | Sim time | Wall time at 0.25x | v1.0 roadmap estimate |
+|---|---|---|---|
+| One 10 s citizen experiment | 10 s | ≈ 40 s | ≈ 35 min |
+| WP5 optomotor, 24 runs × 8 s | 192 s | ≈ 13 min | ≈ 11 h |
+| Probe C, full graph, brain only (0.40x) | 2 s | ≈ 5 s | ≈ 7 min |
+| Odor conditioning, 1 fly (est. 5 min train + test) | 300 s | ≈ 20 min | n/a |
+| Conditioning, 4 conditions × 12 flies | 4 h | ≈ 16 h | n/a |
+
+## Parked and cut
+
+**Parked until a gate reopens it**: hosting a public gallery or queue (Gate 6);
+decoder or controller training on a fixed connectome; opt-in lower-accuracy
+modes (fp32, larger physics dt, noslip off), only on owner request with the
+accuracy cost measured; buying a faster GPU.
+
+**Cut**: real-time simulation as a requirement; in-browser (WebGPU)
+simulation; any capability claim without a v3 receipt; v1 dynamics as a
+default anywhere.
+
+## Standing rules (from `AGENTS.md` and the v1.0 roadmap)
+
+1. Stop at every phase gate for explicit owner confirmation.
 2. Never delete a repository, worktree, checkout, branch, or evidence bundle.
-3. Never `git stash` in this tree.
-4. Run everything by absolute path; verify installs from a neutral directory.
-5. Conflicts escalate; they are never settled on the spot.
-6. The deliverable is usefulness, not internal correctness.
-
-## Appendix B — Compute Budget
-
-| Task | Estimated Wall Time | Notes |
-|---|---|---|
-| v3 Probe C (full graph, 2s sim) | ~7 min | 0.3× real-time on Ryzen |
-| v3 Optomotor (24 runs × 8s each) | ~11 hours | Can run overnight |
-| FlyGym smoke test (10s sim) | ~3 min | MuJoCo is fast on CPU |
-| Embodied co-sim (brain+body, 10s) | ~35 min | Bottleneck: brain at 0.3× |
-| Full 14-paradigm battery | ~1 day | Per controller backend |
+3. Browser-facing changes are verified in the running browser.
+4. Conflicts escalate; they are never settled on the spot.
