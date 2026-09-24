@@ -69,7 +69,7 @@ class SharedGraph:
     """Read-only graph arrays plus verified identity, loaded once per process."""
 
     def __init__(self, arrays: Dict[str, np.ndarray], identity: GraphIdentity, io_map: Optional[dict] = None):
-        validator = Brain(arrays=arrays, validate=True)   # validates once
+        validator = Brain(arrays=arrays, validate=True, backend='cpu')   # validates once, host only
         self.arrays = validator.graph_arrays()
         for value in self.arrays.values():
             value.flags.writeable = False
@@ -196,6 +196,7 @@ class GraphInstance:
                 self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post])
             self._working_weight[self.plastic_edges] = (
                 self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
+            self.brain.update_weights(self.plastic_edges)
         if self.readout is not None:
             from brainlab.learning import features_from_counts
             features = features_from_counts(counts, 0.0, slice(None))
