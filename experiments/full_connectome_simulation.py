@@ -40,7 +40,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from arena import Arena
 from brainlab.brain import Brain
-from brainlab.graph_identity import DEFAULT_CONNECTOME_DIR, DEFAULT_GRAPH_DIR, verify_graph, GraphUnavailable
+from brainlab.graph_identity import DEFAULT_CONNECTOME_DIR, DEFAULT_GRAPH_DIR, GraphUnavailable
 from brainlab.io_map import resolve_visual_heading_io
 from brainlab.wp6_plasticity import VisualHeadingPlasticityRule
 from maze import ExperimentRegistry
@@ -82,15 +82,18 @@ class UnifiedConnectomeBrain:
 
         # 1. Verify and load authentic MaleCNS v1.0 graph
         print(f"[UnifiedBrain] Verifying MaleCNS v1.0 connectome graph at {self.graph_dir}...", flush=True)
-        self.identity = verify_graph(self.graph_dir, self.connectome_dir)
+        # v3 is defined together with its transmitter policy (aminergic neurons
+        # carry no fast weight), so load the policy weights, not the pinned v1 ones.
+        from experiment_registry import SharedGraph
+        shared = SharedGraph.load_for_dynamics(self.graph_dir, self.connectome_dir, dynamics="v3")
+        self.identity = shared.identity
         print(
             f"[UnifiedBrain] Graph Verified: {self.identity.neurons:,} neurons, "
             f"{self.identity.edges:,} synapses (SHA-256: {self.identity.graph_sha256[:16]}...)",
             flush=True,
         )
 
-        graph_path = self.graph_dir / "graph.npz"
-        self.brain = Brain(graph_path, dynamics="v3")
+        self.brain = Brain(arrays=shared.arrays, dynamics="v3")
         self.total_neurons = self.brain.n
 
         # 2. Setup WP6 Visual-Heading Plasticity Circuit (ER4d + ER2 -> EPG compass synapses)
@@ -107,10 +110,9 @@ class UnifiedConnectomeBrain:
                     dt=0.02,
                 )
                 self.plasticity_delta = np.zeros(len(self.plasticity_rule.edges), dtype=np.float32)
-                with np.load(graph_path, allow_pickle=False) as g:
-                    ptr, post = g["ptr"], g["post"]
-                    self.plastic_edge_pre = (np.searchsorted(ptr, self.plasticity_rule.edges, side="right") - 1).astype(np.int64)
-                    self.plastic_edge_post = post[self.plasticity_rule.edges].astype(np.int64)
+                ptr, post = shared.arrays["ptr"], shared.arrays["post"]
+                self.plastic_edge_pre = (np.searchsorted(ptr, self.plasticity_rule.edges, side="right") - 1).astype(np.int64)
+                self.plastic_edge_post = post[self.plasticity_rule.edges].astype(np.int64)
                 print(f"[UnifiedBrain] WP6 Plasticity Active: {len(self.plasticity_rule.edges):,} ER->EPG synapses (depression-only STDP).", flush=True)
             except Exception as e:
                 print(f"[UnifiedBrain] WP6 Plasticity circuit initialization warning: {e}", flush=True)
