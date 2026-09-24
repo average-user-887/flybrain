@@ -60,7 +60,7 @@ Only commands that were accepted and can change the simulation are logged
 
 ### `provenance`
 
-`backend`, `assay`, `lif_dynamics` (graph backends; `null` for modular), `seed`, `controller_version`, `label`, `synthetic`,
+`backend`, `assay`, `lif_dynamics` (graph backends; `null` for modular), `brain_backend` (`cpu` or `cuda` for graph backends; `null` for modular), `seed`, `controller_version`, `label`, `synthetic`,
 `test_mode`, `graph` (graph, neuron map and IO map SHA-256, neuron and edge
 counts; host paths removed), `dynamics` (the run manifest's model description),
 `code` (git commit, dirty flag, SHA-256 of the backend's source files),
