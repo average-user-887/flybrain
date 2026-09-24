@@ -3,7 +3,9 @@
 Project NeuroFly (v1.0-release) — Continuous Background Learning Daemon
 ========================================================================
 Runs 24/7 headless biological simulation and continuous online learning
-on a workstation, a server, or a laptop; it needs only the Python standard library and NumPy.
+on a workstation, a server, or a laptop. The modular backend needs only the Python
+standard library and NumPy; the connectome backends also need numba, pandas and
+pyarrow, and CuPy or numba.cuda for the GPU brain.
 
 Key Capabilities:
 1. 24/7 Continuous Headless Simulation: Steps active neuroethological paradigms
@@ -17,7 +19,8 @@ Key Capabilities:
    - GET  /api/paradigms  : Catalog of 14 standard experimental paradigms.
    - POST /api/command    : Bidirectional interventions (stimuli, speed, parameters, switches).
 4. Auto-Checkpointing: Periodically writes weight matrices and trial summaries to disk.
-5. Zero External Dependencies: Pure Python 3.12 standard library + NumPy.
+5. Light dependencies: Python 3.12 + NumPy for the modular backend (see item above
+   for the connectome backends).
 6. Public mode (--public / NEUROFLY_PUBLIC=1): read-only stream for untrusted
    viewers -- POST /api/command needs a bearer token equal to NEUROFLY_ADMIN_TOKEN,
    SSE clients are capped and the stream is throttled (stream_gateway.py).

@@ -27,7 +27,10 @@ What the engines are, briefly (full spec in [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMIC
   preregistered optomotor verdict is NULL.
 - **v3** adds per-sign PSP calibration and makes aminergic neurons modulatory-only.
   Its receipt (`lif_dynamics_v3.json`) covers calibration probes and one exploratory
-  full-graph run per direction. No confirmatory behavioural run exists.
+  full-graph run per direction. The first confirmatory optomotor run (spec
+  `optomotor_v3.json`, 2026-09-24) **FAILED** under its preregistered rule: behaviour
+  7/7, physiology 5/7 (HS above the 50 Hz ceiling). See
+  [`receipts/validation/optomotor-yaw-v3-1.md`](receipts/validation/optomotor-yaw-v3-1.md).
 
 ---
 
@@ -46,7 +49,7 @@ MaleCNS v1.0 graph (166,700 neurons, 25,582,938 synapses).
 | 6 | Visual Operant (`visual-operant`) | Visual quadrants, thermal reinforcement | DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 7 | Wind Tunnel (`wind-tunnel`) | JON-C/E → WED, olfactory PNs | DNa02, DNp09 | Runs in live UI; deterministic at 1x/20x/100x | Not verified | Mapped, untested on v3 | None | `wp1_wp2/determinism_receipt.json` (modular) |
 | 8 | Looming Escape (`looming-escape`) | LC4 / LPLC2 | Giant fiber (DNp01) | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | `connectome_closed_loop_looming.json` (v1, 1 s) |
-| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 exploratory only. | n/a | `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
+| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 confirmatory run v3-1 FAIL (behaviour passed, HS rate check failed); rerun v3-2 pending. | n/a | `validation/optomotor-yaw-v3-1.md` (v3, FAIL), `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
 | 10 | Gap Crossing (`gap-crossing`) | Leg FeCO, campaniform sensilla | CPG cadence and elevation | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | live UI sign-off only |
 | 11 | Circadian DAM (`circadian-dam`) | Photoperiod | Locomotor arousal | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 12 | Courtship (`courtship`) | Visual target, cVA (Or67d PNs) | P1 → DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
@@ -88,8 +91,9 @@ They are not behavioural evidence and are no longer cited as such.
 
 ## Open gates
 
-1. The preregistered v3 optomotor confirmatory set (24 runs) has not been run
-   (ROADMAP P1). Until it has, no connectome paradigm can move to **Tested on v3**.
+1. The preregistered v3 optomotor confirmatory run (ROADMAP P1) has not passed. Run
+   v3-1 FAILED on physiology on 2026-09-24; the rerun under `optomotor_v3_2.json` is
+   pending. Until one passes, no connectome paradigm can move to **Tested on v3**.
 2. The IO maps for every paradigm except optomotor and Buridan are unverified.
 3. The receipts that need re-running are listed in
    [`docs/receipts/README.md`](receipts/README.md#re-run-queue).

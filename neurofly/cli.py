@@ -2,9 +2,12 @@
 
 Usage:
   neurofly run [daemon options]
+  neurofly full-sim [options]
+  neurofly embodied [options]
   neurofly download-data
   neurofly status
   neurofly capability
+  neurofly validate <spec>
   neurofly record --paradigm P --seconds S --out FILE
 """
 from __future__ import annotations

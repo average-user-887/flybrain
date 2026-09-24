@@ -1,8 +1,10 @@
 # Brainlab — DOOMFLY without Doom
 
+> **Engine note (2026-09-24):** the results quoted here were produced by the original current-based **v1** LIF engine (runaway, about 10⁶ spikes/s; see `docs/LIF_DYNAMICS_SPEC.md`). Since PR #10 the commands below run **v3** by default (`Brain(graph)` applies v3 and its transmitter policy), so a repeat will not reproduce these numbers. Set `NEUROFLY_LIF_DYNAMICS=v1` to reproduce them.
+
 Experiment logging and comparison are ready: see [RUNS.md](RUNS.md).
 
-The original repository is preserved in `upstream/doomfly`. `UPSTREAM.json` records its exact commit. The standalone package is `brainlab/`; it has no imports from the original repository and no game dependencies.
+The original repository was preserved locally in `upstream/doomfly` (git-ignored, not in this repository). `UPSTREAM.json` records its exact commit. The standalone package is `brainlab/`; it has no imports from the original repository and no game dependencies.
 
 ## Run now
 
@@ -26,7 +28,7 @@ Excluded from the standalone package: ViZDoom, arenas, game assets, camera adapt
 
 ## Run with the actual MaleCNS graph
 
-The full graph data is **downloaded, checksum-verified, imported, and smoke-tested**. See `FULL_BRAIN_TEST.md` for results. The following pipeline reproduces the download of roughly 1.2 GB of source tables; normalization and graph preparation require additional disk space and several GB of RAM. No graph cropping or weak/self-edge pruning is added.
+The full graph data is **downloaded, checksum-verified, imported, and smoke-tested**. See `FULL_BRAIN_TEST.md` for results. The following pipeline reproduces the download of roughly 1.1 GB of source tables; normalization and graph preparation require additional disk space and several GB of RAM. No graph cropping or weak/self-edge pruning is added.
 
 From the repository root:
 
@@ -56,4 +58,4 @@ The tests compare spikes and membrane/synaptic state against Brian2 at two input
 
 ## Attribution
 
-Derived from https://github.com/nftechie/doomfly (original code MIT); see `licenses/DOOMFLY-LICENSE` and preserved third-party notices. MaleCNS is the FlyEM/HHMI Janelia, Cambridge/MRC LMB, and Google Research dataset, CC BY 4.0. Historical failed experiments and original documentation remain in `upstream/doomfly`; their results are not results for this extraction.
+Derived from https://github.com/nftechie/doomfly (original code MIT); see `licenses/DOOMFLY-LICENSE` and preserved third-party notices. MaleCNS is the FlyEM/HHMI Janelia, Cambridge/MRC LMB, and Google Research dataset, CC BY 4.0. Historical failed experiments and original documentation remain in the upstream repository; their results are not results for this extraction.

@@ -1,7 +1,7 @@
 # Declared LIF dynamics for `brainlab` — v1 current-based, v2 conductance-based, v3 recalibrated
 
 Written **before** the v2 implementation and before any v2 measurement, as
-required by `docs/CLAUDE_IMMEDIATE_PLAN.md` ("declare the parameters and their
+required by `docs/archive/CLAUDE_IMMEDIATE_PLAN.md` ("declare the parameters and their
 sources first"). Nothing in this document was chosen after looking at a v2
 optomotor result. If the corrected dynamics weaken or abolish the WP5
 optomotor effect, that is the result.
@@ -195,8 +195,9 @@ the synaptic model alone.
 * The active version is selected per `Brain` (`Brain(..., dynamics='v2')`) or
   process-wide by `NEUROFLY_LIF_DYNAMICS=v2`. The default is **v1**, so every
   existing script, test and checkpoint keeps its current meaning.
-  *(Update 2026-09-24: the library default is still v1. The daemon, `neurofly run`,
-  now defaults to v3 and applies the v3 transmitter policy (PR #4). Before PR #4,
+  *(Update 2026-09-24: since PR #10 the library default is v3 as well
+  (`graph_identity.py`, `Brain(..., dynamics='v3')`); v1 is opt-in. The daemon, `neurofly run`,
+  defaults to v3 and applies the v3 transmitter policy (PR #4). Before PR #4,
   `NEUROFLY_LIF_DYNAMICS=v3` in the daemon ran the v3 equations on v1 weights. See
   `docs/receipts/README.md`.)*
 * **Old checkpoints are refused, never reinterpreted.** The synaptic state
