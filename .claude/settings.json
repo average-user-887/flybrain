@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch",
+      "WebSearch",
+      "mcp__github__merge_pull_request",
+      "Bash(gh pr merge:*)"
+    ]
+  }
+}
