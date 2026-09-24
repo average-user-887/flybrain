@@ -9,6 +9,8 @@ Stages (each is skipped, with the reason recorded, when its inputs are missing):
 * ``brain-synthetic`` -- the LIF kernel on a seeded random graph sized like
   MaleCNS v1.0 (166,700 neurons, ~25.6M edges). Needs no dataset, so it runs
   identically everywhere.
+* ``brain-synthetic-cuda`` / ``brain-malecns-cuda`` -- the same workloads on
+  the GPU backend (``brainlab.cuda_engine``), skipped without a CUDA device.
 * ``brain-malecns``   -- the same kernel on the pinned MaleCNS graph with the v3
   transmitter policy, if the dataset is present.
 * ``body``            -- FlyGym/MuJoCo physics alone (FlyGym 2.1.0 required).
@@ -49,6 +51,24 @@ def _run(cmd):
         return None
 
 
+def _windows_ram_gib():
+    try:
+        import ctypes
+
+        class MemoryStatus(ctypes.Structure):
+            _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong),
+                        ('ullTotalPhys', ctypes.c_ulonglong), ('ullAvailPhys', ctypes.c_ulonglong),
+                        ('ullTotalPageFile', ctypes.c_ulonglong), ('ullAvailPageFile', ctypes.c_ulonglong),
+                        ('ullTotalVirtual', ctypes.c_ulonglong), ('ullAvailVirtual', ctypes.c_ulonglong),
+                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
+        status = MemoryStatus()
+        status.dwLength = ctypes.sizeof(MemoryStatus)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+        return round(status.ullTotalPhys / 2**30, 1)
+    except Exception:
+        return None
+
+
 def host_facts() -> dict:
     facts = {
         'hostname': platform.node(),
@@ -62,11 +82,13 @@ def host_facts() -> dict:
     for line in lscpu.splitlines():
         if line.startswith('Model name:'):
             facts['cpu_model'] = line.split(':', 1)[1].strip()
+    if not facts.get('cpu_model'):
+        facts['cpu_model'] = platform.processor() or None
     try:
         with open('/proc/meminfo') as fh:
             facts['ram_gib'] = round(int(fh.readline().split()[1]) / 2**20, 1)
     except OSError:
-        pass
+        facts['ram_gib'] = _windows_ram_gib()
     facts['nvidia_smi'] = _run(['nvidia-smi', '--query-gpu=name,memory.total,driver_version',
                                 '--format=csv,noheader'])
     for mod in ('numpy', 'numba', 'mujoco', 'flygym', 'cupy'):
@@ -75,8 +97,10 @@ def host_facts() -> dict:
         except Exception:
             facts[f'{mod}_version'] = None
     try:
-        from numba import cuda
-        facts['numba_cuda_available'] = bool(cuda.is_available())
+        from brainlab.cuda_engine import numba_cuda_available
+        from brainlab.cupy_engine import cupy_available
+        facts['numba_cuda_available'] = numba_cuda_available()
+        facts['cupy_gpu_available'] = cupy_available()
     except Exception as error:
         facts['numba_cuda_available'] = f'no ({type(error).__name__})'
     return facts
@@ -101,9 +125,9 @@ def synthetic_malecns_like(n: int, edges: int, seed: int) -> dict:
 
 
 def time_brain(arrays: dict, *, sim_ms: float, drive_fraction: float, drive: float,
-               seed: int, dynamics: str = 'v3') -> dict:
+               seed: int, dynamics: str = 'v3', backend: str = 'cpu') -> dict:
     from brainlab.brain import Brain
-    brain = Brain(arrays=arrays, validate=False, dynamics=dynamics)
+    brain = Brain(arrays=arrays, validate=False, dynamics=dynamics, backend=backend)
     rng = np.random.default_rng(seed)
     currents = np.zeros(brain.n, dtype=np.float32)
     driven = rng.choice(brain.n, size=max(1, int(brain.n * drive_fraction)), replace=False)
@@ -123,7 +147,7 @@ def time_brain(arrays: dict, *, sim_ms: float, drive_fraction: float, drive: flo
         kernel_s += elapsed
     wall = time.perf_counter() - wall
     sim_s = steps * STEP_MS / 1000.0
-    return dict(dynamics=dynamics, neurons=int(brain.n), edges=int(len(brain.post)),
+    return dict(backend=backend, dynamics=dynamics, neurons=int(brain.n), edges=int(len(brain.post)),
                 driven_neurons=int(len(driven)), drive=drive, sim_s=sim_s, wall_s=round(wall, 3),
                 kernel_s=round(kernel_s, 3), first_step_s=round(compile_s, 3),
                 sim_s_per_wall_s=round(sim_s / wall, 4),
@@ -131,19 +155,28 @@ def time_brain(arrays: dict, *, sim_ms: float, drive_fraction: float, drive: flo
                 active_neurons_end=int(brain.nactive[0]))
 
 
-def stage_brain_synthetic(args) -> dict:
+def stage_brain_synthetic(args, backend: str = 'cpu') -> dict:
+    if backend == 'cuda':
+        from brainlab.cuda_engine import cuda_available
+        if not cuda_available():
+            return {'skipped': 'no CUDA device visible to numba'}
     n = MALECNS_NEURONS if not args.quick else 20_000
     edges = MALECNS_EDGES if not args.quick else 20_000 * 153
     clock = time.perf_counter()
     arrays = synthetic_malecns_like(n, edges, seed=args.seed)
     build_s = time.perf_counter() - clock
-    result = time_brain(arrays, sim_ms=args.brain_ms, drive_fraction=0.02, drive=20.0, seed=args.seed)
+    result = time_brain(arrays, sim_ms=args.brain_ms, drive_fraction=0.02, drive=20.0, seed=args.seed,
+                        backend=backend)
     result['graph'] = f'synthetic seed={args.seed}'
     result['graph_build_s'] = round(build_s, 2)
     return result
 
 
-def stage_brain_malecns(args) -> dict:
+def stage_brain_malecns(args, backend: str = 'cpu') -> dict:
+    if backend == 'cuda':
+        from brainlab.cuda_engine import cuda_available
+        if not cuda_available():
+            return {'skipped': 'no CUDA device visible to numba'}
     from brainlab.graph_identity import GraphUnavailable
     from brainlab.transmitter_policy import apply_to_shared
     from experiment_registry import SharedGraph
@@ -155,7 +188,7 @@ def stage_brain_malecns(args) -> dict:
     except (GraphUnavailable, FileNotFoundError, OSError) as error:
         return {'skipped': f'MaleCNS graph not available: {error}'}
     result = time_brain(shared.arrays, sim_ms=args.brain_ms, drive_fraction=0.02, drive=20.0,
-                        seed=args.seed)
+                        seed=args.seed, backend=backend)
     result['graph'] = shared.identity.graph_sha256
     result['graph_load_s'] = round(load_s, 2)
     return result
@@ -210,7 +243,8 @@ def stage_daemon(args, backend: str) -> dict:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--out', type=Path, help='write the JSON receipt here')
-    parser.add_argument('--stages', default='brain-synthetic,brain-malecns,body,daemon-modular,daemon-connectome',
+    parser.add_argument('--stages', default='brain-synthetic,brain-synthetic-cuda,brain-malecns,brain-malecns-cuda,'
+                                'body,daemon-modular,daemon-connectome',
                         help='comma-separated stages to run')
     parser.add_argument('--brain-ms', type=float, default=500.0, help='simulated ms per brain stage')
     parser.add_argument('--body-ms', type=float, default=1000.0, help='simulated ms for the body stage')
@@ -223,7 +257,9 @@ def main(argv=None) -> int:
 
     stages = {
         'brain-synthetic': stage_brain_synthetic,
+        'brain-synthetic-cuda': lambda a: stage_brain_synthetic(a, 'cuda'),
         'brain-malecns': stage_brain_malecns,
+        'brain-malecns-cuda': lambda a: stage_brain_malecns(a, 'cuda'),
         'body': stage_body,
         'daemon-modular': lambda a: stage_daemon(a, 'modular'),
         'daemon-connectome': lambda a: stage_daemon(a, 'connectome-fixed'),
