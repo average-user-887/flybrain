@@ -302,10 +302,11 @@ class UnifiedConnectomeBrain:
         state_dict: Dict[str, Any] = {
             "cumulative_steps": np.array([self.cumulative_steps]),
         }
-        if hasattr(self.brain, "weights"):
-            state_dict["weights"] = self.brain.weights
-        if self.plasticity_rule is not None:
-            state_dict["wp6_weights"] = self.plasticity_rule.weights
+        if hasattr(self.brain, "weight"):
+            state_dict["weight"] = self.brain.weight
+        if self.plasticity_rule is not None and self.plasticity_delta is not None:
+            state_dict["wp6_weights"] = self.plasticity_rule.initial_weights + self.plasticity_delta
+            state_dict["wp6_delta"] = self.plasticity_delta
 
         np.savez_compressed(target, **state_dict)
         print(f"[UnifiedBrain] Checkpointed life-long state to {target}", flush=True)
