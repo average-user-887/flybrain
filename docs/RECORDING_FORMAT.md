@@ -17,7 +17,9 @@ neurofly record --paradigm optomotor --backend connectome-fixed --seconds 30 \
 neurofly record --paradigm t-maze --seconds 60 --schedule inputs.json --out recordings/t-maze-reset
 ```
 
-`--state-dir` continues a saved brain; without it every recording starts from the
+Graph backends use the v3 LIF dynamics by default, like the daemon;
+`--dynamics v1` (or `NEUROFLY_LIF_DYNAMICS`) selects another version, and the
+header records it as `provenance.lif_dynamics`. `--state-dir` continues a saved brain; without it every recording starts from the
 paradigm's naive brain in a temporary directory, so two identical commands give
 the same file.
 
@@ -58,7 +60,7 @@ Only commands that were accepted and can change the simulation are logged
 
 ### `provenance`
 
-`backend`, `assay`, `seed`, `controller_version`, `label`, `synthetic`,
+`backend`, `assay`, `lif_dynamics` (graph backends; `null` for modular), `seed`, `controller_version`, `label`, `synthetic`,
 `test_mode`, `graph` (graph, neuron map and IO map SHA-256, neuron and edge
 counts; host paths removed), `dynamics` (the run manifest's model description),
 `code` (git commit, dirty flag, SHA-256 of the backend's source files),
