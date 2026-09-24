@@ -402,7 +402,7 @@ class FullConnectomeSimulation:
             # Apply motor commands to physical agent
             fly.speed = motor["forward_speed"]
             fly.yaw_rate = motor["yaw_rate"]
-            arena.step({"forward_speed": fly.speed, "yaw_rate": fly.yaw_rate})
+            arena.step(dt=0.02)
 
             total_spikes_task += motor["total_spikes"]
             for k in dn_rates_accum:
@@ -415,7 +415,7 @@ class FullConnectomeSimulation:
                 "global_step": self.brain.cumulative_steps,
                 "x": round(float(fly.pos.x), 3),
                 "y": round(float(fly.pos.y), 3),
-                "heading": round(float(fly.pos.heading), 3),
+                "heading": round(float(fly.heading), 3),
                 "speed": round(float(fly.speed), 3),
                 "yaw_rate": round(float(fly.yaw_rate), 3),
                 "dn_rates": motor["dn_rates"],
