@@ -163,7 +163,7 @@ def evaluate_gate(gate: dict, samples: dict, boot_seed: int, n_boot: int) -> dic
 # ---------------------------------------------------------------------------
 # Physiology
 # ---------------------------------------------------------------------------
-def evaluate_physiology(spec: dict, bounds: dict, rates: dict) -> list:
+def evaluate_physiology(spec: dict, bounds: dict, rates: dict, key: str = 'checks') -> list:
     """Each check compares the across-trial mean population rate with a bound.
 
     ``rates`` maps condition -> [per-trial SpikeLedger summaries].  A check
@@ -172,7 +172,7 @@ def evaluate_physiology(spec: dict, bounds: dict, rates: dict) -> list:
     """
     table = bounds['bounds']
     checks = []
-    for check in spec['physiology']['checks']:
+    for check in spec['physiology'].get(key, []):
         bound = table[check['bound']]
         state = 'spontaneous_hz' if check['window'] == 'baseline' else 'driven_hz'
         interval = bound.get(state)
@@ -347,6 +347,8 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
     gates = [evaluate_gate(g, result['samples'], boot_seed, n_boot) for g in spec['behaviour']['gates']]
     reported = [evaluate_gate(g, result['samples'], boot_seed, n_boot) for g in spec['behaviour'].get('reported', [])]
     physiology = evaluate_physiology(spec, bounds, result['rates'])
+    # Reported for information only; never part of the verdict.
+    physiology_reported = evaluate_physiology(spec, bounds, result['rates'], key='reported')
 
     revision = code_revision()
     committed = spec_commit(spec['_path'])
@@ -375,7 +377,7 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
                       declaration=DYNAMICS_VERSIONS[dyn['version']], e_inh_mV=dyn.get('e_inh_mV')),
         brain=dict(requested_backend=backend, runners=backends_used, cuda_device=cuda_device()),
         code=revision, seeds=run_seeds, io=result['io'], paradigm_extra=result.get('extra'),
-        gates=gates, reported=reported, physiology=physiology,
+        gates=gates, reported=reported, physiology=physiology, physiology_reported=physiology_reported,
         compute=dict(sim_s=result['sim_ms'] / 1000, wall_s=wall_s,
                      sim_s_per_wall_s=(result['sim_ms'] / 1000 / wall_s) if wall_s > 0 else None,
                      peak_rss_mib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
@@ -387,6 +389,8 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
         log(f"  gate {g['id']}: {g['passed']}")
     for c in physiology:
         log(f"  physiology {c['id']}: {c['passed']} ({c.get('mean_hz', c.get('reason'))})")
+    for c in physiology_reported:
+        log(f"  reported only {c['id']}: {c.get('mean_hz', c.get('reason'))} Hz (not gated)")
     if result.get('extra', {}).get('wp5_rule'):
         log(f"  WP5 rule (for comparison with v1): {result['extra']['wp5_rule']['verdict']}")
     if reasons:
