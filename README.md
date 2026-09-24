@@ -89,6 +89,13 @@ neurofly download-data
 neurofly run --port 8769 --paradigm multisensory-sandbox
 ```
 
+The daemon runs the connectome backends with **v3 dynamics** (conductance LIF plus the v3
+transmitter policy) by default. `--dynamics v1` (or `NEUROFLY_LIF_DYNAMICS=v1`) selects the
+original current-based model. Saved brains never cross versions: v1 brains stay in
+`outputs/registry/`, v3 brains live in `outputs/registry-v3/`. v3 brains run on an NVIDIA GPU
+automatically when CuPy or numba.cuda can see one (`NEUROFLY_BRAIN_BACKEND=cpu` forces the CPU
+reference kernel).
+
 Once running, navigate to `http://localhost:8769` in your browser to inspect the 3D articulated fly, observe premotor firing rates, and trigger sensory stimuli.
 
 ---
