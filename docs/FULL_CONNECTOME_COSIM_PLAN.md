@@ -2,6 +2,10 @@
 
 > **Implementation Note (v0.3.0)**: Server-side co-simulation (`neurofly_body`), FlyGym 2.1 / MuJoCo 3.9
 > integration, and the Three.js 3D dashboard viewport were implemented and delivered in Release v0.3.0.
+>
+> **Status on 2026-09-24:** "implemented" means the software exists and runs. No embodied connectome
+> run has a committed receipt, and no paradigm has been tested on v3. See `docs/CAPABILITY_MATRIX.md`
+> and `docs/receipts/README.md`.
 
 ---
 
