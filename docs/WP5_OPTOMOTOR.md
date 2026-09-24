@@ -2,9 +2,17 @@
 
 > **Status on 2026-09-24:** there is **no valid optomotor result on the current
 > engine.** v1 was POSITIVE, but as an engine artefact (§1–§10). v2 was NULL (§11).
-> The preregistered v3 confirmatory set has **not** been run; its only v3 data so far
-> is one exploratory run per direction (`receipts/lif_dynamics_v3.json`, probe C).
-> Running it is the ROADMAP P1 gate. See `receipts/README.md`.
+> The first preregistered v3 confirmatory run, through the validation harness
+> (`validation/specs/optomotor_v3.json`), **FAILED** on 2026-09-24: behaviour passed
+> 7/7 gates, physiology failed the HS spike ceiling (`receipts/validation/optomotor-yaw-v3-1.md`).
+> A rerun under `optomotor_v3_2.json` is pending; it is the ROADMAP P1 gate.
+>
+> **Caveat on §11 (2026-09-24, not a change to the recorded result):** under v2 the
+> −200 silencing drive is shunted by the synaptic conductance, and the "silenced"
+> DNa02 still fired about 240 Hz (`receipts/lif_dynamics_v2.json`,
+> `optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz`). §11.4's reading that
+> the remaining yaw "is not DNa02-mediated" therefore does not follow; the silencing
+> manipulation failed. The v3 harness checks silencing on every run (gate O7).
 
 Run of 19 September 2026 on the pinned MaleCNS v1.0 graph
 (`graph_sha256 4b2f87cc…091d01`, 166,700 neurons, 25,582,938 edges), backend

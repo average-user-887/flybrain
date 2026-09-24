@@ -17,8 +17,8 @@ the in-process behavioural models. Expect it to finish in under a minute.
 
 ## Ground rules
 
-1. **Do not overstate what the simulation does.** The README's "What this
-   simulates today" section is the reference. If your change adds a model,
+1. **Do not overstate what the simulation does.** The README's "Current
+   status" section and `docs/CAPABILITY_MATRIX.md` are the reference. If your change adds a model,
    describe it at the same level: what is computed, what parameters were
    chosen and why, and what is *not* modelled. Claims about neuron or synapse
    counts must point at code that actually loads them.

@@ -27,7 +27,10 @@ What the engines are, briefly (full spec in [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMIC
   preregistered optomotor verdict is NULL.
 - **v3** adds per-sign PSP calibration and makes aminergic neurons modulatory-only.
   Its receipt (`lif_dynamics_v3.json`) covers calibration probes and one exploratory
-  full-graph run per direction. No confirmatory behavioural run exists.
+  full-graph run per direction. The first confirmatory optomotor run (spec
+  `optomotor_v3.json`, 2026-09-24) **FAILED** under its preregistered rule: behaviour
+  7/7, physiology 5/7 (HS above the 50 Hz ceiling). See
+  [`receipts/validation/optomotor-yaw-v3-1.md`](receipts/validation/optomotor-yaw-v3-1.md).
 
 ---
 
@@ -39,17 +42,17 @@ MaleCNS v1.0 graph (166,700 neurons, 25,582,938 synapses).
 | # | Paradigm | Sensory ingress (declared) | Motor readout (declared) | Modular controller | Connectome IO | Connectome status | Connectome plasticity | Receipts |
 |---|---|---|---|---|---|---|---|---|
 | 1 | Open Arena (`open-arena`) | Antennal PNs, ommatidia, JON-C/E | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
-| 2 | T-Maze (`t-maze`) | Olfactory PNs (DL5, DM1, DM2, DP1m) | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None on the connectome. MB learning exists in the modular controller only. | live UI sign-off only |
+| 2 | T-Maze (`t-maze`) | Olfactory ORNs (code drives `ORN_DM1` food, `ORN_DA2` danger) | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None on the connectome. MB learning exists in the modular controller only. | live UI sign-off only |
 | 3 | Y-Maze (`y-maze`) | Olfactory PNs, antennal mechanosensory | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 4 | Heat-Maze (`heat-maze`) | Antennal thermosensory | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 5 | Buridan (`buridan`) | Vertical stripes (visual) | DNa02, DNa01 | Runs in live UI | Visual-heading map pinned (WP6) | Mapped, untested on v3 | WP6 ER→EPG rule implemented. Only a 1 s v1 smoke run. | `connectome_closed_loop_wp6_plasticity.json` (v1, 1 s) |
 | 6 | Visual Operant (`visual-operant`) | Visual quadrants, thermal reinforcement | DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 7 | Wind Tunnel (`wind-tunnel`) | JON-C/E → WED, olfactory PNs | DNa02, DNp09 | Runs in live UI; deterministic at 1x/20x/100x | Not verified | Mapped, untested on v3 | None | `wp1_wp2/determinism_receipt.json` (modular) |
 | 8 | Looming Escape (`looming-escape`) | LC4 / LPLC2 | Giant fiber (DNp01) | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | `connectome_closed_loop_looming.json` (v1, 1 s) |
-| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 exploratory only. | n/a | `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
+| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 confirmatory run v3-1 FAIL (behaviour passed, HS rate check failed); rerun v3-2 pending. | n/a | `validation/optomotor-yaw-v3-1.md` (v3, FAIL), `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
 | 10 | Gap Crossing (`gap-crossing`) | Leg FeCO, campaniform sensilla | CPG cadence and elevation | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | live UI sign-off only |
 | 11 | Circadian DAM (`circadian-dam`) | Photoperiod | Locomotor arousal | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
-| 12 | Courtship (`courtship`) | Visual target, cVA (Or67d PNs) | P1 → DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 12 | Courtship (`courtship`) | Visual target, cVA (code drives `ORN_DA1`, the Or67d ORNs) | P1 → DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 13 | Labyrinth (`labyrinth`) | Antennal touch, contact normals | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 14 | Multisensory Sandbox (`multisensory-sandbox`) | All of the above | DNa02, DNp09, MDN, GF | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 
@@ -74,9 +77,13 @@ They are not behavioural evidence and are no longer cited as such.
   withdrawn on 2026-09-20 (`OPEN_SOURCE_PLAN.md`, "Correction").
 - **Optomotor, v2** (`lif_dynamics_v2.json`, `optomotor_rerun.v2`): 24 runs, verdict
   **NULL**. Silencing DNa02 does not abolish the turning (paired −0.0115
-  [−0.0247, +0.0059]). The network sits at 3.6 × 10⁶ spikes/s with no stimulus.
+  [−0.0247, +0.0059]). *Caveat (2026-09-24): the silencing clamp did not silence
+  under v2; the "silenced" DNa02 still fired about 240 Hz
+  (`optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz`), so this control
+  does not show that the residual yaw bypasses DNa02.* The network sits at 3.6 × 10⁶ spikes/s with no stimulus.
 - **v3 calibration** (`lif_dynamics_v3.json`): the membrane stays within
-  [−70, −45] mV, the random-network probe does not self-sustain, and the high-conductance
+  [−70, −45] mV, the random-network probe does not self-sustain at weight gains 1 to 4 (it does at 8
+  and 16, `probe_b[0].sweep`), and the high-conductance
   fixed point is −45.13 mV (0.13 mV below threshold) under the v3 policy. Probe C is one
   2 s full-graph run per direction, seed not replicated: DNa02 L/R 8 / 0 Hz for leftward
   motion and 2 / 5 Hz for rightward, network 0.9–1.0 × 10⁵ spikes/s during the stimulus
@@ -88,8 +95,9 @@ They are not behavioural evidence and are no longer cited as such.
 
 ## Open gates
 
-1. The preregistered v3 optomotor confirmatory set (24 runs) has not been run
-   (ROADMAP P1). Until it has, no connectome paradigm can move to **Tested on v3**.
+1. The preregistered v3 optomotor confirmatory run (ROADMAP P1) has not passed. Run
+   v3-1 FAILED on physiology on 2026-09-24; the rerun under `optomotor_v3_2.json` is
+   pending. Until one passes, no connectome paradigm can move to **Tested on v3**.
 2. The IO maps for every paradigm except optomotor and Buridan are unverified.
 3. The receipts that need re-running are listed in
    [`docs/receipts/README.md`](receipts/README.md#re-run-queue).

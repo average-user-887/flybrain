@@ -1,6 +1,6 @@
 """Load a preregistered spec, run its paradigm on the brain, write a receipt.
 
-    python -m validation run validation/specs/optomotor_v1.json --out outputs/validation/<stamp>
+    python -m validation run validation/specs/optomotor_v3_2.json --out outputs/validation/<stamp>
 
 A receipt carries everything needed to judge and reproduce the run: the spec
 and its sha256 (and the commit that last touched it), the graph identity and

@@ -54,6 +54,20 @@ Settled with the owner on 2026-09-24.
 | Live daemon | Fix in review. Defaults to v1 (CPU only). Its "v3" mode ran v3 equations on v1 weights because the v3 transmitter policy was skipped, so any daemon or closed-loop result labelled v3 is suspect. | PR #4 |
 | Mushroom-body learning | Modular only (hand-built 120-KC model). Nothing is wired into the connectome. | `circuit.py` |
 
+The table above is the snapshot the plan was approved on and is kept as it was.
+
+### Progress since approval (updated 2026-09-24)
+
+| Area | State now | Evidence |
+|---|---|---|
+| PRs #1 to #4 | Merged. v3 with its transmitter policy is the default for the daemon (PR #4) and the whole library (PR #10); the GPU is used when CUDA is present. | `brainlab/brain.py`, `brainlab/graph_identity.py` |
+| Capability matrix and README | Reset to receipts (PR #6). | `docs/CAPABILITY_MATRIX.md` |
+| Ryzen speed receipts | Full daemon on true v3: 0.43x GPU, 0.043x CPU. Brain only: 0.38x GPU, 0.042x CPU. GPU vs CPU rate correlation 0.9986. | PR #11, `docs/receipts/ryzen/` |
+| Recording and replay | Deterministic `.nfrec` recordings with 1x replay; the brain backend is recorded. | PRs #8, #13 |
+| Validation harness | `neurofly validate` with preregistered specs and verified firing-rate bounds. | PRs #9, #15 |
+| P1 optomotor on v3 | Run v3-1 **FAILED**: behaviour 7/7, physiology 5/7 (HS above the 50 Hz ceiling). Spec v3-2 was declared before its rerun; the rerun is pending on the Ryzen. | `docs/receipts/validation/optomotor-yaw-v3-1.md`, PR #16 |
+| Brain + body loop benchmark | Still not measured. | none yet |
+
 ## Phase map
 
 Each phase ends at a gate that needs explicit owner sign-off. Phases run in

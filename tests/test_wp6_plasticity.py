@@ -113,3 +113,43 @@ def test_experiment_registry_plastic_backend_integration(tmp_path):
     restored = registry.activate('buridan', 'connectome-plastic')
     np.testing.assert_array_equal(restored.plastic_edges, instance.plastic_edges)
     np.testing.assert_array_equal(restored.plastic_delta, instance.plastic_delta)
+
+
+def test_rule_substeps_split_a_control_step_into_rule_steps():
+    """The rule is declared per 2 ms; a 20 ms control step is 10 rule steps."""
+    rule = VisualHeadingPlasticityRule(np.array([0]), np.array([-1.0], np.float32), dt=0.002)
+    assert rule.substeps(2.0) == 1
+    assert rule.substeps(20.0) == 10
+    with pytest.raises(ValueError):
+        rule.substeps(3.0)
+
+
+def test_registry_updates_the_rule_once_per_rule_dt(tmp_path):
+    """A 20 ms registry step runs ten 2 ms brain steps, each followed by one update."""
+    from experiment_registry import TestOnlyCoactivityRule
+
+    class CountingRule(TestOnlyCoactivityRule):
+        __test__ = False
+        dt = 0.002
+
+        def __init__(self, edges):
+            super().__init__(edges=edges, eta=0.05)
+            self.calls = 0
+
+        substeps = VisualHeadingPlasticityRule.substeps
+
+        def update(self, delta, pre_counts, post_counts):
+            self.calls += 1
+            super().update(delta, pre_counts, post_counts)
+
+    shared = SharedGraph.synthetic(allow_synthetic=True, n=64, k_out=6, seed=5)
+    rule = CountingRule(np.arange(0, 384, 7))
+    registry = ExperimentRegistry(shared, tmp_path / 'reg', test_mode=True, plasticity_rule=rule)
+    instance = registry.activate('buridan', 'connectome-plastic')
+    currents = np.full(shared.n, 20.0, np.float32)
+    counts = instance.step(currents, 20.0).counts
+    assert rule.calls == 10
+    assert counts.shape == (shared.n,)
+    registry.learning_enabled = False
+    instance.step(currents, 20.0)
+    assert rule.calls == 10
