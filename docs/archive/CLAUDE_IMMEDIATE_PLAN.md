@@ -9,7 +9,7 @@ prepares the plan only; no implementation or research restart is included.
 ## Workspace and non-negotiable constraints
 
 Canonical running checkout:
-`<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>
+`<repository-worktree-root>`
 
 The root checkout is older and has separate work. Do not synchronize or overwrite
 it. The actual prepared full graph currently resides in that root checkout;

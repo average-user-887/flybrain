@@ -15,12 +15,12 @@ Exposing that unchanged would let any visitor drive the fly. Public mode
 
 ```bash
 # read-only: nobody can send commands
-NEUROFLY_PUBLIC=1 ./start_daemon_ryzen.sh
+NEUROFLY_PUBLIC=1 ./start_daemon.sh
 
 # operators keep control through a bearer token (>= 16 characters)
 export NEUROFLY_PUBLIC=1
 export NEUROFLY_ADMIN_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-./start_daemon_ryzen.sh
+./start_daemon.sh
 ```
 
 Equivalent CLI flags: `--public`, `--max-stream-clients N`, `--stream-hz HZ`,
