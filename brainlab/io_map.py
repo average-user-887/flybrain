@@ -299,6 +299,7 @@ class OptomotorLoop:
             self._currents[self.silence_nodes] = SILENCE_DRIVE
         result = self.instance.step(self._currents, self.step_ms)
         counts = result.counts
+        self.last_counts = counts            # read by run recordings (neurofly/recording.py)
         motor = self.decoder.decode(counts, self.step_ms)
         v = self.instance.brain.v
         monitors = {k: int(counts[idx].sum()) for k, idx in self.io.monitors.items()}

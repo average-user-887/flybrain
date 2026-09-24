@@ -1,82 +1,139 @@
 # Project NeuroFly — 14-Paradigm Capability Matrix
 
-**Version**: 1.0 · **Date**: 2026-09-24 · **Reference**: `docs/ROADMAP.md` Phase 4 (Step 4.1)
+**Version**: 2.0 · **Date**: 2026-09-24 · **Reference**: `docs/ROADMAP.md` Phase 0 (ground truth)
+
+Version 1.0 of this matrix marked the connectome as "Validated" for open arena,
+optomotor and the multisensory sandbox. No receipt supports that. This version
+claims only what a file in [`docs/receipts/`](receipts/README.md) shows. The owner decided on
+2026-09-24 that anything without a v3 receipt is labelled **Mapped, untested on v3**.
 
 ---
 
-## Preamble & Ground Truth Standards
+## Status vocabulary
 
-This matrix documents the verified capabilities of Project NeuroFly across all 14 classical *Drosophila* neuroethology paradigms.
+| Label | Meaning |
+|---|---|
+| **Tested on v3** | A receipt from the v3 engine with the v3 transmitter policy exists and meets its preregistered rule. **No paradigm has reached this yet.** |
+| **Mapped, untested on v3** | The paradigm runs and its sensory and motor channels are named in code, but there is no v3 behavioural receipt. |
+| **IO pinned** | The sensory and motor neuron sets are resolved from MaleCNS annotations and pinned by digest in `brainlab/io_map.py`. Only the optomotor map and the WP6 visual-heading map are pinned. |
+| **IO not verified** | The channel is declared, but `docs/receipts/graph_identity.json` states that it is not verified ("Other DN roles and the olfactory/wind sensory channels are NOT verified"). |
 
-In accordance with the project's strict scientific honesty policy:
-- **✅ Working / Mapped**: Pathway verified in code and validated in unit/integration tests or physics co-simulation.
-- **⚠️ Partial / Tested**: Implemented and probed, but exhibiting specific physiological limitations or under ongoing recalibration.
-- **⬜ Unmapped / In Progress**: Biological pathway declared in connectome literature but sensory ingress or motor readout is not yet frozen in this codebase.
-- **N/A**: Not applicable (e.g. reflex assays that do not undergo experience-dependent synaptic plasticity).
+What the engines are, briefly (full spec in [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMICS_SPEC.md)):
 
----
-
-## 14-Paradigm Capability Matrix
-
-| # | Paradigm | Primary Sensory Ingress (Cell Types) | Descending Motor Readout | Modular Controller | Connectome (MaleCNS v1.0, v3) | Plasticity / Learning | Evidence / Receipts |
-|---|---|---|---|---|---|---|---|
-| 1 | **Open Arena** (`open-arena`) | Multimodal (Antennal PNs, ommatidia, JON-C/E wind) | DNa02 (yaw torque), DNp09 (thrust) | ✅ Working | ✅ Validated (causal steering) | ✅ Active (MB KC→MBON) | `docs/receipts/lif_dynamics_v3.json`, `runs/embodied-video/body.mp4` |
-| 2 | **T-Maze** (`t-maze`) | Bilateral Olfaction (54 AL PNs: DL5, DM1, DM2, DP1m) | DNa02 (odor avoidance), DNp09 (thrust) | ✅ Working | ✅ Mapped (PN→MB/LH→DNa02) | ✅ Active (MB KC→MBON) | `tests/test_sensory_ingress_advanced.py`, `tests/test_maze.py` |
-| 3 | **Y-Maze** (`y-maze`) | Bilateral Olfaction (PNs) + Antennal Mechanosensory | DNa02 (turn bias), DNp09 | ✅ Working | ✅ Mapped (CX bump→DNa02) | ⚠️ Working-memory trace | `tests/test_maze.py`, `tests/test_containment_all_paradigms.py` |
-| 4 | **Heat-Maze** (`heat-maze`) | Antennal Thermoreception (Gr28b, TRPA1, BmPr) | DNa02 (thermal turn), DNp09 | ✅ Working | ✅ Mapped (Thermo→SEZ→DNa02) | ⚠️ Non-associative | `tests/test_assay_responses.py`, `assay_controls.py` |
-| 5 | **Buridan's Paradigm** (`buridan`) | Visual Vertical Stripes (medulla Tm, lobula LC) | DNa02 (orientation), DNa01 (course hold) | ✅ Working | ✅ Mapped (Visual→CX→PFL3→DNa02) | ✅ Heading map (WP6) | `tests/test_assay_responses.py`, `docs/WP6_PLASTICITY_SPEC.md` |
-| 6 | **Visual Operant** (`visual-operant`) | Visual Quadrants + Thermal Reinforcement | DNa02 (yaw torque → drum displacement) | ✅ Working | ✅ Mapped (Optic→DNa02 + Thermal shock) | ⚠️ Operant torque | `tests/test_assay_responses.py`, `web/live_assays.js` |
-| 7 | **Wind Tunnel** (`wind-tunnel`) | Johnston's Organ (JON-C/E) → Wedge + Olfactory PNs | DNa02 (casting yaw), DNp09 (upwind surge) | ✅ Working | ✅ Mapped (JON→WED→WPN→DNp09/DNa02) | ✅ Odor-gated anemotaxis | `tests/test_whole_brain.py`, `connectome_bridge.py` |
-| 8 | **Looming Escape** (`looming-escape`) | Optical Expansion (Lobula Col4 / LPLC2) | Giant Fiber (`DNp01` / GF ballistic takeoff) | ✅ Working | ✅ Mapped (LPLC2/LC4→GF monosynaptic) | N/A (Innate reflex) | `tests/test_whole_brain.py`, `connectome_bridge.py` |
-| 9 | **Optomotor Drum** (`optomotor`) | Retinal Slip (T4a/T5a front-to-back, T4b/T5b back-to-front) | DNa02 (ipsilateral compensatory yaw) | ✅ Working | ✅ Validated (WP5 / Phase 1 & 2) | ✅ Saccadic efference copy | `docs/WP5_OPTOMOTOR.md`, `tests/test_wp5_live_loop.py` |
-| 10 | **Gap Crossing** (`gap-crossing`) | Foreleg FeCO (joint angle) + CS (cuticular load) | CPG stepping cadence & elevation | ✅ Working | ✅ Mapped (FeCO/CS→CPG gait) | N/A (Biomechanics) | `tests/test_biomechanics_closed_loop.py`, `tests/test_embodied_decoder.py` |
-| 11 | **Circadian DAM** (`circadian-dam`) | Photoperiod (Visual eyelets / CRY) | BPN & DNp09 (arousal / locomotion cadence) | ✅ Working | ✅ Mapped (s-LNv clock→DN gating) | ⚠️ Diurnal turnover | `tests/test_assay_responses.py`, `maze.py` |
-| 12 | **Courtship Chamber** (`courtship`) | Visual Target + Male Pheromone cVA (Or67d PNs) | P1 command cluster → DNa02 / Wing vibration | ✅ Working | ✅ Mapped (Or67d→DA1→LH→P1 pursuit) | ⚠️ Song suppression | `tests/test_assay_responses.py`, `maze.py` |
-| 13 | **Labyrinth Maze** (`labyrinth`) | Antennal Touch + Contact Normal Vectors | DNa02 (Coulomb wall sliding), DNp09 | ✅ Working | ✅ Mapped (Mechanosensory→DNa02) | ⚠️ Spatial memory | `tests/test_collision_physics.py`, `tests/test_maze.py` |
-| 14 | **Multisensory Sandbox** (`multisensory-sandbox`) | Full Composite (Visual, Odor, Thermal, Wind, CS) | Full Motor Complement (DNa02, DNp09, MDN, GF) | ✅ Working | ✅ Validated (Multi-rate co-sim) | ✅ Multi-modal learning | `tests/test_multisensory_benchmark.py`, `tests/test_embodied_telemetry.py` |
+- **v1** is current-based LIF. Its membrane is unbounded (−200 mV observed) and after
+  the first stimulus the whole graph runs away at about 10⁶ spikes/s. Every positive
+  connectome result in this repository comes from v1.
+- **v2** adds reversal potentials. Its network runs at about 4 × 10⁶ spikes/s, and its
+  preregistered optomotor verdict is NULL.
+- **v3** adds per-sign PSP calibration and makes aminergic neurons modulatory-only.
+  Its receipt (`lif_dynamics_v3.json`) covers calibration probes and one exploratory
+  full-graph run per direction. No confirmatory behavioural run exists.
 
 ---
 
-## Batch Architectures & Shared Pathways (Step 4.2)
+## 14-paradigm matrix
+
+"Modular" is the hand-built controller (researcher baseline). "Connectome" is the
+MaleCNS v1.0 graph (166,700 neurons, 25,582,938 synapses).
+
+| # | Paradigm | Sensory ingress (declared) | Motor readout (declared) | Modular controller | Connectome IO | Connectome status | Connectome plasticity | Receipts |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Open Arena (`open-arena`) | Antennal PNs, ommatidia, JON-C/E | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 2 | T-Maze (`t-maze`) | Olfactory PNs (DL5, DM1, DM2, DP1m) | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None on the connectome. MB learning exists in the modular controller only. | live UI sign-off only |
+| 3 | Y-Maze (`y-maze`) | Olfactory PNs, antennal mechanosensory | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 4 | Heat-Maze (`heat-maze`) | Antennal thermosensory | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 5 | Buridan (`buridan`) | Vertical stripes (visual) | DNa02, DNa01 | Runs in live UI | Visual-heading map pinned (WP6) | Mapped, untested on v3 | WP6 ER→EPG rule implemented. Only a 1 s v1 smoke run. | `connectome_closed_loop_wp6_plasticity.json` (v1, 1 s) |
+| 6 | Visual Operant (`visual-operant`) | Visual quadrants, thermal reinforcement | DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 7 | Wind Tunnel (`wind-tunnel`) | JON-C/E → WED, olfactory PNs | DNa02, DNp09 | Runs in live UI; deterministic at 1x/20x/100x | Not verified | Mapped, untested on v3 | None | `wp1_wp2/determinism_receipt.json` (modular) |
+| 8 | Looming Escape (`looming-escape`) | LC4 / LPLC2 | Giant fiber (DNp01) | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | `connectome_closed_loop_looming.json` (v1, 1 s) |
+| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 exploratory only. | n/a | `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
+| 10 | Gap Crossing (`gap-crossing`) | Leg FeCO, campaniform sensilla | CPG cadence and elevation | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | live UI sign-off only |
+| 11 | Circadian DAM (`circadian-dam`) | Photoperiod | Locomotor arousal | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 12 | Courtship (`courtship`) | Visual target, cVA (Or67d PNs) | P1 → DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 13 | Labyrinth (`labyrinth`) | Antennal touch, contact normals | DNa02, DNp09 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+| 14 | Multisensory Sandbox (`multisensory-sandbox`) | All of the above | DNa02, DNp09, MDN, GF | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
+
+"Runs in live UI" means the modular backend loaded and ran each assay in the owner's
+dashboard during the automated Firefox sign-off
+(`docs/receipts/live-signoff/`, `docs/receipts/live-signoff-fresh/`, 14 of 14 assays).
+That is a software check. The modular controller's behaviour has not been compared with
+published fly data for any paradigm.
+
+Unit and integration tests (for example `tests/test_maze.py`,
+`tests/test_assay_responses.py`) show that code paths execute and are deterministic.
+They are not behavioural evidence and are no longer cited as such.
+
+---
+
+## What the receipts do show
+
+- **Optomotor, v1** (`wp5_optomotor.json`): preregistered verdict POSITIVE, turning
+  index +0.193 [+0.133, +0.243], 6/6 seeds, DNa02 silencing abolishes yaw. The receipt
+  itself says every number comes from the runaway v1 engine (~10⁶ spikes/s, DNa02_R held
+  near −200 mV). The effect is one-sided and absent at contrast 0.5. The claim was
+  withdrawn on 2026-09-20 (`OPEN_SOURCE_PLAN.md`, "Correction").
+- **Optomotor, v2** (`lif_dynamics_v2.json`, `optomotor_rerun.v2`): 24 runs, verdict
+  **NULL**. Silencing DNa02 does not abolish the turning (paired −0.0115
+  [−0.0247, +0.0059]). The network sits at 3.6 × 10⁶ spikes/s with no stimulus.
+- **v3 calibration** (`lif_dynamics_v3.json`): the membrane stays within
+  [−70, −45] mV, the random-network probe does not self-sustain, and the high-conductance
+  fixed point is −45.13 mV (0.13 mV below threshold) under the v3 policy. Probe C is one
+  2 s full-graph run per direction, seed not replicated: DNa02 L/R 8 / 0 Hz for leftward
+  motion and 2 / 5 Hz for rightward, network 0.9–1.0 × 10⁵ spikes/s during the stimulus
+  and 3–4.5 × 10⁴ spikes/s in the gray period after it. That is direction-consistent,
+  but it is exploratory, not the preregistered confirmatory set.
+- **Closed-loop connectome runs** (`connectome_closed_loop_*.json`): each is 1 s of
+  simulated time (50 steps) with controller `brainlab-lif-v1`. They show that the loop
+  executes. They are not behavioural evidence.
+
+## Open gates
+
+1. The preregistered v3 optomotor confirmatory set (24 runs) has not been run
+   (ROADMAP P1). Until it has, no connectome paradigm can move to **Tested on v3**.
+2. The IO maps for every paradigm except optomotor and Buridan are unverified.
+3. The receipts that need re-running are listed in
+   [`docs/receipts/README.md`](receipts/README.md#re-run-queue).
+
+---
+
+## Batch architectures and shared pathways (declared design, not evidence)
+
+These are the anatomical routes each batch is meant to use. They describe the design;
+the matrix above says what has been tested.
 
 ### Batch A: Visual-Motor Pathway
 * **Paradigms**: Optomotor, Buridan, Looming Escape, Visual Operant
-* **Sensory Route**: Photoreceptors $\to$ Lamina (L1–L5) $\to$ Medulla (Mi1, Tm3, Tm1, Tm2, Tm4, Tm9) $\to$ Lobula Plate (T4a–d, T5a–d) and Lobula Columnar (LC4, LPLC2).
-* **Motor Readout**:
-  * Fine yaw stabilization & orientation: `DNa02` (bilateral ipsilateral steering).
-  * Ballistic looming escape: `DNp01` (Giant Fiber, monosynaptic from LC4/LPLC2).
+* **Route**: photoreceptors → lamina (L1–L5) → medulla (Mi1, Tm1–Tm4, Tm9) → lobula
+  plate (T4a–d, T5a–d) and lobula columnar neurons (LC4, LPLC2).
+* **Readout**: `DNa02` for yaw; `DNp01` (giant fiber) for looming escape.
 
 ### Batch B: Olfactory & Mechanosensory Pathway
 * **Paradigms**: T-Maze, Y-Maze, Wind Tunnel, Courtship
-* **Sensory Route**:
-  * Olfactory: Antennal ORNs $\to$ 54 AL Glomeruli $\to$ Cholinergic Projection Neurons (PNs) $\to$ Lateral Horn (innate valence) and Mushroom Body Calyx (associative learning).
-  * Wind / Anemotaxis: Johnston's Organ (JON-C/E) $\to$ Antennal Mechanosensory and Motor Center (AMMC) / Wedge (WED) $\to$ Wedge Projection Neurons (WPNs).
-* **Motor Readout**:
-  * Bilateral steering away from aversive or toward attractive plume: `DNa02`.
-  * Forward surging drive along wind vector: `DNp09`.
-  * Courtship song & pursuit: `P1` cluster.
+* **Route**: ORNs → antennal lobe glomeruli → PNs → lateral horn and mushroom-body
+  calyx; Johnston's organ (JON-C/E) → AMMC / wedge → WPNs.
+* **Readout**: `DNa02` for steering, `DNp09` for forward drive, `P1` for courtship.
 
 ### Batch C: Thermal & Spatial Pathway
 * **Paradigms**: Heat-Maze, Gap Crossing, Circadian DAM
-* **Sensory Route**:
-  * Thermal: Antennal cold/warm sensory neurons $\to$ Subesophageal Zone (SEZ) / Posterior Lateral Protocerebrum.
-  * Leg Proprioception: Femoral Chordotonal Organ (FeCO) & Campaniform Sensilla (CS) $\to$ Thoracic neuromeres $\to$ Ascending mechanosensory feedback.
-  * Circadian: Light photoperiod $\to$ Small ventral lateral neurons (s-LNv) expressing Pigment Dispersing Factor (PDF).
-* **Motor Readout**:
-  * Thermal avoidance yaw: `DNa02`.
-  * Chasm reach & step elevation: Kuramoto-Hopf CPG amplitude and phase coupling.
-  * Locomotor activity bouts: `BPN` / `DNp09` tonic arousal.
+* **Route**: antennal thermosensory neurons → SEZ / posterior lateral protocerebrum;
+  leg FeCO and campaniform sensilla → thoracic neuromeres; photoperiod → s-LNv.
+* **Readout**: `DNa02` for thermal avoidance; CPG amplitude and phase for gap crossing;
+  `DNp09` tonic drive for activity bouts.
 
 ### Batch D: Complex & Composite Assays
 * **Paradigms**: Open Arena, Labyrinth, Multisensory Sandbox
-* **Sensory Route**: Simultaneous concurrent multisensory ingress across all primary modalities.
-* **Motor Readout**: Multi-channel arbitration between obstacle sliding reflexes, foraging pursuit, and escape overrides.
+* **Route**: all of the above at once, with arbitration between obstacle reflexes,
+  foraging and escape.
 
 ---
 
-## Scientific Plasticity Protocol (Step 4.3 — WP6)
+## WP6 plasticity protocol (specified, not validated)
 
-* **Plastic Synapse Subset**: Visually driven ring neuron to compass neuron connections (`ER4d` + `ER2` $\to$ `EPG`).
-* **Edge Count**: **3,081 directed synapses** (0.012% of the 25.58M connectome edges).
-* **Modulatory System**: Octopaminergic `EL` cluster gating depression-only STDP.
-* **Behavioral Readout**: Compass bump azimuth stabilization and landmark visual anchoring.
+* **Plastic subset**: ring neuron to compass neuron synapses (`ER4d` + `ER2` → `EPG`),
+  3,081 directed edges (0.012 % of the graph).
+* **Modulation**: the octopaminergic `EL` cluster gates a depression-only rule.
+* **Evidence so far**: one 1 s run on `brainlab-lif-plastic-v1`
+  (`connectome_closed_loop_wp6_plasticity.json`: 2,036 spikes in total, final EPG bump
+  phase 0.0). WP6 was specified on top of the WP5 decoder, whose causal claim was
+  withdrawn, so it needs the v3 optomotor result first. See
+  [`WP6_PLASTICITY_SPEC.md`](WP6_PLASTICITY_SPEC.md).

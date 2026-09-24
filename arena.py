@@ -184,9 +184,12 @@ class Predator:
         cruise_speed: float = 0.9,
         sprint_speed: float = 2.4,
         strike_radius: float = 8.0,
-        vision_radius: float = 35.0
+        vision_radius: float = 35.0,
+        rng: Optional[random.Random] = None
     ):
         self.id = predator_id
+        # Own generator: the module-level ``random`` made seeded runs irreproducible.
+        self.rng = rng if rng is not None else random.Random(predator_id)
         self.pos = Position(x, y)
         self.heading = float(heading)
         self.cruise_speed = cruise_speed
@@ -278,7 +281,7 @@ class Predator:
             self.stalk_timer = 0.0
             self.target_fly_id = None
             self.speed = self.cruise_speed * 0.7
-            self.heading = (self.heading + random.uniform(-0.15, 0.15)) % (2.0 * math.pi)
+            self.heading = (self.heading + self.rng.uniform(-0.15, 0.15)) % (2.0 * math.pi)
 
         # Update position
         self.pos.x += self.speed * math.cos(self.heading) * dt
@@ -786,7 +789,11 @@ class Arena:
         for p_idx in range(self.num_predators):
             px = self.rng.uniform(15.0, self.width - 15.0)
             py = self.rng.uniform(15.0, self.height - 15.0)
-            self.predators.append(Predator(px, py, heading=self.rng.uniform(0, 2 * math.pi), predator_id=p_idx))
+            # Seeded from (seed, index) without drawing from self.rng, so fly-side
+            # random streams are unchanged by this generator.
+            p_rng = random.Random(None if seed is None else f"predator|{seed}|{p_idx}")
+            self.predators.append(Predator(px, py, heading=self.rng.uniform(0, 2 * math.pi), predator_id=p_idx,
+                                           rng=p_rng))
 
         # Backward compatibility alias for single-fly callers
         self.fly: FlyState = self.flies[0]

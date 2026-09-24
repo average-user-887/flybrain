@@ -5,6 +5,7 @@ Usage:
   neurofly download-data
   neurofly status
   neurofly capability
+  neurofly record --paradigm P --seconds S --out FILE
 """
 from __future__ import annotations
 
@@ -87,6 +88,12 @@ def cmd_validate(args: list[str]) -> int:
     return validate_main(args)
 
 
+def cmd_record(args: list[str]) -> int:
+    """Run a paradigm headless and write a deterministic .nfrec recording."""
+    from neurofly import recording
+    return recording.main(args)
+
+
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
     matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
@@ -115,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
     subparsers.add_parser("capability", help="Print the 14-paradigm capability matrix")
     subparsers.add_parser("validate", help="Run or check a preregistered validation spec (run|check <spec>)")
+    subparsers.add_parser("record", help="Record a paradigm run (.nfrec) for 1x replay in the dashboard")
 
     if not argv:
         parser.print_help()
@@ -137,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_capability(rest)
     elif cmd == "validate":
         return cmd_validate(rest)
+    elif cmd == "record":
+        return cmd_record(rest)
     elif cmd in ("-h", "--help"):
         parser.print_help()
         return 0
