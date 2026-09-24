@@ -599,17 +599,18 @@ class ContinuousExperimentRunner:
         self.activation = 0
         self.manifest: Optional[RunManifest] = None
         if self.graph_mode:
-            from experiment_registry import ExperimentRegistry as GraphRegistry, SharedGraph
+            from experiment_registry import (ExperimentRegistry as GraphRegistry, SharedGraph,
+                                             default_registry_dir)
             if shared_graph is None:
                 shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if test_synthetic_graph
-                                else SharedGraph.load(graph_dir))
+                                else SharedGraph.load_for_dynamics(graph_dir))
             self.shared_graph = shared_graph
             plasticity_rule = None
             if backend == "connectome-plastic" and not getattr(shared_graph.identity, 'synthetic', False):
                 from brainlab.wp6_plasticity import VisualHeadingPlasticityRule
                 plasticity_rule = VisualHeadingPlasticityRule.from_shared(shared_graph)
             self.registry = GraphRegistry(shared_graph, Path(registry_root) if registry_root else
-                                          self.output_dir / "registry", test_mode=self.test_mode,
+                                          default_registry_dir(self.output_dir), test_mode=self.test_mode,
                                           plasticity_rule=plasticity_rule)
             self.graph_controller = GraphArenaController(
                 self, self.graph_step_ms)
@@ -699,13 +700,14 @@ class ContinuousExperimentRunner:
 
         target_graph_mode = target_backend in GRAPH_BACKENDS
         if target_graph_mode:
-            from experiment_registry import ExperimentRegistry as GraphRegistry, SharedGraph
+            from experiment_registry import (ExperimentRegistry as GraphRegistry, SharedGraph,
+                                             default_registry_dir)
             if self.shared_graph is None:
                 self.shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if self.test_mode
-                                     else SharedGraph.load(self.graph_dir))
+                                     else SharedGraph.load_for_dynamics(self.graph_dir))
             if self.registry is None:
                 self.registry = GraphRegistry(self.shared_graph,
-                                              Path(self.registry_root) if self.registry_root else self.output_dir / "registry",
+                                              Path(self.registry_root) if self.registry_root else default_registry_dir(self.output_dir),
                                               test_mode=self.test_mode)
             if self.graph_controller is None:
                 self.graph_controller = GraphArenaController(self, self.graph_step_ms)
@@ -1893,7 +1895,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         return
 
 
-def run_daemon():
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Project NeuroFly Continuous Headless Learning Daemon")
     parser.add_argument("--host", default="0.0.0.0", help="Host address to bind HTTP API (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=8769, help="Port to bind HTTP API (default: 8769)")
@@ -1912,6 +1914,11 @@ def run_daemon():
     backend_group.add_argument("--backend", choices=DAEMON_BACKENDS,
                                default=os.environ.get("NEUROFLY_BACKEND") or "connectome-fixed",
                                help="Controller backend (env: NEUROFLY_BACKEND; default connectome-fixed)")
+    backend_group.add_argument("--dynamics", choices=("v1", "v2", "v3"),
+                               default=os.environ.get("NEUROFLY_LIF_DYNAMICS") or "v3",
+                               help="LIF dynamics of the connectome backends (default: v3, with the v3 "
+                                    "transmitter policy; env NEUROFLY_LIF_DYNAMICS). v1 brains are kept "
+                                    "in outputs/registry, v2/v3 brains in outputs/registry-<version>")
     backend_group.add_argument("--graph-dir", default=None,
                                help="Prepared graph directory (default: NEUROFLY_GRAPH_DIR, then "
                                     "<checkout>/outputs/brainlab/malecns_v1). Missing graph = startup error.")
@@ -1947,7 +1954,13 @@ def run_daemon():
                               help="Seconds between telemetry summary lines (default 60)")
     record_group.add_argument("--no-record", action="store_true",
                               help="Disable the durable JSONL learning records")
-    args = parser.parse_args()
+    return parser
+
+
+def run_daemon():
+    args = build_arg_parser().parse_args()
+    # Process-wide, before any Brain or registry manifest is created.
+    os.environ["NEUROFLY_LIF_DYNAMICS"] = args.dynamics
 
     stream_policy = StreamPolicy.from_env(
         public=args.public,
@@ -1965,7 +1978,7 @@ def run_daemon():
     print("===============================================================================")
     print("PROJECT NEUROFLY — 24/7 CONTINUOUS REMOTE LEARNING DAEMON")
     print(f"PID: {os.getpid()} | API Port: {args.port} | Speed: {args.speed}x")
-    print(f"Active Paradigm: {args.paradigm}")
+    print(f"Active Paradigm: {args.paradigm} | LIF dynamics: {args.dynamics}")
     if stream_policy.public:
         mode = "READ-ONLY (no admin token set)" if stream_policy.read_only else "token-gated commands"
         print(f"Public mode: {mode} | max SSE clients: {stream_policy.max_stream_clients or 'unlimited'}"
