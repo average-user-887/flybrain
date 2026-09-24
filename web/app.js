@@ -3483,6 +3483,16 @@ function isStaleDaemonPacket(pkt, previous) {
  * activation is stale and the same activation must match run_id and instance_id.
  * A newer activation (another tab switched later) or another daemon process is accepted.
  */
+/** Achieved speed with enough digits to stay truthful when far below 1x (0.011x, not 0.0x). */
+function formatSimSpeed(x) {
+    if (!Number.isFinite(x)) return '--';
+    if (x >= 10) return `${x.toFixed(0)}x`;
+    if (x >= 1) return `${x.toFixed(1)}x`;
+    if (x <= 0) return '0x';
+    return `${Number(x.toPrecision(2))}x`;
+}
+window.neuroflyFormatSimSpeed = formatSimSpeed;
+
 function identityRejection(pkt, ack) {
     const want = ack?.identity, got = pkt?.identity;
     if (!want || !got) return null;
@@ -3654,6 +3664,11 @@ class DaemonBridgeClient {
         this.streamStats = null;
         this.lastAck = null;
         this.lastSwitchAck = null;          // ack of this tab's last successful switch (identity)
+        // Commands the daemon answered "queued" (a long step was running): resolved when
+        // their acknowledgement arrives in a stream frame (``command_acks``).
+        this.pendingCommands = new Map();
+        this.commandAckTimeoutMs = 120000;
+        this.lastHeartbeat = null;          // {step_in_progress_s, last_step_wall_s, at}
         this.rejectedIdentityPackets = 0;
         this.lastIdentityRejection = null;
         this.manifest = null;               // full run manifest (GET /api/manifest), for exports
@@ -3719,12 +3734,14 @@ class DaemonBridgeClient {
 
     scheduleReconnect() {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.replayMode) return;   // a recording is playing; exitReplay() reconnects
         this.reconnectTimer = setTimeout(() => this.initConnection(false), this.reconnectDelayMs);
         this.reconnectDelayMs = Math.min(30000, Math.round(this.reconnectDelayMs * 1.5));
     }
 
     async initConnection(force = false) {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.replayMode) return;
         if (this.probing && !force) return;
         this.probing = true;
         if (force) this.reconnectDelayMs = 4000;
@@ -3763,12 +3780,13 @@ class DaemonBridgeClient {
         this.lastOrderedPacket = null;
         this.lastTrailStep = -1;
         this.showingStale = false;
+        this.freshnessState = 'live';
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
             this.statusPill.style.border = '1px solid #22c55e';
             this.statusPill.style.color = '#4ade80';
-            this.statusPill.title = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
+            this.statusPill.title = this.connectedPillTitle = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
         }
         // Start the instrument on the experiment actually running on the daemon.
         // Updating the view must not send a switch command or create a new brain.
@@ -3789,6 +3807,7 @@ class DaemonBridgeClient {
     }
 
     onDaemonDisconnected(reason = '') {
+        if (this.replayMode) return;
         this.connected = false;
         this.readOnly = false;
         this.disconnectReason = reason;
@@ -3819,6 +3838,10 @@ class DaemonBridgeClient {
     /** Data-age indicator, achieved speed and the LIVE / STALE pill state (4 Hz). */
     updateFreshness() {
         const ageEl = document.getElementById('statDataAge');
+        if (this.replayMode) {
+            if (ageEl) { ageEl.textContent = 'replay'; ageEl.style.color = '#c084fc'; }
+            return;
+        }
         const age = this.lastValidDataTime ? (performance.now() - this.lastValidDataTime) / 1000 : null;
         if (ageEl) {
             ageEl.textContent = age === null ? '--' : `${age < 10 ? age.toFixed(1) : Math.round(age)}s${this.connected ? '' : ' (frozen)'}`;
@@ -3826,12 +3849,60 @@ class DaemonBridgeClient {
         }
         if (!this.connected || !this.statusPill || age === null) return;
         const stale = age * 1000 > this.staleAfterMs;
-        if (stale === !!this.showingStale) return;
-        this.showingStale = stale;
+        // Old data while the daemon reports a step still running is a slow computer,
+        // not a lost connection: say so instead of "stale".
+        const slowStep = stale ? this.slowStepSeconds() : null;
+        const state = slowStep !== null ? 'slow' : stale ? 'stale' : 'live';
         const ro = this.readOnly ? ' (READ-ONLY)' : '';
-        this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
-        this.statusPill.style.color = stale ? '#fbbf24' : '#4ade80';
-        this.statusPill.style.border = stale ? '1px solid #f59e0b' : '1px solid #22c55e';
+        if (state === 'slow') {
+            this.statusPill.textContent = `● LIVE DAEMON${ro} · STEP RUNNING ${Math.round(slowStep)}s`;
+            this.statusPill.title = `The daemon is connected and computing: the current simulation step has run for `
+                + `${slowStep.toFixed(1)} s (the last one took ${this.lastHeartbeat.last_step_wall_s?.toFixed?.(1) ?? '?'} s). `
+                + `This computer runs the simulation slower than real time; no steps are skipped.`;
+            if (ageEl) ageEl.style.color = '#38bdf8';
+        }
+        if (state === this.freshnessState && state !== 'slow') return;
+        this.freshnessState = state;
+        this.showingStale = state === 'stale';
+        if (state !== 'slow') {
+            this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
+            if (this.connectedPillTitle && !this.readOnly) this.statusPill.title = this.connectedPillTitle;
+        }
+        const color = {live: ['#4ade80', '#22c55e'], stale: ['#fbbf24', '#f59e0b'], slow: ['#38bdf8', '#0ea5e9']}[state];
+        this.statusPill.style.color = color[0];
+        this.statusPill.style.border = `1px solid ${color[1]}`;
+    }
+
+    /** Seconds the daemon's current step has run, from a recent heartbeat, else null. */
+    slowStepSeconds() {
+        const beat = this.lastHeartbeat;
+        if (!beat || !(beat.step_in_progress_s > 0)) return null;
+        const since = (performance.now() - beat.at) / 1000;
+        return since < 2.5 ? beat.step_in_progress_s + since : null;
+    }
+
+    /** Resolve commands answered "queued" once their acknowledgement is in a frame. */
+    resolveCommandAcks(acks) {
+        if (!Array.isArray(acks) || !this.pendingCommands.size) return;
+        for (const ack of acks) {
+            const pending = ack && this.pendingCommands.get(ack.command_id);
+            if (pending) pending.resolve(ack);
+        }
+    }
+
+    /** Wait for the stream to carry the acknowledgement of a queued command. */
+    awaitCommandAck(commandId) {
+        return new Promise((resolve) => {
+            const done = (value) => {
+                clearTimeout(timer);
+                this.pendingCommands.delete(commandId);
+                resolve(value);
+            };
+            const timer = setTimeout(() => done({status: 'error', command_id: commandId,
+                message: 'No acknowledgement from the daemon yet; the command is still queued behind a slow step.'}),
+                this.commandAckTimeoutMs);
+            this.pendingCommands.set(commandId, {resolve: done});
+        });
     }
 
     startStreaming() {
@@ -3842,7 +3913,11 @@ class DaemonBridgeClient {
             this.eventSource = new EventSource(`${this.activeUrl}/api/stream`);
             this.eventSource.onmessage = (event) => this.receive(event.data);
             // Liveness without new data (paused or slow daemon): keeps the stream open.
-            this.eventSource.addEventListener('heartbeat', () => { this.lastPacketTime = performance.now(); });
+            this.eventSource.addEventListener('heartbeat', (event) => {
+                this.lastPacketTime = performance.now();
+                try { this.lastHeartbeat = {...JSON.parse(event.data), at: this.lastPacketTime}; }
+                catch (e) { this.lastHeartbeat = null; }
+            });
             this.eventSource.addEventListener('stream', (event) => {
                 this.lastPacketTime = performance.now();
                 try { this.streamStats = JSON.parse(event.data); }
@@ -3900,6 +3975,7 @@ class DaemonBridgeClient {
 
     handleDaemonPacket(pkt) {
         if (!pkt || pkt.type !== 'telemetry') return false;
+        this.resolveCommandAcks(pkt.command_acks);
 
         // Drop stale / out-of-order packets (SSE reconnects can replay old frames).
         if (isStaleDaemonPacket(pkt, this.lastOrderedPacket)) return false;
@@ -3952,12 +4028,13 @@ class DaemonBridgeClient {
             const achievedEl = document.getElementById('statAchieved');
             const timing = pkt.timing;
             if (achievedEl && timing && Number.isFinite(timing.achieved_speed)) {
-                achievedEl.textContent = pkt.paused ? 'paused' : `${timing.achieved_speed.toFixed(1)}x`;
+                achievedEl.textContent = pkt.paused ? 'paused' : formatSimSpeed(timing.achieved_speed);
                 achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
                 const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
                 achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x `
                     + `(= ${timing.achieved_speed} simulated seconds per wall-clock second); `
-                    + `fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame.`
+                    + `fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame`
+                    + (timing.last_step_wall_s > 0.5 ? `; one step takes about ${timing.last_step_wall_s.toFixed(1)} s of wall time` : '') + '.'
                     + (timing.overloaded ? ' This computer cannot run the requested speed; the daemon runs slower instead of skipping steps.' : '') + dropped;
             } else if (achievedEl) {
                 achievedEl.textContent = '--';
@@ -3988,7 +4065,7 @@ class DaemonBridgeClient {
             // Export one measured row per distinct daemon tick. No synthetic FPS samples.
             if (this.lastRecordedSegment !== segment || this.lastRecordedStep !== pkt.step) {
                 if (this.arena.telemetryBuffer[0]?.source === 'local_preview') this.arena.telemetryBuffer = [];
-                this.arena.telemetryBuffer.push({source:'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
+                this.arena.telemetryBuffer.push({source:pkt.timing?.replay ? 'recording' : 'daemon', run_id:pkt.run_id || '', brain_id:pkt.brain_id, segment,
                     controller_run_id:pkt.identity?.run_id || '', instance_id:pkt.identity?.instance_id || '',
                     backend:pkt.identity?.backend || '', synthetic:!!pkt.identity?.synthetic,
                     motor_source:pkt.motor?.motor_source || '', assists:!!pkt.motor?.motor_assists_enabled,
@@ -4133,6 +4210,49 @@ class DaemonBridgeClient {
                 p.totalEnergy = num(m.total_energy_atp, p.totalEnergy);
             }
         }
+        // Per-region activity and spike raster panel (web/replay.js), live and replay alike.
+        window.neuroflyActivityPanel?.update(pkt);
+    }
+
+    /**
+     * Stop the live stream and let a recording drive the same panels (web/replay.js).
+     * Frames then enter through handleDaemonPacket exactly like SSE frames.
+     */
+    enterReplay(label) {
+        this.replayMode = true;
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.eventSource) {
+            this.eventSource.onerror = null;
+            this.eventSource.onmessage = null;
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.connected = false;
+        this.resetReplayView();
+        if (this.statusPill) {
+            this.statusPill.textContent = `▶ REPLAY · ${label}`;
+            this.statusPill.style.background = 'rgba(168, 85, 247, 0.2)';
+            this.statusPill.style.border = '1px solid #a855f7';
+            this.statusPill.style.color = '#d8b4fe';
+            this.statusPill.title = 'Playing a recorded run at its recorded simulation time. Nothing is computed live; exit the replay to reconnect to the daemon.';
+        }
+    }
+
+    /** Forget ordering state so a seek (including backwards) applies the next frame. */
+    resetReplayView() {
+        this.lastOrderedPacket = null;
+        this.lastSwitchAck = null;
+        this.lastTrailStep = -1;
+        this.arena.remoteSegment = null;
+        if (this.arena.fly) this.arena.fly.trail = [];
+    }
+
+    exitReplay() {
+        if (!this.replayMode) return;
+        this.replayMode = false;
+        this.resetReplayView();
+        this.arena.remoteDriven = false;
+        this.initConnection(true);
     }
 
     /** Marks the daemon as read-only (it runs with --public and refuses /api/command). */
@@ -4179,6 +4299,11 @@ class DaemonBridgeClient {
         }
     }
 
+    commandQueuedNotice(action) {
+        const label = document.getElementById('arenaRunState');
+        if (label) label.textContent = `${action.replaceAll('_', ' ')} queued: applied when the current simulation step finishes`;
+    }
+
     async sendCommand(action, params = {}) {
         if (!this.connected || !this.activeUrl || this.readOnly) return null;
         if (action === 'switch_paradigm') this.switchPending = true;
@@ -4194,7 +4319,13 @@ class DaemonBridgeClient {
                 return null;
             }
             if (res.ok) {
-                const data=await res.json();
+                let data=await res.json();
+                // A long step was running: the command is queued and applied at the next
+                // step boundary; its acknowledgement arrives in the stream.
+                if (data.status === 'queued' && data.command_id) {
+                    this.commandQueuedNotice(action);
+                    data = await this.awaitCommandAck(data.command_id);
+                }
                 if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
                 // The daemon acknowledges the step at which the command took effect.
                 if (data.ack) this.lastAck = {...data.ack, action};
@@ -4833,7 +4964,9 @@ class ScientificHUD {
         const selSpeed = document.getElementById('selectSpeed');
         if (selSpeed) selSpeed.value = String(this.simSpeed);
 
-        if (this.daemonBridge && this.daemonBridge.connected) {
+        if (this.daemonBridge?.replayMode) {
+            window.neuroflyReplay?.setSpeed(this.simSpeed);
+        } else if (this.daemonBridge && this.daemonBridge.connected) {
             this.daemonBridge.sendCommand('set_speed', { speed: this.simSpeed });
         }
     }
@@ -4850,6 +4983,11 @@ class ScientificHUD {
     }
 
     selectParadigm(pid) {
+        if (this.daemonBridge?.replayMode) {
+            const label = document.getElementById('arenaRunState');
+            if (label) label.textContent = 'Replaying a recording: exit the replay to switch assays.';
+            return;
+        }
         if (this.daemonBridge?.connected || this.arena.remoteDriven || this.arena.awaitingDaemon) {
             return this.daemonBridge?.requestParadigmSwitch(pid);
         }
@@ -6365,6 +6503,10 @@ function startNeuroflyApp() {
     const btnPause = document.getElementById('btnPauseToggle');
     if (btnPause) {
         btnPause.addEventListener('click', () => {
+            if (hud.daemonBridge?.replayMode) {
+                window.neuroflyReplay?.toggle();
+                return;
+            }
             if (hud.daemonBridge?.connected) {
                 hud.daemonBridge.sendCommand('set_paused', {paused:!arena.remotePacket?.paused});
                 return;

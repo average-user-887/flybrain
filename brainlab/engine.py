@@ -32,6 +32,13 @@ except ImportError:
             return fn
         return decorator
 
+# The kernels touch only numpy arrays and scalars, so they release the GIL while
+# they run (``nogil=True``).  That changes no arithmetic; it lets the daemon's
+# HTTP and stream threads answer while a long step runs on a slow CPU.  Callers
+# must not mutate a brain's arrays from another thread during a step (the daemon
+# holds its simulation lock around every step).
+KERNEL_OPTIONS = dict(cache=True, nogil=True)
+
 # Declared constants (docs/LIF_DYNAMICS_SPEC.md §1.1, §3.1).  numba treats
 # module globals as compile-time constants, so graph_identity can import these
 # and the declared manifest can never drift from the compiled engine.
@@ -58,7 +65,7 @@ G_UNIT_EXC_V3 = 1.0 / (E_EXC_MV - V_REST_MV)      # 1/52
 G_UNIT_INH_V3 = 1.0 / (V_REST_MV - E_INH_MV)      # 1/18
 
 
-@njit(cache=True)
+@njit(**KERNEL_OPTIONS)
 def advance(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive):
     av=math.exp(-dt/20); ag=math.exp(-dt/5)
     coupling=(av-ag)/3
@@ -96,7 +103,7 @@ def advance(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,
     return cursor
 
 
-@njit(cache=True)
+@njit(**KERNEL_OPTIONS)
 def advance_v2(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive,e_inh):
     """v2: conductance-based synapses with reversal potentials.
 
@@ -157,7 +164,7 @@ def advance_v2(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,ste
 
 
 
-@njit(cache=True)
+@njit(**KERNEL_OPTIONS)
 def advance_v3(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive,e_inh,g_unit_exc,g_unit_inh):
     """v3: v2's conductance model with a per-sign PSP-preserving calibration.
 
