@@ -1,0 +1,419 @@
+{
+ "schema": "flybrain.validation-spec.v1",
+ "id": "mb-e0-kc-regime-v3-1",
+ "paradigm": "mb_e0_kc_regime",
+ "status": "draft",
+ "status_reason": "WP7 preregistration draft, frozen-pending-owner-gate (see freeze). The paradigm module is not implemented yet (spec doc item I3), and the Phase 1 gate is not signed off. Gating tolerances are judgements (verified:false), so the best achievable verdict is PASS_PROVISIONAL.",
+ "freeze": {
+  "state": "frozen-pending-owner-gate",
+  "frozen_at": "2026-09-25",
+  "spec_doc": "docs/WP7_MB_LEARNING_SPEC.md",
+  "design_doc": "docs/design/mb_learning.md",
+  "rule": "Every field except status, status_reason, freeze and calibration.result is frozen. tests/test_wp7_graph_policy.py recomputes frozen_content_sha256 and fails on any edit. Results are recorded as they come out, without retuning. Any change after a real-graph run is a new spec id (suffix -2) with an amendment block, and the earlier result stays on record.",
+  "owner_gate": "The owner flips status draft -> preregistered in a commit that changes nothing else, after (a) the Phase 1 gate is signed off, (b) implementation items I1-I4 of the spec doc are merged and their synthetic plumbing tests pass, and (c) the sidecar files named here exist with the recorded hashes.",
+  "frozen_content_sha256": "627a8344ce13e8f32b07a5750c1e714e90ef695b34a9aafc5befc6c570515846"
+ },
+ "declared_at": "2026-09-25",
+ "summary": "E0: is the mushroom body in a learnable regime without plasticity? KC responding fraction per odour and OCT/MCH active-set overlap on the P4 primary graph (KC->KC fast weight zero, DPM GABA). Decides whether E1 runs. Four comparison graph variants are run with the same spec and reported.",
+ "dynamics": {
+  "version": "v3",
+  "transmitter_policy": "v3-modulatory-only",
+  "unclear_mode": "excitatory",
+  "kc_kc": "modulatory-only",
+  "dpm": "gaba"
+ },
+ "graph_variants": {
+  "V2_primary": {
+   "role": "primary: gated; decides whether E1 runs"
+  },
+  "V0_released": {
+   "kc_kc": "released",
+   "dpm": "released",
+   "role": "comparison, reported only",
+   "note": "plain v3 weights (KC->KC released, DPM silent as predicted dopamine)"
+  },
+  "V1_kc0_dpm_silent": {
+   "kc_kc": "modulatory-only",
+   "dpm": "released",
+   "role": "comparison, reported only"
+  },
+  "V3_kckc_released_dpm_gaba": {
+   "kc_kc": "released",
+   "dpm": "gaba",
+   "role": "comparison, reported only"
+  },
+  "V4_calyx_kept_dpm_gaba": {
+   "kc_kc": "modulatory-only-except-calyx",
+   "dpm": "gaba",
+   "kc_kc_calyx_file": "data-provenance/malecns_v1/derived/wp7_kc_kc_calyx.npz",
+   "role": "comparison, reported only",
+   "note": "BLOCKED until the calyx sidecar exists (item I1); its sha256 is recorded in the receipt and in the graph identity"
+  }
+ },
+ "backend": "cuda on the GPU host (auto falls back to CPU); recorded in the receipt",
+ "stimulus": {
+  "step_ms": 2.0,
+  "warmup_ms": 2000,
+  "blocks": [
+   "air",
+   "OCT",
+   "MCH"
+  ],
+  "block_order": "seed even: air, OCT, MCH; seed odd: air, MCH, OCT",
+  "block": {
+   "pre_ms": 2000,
+   "stimulus_ms": 2000,
+   "post_ms": 2000
+  },
+  "total_ms": 20000,
+  "reset": "network starts from rest once per seed (runner.reset); no reset between blocks, so every block sees the state the previous one left",
+  "literature_match": "Honegger 2011 and Turner 2008 score KC responses over a ~2 s odour window"
+ },
+ "encoder": {
+  "from_spec": "validation/specs/tmaze_odour_naive_v3.json",
+  "from_spec_sha256": "7eb6f62bf2c201d323dce826373b4b20dd25c702e3d4eccc7b364addd568be2a",
+  "key": "encoder",
+  "presentation": "bilateral: both antennae receive the same odour (contralateral_fraction is therefore irrelevant)",
+  "note": "The DoOR table, r_max_hz, noise_sd, spontaneous rates and drive inversion are exactly those of the named file at the named sha256. A run whose referenced file hashes differently is refused by the paradigm (implementation item I3)."
+ },
+ "decoder": {
+  "rule": "none: E0 records neural activity only; no behavioural choice is decoded"
+ },
+ "populations": {
+  "KC": {
+   "pattern": "^KC"
+  },
+  "KC_L": {
+   "pattern": "^KC",
+   "side": "L"
+  },
+  "KC_R": {
+   "pattern": "^KC",
+   "side": "R"
+  },
+  "PN": {
+   "pattern": "^[A-Za-z0-9]+_(l|ad|v|il|lv|m)PN"
+  },
+  "MBON": {
+   "pattern": "^MBON"
+  },
+  "MBON11": {
+   "types": [
+    "MBON11"
+   ]
+  },
+  "MBON12": {
+   "types": [
+    "MBON12"
+   ]
+  },
+  "PPL101": {
+   "types": [
+    "PPL101"
+   ]
+  },
+  "PPL102": {
+   "types": [
+    "PPL102"
+   ]
+  },
+  "PPL103": {
+   "types": [
+    "PPL103"
+   ]
+  },
+  "DPM": {
+   "types": [
+    "DPM"
+   ]
+  },
+  "APL": {
+   "types": [
+    "APL"
+   ]
+  }
+ },
+ "optional_populations": [
+  "PN",
+  "MBON",
+  "APL"
+ ],
+ "measures": {
+  "kc_responder": "a KC responds to an odour iff (spikes in the 2-s stimulus window) - (spikes in the 2-s pre window of the same block) >= 2. Threshold is a declared judgement (NOT VERIFIED against a published criterion).",
+  "kc_responding_fraction": "responders / all KCs (4,064), per odour; also per side (KC_L, KC_R), reported",
+  "kc_overlap_OCT_MCH": "|R_OCT & R_MCH| / min(|R_OCT|, |R_MCH|): the stricter of the common overlap definitions (larger than Jaccard). Undefined if either set is empty; an undefined seed makes the overlap gate INCONCLUSIVE, it is never dropped.",
+  "reported_rates": "mean rate over each window for PPL101, PPL102, PPL103 (spontaneous = air block, evoked = OCT and MCH stimulus windows), MBON11 and MBON12 evoked, DPM and APL; written to paradigm_extra, not gated"
+ },
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9
+ ],
+ "seed_role": "encoder per-cell noise; each seed is one simulated fly receiving air, OCT and MCH",
+ "behaviour": {
+  "analysis": {
+   "unit": "seed",
+   "bootstrap_seed": 20260925,
+   "bootstrap_resamples": 10000,
+   "ci": 0.95,
+   "note": "the harness bootstrap over seeds; \"behaviour\" here holds the neural gates of E0"
+  },
+  "gates": [
+   {
+    "id": "E0_G1_KC_fraction_OCT",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_OCT",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "The fraction of KCs responding to OCT lies between 1 % and 20 % (95 % CI inside).",
+    "basis": "Honegger 2011 (READ in design doc): ~5-6 % per odour on average, up to 17 %; Turner 2008 (READ): 6 +/- 5 % by single-cell recording. The 1-20 % band is a judgement around those values.",
+    "verified": false,
+    "sources": [
+     "honegger2011",
+     "turner2008"
+    ]
+   },
+   {
+    "id": "E0_G2_KC_fraction_MCH",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_MCH",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "The fraction of KCs responding to MCH lies between 1 % and 20 % (95 % CI inside).",
+    "basis": "as E0_G1",
+    "verified": false,
+    "sources": [
+     "honegger2011",
+     "turner2008"
+    ]
+   },
+   {
+    "id": "E0_G3_overlap_OCT_MCH",
+    "type": "ci_upper_below",
+    "sample": "kc_overlap_OCT_MCH",
+    "threshold": 0.6,
+    "claim": "The OCT and MCH responder sets overlap by less than 60 % (95 % CI upper bound).",
+    "basis": "Hige 2015 Neuron (READ in design doc) measured 30-33 % OCT/MCH KC overlap; the overlap definition used there was not checked against this one; 60 % is a judgement.",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   }
+  ],
+  "reported": [
+   {
+    "id": "E0_R1_KC_fraction_OCT_L",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_OCT_L",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "per-side KC responding fraction, OCT, left (reported)",
+    "basis": "KCab-s annotation asymmetry (design doc §1.2) makes the side split worth reporting",
+    "verified": false,
+    "sources": [
+     "census"
+    ]
+   },
+   {
+    "id": "E0_R2_KC_fraction_OCT_R",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_OCT_R",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "per-side KC responding fraction, OCT, right (reported)",
+    "basis": "as E0_R1",
+    "verified": false,
+    "sources": [
+     "census"
+    ]
+   },
+   {
+    "id": "E0_R3_KC_fraction_MCH_L",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_MCH_L",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "per-side KC responding fraction, MCH, left (reported)",
+    "basis": "as E0_R1",
+    "verified": false,
+    "sources": [
+     "census"
+    ]
+   },
+   {
+    "id": "E0_R4_KC_fraction_MCH_R",
+    "type": "ci_within",
+    "sample": "kc_responding_fraction_MCH_R",
+    "interval": [
+     0.01,
+     0.2
+    ],
+    "claim": "per-side KC responding fraction, MCH, right (reported)",
+    "basis": "as E0_R1",
+    "verified": false,
+    "sources": [
+     "census"
+    ]
+   }
+  ]
+ },
+ "physiology": {
+  "bounds_file": "firing_rate_bounds_v2.json",
+  "checks": [
+   {
+    "id": "P1_KC_spont",
+    "population": "KC",
+    "window": "baseline",
+    "bound": "KC",
+    "conditions": [
+     "air",
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "P2_KC_driven",
+    "population": "KC",
+    "window": "stimulus",
+    "bound": "KC",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "P3_ORN_driven",
+    "population": "ORN_*",
+    "window": "stimulus",
+    "bound": "ORN",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "P4_brain_mean_driven",
+    "population": "__brain__",
+    "measure": "mean_hz",
+    "window": "stimulus",
+    "bound": "brain_mean",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "P5_brain_max_driven",
+    "population": "__brain__",
+    "measure": "max_hz",
+    "window": "stimulus",
+    "bound": "brain_max_single_neuron",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   }
+  ],
+  "reported": [
+   {
+    "id": "R1_PN_driven",
+    "population": "PN",
+    "window": "stimulus",
+    "bound": "PN",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "R2_MBON_driven",
+    "population": "MBON",
+    "window": "stimulus",
+    "bound": "MBON",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "R3_MBON11_driven",
+    "population": "MBON11",
+    "window": "stimulus",
+    "bound": "MBON",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   },
+   {
+    "id": "R4_MBON12_driven",
+    "population": "MBON12",
+    "window": "stimulus",
+    "bound": "MBON",
+    "conditions": [
+     "OCT",
+     "MCH"
+    ]
+   }
+  ]
+ },
+ "decision_rule": "Harness rule (validation/harness.py VERDICTS) on the V2_primary variant. E1 runs only if E0 on V2_primary is PASS or PASS_PROVISIONAL. If V2_primary fails, E1 does not run, the failure is recorded, and no other variant is promoted to primary without a new spec version with an amendment. Verdicts of the comparison variants are reported and never decide anything.",
+ "citations": {
+  "turner2008": {
+   "citation": "Turner GC, Bazhenov M, Laurent G (2008) Olfactory representations by Drosophila mushroom body neurons. J Neurophysiol 99:734-746",
+   "doi": "10.1152/jn.01283.2007",
+   "doi_status": "resolved",
+   "read": "full text (author PDF, bazhlab.ucsd.edu)",
+   "values_read": [
+    "PN spontaneous 4.6 +/- 4.2 s^-1, n = 37 (Fig. 3F legend)",
+    "PN response probability 59 +/- 14% (Fig. 2A)",
+    "KC spontaneous 0.1 +/- 0.4 spike/s (p. 736)",
+    "KC response probability 6 +/- 5%, n = 71; responders fire 4.9 +/- 3.0 (alpha'/beta') and 2.2 +/- 1.2 (alpha/beta) spikes, window 0-2 s, odour 1:1000"
+   ]
+  },
+  "hige2015neuron": {
+   "citation": "Hige T, Aso Y, Modi MN, Rubin GM, Turner GC (2015) Heterosynaptic plasticity underlies aversive olfactory learning in Drosophila. Neuron 88:985",
+   "doi": "10.1016/j.neuron.2015.11.003",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "MBON-gamma1pedc>alpha/beta OCT response 118 +/- 8.3 spikes before and 24 +/- 7.4 after pairing (n = 7); MCH 110 +/- 11 -> 83 +/- 14; counted 0-1.4 s, spontaneous subtracted; spontaneous rates not reported"
+   ]
+  },
+  "honegger2011": {
+   "citation": "Honegger KS, Campbell RAA, Turner GC (2011) Cellular-resolution population imaging reveals robust sparse coding in the Drosophila mushroom body. J Neurosci 31(33):11772-11785",
+   "doi": "10.1523/JNEUROSCI.1099-11.2011",
+   "doi_status": "checked on Crossref 2026-09-24 (design doc §7)",
+   "read": "full text (design doc §7: READ)",
+   "values_read": [
+    "about 5 % of KCs active per odour on average, up to 17 % for some odours; KCs fire typically 5 to 10 spikes per odour (as quoted in docs/design/mb_learning.md)"
+   ]
+  },
+  "census": {
+   "citation": "scripts/mb_circuit_census.py output, docs/design/mb_circuit_census.json (MaleCNS v1.0, sha256-checked against data-provenance/malecns_v1/source.lock.json)",
+   "doi": null,
+   "doi_status": "not applicable (dataset census)",
+   "read": "repository file",
+   "values_read": [
+    "4,064 KCs; 2 DPM (predicted dopamine); KC->KC 642,933 edges / 1,153,845 contacts; DPM->KC 4,082 edges / 32,795 contacts; primary plastic set 86,981 synapses, 18,799 (edge, compartment) pairs, 16,250 engine edges"
+   ]
+  }
+ }
+}

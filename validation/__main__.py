@@ -21,6 +21,8 @@ def main(argv=None):
                      help='labelled synthetic typed graph (tests the code path; no scientific verdict)')
     run.add_argument('--seeds', type=int, nargs='+',
                      help='override the spec seeds (makes the run EXPLORATORY)')
+    run.add_argument('--graph-variant', default=None,
+                     help="one of the spec's declared graph_variants (default: the spec's own dynamics)")
     check = sub.add_parser('check', help='validate a spec and its bounds file, print its gates')
     check.add_argument('spec', type=Path)
     args = parser.parse_args(argv)
@@ -37,7 +39,8 @@ def main(argv=None):
                               physiology=[c['id'] for c in spec['physiology']['checks']]), indent=1))
         return 0
     receipt = harness.run(args.spec, args.out, synthetic=args.synthetic, backend=args.backend, seeds=args.seeds,
-                          graph_dir=args.graph_dir, connectome_dir=args.connectome_dir)
+                          graph_dir=args.graph_dir, connectome_dir=args.connectome_dir,
+                          graph_variant=args.graph_variant)
     return 0 if receipt['verdict'] in ('PASS', 'PASS_PROVISIONAL', 'EXPLORATORY', 'SYNTHETIC_PLUMBING_ONLY') else 1
 
 
