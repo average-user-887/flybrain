@@ -11,7 +11,7 @@
   "design_doc": "docs/design/mb_learning.md",
   "rule": "Every field except status, status_reason, freeze and calibration.result is frozen. tests/test_wp7_graph_policy.py recomputes frozen_content_sha256 and fails on any edit. Results are recorded as they come out, without retuning. Any change after a real-graph run is a new spec id (suffix -2) with an amendment block, and the earlier result stays on record.",
   "owner_gate": "The owner flips status draft -> preregistered in a commit that changes nothing else, after (a) the Phase 1 gate is signed off, (b) implementation items I1-I4 of the spec doc are merged and their synthetic plumbing tests pass, and (c) the sidecar files named here exist with the recorded hashes.",
-  "frozen_content_sha256": "872875ed24a3165475343f9e73e7ab782ec051dcf3a0b84932b83cfc03ebf455"
+  "frozen_content_sha256": "627a8344ce13e8f32b07a5750c1e714e90ef695b34a9aafc5befc6c570515846"
  },
  "declared_at": "2026-09-25",
  "summary": "E0: is the mushroom body in a learnable regime without plasticity? KC responding fraction per odour and OCT/MCH active-set overlap on the P4 primary graph (KC->KC fast weight zero, DPM GABA). Decides whether E1 runs. Four comparison graph variants are run with the same spec and reported.",
@@ -71,7 +71,7 @@
  },
  "encoder": {
   "from_spec": "validation/specs/tmaze_odour_naive_v3.json",
-  "from_spec_sha256": "7ac171faefa54f3c7d23a663620340e04a07e6cfe56314dc5f6cd480366d7cfd",
+  "from_spec_sha256": "7eb6f62bf2c201d323dce826373b4b20dd25c702e3d4eccc7b364addd568be2a",
   "key": "encoder",
   "presentation": "bilateral: both antennae receive the same odour (contralateral_fraction is therefore irrelevant)",
   "note": "The DoOR table, r_max_hz, noise_sd, spontaneous rates and drive inversion are exactly those of the named file at the named sha256. A run whose referenced file hashes differently is refused by the paradigm (implementation item I3)."
