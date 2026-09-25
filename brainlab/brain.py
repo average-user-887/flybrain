@@ -198,6 +198,22 @@ class Brain:
                      sim_ms=float(self.sim_ms), dynamics=self.dynamics)
         return state
 
+    def reset_state(self, v_rest_mV=-52.0):
+        """Return every transient to rest: membrane at ``v_rest_mV``, empty
+        conductances, refractory counters, delay queue and active set, clocks
+        at zero.  On the CUDA backend the device copy is reset too, so a reset
+        brain replays exactly like a freshly built one."""
+        self.v.fill(v_rest_mV)
+        for name in STATE_ARRAYS:
+            if name != 'v':
+                getattr(self, name).fill(0)
+        if self._gpu is not None:
+            self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
+                                   self.queue_count, self.counts, self.active_flag)
+        self.cursor = 0
+        self.total_spikes = 0
+        self.sim_ms = 0.0
+
     def restore_state(self, state):
         # v2 and v3 share the (2, n) synaptic state shape, so the shape check
         # below cannot separate them: the version is carried explicitly.  A

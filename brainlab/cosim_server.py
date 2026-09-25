@@ -264,27 +264,29 @@ class ConnectomeServer:
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
+            # CPU and GPU agree statistically, not bit for bit, so a replay must
+            # run on the backend that made the recording.
+            "brain_backend": self.brain.backend,
             "lif_dynamics_pin": dynamics_pin(self.brain.dynamics),
             "controller_version": ('synthetic-test-v1' if self.is_synthetic
                                    else f'brainlab-lif-{self.brain.dynamics}'),
         }
 
     def reset(self):
-        """Resets membrane potentials and conductances to resting state."""
-        self.brain.v.fill(-52.0)
-        self.brain.g.fill(0.0)
-        self.brain.refractory.fill(0)
-        self.brain.queue.fill(0)
-        self.brain.queue_count.fill(0)
-        self.brain.counts.fill(0)
-        self.brain.active.fill(0)
-        self.brain.active_flag.fill(0)
-        self.brain.nactive.fill(0)
-        self.brain.cursor = 0
-        self.brain.total_spikes = 0
-        self.brain.sim_ms = 0.0
+        """Return the server to the state it was built in.
+
+        Membrane, conductances, delay queue and clocks go back to rest (on the
+        GPU as well as the host), and the optomotor encoder is rebuilt from
+        ``optomotor_seed``, so its random phases and noise stream restart.  A
+        run after ``reset()`` is therefore identical to one on a new server.
+        """
+        self.brain.reset_state(-52.0)
+        self.total_steps = 0
         if self.optomotor is not None:
-            self.optomotor[2].reset()
+            io, encoder, decoder = self.optomotor
+            encoder = type(encoder)(io, np.random.default_rng(self.optomotor_seed))
+            decoder.reset()
+            self.optomotor = (io, encoder, decoder)
 
     def step(self, sensory: Dict[str, Any], duration_ms: float = 2.0) -> Dict[str, Any]:
         """
