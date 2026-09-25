@@ -43,6 +43,11 @@ def _parser() -> argparse.ArgumentParser:
         help="connectome: MaleCNS v3 graph; modular: the arena's phenomenological "
              "optomotor model as a researcher baseline (neurofly_body/modular.py)",
     )
+    run.add_argument(
+        "--silence", action="append", metavar="CELL_TYPE[:L|:R]",
+        help="connectome only, repeatable: clamp this cell type (or one soma side) with the "
+             "validation harness's SILENCE_DRIVE every step; off by default",
+    )
     run.add_argument("--modular-forward-drive", type=float, default=1.0,
                      help="modular only: tonic CPG amplitude (assumption)")
     run.add_argument("--modular-turn-gain", type=float, default=1.0,
@@ -93,13 +98,13 @@ RUN_ARGUMENTS = (
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
     "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
-    "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz",
+    "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz", "silence",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
 INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
                        "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
-                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02}
+                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02, "silence": None}
 
 
 def _invocation(args: argparse.Namespace) -> dict[str, Any]:
@@ -171,7 +176,10 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     argv = ["run", "--output", str(output)]
     for name in RUN_ARGUMENTS:
         value = invocation[name]
-        if value is not None:
+        if isinstance(value, list):          # repeatable flags (--silence)
+            for item in value:
+                argv += ["--" + name.replace("_", "-"), str(item)]
+        elif value is not None:
             argv += ["--" + name.replace("_", "-"), str(value)]
     args = _parser().parse_args(argv)
     summary = _run(args)
@@ -226,6 +234,8 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     if args.video:
         os.environ.setdefault("MUJOCO_GL", "egl")
     if args.controller == "modular":
+        if args.silence:
+            raise SystemExit("--silence needs the connectome controller; the modular baseline has no neurons")
         from .modular import ModularCommandDecoder, ModularOptomotorBackend
 
         neural = ModularOptomotorBackend(forward_drive=args.modular_forward_drive,
@@ -241,6 +251,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             unclear_mode="excitatory",
             engineered_assistance=False,
             optomotor_seed=args.seed,
+            **({"silence": tuple(args.silence)} if args.silence else {}),
         )
     except TypeError as error:
         raise SystemExit(

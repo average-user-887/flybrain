@@ -160,6 +160,30 @@ checks the frame SHA-256 against the file's end record where the browser allows
 it (localhost or HTTPS); on a plain-HTTP LAN address it says the file is not
 verified.
 
+## Silencing cell types
+
+`--silence CELL_TYPE` (repeatable; `CELL_TYPE:L` or `:R` for one annotated soma
+side) clamps those neurons in a connectome run. It is off by default, and a run
+without it is byte-identical to one made before the flag existed.
+
+```bash
+python -m neurofly_body run --duration 10 --seed 1 --silence DNa02 --output runs/dna02-silenced
+```
+
+The semantics match the validation harness's `dna02_silenced` condition. Every
+2 ms step, after all sensory drive, each silenced neuron's input current is
+replaced by `SILENCE_DRIVE` (-200, `brainlab/io_map.py`). Cell types are
+matched on the prepared `cell_type` and sides on the annotated `somaSide`. A
+target that resolves to no neurons stops the run before it starts. Under v3
+conductance dynamics the clamp can leak, which is why the harness's gate O7
+checks it. So every telemetry record counts the spikes of silenced neurons
+(`neural.silenced`), and `summary.json` gets a `silenced` block with the
+targets, neuron counts, map hash, `spikes_total` and `clamp_held`
+(no silenced spike in the whole run). The manifest's `neural_backend.silence_map`
+lists the silenced source IDs, and the recording header carries the same
+`silenced` summary. `replay-check` repeats the flag. The modular baseline has
+no neurons and refuses it.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
