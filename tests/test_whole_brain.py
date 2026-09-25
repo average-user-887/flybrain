@@ -150,7 +150,7 @@ class TestDescendingDecoders:
             dt=0.02
         )
         assert "dna02_diff" in out
-        assert out["dna02_diff"] > 0.0  # Positive difference drives rightward turn
+        assert out["dna02_diff"] < 0.0  # L - R < 0: DNa02_R leads, a clockwise (rightward) turn
 
     def test_dnp09_odor_pursuit(self):
         bridge = ConnectomeBridge()
