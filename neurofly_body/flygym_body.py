@@ -104,6 +104,18 @@ class FlyGymBody:
         self._actuated_joint_names = [
             str(item) for item in fly.get_actuated_jointdofs_order("position")
         ]
+        import mujoco
+
+        model = self.sim.mj_model
+        prefix = f"{self.FLY_NAME}/"
+        names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i) or "" for i in range(model.nbody)]
+        self._skeleton_ids = [i for i, name in enumerate(names) if name.startswith(prefix)]
+        position = {body_id: k for k, body_id in enumerate(self._skeleton_ids)}
+        self._skeleton = {
+            "segments": [names[i][len(prefix):] for i in self._skeleton_ids],
+            "parents": [position.get(int(model.body_parentid[i]), -1) for i in self._skeleton_ids],
+            "units": "mm, world frame (z up)",
+        }
         self._previous_yaw: float | None = None
         self._last_observation_time: float | None = None
         self._video_saved = False
@@ -198,6 +210,15 @@ class FlyGymBody:
                 self.controller.cpg_network.curr_magnitudes, dtype=float
             ).tolist(),
         }
+
+    def skeleton(self) -> dict[str, Any]:
+        """Body segment names and parent indices (-1 = attached to the world)."""
+        return {key: list(value) if isinstance(value, list) else value
+                for key, value in self._skeleton.items()}
+
+    def segment_positions(self) -> np.ndarray:
+        """World positions (mm) of every body segment, in ``skeleton()`` order."""
+        return np.asarray(self.sim.mj_data.xpos[self._skeleton_ids], dtype=float).copy()
 
     def describe(self) -> dict[str, Any]:
         return {

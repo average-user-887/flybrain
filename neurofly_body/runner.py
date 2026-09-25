@@ -37,6 +37,7 @@ class EmbodiedConfig:
     world_angular_velocity_rad_s: float = 4.0
     contrast: float = 1.0
     seed: int = 0
+    record_fps: float = 0.0   # body.nfbody frames per simulated second; 0 = no recording
 
     def validated(self) -> "EmbodiedConfig":
         if self.mode not in {"intact", "output-disconnected"}:
@@ -54,6 +55,12 @@ class EmbodiedConfig:
             raise ValueError("duration and timesteps must be positive")
         if not 0.0 <= self.contrast <= 1.0:
             raise ValueError("contrast must be between 0 and 1")
+        if not math.isfinite(self.record_fps) or self.record_fps < 0:
+            raise ValueError("record_fps must be finite and non-negative")
+        if self.record_fps > 0:
+            from .body_recording import frame_interval_steps
+
+            frame_interval_steps(self.record_fps, self.neural_dt_ms)
         steps = self.duration_s / (self.neural_dt_ms / 1000.0)
         substeps = (self.neural_dt_ms / 1000.0) / self.physics_dt_s
         if not math.isclose(steps, round(steps), rel_tol=0.0, abs_tol=1e-9):
@@ -217,6 +224,7 @@ def run_embodied(
     decoded_steps = 0
     events: list[dict[str, Any]] = []
     last_record: dict[str, Any] | None = None
+    recorder = None
     try:
         neural.reset()
         status = _to_builtin(neural.get_status())
@@ -276,6 +284,22 @@ def run_embodied(
             ],
         }
         output.set_manifest(manifest)
+        if config.record_fps > 0:
+            if not hasattr(body, "segment_positions"):
+                raise RuntimeError("this body backend cannot record segment positions")
+            from .body_recording import BodyRecorder
+
+            recorder = BodyRecorder(output.output_dir / "body.nfbody", fps=config.record_fps,
+                                    neural_dt_ms=config.neural_dt_ms)
+            recorder.header(skeleton=body.skeleton(), provenance={
+                "config": manifest["config"], "invocation": manifest["invocation"],
+                "package_version": __version__, "command_mode": config.mode,
+                "neural_backend": {key: status.get(key) for key in (
+                    "controller_kind", "graph_sha256", "lif_dynamics_version", "transmitter_policy",
+                    "brain_backend", "locomotion_dn_map_sha256", "optomotor_io_map_sha256")},
+                "decoder": manifest["decoder"],
+                "sensory": manifest["sensory_feedback"],
+            })
 
         for step_index in range(n_steps):
             step_started = time.perf_counter()
@@ -355,6 +379,9 @@ def run_embodied(
                 "body": body_obs,
             }
             output.write(last_record)
+            if recorder is not None:
+                recorder.step(step_index + 1, last_record, body.segment_positions(),
+                              int(reply["total_step_spikes"]))
             timing["step_wall_ms"] = (time.perf_counter() - step_started) * 1000.0
             output.write_timing(timing)
 
@@ -384,6 +411,10 @@ def run_embodied(
             },
         }
         _assert_finite(summary, "summary")
+        if recorder is not None:
+            summary["recording"] = recorder.close()
+            summary["artifacts"]["recording"] = "body.nfbody"
+            recorder = None
         output.complete(summary)
         return summary
     except BaseException as error:
@@ -394,6 +425,8 @@ def run_embodied(
                 "config": _to_builtin(asdict(config)),
                 "traceback": traceback.format_exc(),
             }
+        if recorder is not None:
+            recorder.abort()
         output.fail(error)
         raise
     finally:

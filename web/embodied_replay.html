@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embodied Replay</title>
+<style>
+  :root {
+    --bg: #060913; --panel: #0d1424; --line: #1f2a44; --text: #d7e0f2; --muted: #8391ad;
+    --accent: #5fb3ff; --left: #ffb454; --right: #7ee0a1; --warn: #ff7b72;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto minmax(0, 1fr) auto; height: 100vh; }
+  header { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 600; }
+  header .src { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+  #view { position: relative; min-height: 0; }
+  #view canvas { display: block; width: 100%; height: 100%; }
+  #drop { position: absolute; inset: 16px; display: flex; align-items: center; justify-content: center; text-align: center;
+    border: 2px dashed var(--line); border-radius: 12px; color: var(--muted); padding: 16px; }
+  #drop.hidden { display: none; }
+  aside { border-left: 1px solid var(--line); background: var(--panel); padding: 12px 16px; overflow-y: auto; }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-variant-numeric: tabular-nums; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+  .bar { height: 10px; background: var(--line); border-radius: 5px; position: relative; overflow: hidden; margin: 3px 0 8px; }
+  .bar > i { position: absolute; top: 0; bottom: 0; left: 50%; background: var(--accent); }
+  .bar.l > i { background: var(--left); } .bar.r > i { background: var(--right); }
+  .bar::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--muted); }
+  #events { font-size: 12px; color: var(--warn); }
+  footer { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  footer input[type=range] { flex: 1 1 200px; }
+  button, select, label.file { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  #clock { font-variant-numeric: tabular-nums; min-width: 130px; }
+  #status { color: var(--muted); font-size: 12px; }
+  #status.bad { color: var(--warn); }
+  input[type=file] { display: none; }
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto auto; height: auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    header .src { max-width: 90vw; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Embodied replay</h1>
+  <label class="file">Open .nfbody<input id="file" type="file" accept=".nfbody,application/gzip"></label>
+  <span class="src" id="source">No recording loaded</span>
+  <span id="status"></span>
+</header>
+<div id="view">
+  <div id="drop">Drop a <code>body.nfbody</code> recording here, open one above, or pass <code>?src=URL</code>.</div>
+</div>
+<aside>
+  <h2>Run</h2>
+  <dl class="kv" id="run"></dl>
+  <h2>Body</h2>
+  <dl class="kv">
+    <dt>Yaw</dt><dd id="yaw">–</dd>
+    <dt>Thorax x, y</dt><dd id="xy">–</dd>
+    <dt>Leg contacts</dt><dd id="contacts">–</dd>
+  </dl>
+  <h2>CPG command</h2>
+  <div>Left <span id="cmdL">–</span></div><div class="bar l"><i id="barL"></i></div>
+  <div>Right <span id="cmdR">–</span></div><div class="bar r"><i id="barR"></i></div>
+  <h2>Descending neurons (Hz)</h2>
+  <dl class="kv" id="dn"><dt>–</dt><dd></dd></dl>
+  <h2>Graph</h2>
+  <dl class="kv"><dt>Spikes this frame</dt><dd id="spikes">–</dd></dl>
+  <h2>Motor events</h2>
+  <div id="events">None yet</div>
+</aside>
+<footer>
+  <button id="play" disabled>Play</button>
+  <select id="speed" aria-label="Playback speed">
+    <option value="0.25">0.25x</option><option value="0.5">0.5x</option>
+    <option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option>
+  </select>
+  <input id="seek" type="range" min="0" max="0" value="0" step="1" disabled aria-label="Seek">
+  <span id="clock">0.000 / 0.000 s</span>
+  <label><input id="follow" type="checkbox" checked> Follow fly</label>
+</footer>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="embodied_replay.js"></script>
+</body>
+</html>
