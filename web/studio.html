@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment Studio</title>
+<style>
+  :root {
+    --bg: #060913; --panel: #0d1424; --panel2: #111a2e; --line: #1f2a44; --text: #d7e0f2; --muted: #8391ad;
+    --accent: #5fb3ff; --ok: #7ee0a1; --map: #ffb454; --explore: #c49bff; --warn: #ff7b72;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button { background: none; border: 1px solid transparent; color: var(--muted); padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; }
+  nav button[aria-selected="true"] { color: var(--text); border-color: var(--line); background: var(--panel); }
+  #worker { margin-left: auto; color: var(--muted); font-size: 12px; }
+  main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+  section[hidden] { display: none; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+  p.lead { color: var(--muted); margin: 0 0 14px; max-width: 75ch; }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .card.selected { border-color: var(--accent); }
+  .card .title { font-weight: 600; overflow-wrap: anywhere; }
+  .card .meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .card .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+  .badge.Validated { color: var(--ok); } .badge.Mapped { color: var(--map); } .badge.Exploratory { color: var(--explore); }
+  .badge.state-done { color: var(--ok); } .badge.state-failed { color: var(--warn); } .badge.state-running { color: var(--accent); } .badge.state-pending { color: var(--muted); }
+  button.act, a.act { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none; }
+  button.act:hover, a.act:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #041022; border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  form#builder { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-top: 14px; }
+  .field { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 90px; gap: 10px; align-items: center; margin: 8px 0; }
+  .field .help { grid-column: 2 / -1; color: var(--muted); font-size: 12px; margin-top: -4px; }
+  .field input[type=number], .field input[type=text], .field select { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
+  .field input[type=range] { width: 100%; }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; }
+  .notice { border-left: 3px solid var(--explore); padding: 6px 10px; background: var(--panel2); color: var(--text); margin: 10px 0; border-radius: 0 6px 6px 0; }
+  .notice.err { border-color: var(--warn); } .notice.ok { border-color: var(--ok); }
+  .prereg { font-size: 12px; color: var(--muted); } .prereg code { color: var(--text); }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  .compare-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .compare-pick select { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
+  .replays { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .replays iframe { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .empty { color: var(--muted); font-style: italic; }
+  @media (max-width: 760px) {
+    .field { grid-template-columns: 1fr; } .field .help { grid-column: 1; }
+    .compare-pick, .replays { grid-template-columns: 1fr; }
+    .replays iframe { height: 420px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Experiment Studio</h1>
+  <nav role="tablist">
+    <button role="tab" data-tab="gallery" aria-selected="true">Gallery</button>
+    <button role="tab" data-tab="build" aria-selected="false">Build</button>
+    <button role="tab" data-tab="queue" aria-selected="false">Queue</button>
+    <button role="tab" data-tab="compare" aria-selected="false">Compare</button>
+  </nav>
+  <span id="worker">connecting…</span>
+</header>
+<main>
+  <div id="global-error" class="notice err" hidden></div>
+
+  <section id="tab-gallery">
+    <p class="lead">Watch finished runs of the simulated fly: its body in 3D, driven by the full MaleCNS connectome, at the fly's own speed.</p>
+    <h3>Curated runs</h3>
+    <div id="curated" class="grid"></div>
+    <h3>Your finished runs</h3>
+    <div id="finished" class="grid"></div>
+  </section>
+
+  <section id="tab-build" hidden>
+    <p class="lead">Pick a paradigm, change a few settings and queue it. Every run you build here is <strong>exploratory</strong>: it never changes a preregistered test and never counts as a validation result. Badges come from the project's capability matrix.</p>
+    <div id="paradigms" class="grid"></div>
+    <form id="builder" hidden>
+      <h2 id="b-title"></h2>
+      <p id="b-explain" class="lead"></p>
+      <div class="field"><label for="b-name">Name for this experiment</label><input id="b-name" type="text" maxlength="120"><span></span></div>
+      <div id="b-params"></div>
+      <div class="field"><label for="b-repeats">Repeats (seeds in a row)</label>
+        <select id="b-repeats"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select><span></span>
+        <div class="help">Each repeat uses the next seed. One run is an anecdote; several show how much runs vary.</div></div>
+      <div id="b-controls"></div>
+      <div class="notice">Exploratory run. The simulation always uses full accuracy (2 ms brain steps, 0.1 ms physics); there is no faster, less accurate mode here.</div>
+      <div id="b-prereg" class="prereg"></div>
+      <div id="b-result" class="notice" hidden></div>
+      <button type="submit" class="act primary" id="b-submit">Queue experiment</button>
+    </form>
+  </section>
+
+  <section id="tab-queue" hidden>
+    <p class="lead">Runs execute one at a time on this computer, slower than real time. You can close this page; the queue keeps going.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Experiment</th><th>Run</th><th>Seed</th><th>State</th><th>Time</th><th></th></tr></thead>
+      <tbody id="queue-rows"></tbody>
+    </table></div>
+  </section>
+
+  <section id="tab-compare" hidden>
+    <p class="lead">Put two finished runs side by side, for example the intact fly and its control with the brain disconnected from the legs. These numbers describe single runs; they are not a statistical test.</p>
+    <div class="compare-pick">
+      <label>Left <select id="cmp-a"></select></label>
+      <label>Right <select id="cmp-b"></select></label>
+    </div>
+    <div class="scroll"><table id="cmp-table"></table></div>
+    <div class="replays"><iframe id="cmp-frame-a" title="Left replay"></iframe><iframe id="cmp-frame-b" title="Right replay"></iframe></div>
+  </section>
+</main>
+<script src="studio.js"></script>
+</body>
+</html>
