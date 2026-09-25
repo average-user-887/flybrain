@@ -896,7 +896,9 @@ class ConnectomeBridge:
                     # Loss of compass anchoring results in wandering, disoriented search
                     anemo_drive = float(np.random.uniform(-math.pi, math.pi))
                 else:
-                    anemo_drive = 0.45 * sensory["egocentric_wind"]
+                    # egocentric_wind > 0 means upwind lies to the left (counter-clockwise);
+                    # goal_error > 0 means turn right, so upwind-left needs a negative drive.
+                    anemo_drive = -0.45 * sensory["egocentric_wind"]
                 goal_error = 0.60 * anemo_drive + 0.40 * chemotaxis_drive
             else:
                 goal_error = chemotaxis_drive
@@ -904,6 +906,10 @@ class ConnectomeBridge:
             # Plume lost: cast perpendicular to wind or optomotor stabilize
             goal_error = -0.45 * sensory["delta_hs"]
 
+        # Sign convention: goal_error > 0 means the goal lies to the right, so the
+        # right-side chain (PFL3_R -> LAL_R -> DNa02_R) fires and the fly turns right.
+        # DNa02 drives ipsilateral turning; yaw is + counter-clockwise (left), so the
+        # steering signal is dna02_diff = L - R, as in the daemon and neurofly_body.
         # PFL3 (contralateral asymmetric goal error, 90 deg phase shift)
         self.pfl3_error_l = max(0.0, -goal_error)
         self.pfl3_error_r = max(0.0, goal_error)
@@ -923,7 +929,7 @@ class ConnectomeBridge:
         # DNa02 (Transient fine steering yaw rate)
         self.dna02_rate_l = float(max(0.0, lal_drive_l - 0.4 * lal_drive_r)) * 45.0
         self.dna02_rate_r = float(max(0.0, lal_drive_r - 0.4 * lal_drive_l)) * 45.0
-        dna02_diff = self.dna02_rate_r - self.dna02_rate_l
+        dna02_diff = self.dna02_rate_l - self.dna02_rate_r
 
         # Log efference copy for visual slip cancellation
         if abs(dna02_diff) > 5.0:
@@ -932,7 +938,7 @@ class ConnectomeBridge:
         # DNa01 (Slow course holding integration)
         self.dna01_rate_l = float(max(0.0, lal_drive_l * 12.0))
         self.dna01_rate_r = float(max(0.0, lal_drive_r * 12.0))
-        self.dna01_integral = float(np.clip(self.dna01_integral + (self.dna01_rate_r - self.dna01_rate_l) * dt * 0.15, -15.0, 15.0))
+        self.dna01_integral = float(np.clip(self.dna01_integral + (self.dna01_rate_l - self.dna01_rate_r) * dt * 0.15, -15.0, 15.0))
 
         # DNp09 (P9: Pursuit forward walking velocity)
         if has_odor:
@@ -977,9 +983,11 @@ class ConnectomeBridge:
                 self.rpc_ok_steps += 1
                 self.motor_source = "graph-rpc"
                 self._ingest_optomotor(remote_res, "optomotor_slip_rad_s" in sensory)
-                dna02_diff = float(remote_res["dna02_diff"])
                 self.dna02_rate_l = float(remote_res["dna02_rate_l"])
                 self.dna02_rate_r = float(remote_res["dna02_rate_r"])
+                # Derived from the rates, not the server's dna02_diff field, so an older
+                # server with the reversed R - L field cannot flip the steering.
+                dna02_diff = self.dna02_rate_l - self.dna02_rate_r
                 self.dnp09_rate = float(remote_res["dnp09_rate"])
                 self.bpn_rate = float(remote_res["bpn_rate"])
                 self.mdn_rate = float(remote_res["mdn_rate"])
@@ -1039,8 +1047,11 @@ class ConnectomeBridge:
             accel = (thrust - 4.5 * self.forward_speed) / 1.0
             self.forward_speed = float(max(-10.0, min(35.0, self.forward_speed + accel * dt)))
 
-            # Steering yaw torque from DNa02 + DNa01 integration + Optomotor feedback
-            steering_torque = 0.085 * dna02_diff + 0.025 * self.dna01_integral - 0.20 * sensory["delta_hs"]
+            # Steering yaw torque from DNa02 + DNa01 integration + Optomotor feedback.
+            # dna02_diff = L - R, so + turns left (counter-clockwise).  Self-rotation
+            # gives delta_hs = -2 * yaw_rate, so +delta_hs opposes the turn (syndirectional
+            # optomotor response to the apparent world rotation).
+            steering_torque = 0.085 * dna02_diff + 0.025 * self.dna01_integral + 0.20 * sensory["delta_hs"]
             yaw_accel = (steering_torque - 3.8 * self.yaw_rate) / 0.8
             self.yaw_rate = float(self.yaw_rate + yaw_accel * dt)
 
@@ -1054,8 +1065,10 @@ class ConnectomeBridge:
 
         # 8. Biomechanical 6-Leg Kuramoto-Hopf CPG & Proprioceptive Closed-Loop
         if self.bio_cpg:
-            cpg_drive_l = lal_drive_l + (self.dnp09_rate + self.bpn_rate) / 50.0
-            cpg_drive_r = lal_drive_r + (self.dnp09_rate + self.bpn_rate) / 50.0
+            # Crossed like neurofly_body's decoder: a left turn (LAL_L) speeds up the
+            # right (outer) legs, and BioKuramotoHopfCPG turns away from the faster side.
+            cpg_drive_l = lal_drive_r + (self.dnp09_rate + self.bpn_rate) / 50.0
+            cpg_drive_r = lal_drive_l + (self.dnp09_rate + self.bpn_rate) / 50.0
             cpg_out = self.bio_cpg.step(
                 dn_drive_left=cpg_drive_l,
                 dn_drive_right=cpg_drive_r,
