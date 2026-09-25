@@ -58,6 +58,20 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="render output/body.mp4 offscreen (set MUJOCO_GL as needed, e.g. egl)",
     )
+    queue = subparsers.add_parser(
+        "queue", help="local run queue: runs execute one after another (neurofly_body/run_queue.py)")
+    queue_sub = queue.add_subparsers(dest="queue_command", required=True)
+    q_add = queue_sub.add_parser("add", help="append a run; arguments after -- are `run` arguments")
+    q_add.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_add.add_argument("name")
+    q_add.add_argument("run_args", nargs=argparse.REMAINDER,
+                       help="-- then run arguments without --output, e.g. -- --duration 10 --seed 1")
+    q_run = queue_sub.add_parser("run", help="execute pending runs in order")
+    q_run.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_run.add_argument("--watch", type=float, metavar="SECONDS",
+                       help="keep polling for new jobs every SECONDS instead of exiting")
+    q_status = queue_sub.add_parser("status", help="list jobs by state")
+    q_status.add_argument("queue_dir", type=Path, metavar="QUEUE")
     check = subparsers.add_parser(
         "replay-check",
         help="re-run a finished run from its manifest and require a bit-identical trajectory",
@@ -111,11 +125,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "replay-check":
         return _replay_check(args.run_dir, args.output)
+    if args.command == "queue":
+        return _queue(args)
     if args.command != "run":  # pragma: no cover - argparse enforces this
         raise AssertionError(args.command)
     summary = _run(args)
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
+
+
+def _queue(args: argparse.Namespace) -> int:
+    from . import run_queue
+
+    if args.queue_command == "add":
+        run_args = list(args.run_args)
+        if run_args[:1] == ["--"]:
+            run_args = run_args[1:]
+        # Validate now, so a typo fails at `add` time and not hours later.
+        _parser().parse_args(["run", *run_args, "--output", "validate-only"])
+        print(run_queue.add(args.queue_dir, args.name, run_args))
+        return 0
+    if args.queue_command == "run":
+        state = run_queue.run(args.queue_dir, watch_s=args.watch)
+    else:
+        state = run_queue.status(args.queue_dir)
+    print(json.dumps(state, indent=2, sort_keys=True))
+    return 1 if args.queue_command == "run" and state["failed"] else 0
 
 
 def _replay_check(run_dir: Path, output: Path) -> int:
