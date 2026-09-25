@@ -110,6 +110,24 @@ def test_looming_angle_series_reaches_collision():
     assert th[0] == pytest.approx(10.0, abs=1e-6) and th[-1] > 150 and np.all(np.diff(th) > 0)
 
 
+def test_looming_angle_series_stops_at_end_size():
+    from validation.paradigms.looming import theta_series
+    stim = dict(step_ms=2.0, theta_start_deg=5.0, theta_end_deg=90.0)
+    th = theta_series(40, stim)
+    assert th[0] == pytest.approx(5.0, abs=1e-6) and th[-1] == 90.0 and np.all(np.diff(th) > 0)
+    assert th[-2] < 90.0
+    back = theta_series(40, stim, receding=True)
+    assert back[0] == 90.0 and back[-1] == pytest.approx(5.0, abs=1e-6)
+
+
+def test_proportion_within_gate():
+    gate = dict(id='g', type='proportion_ci_within', claim='', verified=True, sample='s', interval=[0.149, 0.705])
+    assert harness.evaluate_gate(gate, dict(s=dict(k=36, n=90)), 1, 100)['passed'] is True
+    assert harness.evaluate_gate(gate, dict(s=dict(k=15, n=90)), 1, 100)['passed'] is False   # CI reaches below the floor
+    assert harness.evaluate_gate(gate, dict(s=dict(k=85, n=90)), 1, 100)['passed'] is False
+    assert harness.evaluate_gate(gate, dict(s=dict(k=0, n=0)), 1, 100)['passed'] is None
+
+
 def test_cell_table_takes_side_from_root_side_when_soma_side_missing(tmp_path):
     import pyarrow as pa
     import pyarrow.feather as feather

@@ -132,8 +132,7 @@ class FlyGymBody:
         command = np.asarray(cpg_drive, dtype=float)
         if command.shape != (2,) or not np.isfinite(command).all():
             raise ValueError("cpg_drive must contain two finite values")
-        if (command < 0).any():
-            raise ValueError("cpg_drive values cannot be negative")
+        # Negative values are FlyGym's reverse stepping (the phase runs backwards).
         if substeps <= 0:
             raise ValueError("substeps must be positive")
         fast_loop = self._fast_loop
