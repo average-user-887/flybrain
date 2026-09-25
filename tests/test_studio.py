@@ -7,7 +7,7 @@ import urllib.request
 
 import pytest
 
-from neurofly_studio import catalog, experiment
+from neurofly_studio import catalog, experiment, metrics
 from neurofly_studio.server import Studio, make_server
 from tests.studio_fakes import fake_runner
 
@@ -73,11 +73,60 @@ def test_experiment_is_normalised_and_always_exploratory():
     ({"control": "silence-everything"}, "control"),
     ({"controller": "fast"}, "controller"),
     ({"title": "x" * 121}, "title"),
+    ({"silence": ["DNa02"], "controller": "modular"}, "connectome"),
+    ({"silence": ["DNa02; rm -rf /"], "controller": "connectome"}, "not a cell type"),
+    ({"silence": ["DNa02", "DNa02"], "controller": "connectome"}, "repeated"),
+    ({"silence": ["DNa02:X"], "controller": "connectome"}, "not a cell type"),
+    ({"silence": "DNa02", "controller": "connectome"}, "list"),
+    ({"control": "intact"}, "needs something silenced"),
 ])
 def test_bad_experiments_are_refused(change, message):
     raw = {**GOOD, **change}
     with pytest.raises(experiment.ExperimentError, match=message):
-        experiment.validate(raw)
+        experiment.validate(raw, silence_supported=True)
+
+
+def test_silencing_is_refused_when_the_runner_lacks_the_flag():
+    with pytest.raises(experiment.ExperimentError, match="no --silence"):
+        experiment.validate({**GOOD, "controller": "connectome", "silence": ["DNa02"]},
+                            silence_supported=False)
+
+
+def test_silenced_experiment_pairs_with_the_same_fly_unsilenced():
+    exp = experiment.validate({**GOOD, "controller": "connectome", "repeats": 1,
+                               "silence": ["DNa02", "MDN:L"], "control": "intact"},
+                              silence_supported=True)
+    silenced, intact = experiment.plan(exp)
+    assert silenced.argv.count("--silence") == 2 and "MDN:L" in silenced.argv
+    assert intact.role == "intact" and "--silence" not in intact.argv and intact.silence == []
+    assert intact.argv[-2:] == ["--mode", "intact"]
+    exp = experiment.validate({**GOOD, "controller": "connectome", "repeats": 1,
+                               "silence": ["DNa02"], "control": "output-disconnected"},
+                              silence_supported=True)
+    _, control = experiment.plan(exp)
+    # The disconnected control keeps the same brain, silencing included.
+    assert control.silence == ["DNa02"] and control.argv[-2:] == ["--mode", "output-disconnected"]
+
+
+def test_silence_groups_follow_runner_support(monkeypatch):
+    monkeypatch.setattr(catalog, "runner_supports_silence", lambda: False)
+    optomotor = next(p for p in catalog.catalog()["paradigms"] if p["id"] == "optomotor")
+    assert optomotor["silence_groups"] == []
+    monkeypatch.setattr(catalog, "runner_supports_silence", lambda: True)
+    optomotor = next(p for p in catalog.catalog()["paradigms"] if p["id"] == "optomotor")
+    groups = {g["id"]: g["cell_types"] for g in optomotor["silence_groups"]}
+    assert groups["dna02"] == ["DNa02"] and groups["hs"] == ["HSN", "HSE", "HSS"]
+
+
+def test_metrics_surface_a_leaking_clamp(tmp_path):
+    (tmp_path / "telemetry.jsonl").write_text(json.dumps(
+        {"run_time_s": 0.002, "sensory": {"body_yaw_velocity_rad_s": 0.0, "world_angular_velocity_rad_s": 4.0},
+         "body": {"thorax": {"yaw_rad": 0.0}}, "neural": {"total_step_spikes": 3}}) + "\n")
+    assert metrics.run_metrics(tmp_path)["silenced"] is None
+    (tmp_path / "summary.json").write_text(json.dumps({"silenced": {
+        "targets": ["DNa02"], "total_neurons": 2, "spikes_total": 1, "clamp_held": False, "drive": -200}}))
+    assert metrics.run_metrics(tmp_path)["silenced"] == {
+        "targets": ["DNa02"], "total_neurons": 2, "spikes_total": 1, "clamp_held": False}
 
 
 def test_plan_pairs_each_seed_with_its_control():
@@ -199,3 +248,22 @@ def test_curated_runs_are_listed(tmp_path):
     assert studio.run_dir("curated", "optomotor-intro") == run
     with pytest.raises(FileNotFoundError):
         studio.run_dir("curated", "../queue")
+
+
+@pytest.mark.skipif(not catalog.runner_supports_silence(), reason="neurofly_body run has no --silence yet (PR #31)")
+def test_silenced_pair_runs_end_to_end(served):
+    studio, base = served
+    status, reply = _post(base + "/api/studio/experiments",
+                          {**GOOD, "controller": "connectome", "repeats": 1, "silence": ["DNa02"],
+                           "control": "intact"})
+    assert status == 201, reply
+    silenced, intact = reply["queued"]
+    studio.start_worker(poll_s=0.05)
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        jobs = {j["name"]: j for j in studio.runs()["queue"]}
+        if all(j["state"] == "done" for j in jobs.values()):
+            break
+        time.sleep(0.1)
+    assert jobs[silenced]["silence"] == ["DNa02"] and jobs[silenced]["clamp_held"] is True
+    assert jobs[intact]["silence"] == [] and jobs[intact]["clamp_held"] is None

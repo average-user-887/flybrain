@@ -120,6 +120,38 @@ def main() -> int:
                 page.wait_for_timeout(1500)
                 checks[f"{frame_id}_status"] = frame.locator("#status").inner_text()
             shot(page, "6-compare")
+
+            # Silencing (only when this install's runner has --silence).
+            page.click("nav [data-tab=build]")
+            page.click("[data-build=optomotor]")
+            if page.locator("#b-silence").is_hidden():
+                checks["silence_ui"] = "hidden: runner has no --silence"
+            else:
+                checks["intact_control_disabled_until_silenced"] = page.is_disabled(
+                    "input[name=b-control][value=intact]")
+                page.select_option("#s-dna02", "both")
+                checks["intact_control_default_when_silenced"] = page.is_checked(
+                    "input[name=b-control][value=intact]")
+                page.fill("#p-duration_s", "1")
+                page.fill("#b-name", "Silence DNa02")
+                shot(page, "7-builder-silence")
+                page.click("#b-submit")
+                page.wait_for_selector("#b-result.ok")
+                page.click("nav [data-tab=queue]")
+                page.wait_for_function(
+                    "() => [...document.querySelectorAll('#queue-rows .badge')].length === 4 && "
+                    "[...document.querySelectorAll('#queue-rows .badge')].every(b => b.textContent === 'done')",
+                    timeout=120_000)
+                page.click("nav [data-tab=gallery]")
+                page.locator("#finished .card", has_text="Silence DNa02").first.locator("[data-with]").click()
+                page.wait_for_function("() => document.querySelector('#cmp-table').textContent.includes('Silenced cell types')")
+                page.wait_for_timeout(500)
+                rows = page.eval_on_selector_all("#cmp-table tbody tr", "rs => rs.map(r => [...r.children].map(c => c.textContent))")
+                table = {r[0]: r[1:] for r in rows}
+                checks["silence_compare_rows"] = rows
+                checks["silence_pair_intact_left"] = table["Silenced cell types"] == ["–", "DNa02"]
+                checks["silence_clamp_reported"] = table["Silencing held (no silenced neuron spiked)"][1] == "yes"
+                shot(page, "8-compare-silenced")
             context.close()
         browser.close()
     server.shutdown()

@@ -58,6 +58,12 @@ def _read_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _clamp_held(run_dir: Path) -> bool | None:
+    """summary.json's silenced.clamp_held: False if a silenced neuron spiked; None if none silenced."""
+    silenced = (_read_json(run_dir / "summary.json") or {}).get("silenced")
+    return None if not silenced else bool(silenced.get("clamp_held"))
+
+
 class Studio:
     """State behind the HTTP handler; usable directly from Python and tests."""
 
@@ -74,6 +80,7 @@ class Studio:
         self.worker_state = "off"
         self._lock_handle = None
         self._submit_lock = threading.Lock()
+        self.silence_supported = catalog_mod.runner_supports_silence()
 
     # -- worker ---------------------------------------------------------------
     def start_worker(self, poll_s: float = 2.0,
@@ -117,6 +124,8 @@ class Studio:
             "finished_at": job.get("finished_at"), "exit_status": job.get("exit_status"),
             "wall_time_s": job.get("wall_time_s"), "error": job.get("error"),
             "has_recording": state == "done" and (run_dir / "body.nfbody").is_file(),
+            "silence": meta.get("silence") or [],
+            "clamp_held": _clamp_held(run_dir) if state == "done" else None,
         }
 
     def _curated(self) -> list[dict[str, Any]]:
@@ -132,6 +141,8 @@ class Studio:
                          "explanation": info.get("explanation"), "role": info.get("role"),
                          "pair": info.get("pair"), "parameters": info.get("parameters"),
                          "label": info.get("label", "exploratory"),
+                         "silence": info.get("silence") or [],
+                         "clamp_held": _clamp_held(run_dir),
                          "has_recording": (run_dir / "body.nfbody").is_file()})
         return runs
 
@@ -164,7 +175,7 @@ class Studio:
         """Validate an experiment file and append its runs to the queue."""
         from neurofly_body.cli import _parser
 
-        experiment = experiment_mod.validate(raw)
+        experiment = experiment_mod.validate(raw, silence_supported=self.silence_supported)
         with self._submit_lock:  # names carry a one-second timestamp
             planned = experiment_mod.plan(experiment, graph_args=self.graph_args)
             taken = {p.stem.split("-", 1)[1] for s in run_queue.STATES
@@ -185,6 +196,7 @@ class Studio:
             for run in planned:
                 meta = {"schema": "neurofly-studio-run-v1", "name": run.name, "role": run.role,
                         "seed": run.seed, "pair": pairs.get(run.name), "argv": run.argv,
+                        "silence": run.silence,
                         "experiment": experiment, "title": experiment["title"],
                         "paradigm": experiment["paradigm"], "controller": experiment["controller"],
                         "parameters": {**experiment["parameters"], "seed": run.seed},

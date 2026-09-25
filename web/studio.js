@@ -32,7 +32,14 @@
     const runKey = (run) => run.source + '/' + run.name;
     const fileUrl = (run, file) => '/api/studio/files/' + encodeURIComponent(run.source) + '/' + encodeURIComponent(run.name) + '/' + file;
     const replayUrl = (run) => 'embodied_replay.html?src=' + encodeURIComponent(fileUrl(run, 'body.nfbody'));
-    const roleText = (run) => run.role && run.role !== 'experiment' ? 'Control: brain disconnected from legs' : 'Intact fly';
+    function roleText(run) {
+        const silenced = (run.silence || []).join(', ');
+        if (run.role === 'intact') return 'Control: nothing silenced';
+        if (run.role === 'output-disconnected') return 'Control: brain disconnected from legs' + (silenced ? ' (' + silenced + ' silenced)' : '');
+        return silenced ? 'Silenced: ' + silenced : 'Intact fly';
+    }
+    const clampWarning = (run) => run.clamp_held === false
+        ? ' <span class="badge state-failed" title="Some silenced neurons still spiked; the clamp did not hold for this run">clamp leaked</span>' : '';
 
     function paramText(run) {
         const p = run.parameters || {};
@@ -55,7 +62,7 @@
         return '<div class="card" data-key="' + esc(runKey(run)) + '">' +
             '<div class="title">' + esc(run.title) + '</div>' +
             '<div><span class="badge Exploratory">' + esc(run.label || 'exploratory') + '</span> ' +
-            '<span class="meta">' + esc(roleText(run)) + '</span></div>' +
+            '<span class="meta">' + esc(roleText(run)) + '</span>' + clampWarning(run) + '</div>' +
             (run.explanation ? '<div class="meta">' + esc(run.explanation) + '</div>' : '') +
             '<div class="meta">' + esc(paramText(run)) + '</div>' +
             '<div class="row">' +
@@ -89,7 +96,7 @@
         const jobs = state.runs.queue;
         $('queue-rows').innerHTML = jobs.length ? jobs.map((job) =>
             '<tr><td>' + esc(Number(job.order)) + '</td><td>' + esc(job.title) + '<div class="meta">' + esc(paramText(job)) + '</div></td>' +
-            '<td>' + esc(roleText(job)) + '</td><td>' + esc(job.seed ?? '') + '</td>' +
+            '<td>' + esc(roleText(job)) + clampWarning(job) + '</td><td>' + esc(job.seed ?? '') + '</td>' +
             '<td><span class="badge state-' + esc(job.state) + '">' + esc(job.state) + '</span>' +
             (job.state === 'failed' ? '<div class="meta">' + esc(job.error || ('exit ' + job.exit_status)) + '</div>' : '') + '</td>' +
             '<td>' + esc(fmtTime(job)) + '</td><td>' +
@@ -134,6 +141,10 @@
         ['net_yaw_change_deg', 'Net heading change (degrees)', 1],
         ['total_graph_spikes', 'Spikes in the whole brain', 0],
         ['simulated_s', 'Simulated time (s)', 2],
+        ['silenced.targets', 'Silenced cell types', null],
+        ['silenced.total_neurons', 'Silenced neurons', 0],
+        ['silenced.spikes_total', 'Spikes from silenced neurons', 0],
+        ['silenced.clamp_held', 'Silencing held (no silenced neuron spiked)', null],
     ];
 
     async function updateCompare() {
@@ -148,8 +159,11 @@
         const cell = (m, key, digits) => {
             if (!m) return '';
             if (m.error) return esc(m.error);
-            const v = m[key];
-            return v === null || v === undefined ? '–' : esc(Number(v).toFixed(digits));
+            const v = key.split('.').reduce((o, k) => (o == null ? o : o[k]), m);
+            if (v === null || v === undefined) return '–';
+            if (Array.isArray(v)) return esc(v.join(', '));
+            if (typeof v === 'boolean') return v ? 'yes' : '<strong style="color:var(--warn)">no: silenced neurons spiked</strong>';
+            return esc(Number(v).toFixed(digits));
         };
         $('cmp-table').innerHTML = picked.some(Boolean)
             ? '<thead><tr><th></th><th>' + esc(picked[0] ? picked[0].title + ' (' + roleText(picked[0]) + ')' : '') + '</th><th>' +
@@ -165,9 +179,12 @@
         if (compare) {
             selectTab('compare');
             await refreshRuns();
-            // The intact fly goes on the left, its control on the right.
-            const run = finishedRuns().find((r) => runKey(r) === compare.dataset.compare);
-            const swap = compare.dataset.with && run && run.role !== 'experiment';
+            // Nothing-silenced run on the left; otherwise the experiment left, its control right.
+            const runs = finishedRuns();
+            const run = runs.find((r) => runKey(r) === compare.dataset.compare);
+            const other = runs.find((r) => runKey(r) === compare.dataset.with);
+            const leftFirst = (r) => (r.role === 'intact' ? 0 : r.role === 'experiment' && !(r.silence || []).length ? 0 : r.role === 'experiment' ? 1 : 2);
+            const swap = run && other && leftFirst(other) < leftFirst(run);
             $('cmp-a').value = swap ? compare.dataset.with : compare.dataset.compare;
             $('cmp-b').value = swap ? compare.dataset.compare : (compare.dataset.with || '');
             updateCompare();
@@ -213,8 +230,18 @@
         $('b-explain').textContent = p.explanation || '';
         $('b-name').value = p.title;
         $('b-params').innerHTML = p.parameters.map(fieldHtml).join('');
-        $('b-controls').innerHTML = Object.entries(p.controls).map(([key, text]) =>
-            '<label class="check"><input type="checkbox" data-control="' + esc(key) + '" checked><span>Also run a matched control with the same seed. ' + esc(text) + '</span></label>').join('');
+        $('b-silence').hidden = !p.silence_groups.length;
+        $('b-silence-list').innerHTML = p.silence_groups.map((g) =>
+            '<div class="field"><label for="s-' + esc(g.id) + '">' + esc(g.label) + '</label>' +
+            '<select id="s-' + esc(g.id) + '" data-silence="' + esc(g.id) + '"><option value="">Not silenced</option>' +
+            '<option value="both">Silenced, both sides</option><option value="L">Silenced, left side only</option>' +
+            '<option value="R">Silenced, right side only</option></select><span></span>' +
+            '<div class="help">' + esc(g.explanation) + ' Cell types: ' + esc(g.cell_types.join(', ')) + '.</div></div>').join('');
+        const controls = [['', 'No control run']].concat(Object.entries(p.controls));
+        $('b-controls').innerHTML = '<div class="meta">Matched control run with the same seed:</div>' + controls.map(([key, text]) =>
+            '<label class="check"><input type="radio" name="b-control" value="' + esc(key) + '"' + (key === 'intact' ? ' data-needs-silence' : '') + '><span>' + esc(text) + '</span></label>').join('');
+        $('b-silence-list').querySelectorAll('[data-silence]').forEach((sel) => sel.addEventListener('change', () => syncControls(true)));
+        syncControls(true);
         $('b-prereg').innerHTML = p.preregistered_specs.length
             ? 'Preregistered tests of this paradigm (read-only, never changed from here): ' + p.preregistered_specs.map((s) =>
                 '<code>' + esc(s.id) + '</code> declared ' + esc(s.declared_at) + ' <span title="' + esc(s.sha256) + '">sha256 ' + esc(s.sha256.slice(0, 12)) + '…</span>').join('; ')
@@ -228,16 +255,41 @@
         $('builder').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function silenceTargets() {
+        const targets = [];
+        $('b-silence-list').querySelectorAll('[data-silence]').forEach((sel) => {
+            if (!sel.value) return;
+            const group = state.paradigm.silence_groups.find((g) => g.id === sel.dataset.silence);
+            group.cell_types.forEach((t) => targets.push(sel.value === 'both' ? t : t + ':' + sel.value));
+        });
+        return targets;
+    }
+
+    // Silencing something pairs it with the same fly un-silenced; otherwise with the disconnected brain.
+    function syncControls(pickDefault) {
+        const silenced = silenceTargets().length > 0;
+        const radios = [...$('b-controls').querySelectorAll('input[name=b-control]')];
+        radios.forEach((r) => { if (r.hasAttribute('data-needs-silence')) r.disabled = !silenced; });
+        const current = radios.find((r) => r.checked);
+        if (pickDefault || !current || current.disabled) {
+            const want = silenced ? 'intact' : 'output-disconnected';
+            const pick = radios.find((r) => r.value === want && !r.disabled) || radios[0];
+            if (pick) pick.checked = true;
+        }
+    }
+
     $('builder').addEventListener('submit', async (event) => {
         event.preventDefault();
         const parameters = {};
         $('b-params').querySelectorAll('[data-param]').forEach((input) => { parameters[input.dataset.param] = Number(input.value); });
-        const control = [...$('b-controls').querySelectorAll('[data-control]')].find((c) => c.checked);
+        const control = [...$('b-controls').querySelectorAll('input[name=b-control]')].find((c) => c.checked);
+        const silence = silenceTargets();
         const experiment = {
             schema: 'neurofly-studio-experiment-v1', title: $('b-name').value.trim() || state.paradigm.title,
             paradigm: state.paradigm.id, parameters, repeats: Number($('b-repeats').value),
-            control: control ? control.dataset.control : null,
+            control: control && control.value ? control.value : null,
         };
+        if (silence.length) experiment.silence = silence;
         const result = $('b-result');
         $('b-submit').disabled = true;
         try {
