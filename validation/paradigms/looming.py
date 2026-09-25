@@ -2,8 +2,8 @@
 
 Stimulus: a dark disc of half-size r approaching at constant speed v, so
 theta(t) = 2*atan((r/v) / (t_c - t)) (full angular size, t_c = collision).
-Each loom starts at ``theta_start_deg`` and runs to collision, then holds
-the final frame for ``post_ms``.
+Each loom starts at ``theta_start_deg`` and expands to ``theta_end_deg``
+(collision when absent), then holds the final frame for ``post_ms``.
 
 Encoder (declared engineering assumption, spec ``encoder``): LPLC2 is driven
 by angular size and LC4 by angular velocity, the division of labour reported
@@ -27,12 +27,19 @@ from ..runner import SpikeLedger
 
 
 def theta_series(rv_ms: float, stim: dict, receding: bool = False) -> np.ndarray:
-    """Angular size (deg) at the START of each control step, onset to collision."""
+    """Angular size (deg) at the START of each control step, onset to the end size.
+
+    The end size is ``theta_end_deg`` (the last step is clamped to it) or, when
+    the spec has none, collision.  A receding disc runs the same series backwards.
+    """
     step = stim['step_ms']
     t_total = rv_ms / math.tan(math.radians(stim['theta_start_deg']) / 2)   # ms from onset to collision
     n = int(math.floor(t_total / step))
     ttc = t_total - np.arange(n) * step
     theta = np.degrees(2 * np.arctan(rv_ms / ttc))
+    end = stim.get('theta_end_deg')
+    if end is not None:
+        theta = np.append(theta[theta < end], float(end))
     return theta[::-1].copy() if receding else theta
 
 
@@ -99,6 +106,8 @@ def run(spec: dict, ctx) -> dict:
     samples['pooled_gf_fraction'] = dict(k=int(sum(pooled)), n=len(pooled))
     samples['theta_at_gf_deg'] = {k: [t['gf_first']['theta_deg'] for t in ts if t['gf_first']]
                                   for k, ts in trials.items()}
+    samples['theta_at_first_gf_all_looms_deg'] = [t['gf_first']['theta_deg'] for rv in spec['stimulus']['r_over_v_ms']
+                                                  for t in trials[f'loom_rv{rv:g}'] if t['gf_first']]
     return dict(samples=samples, trials=trials, io=pops.describe(),
                 rates={k: [t['rates'] for t in ts] for k, ts in trials.items()},
                 sim_ms=sum(t['sim_ms'] for ts in trials.values() for t in ts))
