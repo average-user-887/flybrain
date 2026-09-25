@@ -34,6 +34,11 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--world-angular-velocity-rad-s", type=float, default=4.0)
     run.add_argument("--contrast", type=float, default=1.0)
     run.add_argument(
+        "--record-fps", type=float, default=50.0,
+        help="write body.nfbody for 1x browser replay at this many frames per simulated "
+             "second (web/embodied_replay.html); 0 disables",
+    )
+    run.add_argument(
         "--controller", choices=("connectome", "modular"), default="connectome",
         help="connectome: MaleCNS v3 graph; modular: the arena's phenomenological "
              "optomotor model as a researcher baseline (neurofly_body/modular.py)",
@@ -58,6 +63,20 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="render output/body.mp4 offscreen (set MUJOCO_GL as needed, e.g. egl)",
     )
+    queue = subparsers.add_parser(
+        "queue", help="local run queue: runs execute one after another (neurofly_body/run_queue.py)")
+    queue_sub = queue.add_subparsers(dest="queue_command", required=True)
+    q_add = queue_sub.add_parser("add", help="append a run; arguments after -- are `run` arguments")
+    q_add.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_add.add_argument("name")
+    q_add.add_argument("run_args", nargs=argparse.REMAINDER,
+                       help="-- then run arguments without --output, e.g. -- --duration 10 --seed 1")
+    q_run = queue_sub.add_parser("run", help="execute pending runs in order")
+    q_run.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_run.add_argument("--watch", type=float, metavar="SECONDS",
+                       help="keep polling for new jobs every SECONDS instead of exiting")
+    q_status = queue_sub.add_parser("status", help="list jobs by state")
+    q_status.add_argument("queue_dir", type=Path, metavar="QUEUE")
     check = subparsers.add_parser(
         "replay-check",
         help="re-run a finished run from its manifest and require a bit-identical trajectory",
@@ -72,13 +91,13 @@ def _parser() -> argparse.ArgumentParser:
 RUN_ARGUMENTS = (
     "duration", "mode", "graph_dir", "connectome_dir", "seed", "neural_dt_ms",
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
-    "controller", "modular_forward_drive", "modular_turn_gain",
+    "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
-INVOCATION_BACKFILL = {"controller": "connectome", "modular_forward_drive": 1.0,
+INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
                        "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
                        "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02}
 
@@ -111,11 +130,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "replay-check":
         return _replay_check(args.run_dir, args.output)
+    if args.command == "queue":
+        return _queue(args)
     if args.command != "run":  # pragma: no cover - argparse enforces this
         raise AssertionError(args.command)
     summary = _run(args)
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
+
+
+def _queue(args: argparse.Namespace) -> int:
+    from . import run_queue
+
+    if args.queue_command == "add":
+        run_args = list(args.run_args)
+        if run_args[:1] == ["--"]:
+            run_args = run_args[1:]
+        # Validate now, so a typo fails at `add` time and not hours later.
+        _parser().parse_args(["run", *run_args, "--output", "validate-only"])
+        print(run_queue.add(args.queue_dir, args.name, run_args))
+        return 0
+    if args.queue_command == "run":
+        state = run_queue.run(args.queue_dir, watch_s=args.watch)
+    else:
+        state = run_queue.status(args.queue_dir)
+    print(json.dumps(state, indent=2, sort_keys=True))
+    return 1 if args.queue_command == "run" and state["failed"] else 0
 
 
 def _replay_check(run_dir: Path, output: Path) -> int:
@@ -141,7 +181,10 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     replay_backend = replay_manifest["neural_backend"].get("brain_backend")
     original_sha = _sha256_file(run_dir / "telemetry.jsonl")
     replay_sha = _sha256_file(Path(output) / "telemetry.jsonl")
-    identical = original_sha == replay_sha
+    original_recording = (json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+                          .get("recording") or {}).get("frames_sha256")
+    replay_recording = (summary.get("recording") or {}).get("frames_sha256")
+    identical = original_sha == replay_sha and original_recording == replay_recording
     receipt = {
         "schema": "neurofly-embodied-replay-check-v1",
         "verdict": "BIT_IDENTICAL" if identical else "DIVERGED",
@@ -150,13 +193,14 @@ def _replay_check(run_dir: Path, output: Path) -> int:
         "original_trajectory_sha256": original_sha,
         "replay_trajectory_sha256": replay_sha,
         "recorded_trajectory_sha256": manifest.get("trajectory_sha256"),
-        "first_differing_record": None if identical else _first_difference(
+        "first_differing_record": None if original_sha == replay_sha else _first_difference(
             run_dir / "telemetry.jsonl", Path(output) / "telemetry.jsonl"),
         "records": summary["records"],
         "duration_s": summary["duration_s"],
         "brain_backend": {"original": original_backend, "replay": replay_backend},
         "graph_sha256": manifest["neural_backend"].get("graph_sha256"),
         "invocation": invocation,
+        "recording_frames_sha256": {"original": original_recording, "replay": replay_recording},
         "replay_wall_time_s": summary["wall_time_s"],
         "replay_real_time_factor": summary["real_time_factor"],
     }
@@ -240,6 +284,7 @@ def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, 
             world_angular_velocity_rad_s=args.world_angular_velocity_rad_s,
             contrast=args.contrast,
             seed=args.seed,
+            record_fps=args.record_fps,
         )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))
