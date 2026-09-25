@@ -1,0 +1,531 @@
+{
+ "schema": "flybrain.validation-spec.v1",
+ "id": "mb-e1-hige2015-v3-1",
+ "paradigm": "mb_e1_hige2015",
+ "status": "draft",
+ "status_reason": "WP7 preregistration draft, frozen-pending-owner-gate (see freeze). Needs E0 V2_primary PASS/PASS_PROVISIONAL, the MB-R1 rule class (I2), the paradigm (I3) and the calibration script (I4); eta_g1pedc is filled in calibration.result by one commit before the confirmatory seeds run.",
+ "freeze": {
+  "state": "frozen-pending-owner-gate",
+  "frozen_at": "2026-09-25",
+  "spec_doc": "docs/WP7_MB_LEARNING_SPEC.md",
+  "design_doc": "docs/design/mb_learning.md",
+  "rule": "Every field except status, status_reason, freeze and calibration.result is frozen. tests/test_wp7_graph_policy.py recomputes frozen_content_sha256 and fails on any edit. Results are recorded as they come out, without retuning. Any change after a real-graph run is a new spec id (suffix -2) with an amendment block, and the earlier result stays on record.",
+  "owner_gate": "The owner flips status draft -> preregistered in a commit that changes nothing else, after (a) the Phase 1 gate is signed off, (b) implementation items I1-I4 of the spec doc are merged and their synthetic plumbing tests pass, and (c) the sidecar files named here exist with the recorded hashes.",
+  "frozen_content_sha256": "5f45ba6f50dffa736a0ad77d81d21eaaf6bc4de5416724f032e4aa56ef033401"
+ },
+ "declared_at": "2026-09-25",
+ "summary": "E1: Hige 2015 in silico at KC->MBON11 (gamma1pedc). One 1-s OCT presentation paired with four 1-ms PPL101 pulses depresses MBON11's OCT response more than its MCH response; backward, DAN-only, odour-only, PPL101-silenced and plasticity-off controls leave it unchanged. Neural-level only: no body, no maze, no decoder.",
+ "dynamics": {
+  "version": "v3",
+  "transmitter_policy": "v3-modulatory-only",
+  "unclear_mode": "excitatory",
+  "kc_kc": "modulatory-only",
+  "dpm": "gaba"
+ },
+ "backend": "cuda on the GPU host for the confirmatory seeds; cpu for the parity seeds; recorded in the receipt",
+ "plasticity": {
+  "rule": "MB-R1",
+  "rule_doc": "docs/WP7_MB_LEARNING_SPEC.md §3",
+  "plastic_set": "primary",
+  "plastic_set_file": "data-provenance/malecns_v1/derived/wp7_plastic_set_primary.npz",
+  "plastic_set_expected": {
+   "synapses": 86981,
+   "edge_compartment_pairs": 18799,
+   "engine_edges": 16250,
+   "compartments": [
+    "g1",
+    "PED",
+    "g2",
+    "a'1"
+   ]
+  },
+  "rule_dt_ms": 2.0,
+  "parameters": {
+   "tau_e_s": {
+    "value": 1.0,
+    "tag": "ASSUMPTION",
+    "basis": "Handler 2019 (+0.5 s depresses, +6 s minimal); Hige 2015 (pulse 0.8 s after onset works)"
+   },
+   "e_sat_spikes": {
+    "value": 5.0,
+    "tag": "ASSUMPTION",
+    "basis": "Honegger 2011; Turner 2008"
+   },
+   "eta_g1pedc": {
+    "value": null,
+    "value_from": "calibration.result.eta_g1pedc",
+    "tag": "CALIBRATED",
+    "basis": "calibration below, paired condition, calibration seeds only"
+   },
+   "eta_g2a1_over_eta_g1pedc": {
+    "value": 0.25,
+    "tag": "ASSUMPTION (D1)",
+    "basis": "Aso 2012: MV1 memory \"slight but significant\""
+   },
+   "tau_rec_s": {
+    "value": 10800.0,
+    "tag": "ASSUMPTION",
+    "basis": "Hige 2015 little recovery in 40 min; Aso 2012 MP1 memory decays over ~9 h"
+   },
+   "g_min_fraction": {
+    "value": 0.0,
+    "tag": "SOURCED (READ)",
+    "basis": "Hige 2015: 90 % charge-transfer reduction"
+   },
+   "modulator": {
+    "value": {
+     "g1": [
+      "PPL101",
+      "PPL102"
+     ],
+     "PED": [
+      "PPL101",
+      "PPL102"
+     ],
+     "g2": [
+      "PPL103"
+     ],
+     "a'1": [
+      "PPL103"
+     ]
+    },
+    "tag": "DESIGN (D1, §2.5)",
+    "basis": "census DAN->KC synapse ROIs; PPL102 has no PED synapses, kept per design"
+   }
+  }
+ },
+ "stimulus": {
+  "step_ms": 2.0,
+  "pulse_step_ms": 1.0,
+  "reset": "network starts from rest once per seed; no reset inside a run (weights and state persist)",
+  "timeline_ms": {
+   "pre_test": {
+    "start": 0,
+    "end": 22000,
+    "CS_plus_onset": 5000,
+    "CS_minus_onset": 15000,
+    "odour_ms": 1000
+   },
+   "pairing": {
+    "t0": 22000
+   },
+   "post_test": {
+    "start": 82000,
+    "end": 104000,
+    "CS_plus_onset": 87000,
+    "CS_minus_onset": 97000,
+    "odour_ms": 1000
+   },
+   "total": 104000
+  },
+  "CS_plus": "OCT",
+  "CS_minus": "MCH",
+  "CS_assignment": "OCT is CS+ in every seed (as in Hige 2015 Fig. 1, the calibration target); the reciprocal design belongs to E2",
+  "pulses": {
+   "target": [
+    "PPL101"
+   ],
+   "sides": [
+    "L",
+    "R"
+   ],
+   "width_ms": 1.0,
+   "offsets_from_t0_ms": [
+    200,
+    700,
+    1200,
+    1700
+   ],
+   "amplitude": "2 x (V_th - V_rest) / (1 - exp(-width/tau_m)) = 2 x 7 / (1 - exp(-1/20)) = 287.1 mV-equivalent drive, i.e. twice the drive that makes an isolated resting cell reach threshold within the pulse. The refractory period (2.2 ms) exceeds the width, so a pulse can evoke at most one spike.",
+   "delivery": "the 2-ms control step containing a pulse is split into a 1-ms step with the pulse current and a 1-ms step without; the rule still updates once per 2 ms on the summed counts"
+  },
+  "response": "MBON11 spike count summed over both MBON11 neurons, 0-1400 ms from odour onset, minus the count in the 1400 ms before odour onset (Hige 2015 counting window; spontaneous subtracted)",
+  "depression": "D = (R_pre - R_post) / R_pre per seed and odour; a seed with R_pre <= 0 for either odour makes the gates that use D INCONCLUSIVE (never excluded)"
+ },
+ "conditions": {
+  "paired": "OCT at t0 for 1000 ms; PPL101 pulses at t0 + offsets",
+  "backward": "PPL101 pulses at t0 + offsets; OCT onset 500 ms after the last pulse (t0 + 2200 ms) for 1000 ms",
+  "dan_only": "PPL101 pulses at t0 + offsets; no odour",
+  "odour_only": "OCT at t0 for 1000 ms; no pulses",
+  "ppl101_silenced": "as paired, but PPL101 receives SILENCE_DRIVE (-200) from t0 - 1000 to t0 + 3000 ms instead of the pulses",
+  "plasticity_off": "as paired, rule disabled (learning_enabled=False)"
+ },
+ "encoder": {
+  "from_spec": "validation/specs/tmaze_odour_naive_v3.json",
+  "from_spec_sha256": "7ac171faefa54f3c7d23a663620340e04a07e6cfe56314dc5f6cd480366d7cfd",
+  "key": "encoder",
+  "presentation": "bilateral: both antennae receive the same odour (contralateral_fraction is therefore irrelevant)",
+  "note": "The DoOR table, r_max_hz, noise_sd, spontaneous rates and drive inversion are exactly those of the named file at the named sha256. A run whose referenced file hashes differently is refused by the paradigm (implementation item I3)."
+ },
+ "decoder": {
+  "rule": "none: neural recording only (MBON11 spike counts)"
+ },
+ "populations": {
+  "KC": {
+   "pattern": "^KC"
+  },
+  "KC_L": {
+   "pattern": "^KC",
+   "side": "L"
+  },
+  "KC_R": {
+   "pattern": "^KC",
+   "side": "R"
+  },
+  "PN": {
+   "pattern": "^[A-Za-z0-9]+_(l|ad|v|il|lv|m)PN"
+  },
+  "MBON": {
+   "pattern": "^MBON"
+  },
+  "MBON11": {
+   "types": [
+    "MBON11"
+   ]
+  },
+  "MBON12": {
+   "types": [
+    "MBON12"
+   ]
+  },
+  "PPL101": {
+   "types": [
+    "PPL101"
+   ]
+  },
+  "PPL102": {
+   "types": [
+    "PPL102"
+   ]
+  },
+  "PPL103": {
+   "types": [
+    "PPL103"
+   ]
+  },
+  "DPM": {
+   "types": [
+    "DPM"
+   ]
+  },
+  "APL": {
+   "types": [
+    "APL"
+   ]
+  }
+ },
+ "optional_populations": [
+  "PN",
+  "MBON",
+  "APL"
+ ],
+ "calibration": {
+  "parameter": "eta_g1pedc",
+  "seeds": [
+   100,
+   101,
+   102,
+   103,
+   104
+  ],
+  "cpu_gpu_parity_seeds": [
+   200,
+   201,
+   202
+  ],
+  "condition": "paired",
+  "target": "mean over calibration seeds of D(CS+) = 0.80 (Hige 2015: 80 +/- 5.7 %)",
+  "tolerance": 0.02,
+  "search": "bisection on log10(eta) over [1e-4, 1] per DAN spike, at most 20 evaluations; each evaluation runs the full paired protocol on all 5 calibration seeds",
+  "failure": "if the target is not bracketed or not reached within tolerance, calibration FAILS, E1 does not run and the failure is recorded; no other parameter is changed to make it reachable",
+  "only_edit": "the calibration commit writes calibration.result and nothing else; the confirmatory seeds are never used for calibration",
+  "result": {
+   "eta_g1pedc": null,
+   "achieved_mean_depression": null,
+   "evaluations": null,
+   "receipt": null,
+   "commit": null
+  }
+ },
+ "seeds": [
+  200,
+  201,
+  202,
+  203,
+  204,
+  205,
+  206,
+  207,
+  208,
+  209
+ ],
+ "seed_role": "confirmatory seeds (fresh; disjoint from calibration seeds 100-104 and from E0 seeds 0-9); encoder per-cell noise",
+ "sensitivity_arms": {
+  "tau_e_0p5s": {
+   "tau_e_s": 0.5,
+   "note": "eta not recalibrated"
+  },
+  "tau_e_2s": {
+   "tau_e_s": 2.0,
+   "note": "eta not recalibrated"
+  },
+  "eta_g2a1_x1": {
+   "eta_g2a1_over_eta_g1pedc": 1.0
+  },
+  "status": "reported only, run on the confirmatory seeds after the primary E1 run, never gating"
+ },
+ "behaviour": {
+  "analysis": {
+   "unit": "seed",
+   "bootstrap_seed": 20260925,
+   "bootstrap_resamples": 10000,
+   "ci": 0.95
+  },
+  "gates": [
+   {
+    "id": "E1_G0_us_delivered",
+    "type": "all_equal",
+    "sample": "ppl101_pulse_spikes_per_neuron",
+    "value": 4,
+    "claim": "Every paired, backward and DAN-only run delivers exactly one PPL101 spike per pulse per neuron (4 per neuron).",
+    "basis": "design precondition; not a literature value",
+    "verified": true,
+    "sources": []
+   },
+   {
+    "id": "E1_G1_silencing_holds",
+    "type": "all_equal",
+    "sample": "ppl101_spikes_in_clamp_window",
+    "value": 0,
+    "claim": "PPL101 fires no spike during the clamp window of the silenced condition.",
+    "basis": "design precondition",
+    "verified": true,
+    "sources": []
+   },
+   {
+    "id": "E1_G2_CSplus_depressed_more",
+    "type": "ci_lower_above",
+    "sample": "D_CSplus_minus_D_CSminus_paired",
+    "threshold": 0.0,
+    "claim": "Paired: MBON11 depression to CS+ exceeds depression to CS- (95 % CI lower bound > 0).",
+    "basis": "Hige 2015 Fig. 1: OCT (paired) -80 +/- 5.7 %, MCH (unpaired) -27 +/- 7.1 %",
+    "verified": true,
+    "sources": [
+     "hige2015neuron"
+    ]
+   },
+   {
+    "id": "E1_G3_backward_null",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_CSplus_backward",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "Backward: CS+ response change within +/-10 % of pre-pairing (ratio of means).",
+    "basis": "Hige 2015 Fig. 1G-J: backward order has no effect; the +/-10 % tolerance is a judgement",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   },
+   {
+    "id": "E1_G4_dan_only_null",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_CSplus_dan_only",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "DAN only: CS+ response change within +/-10 %.",
+    "basis": "model self-consistency (MB-R1 needs KC eligibility). Cohn 2015 reports potentiation from DAN activation alone, which MB-R1 cannot produce: a declared limitation",
+    "verified": false,
+    "sources": [
+     "cohn2015"
+    ]
+   },
+   {
+    "id": "E1_G5_odour_only_null",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_CSplus_odour_only",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "Odour only: CS+ response change within +/-10 %.",
+    "basis": "Hige 2015: odour alone does not depress; tolerance a judgement",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   },
+   {
+    "id": "E1_G6_silenced_null",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_CSplus_ppl101_silenced",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "PPL101 silenced: CS+ response change within +/-10 %.",
+    "basis": "design control; tolerance a judgement",
+    "verified": false,
+    "sources": []
+   },
+   {
+    "id": "E1_G7_plasticity_off_null",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_CSplus_plasticity_off",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "Plasticity off: CS+ response change within +/-10 %.",
+    "basis": "design control; tolerance a judgement",
+    "verified": false,
+    "sources": []
+   },
+   {
+    "id": "E1_G8_no_change_outside_plastic_set",
+    "type": "all_equal",
+    "sample": "edges_changed_outside_plastic_set",
+    "value": 0,
+    "claim": "No weight outside the declared plastic set changes, in any condition and seed.",
+    "basis": "WP6 principle kept (design doc §2.5)",
+    "verified": true,
+    "sources": []
+   }
+  ],
+  "reported": [
+   {
+    "id": "E1_R1_CSplus_depression_vs_hige",
+    "type": "ci_within",
+    "sample": "D_CSplus_paired",
+    "interval": [
+     0.686,
+     0.914
+    ],
+    "claim": "Paired CS+ depression on confirmatory seeds next to Hige 2015 (80 +/- 2 x 5.7 %)",
+    "basis": "in-sample for eta (fitted on calibration seeds only), reported",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   },
+   {
+    "id": "E1_R2_CSminus_depression_vs_hige",
+    "type": "ci_within",
+    "sample": "D_CSminus_paired",
+    "interval": [
+     0.128,
+     0.412
+    ],
+    "claim": "Paired CS- depression next to Hige 2015 (27 +/- 2 x 7.1 %): out-of-sample test of odour specificity",
+    "basis": "eta was fitted on CS+ only; reported, not gated",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   },
+   {
+    "id": "E1_R3_MBON12_CSplus_change_paired",
+    "type": "ratio_ci_within",
+    "sample": "rel_change_MBON12_CSplus_paired",
+    "interval": [
+     -0.1,
+     0.1
+    ],
+    "claim": "MBON12 (gamma2alpha'1) CS+ response change after PPL101-only pairing (compartment specificity; reported)",
+    "basis": "Hige 2015: PPL1-gamma2alpha'1 pairing leaves gamma1pedc unchanged (the converse is not measured)",
+    "verified": false,
+    "sources": [
+     "hige2015neuron"
+    ]
+   }
+  ]
+ },
+ "physiology": {
+  "bounds_file": "firing_rate_bounds_v2.json",
+  "checks": [
+   {
+    "id": "P1_KC_spont",
+    "population": "KC",
+    "window": "baseline",
+    "bound": "KC",
+    "conditions": [
+     "paired"
+    ]
+   },
+   {
+    "id": "P2_KC_driven",
+    "population": "KC",
+    "window": "stimulus",
+    "bound": "KC",
+    "conditions": [
+     "paired"
+    ]
+   },
+   {
+    "id": "P3_brain_mean_driven",
+    "population": "__brain__",
+    "measure": "mean_hz",
+    "window": "stimulus",
+    "bound": "brain_mean",
+    "conditions": [
+     "paired"
+    ]
+   },
+   {
+    "id": "P4_brain_max_driven",
+    "population": "__brain__",
+    "measure": "max_hz",
+    "window": "stimulus",
+    "bound": "brain_max_single_neuron",
+    "conditions": [
+     "paired"
+    ]
+   }
+  ],
+  "reported": [
+   {
+    "id": "R1_MBON11_driven",
+    "population": "MBON11",
+    "window": "stimulus",
+    "bound": "MBON",
+    "conditions": [
+     "paired"
+    ]
+   }
+  ]
+ },
+ "decision_rule": "Harness rule (validation/harness.py VERDICTS). E1 passes iff every gate and physiology check passes on the confirmatory seeds; PASS_PROVISIONAL because the null tolerances are judgements. Sensitivity arms, CPU/GPU parity and the reported items never change the verdict.",
+ "citations": {
+  "hige2015neuron": {
+   "citation": "Hige T, Aso Y, Modi MN, Rubin GM, Turner GC (2015) Heterosynaptic plasticity underlies aversive olfactory learning in Drosophila. Neuron 88:985",
+   "doi": "10.1016/j.neuron.2015.11.003",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "MBON-gamma1pedc>alpha/beta OCT response 118 +/- 8.3 spikes before and 24 +/- 7.4 after pairing (n = 7); MCH 110 +/- 11 -> 83 +/- 14; counted 0-1.4 s, spontaneous subtracted; spontaneous rates not reported"
+   ]
+  },
+  "cohn2015": {
+   "citation": "Cohn R, Morantte I, Ruta V (2015) Coordinated and compartmentalized neuromodulation shapes sensory processing in Drosophila. Cell 163(7):1742-1755",
+   "doi": "10.1016/j.cell.2015.11.019",
+   "doi_status": "checked on Crossref 2026-09-24 (design doc §7)",
+   "read": "full text (design doc §7: READ)",
+   "values_read": [
+    "DAN activation alone potentiates KC->MBON transmission; paired with KC activity it depresses"
+   ]
+  },
+  "census": {
+   "citation": "scripts/mb_circuit_census.py output, docs/design/mb_circuit_census.json (MaleCNS v1.0, sha256-checked against data-provenance/malecns_v1/source.lock.json)",
+   "doi": null,
+   "doi_status": "not applicable (dataset census)",
+   "read": "repository file",
+   "values_read": [
+    "4,064 KCs; 2 DPM (predicted dopamine); KC->KC 642,933 edges / 1,153,845 contacts; DPM->KC 4,082 edges / 32,795 contacts; primary plastic set 86,981 synapses, 18,799 (edge, compartment) pairs, 16,250 engine edges"
+   ]
+  }
+ }
+}

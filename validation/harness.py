@@ -294,9 +294,44 @@ class RunContext:
     runners: list = field(default_factory=list)
 
 
+# Paradigms declared by a spec before their module exists (WP7: spec written and
+# frozen before the code that runs it).  Loading such a spec works; running it
+# stops with a clear message instead of a KeyError.
+DECLARED_NOT_IMPLEMENTED = {
+    'mb_e0_kc_regime': 'docs/WP7_MB_LEARNING_SPEC.md §8 (implementation item I3)',
+    'mb_e1_hige2015': 'docs/WP7_MB_LEARNING_SPEC.md §8 (implementation items I1-I4)',
+}
+
+
 def paradigm_module(name: str):
     from .paradigms import looming, optomotor, tmaze_odor
-    return dict(optomotor=optomotor, looming=looming, tmaze_odor=tmaze_odor)[name]
+    modules = dict(optomotor=optomotor, looming=looming, tmaze_odor=tmaze_odor)
+    if name in modules:
+        return modules[name]
+    if name in DECLARED_NOT_IMPLEMENTED:
+        raise SpecError(f'paradigm {name!r} is declared but not implemented yet; see '
+                        f'{DECLARED_NOT_IMPLEMENTED[name]}')
+    raise SpecError(f'unknown paradigm {name!r}')
+
+
+def apply_graph_variant(spec: dict, variant: Optional[str]) -> dict:
+    """Return the spec with one of its DECLARED graph variants applied.
+
+    A spec may declare ``graph_variants`` (id -> dynamics overrides, e.g. the
+    WP7 KC->KC / DPM variants).  ``variant=None`` runs the spec's own
+    ``dynamics`` unchanged.  Only declared ids are accepted, so choosing a
+    variant never changes what was preregistered.
+    """
+    if variant is None:
+        return spec
+    declared = spec.get('graph_variants') or {}
+    if variant not in declared:
+        raise SpecError(f'graph variant {variant!r} not declared in the spec; declared: {sorted(declared)}')
+    out = dict(spec)
+    overrides = {k: v for k, v in declared[variant].items() if k not in ('role', 'note')}
+    out['dynamics'] = {**spec['dynamics'], **overrides}
+    out['_graph_variant'] = variant
+    return out
 
 
 def load_graph(spec: dict, *, synthetic: bool, graph_dir=None, connectome_dir=None):
@@ -314,13 +349,27 @@ def load_graph(spec: dict, *, synthetic: bool, graph_dir=None, connectome_dir=No
     if policy:
         from brainlab import transmitter_policy as tp
         shared, report = tp.apply_to_shared(shared, policy=policy, unclear_mode=dyn.get('unclear_mode', 'excitatory'),
-                                            connectome_dir=connectome_dir)
+                                            connectome_dir=connectome_dir,
+                                            kc_kc=dyn.get('kc_kc', tp.KC_KC_RELEASED),
+                                            dpm=dyn.get('dpm', tp.DPM_RELEASED),
+                                            kc_kc_calyx_file=_resolve(dyn.get('kc_kc_calyx_file')))
+    elif any(k in dyn for k in ('kc_kc', 'dpm', 'kc_kc_calyx_file')):
+        raise SpecError('kc_kc / dpm graph options need a transmitter_policy (v3)')
     return shared, CellTable.from_connectome(connectome_dir), report
 
 
+def _resolve(path) -> Optional[Path]:
+    """A repository-relative path from a spec, resolved against the repo root."""
+    if path is None:
+        return None
+    path = Path(path)
+    return path if path.is_absolute() else ROOT / path
+
+
 def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'auto', seeds=None,
-        graph_dir=None, connectome_dir=None, log: Callable = print) -> dict:
-    spec = load_spec(spec_path)
+        graph_dir=None, connectome_dir=None, log: Callable = print, graph_variant: Optional[str] = None) -> dict:
+    spec = apply_graph_variant(load_spec(spec_path), graph_variant)
+    paradigm = paradigm_module(spec['paradigm'])   # refuse an unimplemented paradigm before any output
     bounds = load_bounds(spec)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=False)
@@ -346,7 +395,7 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
     ctx = RunContext(shared=shared, cells=cells, seeds=run_seeds, synthetic=synthetic, make_runner=make_runner,
                      connectome_dir=connectome_dir, log=log)
     clock = time.perf_counter()
-    result = paradigm_module(spec['paradigm']).run(spec, ctx)
+    result = paradigm.run(spec, ctx)
     wall_s = time.perf_counter() - clock
 
     analysis = spec['behaviour'].get('analysis', {})
@@ -379,7 +428,8 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
         spec=dict(id=spec['id'], path=os.path.relpath(spec['_path'], ROOT), sha256=spec['_sha256'],
                   status=spec['status'], commit=committed, content=public_spec),
         bounds=dict(path=os.path.relpath(bounds['_path'], ROOT), sha256=bounds['_sha256']),
-        graph=dict(identity=shared.identity.to_dict(), transmitter_policy=policy_report, load_s=load_s),
+        graph=dict(identity=shared.identity.to_dict(), transmitter_policy=policy_report, load_s=load_s,
+                   **({'variant': spec['_graph_variant']} if spec.get('_graph_variant') else {})),
         dynamics=dict(version=dyn['version'], pin=dynamics_pin(dyn['version']),
                       declaration=DYNAMICS_VERSIONS[dyn['version']], e_inh_mV=dyn.get('e_inh_mV')),
         brain=dict(requested_backend=backend, runners=backends_used, cuda_device=cuda_device()),
