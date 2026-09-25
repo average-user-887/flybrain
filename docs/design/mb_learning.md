@@ -277,15 +277,15 @@ way". For the MB:
   through m(t). The DANs still receive input (KC→DAN 281,862 contacts,
   MBON→DAN 11,309), so their activity is shaped by the network.
 - **DPM** is predicted dopaminergic in the release, so v3 silences its output
-  too. The literature gives DPM serotonin and GABA. This is a transmitter-label
-  issue, recorded in §4 and not changed here.
+  too. The predictor's own authors list this as a misprediction, and DPM is
+  GABAergic and serotonergic. Decision D5 (§6) relabels it.
 - **APL** is GABAergic and keeps its inhibitory feedback onto all KCs.
 - **OA-VPM3/4** are octopaminergic and silenced.
 
 ### 1.7 From MBONs to the steering readout
 
 The P3 naive T-maze spec (`tmaze_odour_naive_v3.json` on the
-validation-harness branch, PR #9) decides the choice from the side with more
+`validation/specs/`, merged in PR #9) decides the choice from the side with more
 DNa02 spikes. Learning must reach DNa02 through fixed synapses.
 
 | measure | value |
@@ -413,8 +413,8 @@ conditioning trial"). It is **not** primary, for two reasons:
 - the capped form (g ≤ g⁰) can't express Cohn 2015's potentiation *above*
   baseline from DAN activation alone.
 
-Which variant is primary is question Q2 in §6, and it is settled before any
-confirmatory run.
+Decision D2 (§6) keeps MB-R1 primary everywhere and runs MB-R2 only at
+γ2α′1, as a sensitivity arm.
 
 ### 2.4 Parameters
 
@@ -422,9 +422,9 @@ confirmatory run.
 |---|---|---|---|
 | Δt, rule step | 2 | ms | engineering; equals the harness control step |
 | τ_e, KC eligibility | 1.0 | s | **assumption**, bounded by Handler 2019 (depresses at +0.5 s, minimal at +6 s) and Hige 2015 (a pulse 0.8 s after onset works). Sensitivity arms 0.5 s and 2 s. |
-| e_sat | 5 | spikes | **assumption**; KCs fire "typically 5 to 10" spikes per odour (Honegger 2011, READ) |
+| e_sat | 5 | spikes | **assumption**; KCs fire "typically 5 to 10" spikes per odour (Honegger 2011, READ); responders fire 2.2–4.9 spikes in 2 s (Turner 2008, via `firing_rate_bounds_v2.json`) |
 | η for γ1pedc | calibrated | per DAN spike | **calibrated once** on the paired condition of E1 to Hige 2015's 80 % depression, on calibration seeds only, then frozen (§5). Not tuned on behaviour. |
-| η for γ2α′1 | same as γ1pedc | | **assumption**. No single-pairing electrophysiology found; MV1's initial memory is "moderate" (Aso 2012). Sensitivity arm ×0.25. |
+| η for γ2α′1 | 0.25 × η_γ1pedc | | **assumption** (D1). MV1 activation gives a "slight but significant" memory and is not required for 2-min memory (Aso 2012, READ). Sensitivity arm ×1. |
 | η for α′2α2, α3, α′3 (secondary set) | η_γ1pedc / 60 | | **assumption** from Hige 2015 (α2sc needs a 1-min, 120-pulse protocol, not 1 s) and Aso & Rubin 2016 (α3 barely learns from one pairing). The ratio is a declared guess. |
 | τ_rec, recovery | 3 | h | **assumption**. Hige 2015 shows little recovery in 40 min, and MP1 memory decays over about 9 h (Aso 2012). Much longer than a run, so depression is effectively permanent inside one experiment. |
 | g_min | 0 | fraction of g⁰ | Hige 2015's 90 % charge reduction allows near-complete depression |
@@ -530,7 +530,7 @@ The in-silico version, per simulated fly:
 | phase | duration | stimulus |
 |---|---:|---|
 | rest | 5 s | clean air (the encoder's spontaneous ORN rates) |
-| CS+ | 60 s | odour A, bilateral; 12 PPL1 drive pulses of 1.25 s every 5 s, starting 1 s after odour onset, to PPL101, PPL102 and PPL103 |
+| CS+ | 60 s | odour A, bilateral; 12 PPL1 drive pulses of 1.25 s every 5 s, starting 1 s after odour onset, to PPL101, PPL102 and PPL103 (D4); PPL106 as well in the secondary arm |
 | gap | 45 s | air |
 | CS− | 60 s | odour B, bilateral, no DAN drive |
 | delay | 120 s | air (the "3-min" test point) |
@@ -560,7 +560,7 @@ The in-silico version, per simulated fly:
 
 | id | claim | value | basis and status |
 |---|---|---|---|
-| L0 | The naive spec passes first: OCT vs MCH balanced, both avoided vs air | the P3 gates T0–T3 | P3 Gate 3 decides this; it is a precondition, not a P4 result |
+| L0 | The naive spec passes first: flies choose (T0), OCT and MCH avoided vs air (T2, T3); the OCT/MCH balance is reported, not gated | the P3 naive spec's gates | P3 Gate 3 decides this; it is a precondition, not a P4 result. The literature check (PR #15) found the 50:50 split is an experimenter concentration calibration, so the P4 protocol also needs the naive split measured and reported next to the learned PI. |
 | L1 | Learned avoidance after paired training | PI_learn 95 % CI lower bound > 0 | direction only. Tully & Quinn 1985 (ABSTRACT): "Typically, 95% of trained flies avoided the shock-associated odor", i.e. PI ≈ 0.9. That PI is a derivation and the paper's exact PIs were NOT READ. **Not gated on magnitude.** |
 | L2 | Paired beats unpaired | PI_learn(paired) − PI_learn(unpaired) CI lower bound > 0 | Tully & Quinn 1985 (ABSTRACT): non-associative controls "did not alter our associative learning index" |
 | L3 | Controls at zero | PI_learn CI within ±0.2 for unpaired, DAN-silenced and plasticity-off | the tolerance mirrors the P3 balance gate and is a judgement |
@@ -594,6 +594,8 @@ are P3's and are not used here.
 | DAN silenced | PPL1 clamped with the harness's silencing current throughout | ≈ 0 |
 | plasticity off | the rule disabled (`learning_enabled=False`) | ≈ 0; equals naive |
 | shuffled graph | the roadmap's shuffled control, built by the harness | ≈ 0 |
+| γ1pedc only (D1) | only γ1pedc plastic, same US | > 0 if the fly's 2-min necessity data hold in the model; reported next to paired |
+| R2 at γ2α′1 (D2) | MB-R2 potentiation in γ2α′1, run on unpaired and backward | reported, not gated |
 
 ---
 
@@ -618,18 +620,21 @@ are P3's and are not used here.
      READ).
    - If KC→KC excitation makes the model's KCs fire densely, OCT and MCH
      representations overlap and learning can't be odour-specific.
-   - *Mitigation*: E0 measures this first. If needed, a declared variant zeroes
-     the fast KC→KC weight (axo-axonal, like the DAN policy) as a new graph
-     identity. That is a decision for the owner, not a quiet fix.
+   - *Mitigation*: decision D3 (§6) gives KC→KC no fast weight, because the
+     literature shows these synapses are axo-axonal and act through inhibitory
+     mAChR-B. E0 measures both graphs.
 3. **The US is dopamine-neuron drive, not shock.** There is no mapped
    nociceptive route into PPL1 (§1.8). Results compare to optogenetic DAN data
    first, and to shock data only by analogy. Shock also recruits other DANs
    (for example PAM03, MB-M3), which the model will not see.
+   - SEZON01 carries shock to PPL101 and is required for shock learning
+     (Meschi 2024), but it isn't typed in MaleCNS v1.0. A SEZON01-driven US
+     arm is a follow-up once it is identified (D4).
 4. **Parameters are partly unknown.**
    - τ_e, τ_rec, the η ratios and the DAN drive rate are assumptions (§2.4).
    - η for γ1pedc is calibrated on Hige 2015 only, on calibration seeds, before
      any behavioural run.
-   - A small preregistered sweep (τ_e 0.5 and 2 s; η_γ2α′1 ×0.25) is allowed,
+   - A small preregistered sweep (τ_e 0.5 and 2 s; η_γ2α′1 ×1) is allowed,
      and results are reported as "learning under assumptions X".
 5. **The left/right choice needs lateralised MB output.**
    - The P3 encoder gives each antenna only its own arm's odour
@@ -642,8 +647,8 @@ are P3's and are not used here.
    re-derived here. The pedunculus is one ROI, not split into γ1pedc and the
    rest, which is why membership also needs the MBON's named compartment.
 7. **Transmitter labels.**
-   - DPM is predicted dopaminergic and so is silenced under v3; the
-     literature says serotonin and GABA.
+   - DPM is predicted dopaminergic, a documented misprediction. D5 relabels it
+     GABA; its fast-inhibition kinetics are an approximation.
    - Two PPL2 neurons are `unclear`.
    - DAN→MBON direct synapses carry no fast effect under v3, although they
      exist.
@@ -669,13 +674,17 @@ presentations. It measures:
 **Pass** (all reported; only the first two decide whether E1 runs):
 
 - KC responding fraction per odour between 1 % and 20 %. The literature has
-  5–6 % on average with a maximum of 17 % (Honegger 2011).
+  5–6 % on average with a maximum of 17 % (Honegger 2011), and 6 ± 5 % by
+  single-cell recording (Turner 2008). The KC rate must also stay inside the
+  harness's verified KC bound (driven ≤ 5 Hz, `firing_rate_bounds_v2.json`).
 - OCT/MCH active-set overlap below 60 %. Hige 2015 measured 30–33 %; the bound
   is a judgement.
 
 About 20 simulated seconds per seed and 200 in total, which is minutes on the
-GPU. If E0 fails, risk 2 is real, and the next step is the owner's decision on
-KC→KC, not learning.
+GPU. E0 runs on five graph variants (D3, D5): KC→KC fast weight {released, zero,
+zero except calyx} × DPM {GABA, silent}. The P4 primary graph is KC→KC zero,
+DPM GABA. If the primary graph still fails the KC bounds, learning waits and
+the failure is reported.
 
 ### E1: Hige 2015 in silico (neural-level)
 
@@ -723,20 +732,167 @@ E1 passes.
 
 ---
 
-## 6. Questions for the owner (before the WP7 spec is preregistered)
+## 6. Design decisions (researched 2026-09-25)
 
-1. **Plastic set**: primary γ1pedc + γ2α′1, as proposed, or γ1pedc only, which
-   is best sourced but may not reach DNa02?
-2. **Rule**: MB-R1 (forward depression only) as primary with MB-R2 declared,
-   or the reverse?
-3. **KC→KC**: if E0 shows dense KC coding, may v3 treat KC→KC as axo-axonal,
-   with no fast weight, as a new declared graph identity?
-4. **Shock vs DAN drive**: is an optogenetic-style US acceptable for the
-   headline claim, labelled as such?
-5. **DPM**: keep the release's dopamine label, or override it to
-   serotonin/GABA in the transmitter policy?
+The owner asked for these five to be settled from the literature. Sources are
+numbered as in §7. Each decision is part of the design from now on, and each
+is revisited only if a named result contradicts it.
 
----
+### D1. Plastic set: γ1pedc + γ2α′1, with γ1pedc as the stronger site
+
+**Decision**: keep both compartments plastic. η for γ2α′1 is now **0.25 ×
+η_γ1pedc** (it was 1×), and 1× becomes the sensitivity arm. A declared
+**γ1pedc-only** arm runs in every behavioural batch.
+
+Evidence:
+
+- **γ1pedc is necessary and sufficient for short-term memory.** Blocking
+  MB-MP1 (PPL1-γ1pedc) during training impaired memory at 2 min, 2 h and
+  9 h (Aso 2012, READ). One pairing depresses KC→MBON-γ1pedc by 80 %
+  (Hige 2015, READ). Its activation gives the strongest immediate memory
+  (Aso & Rubin 2016, READ).
+- **γ2α′1 carries shock, but more weakly for this assay.**
+  - MB-MV1 (PPL1-γ2α′1) responds strongly to electric shock (Mao & Davis
+    2009, READ: the lower stalk/junction response was among the largest;
+    Berry 2018, READ).
+  - Its activation gives a "slight but significant" aversive memory
+    (Aso 2012, READ).
+  - Blocking it spares 2-min and 2-h memory and impairs only 9-h memory
+    (Aso 2012, READ).
+- **The γ1pedc-only arm tests the readout risk.** γ2α′1 is where the MBONs
+  with the most reach to DNa02 sit (§1.7). So a learned PI that appears only
+  when γ2α′1 is plastic, and vanishes in the γ1pedc-only arm, would disagree
+  with the fly's 2-min necessity data. It is reported that way.
+- **α3 and α′2α2 stay in the secondary set.** α3 responds to shock but gives
+  "barely detectable" immediate memory (Aso & Rubin 2016, READ). The evidence
+  that α′2α2 contributes to 3-min memory is thin.
+
+### D2. Rule: MB-R1 is primary; MB-R2 potentiation only at γ2α′1, as a sensitivity arm
+
+**Decision**: MB-R1 (forward-only depression) is the primary rule in every
+compartment. MB-R2's backward potentiation is declared **only for γ2α′1**, as
+a preregistered sensitivity arm run on the unpaired and backward conditions.
+
+Evidence:
+
+- **γ1pedc**: at this synapse itself, backward order gave "no change in odor
+  responses" (Hige 2015, READ). No study found backward potentiation at
+  γ1pedc.
+- **γ2 and γ2α′1**: backward potentiation and reversal *are* measured there.
+  - Handler 2019 (READ) found it at γ2 with DAN activation 1.2 s before KC
+    activity, and with real shock 3 s before the odour.
+  - Berry 2018 (READ) found that DAn-γ2α′1 activation "is sufficient for the
+    bidirectional modulation".
+- **Behaviour**: DAN activation 20–60 s before the odour gives appetitive
+  memory for PPL1-γ1pedc (Aso & Rubin 2016, READ). That is behavioural only,
+  at a timescale MB-R1's 1-s eligibility can't represent. It stays a recorded
+  mismatch under L4.
+
+**Why R2 is not primary at γ2α′1 either**: its potentiation magnitude η_p
+has no sourced value. Putting an uncalibrated term inside the headline result
+would trade accuracy for completeness.
+
+### D3. KC→KC synapses carry no fast weight (declared graph policy)
+
+**Decision**: a v3 policy option `kc_kc='modulatory-only'` gives every KC→KC
+edge zero fast weight, the same treatment v3 already gives aminergic outputs.
+It is the P4 primary graph. E0 runs both graphs, so the effect is measured,
+not assumed. It is a new graph identity with its own `graph_sha256`, and
+nothing about the v3 default for other paradigms changes.
+
+This is no longer conditional on E0. The evidence says these synapses do not
+excite the soma:
+
+- **They are axonal.**
+  - "KCs make 48% of their synapses onto other KCs in the adult α lobe", but
+    there is "no direct evidence that they are functional synapses"
+    (Takemura 2017, READ).
+  - "almost no KC-KC interactions are observed between dendrites, and the vast
+    majority of KC-KC interactions are between axons" (Manoim 2022, READ).
+- **Their effect is inhibitory and modulatory.** They act through mAChR-B and
+  "suppress both odor-evoked calcium responses and dopamine-evoked cAMP
+  signals in neighboring KCs" (Manoim 2022, READ).
+- **KC axons show no fast response to acetylcholine.** "local ACh application
+  to the MB lobes did not elicit Ca²⁺ transients in KCs" (Barnstedt 2016,
+  READ).
+- **In the point-neuron model they would do the opposite.** They make up 55 %
+  of KC input contacts (§1.3) and would arrive as fast excitation at the soma.
+
+**Caveat**: the hemibrain also annotates KC→KC synapses in the calyx (11.9 %
+of calyx input, sign unknown; Li 2020, READ). The census's synapse ROIs can
+separate calyx from lobe KC→KC synapses. A calyx-only-kept arm is declared for
+E0.
+
+A lateral-inhibition model of the mAChR-B effect is out of scope for P4.
+Zero is the conservative choice.
+
+### D4. The US is PPL1 drive, labelled as optogenetic-style
+
+**Decision**: yes, and the drive follows D1's weighting.
+
+- PPL101 and PPL102 (γ1pedc, γ1) get the full pulse drive (§3.1).
+- PPL103 (γ2α′1) gets the same pulses.
+- PPL106 (α3) gets them only in the secondary arm.
+
+Every result is labelled *"punishment = direct PPL1 activation"* and is
+compared first with DAN-activation data.
+
+Evidence:
+
+- **Shock partly arrives through a known ascending cell type we can't find in
+  MaleCNS.**
+  - Meschi 2024 (READ) shows ascending SEZON01 neurons "synapse onto PPL101
+    (γ1pedc), PAM01 (γ5), and PAM02 (β′2a)" and "are required to convey the
+    reinforcing effects of electric shock".
+  - But blocking them does not abolish learning ("other ascending pathways
+    contribute").
+  - No MaleCNS annotation column names SEZON01; checked `type`, `instance`,
+    `flywireType`, `hemibrainType`, `synonyms`, `mancType` and `group`.
+- **The DANs that carry punishment share input.** "PPL101 (γ1pedc), PPL103
+  (γ2α′1) and PAM12 (γ3) DANs share input, which supports the idea that they
+  are driven in parallel in response to aversive/punishing cues" (Li 2020,
+  READ). That supports driving them together.
+- **Activation substitutes for shock.** PPL1 activation does so
+  (Claridge-Chang 2009; Aso 2010, 2012; Aso & Rubin 2016). So an
+  activation-driven US has a direct experimental counterpart, and a shock
+  ingress would need a mapping the release doesn't provide.
+- **Follow-up**: identify the SEZON01 homologue in MaleCNS (by morphology or
+  the FlyWire match) and add "shock via SEZON01 drive" as a second US arm.
+  That is a separate task.
+
+### D5. DPM is relabelled GABA (+5-HT), never dopamine
+
+**Decision**: the transmitter policy gets a declared per-type override,
+`DPM: gaba`. DPM's fast output becomes inhibitory, and its serotonin stays
+unmodelled like every other aminergic signal. E0 compares it with the
+release's label (DPM silent), and the effect on KC sparseness is reported.
+
+Evidence:
+
+- **The dopamine label is a known error of the predictor itself.** Eckstein
+  2024 (READ) lists DPM among its "major mispredictions": it is "predicted to
+  be dopaminergic" in both hemibrain and FlyWire, although it expresses "the
+  fast-acting transmitter GABA the monoamine serotonin and several
+  neuropeptides".
+- **DPM inhibits the MB through GABA-A receptors.**
+  - "DPM neurons release GABA and 5HT, but not ACh or dopamine".
+  - "DPM neurons inhibit the MBs via activation of GABAA receptors"
+    (Haynes 2015, READ).
+- **Caveat**: Haynes measured a picrotoxin-sensitive chloride rise in
+  explants and did not show fast synaptic kinetics. DPM output is also needed
+  mainly during consolidation (Keene 2004 and 2006, ABSTRACT). A fast
+  GABAergic DPM is therefore the closest available approximation, not a
+  measured property. That is why E0 reports both labels.
+
+### What this changes in the rest of the document
+
+- §2.4: η for γ2α′1 is now 0.25 × η_γ1pedc.
+- §3.1: the PPL1 drive follows D4.
+- §3.4: the γ1pedc-only arm and the MB-R2 at γ2α′1 arm are added.
+- §5 E0 runs the four graph variants (KC→KC on/off × DPM GABA/silent) plus
+  the calyx-kept arm.
+- The engine and policy changes D3 and D5 need are implementation work for
+  the WP7 spec. They are not in this PR.
 
 ## 7. Sources
 
@@ -763,7 +919,7 @@ Checked on Crossref on 2026-09-24. Status as in the header.
 19. Lin AC, Bygrave AM, de Calignon A, Lee T, Miesenböck G (2014) Sparse, decorrelated odor coding in the mushroom body enhances learned odor discrimination. *Nat Neurosci* 17(4):559–568. doi:10.1038/nn.3660. READ (introduction).
 20. Liu X, Davis RL (2009) The GABAergic anterior paired lateral neuron suppresses and is suppressed by olfactory learning. *Nat Neurosci* 12(1):53–59. doi:10.1038/nn.2235. ABSTRACT only.
 21. Caron SJC, Ruta V, Abbott LF, Axel R (2013) Random convergence of olfactory inputs in the *Drosophila* mushroom body. *Nature* 497:113–117. doi:10.1038/nature12063. READ.
-22. Turner GC, Bazhenov M, Laurent G (2008) Olfactory representations by *Drosophila* mushroom body neurons. *J Neurophysiol* 99(2):734–746. doi:10.1152/jn.01283.2007. ABSTRACT only.
+22. Turner GC, Bazhenov M, Laurent G (2008) Olfactory representations by *Drosophila* mushroom body neurons. *J Neurophysiol* 99(2):734–746. doi:10.1152/jn.01283.2007. READ by the validation literature check (`firing_rate_bounds_v2.json`, PR #15): spontaneous 0.1 ± 0.4 spikes/s; an odour evokes spikes in 6 ± 5 % of KCs; responders fire 4.9 ± 3.0 (α′β′) and 2.2 ± 1.2 (αβ) spikes in 0–2 s.
 23. Hige T, Aso Y, Rubin GM, Turner GC (2015) Plasticity-driven individualization of olfactory coding in mushroom body output neurons. *Nature* 526:258–262. doi:10.1038/nature15396. READ (no rates in the text).
 24. Berry JA, Cervantes-Sandoval I, Nicholas EP, Davis RL (2012) Dopamine is required for learning and forgetting in *Drosophila*. *Neuron* 74(3):530–542. doi:10.1016/j.neuron.2012.04.007. ABSTRACT only.
 25. Okray Z, et al. (2025) T-maze aversive conditioning protocol. *Cold Spring Harb Protoc*. doi:10.1101/pdb.prot108566. SECONDARY, for the protocol wording only.
@@ -771,6 +927,24 @@ Checked on Crossref on 2026-09-24. Status as in the header.
 27. Springer M, Nawrot MP (2021) A mechanistic model for reward prediction and extinction learning in the fruit fly. *eNeuro* 8(3):ENEURO.0549-20.2021. doi:10.1523/ENEURO.0549-20.2021. Related model.
 28. Jiang L, Litwin-Kumar A (2021) Models of heterogeneous dopamine signaling in an insect learning and memory center. *PLoS Comput Biol* 17(8):e1009205. doi:10.1371/journal.pcbi.1009205. Related model.
 29. Shiu PK, et al., Scott K (2024) A *Drosophila* computational brain model reveals sensorimotor processing. *Nature* 634:210–219. doi:10.1038/s41586-024-07763-9. The LIF basis of this engine; no plasticity.
+
+30. Mao Z, Davis RL (2009) Eight different types of dopaminergic neurons innervate the *Drosophila* mushroom body neuropil. *Front Neural Circuits* 3:5. doi:10.3389/neuro.04.005.2009. READ.
+31. Berry JA, Phan A, Davis RL (2018) Dopamine neurons mediate learning and forgetting through bidirectional modulation of a memory trace. *Cell Rep* 25(3):651–662. doi:10.1016/j.celrep.2018.09.051. READ.
+32. Villar ME, et al. (2022) *Curr Biol* 32:4576. doi:10.1016/j.cub.2022.08.058. ABSTRACT only.
+33. Riemensperger T, Völler T, Stock P, Buchner E, Fiala A (2005) Punishment prediction by dopaminergic neurons in *Drosophila*. *Curr Biol* 15:1953–1960. doi:10.1016/j.cub.2005.09.042. ABSTRACT only.
+34. Takemura S, et al. (2017) A connectome of a learning and memory center in the adult *Drosophila* brain. *eLife* 6:e26975. doi:10.7554/eLife.26975. READ.
+35. Manoim JE, et al. (2022) Lateral axonal modulation is required for stimulus-specific olfactory conditioning in *Drosophila*. *Curr Biol* 32:4438. doi:10.1016/j.cub.2022.09.007. READ.
+36. Barnstedt O, et al., Waddell S (2016) Memory-relevant mushroom body output synapses are cholinergic. *Neuron* 89(6):1237–1247. doi:10.1016/j.neuron.2016.02.015. READ.
+37. Bielopolski N, et al. (2019) Inhibitory muscarinic acetylcholine receptors enhance aversive olfactory learning in adult *Drosophila*. *eLife* 8:e48264. doi:10.7554/eLife.48264. READ.
+38. Meschi E, et al. (2024) *Neuron* 112:2315. doi:10.1016/j.neuron.2024.04.035. READ; cited for SEZON01→PPL101 and its need in shock learning.
+39. Galili DS, et al. (2014) Converging circuits mediate temperature and shock aversive olfactory conditioning in *Drosophila*. *Curr Biol* 24:1712. doi:10.1016/j.cub.2014.06.062. ABSTRACT only.
+40. Otto N, et al. (2020) Input connectivity reveals additional heterogeneity of dopaminergic reinforcement in *Drosophila*. *Curr Biol* 30:3200. doi:10.1016/j.cub.2020.05.077. READ.
+41. Haynes PR, Christmann BL, Griffith LC (2015) A single pair of neurons links sleep to memory consolidation in *Drosophila melanogaster*. *eLife* 4:e03868. doi:10.7554/eLife.03868. READ.
+42. Eckstein N, et al. (2024) Neurotransmitter classification from electron microscopy images at synaptic sites in *Drosophila melanogaster*. *Cell* 187:2574. doi:10.1016/j.cell.2024.03.016. READ.
+43. Keene AC, et al., Waddell S (2004) Diverse odor-conditioned memories require uniquely timed dorsal paired medial neuron output. *Neuron* 44:521. doi:10.1016/j.neuron.2004.10.006. ABSTRACT only.
+44. Keene AC, Krashes MJ, Leung B, Bernard JA, Waddell S (2006) *Drosophila* dorsal paired medial neurons provide a general mechanism for memory consolidation. *Curr Biol* 16:1524. doi:10.1016/j.cub.2006.06.022. ABSTRACT only.
+45. Lee PT, et al. (2011) Serotonin-mushroom body circuit modulating the formation of anesthesia-resistant memory in *Drosophila*. *PNAS* 108:13794. doi:10.1073/pnas.1019483108. ABSTRACT only.
+46. Waddell S, Armstrong JD, Kitamoto T, Kaiser K, Quinn WG (2000) The amnesiac gene product is expressed in two neurons in the *Drosophila* brain that are critical for memory. *Cell* 103:805. doi:10.1016/S0092-8674(00)00183-5. ABSTRACT only.
 
 No peer-reviewed whole-brain LIF model with MB learning was found for
 2024–2026.
