@@ -76,6 +76,31 @@ body controller while leaving the rest of the setup in place. It is an
 output-path control, not a biological lesion. A matched pair is a first
 causal check; it does not by itself establish behavioral competence.
 
+## Determinism and replay check
+
+`telemetry.jsonl` holds only simulated quantities, so the same code, arguments,
+seed, graph and brain backend give a byte-identical file. Its SHA-256 is the
+run's `trajectory_sha256` (in `summary.json` and `manifest.json`). Wall-clock
+measurements (`elapsed_ms` from the graph, time per step) go to `timing.jsonl`.
+The manifest also stores the run arguments under `invocation`.
+
+To check a finished run, re-run it from its manifest:
+
+```bash
+python -m neurofly_body replay-check runs/embodied-intact --output runs/embodied-intact-replay
+```
+
+This writes `replay_check.json` with the verdict `BIT_IDENTICAL` or
+`DIVERGED`, both hashes and the first telemetry record that differs. The command
+exits 1 when the runs diverge. CPU and GPU brains agree statistically but not
+bit for bit, so run the replay on the same backend. The receipt records both
+backends.
+
+`ConnectomeServer.reset()` returns the server to its freshly built state. That
+includes the GPU copy of the brain state and the optomotor encoder's random
+stream, which restarts from `optomotor_seed`. So a second run in the same
+process matches a run on a new server.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
