@@ -122,6 +122,26 @@ does for connectome runs. On the laptop CPU, a 1 s run with a 4 rad/s drum
 walked forward and turned counter-clockwise with the drum at about
 4.5 rad/s, at 0.38x real time. The replay was bit-identical.
 
+## Run queue
+
+Runs are slower than real time, so experiments can be queued and left to run
+one after another:
+
+```bash
+python -m neurofly_body queue add runs/queue optomotor-s1 -- --duration 10 --seed 1
+python -m neurofly_body queue add runs/queue modular-s1 -- --controller modular --duration 10 --seed 1
+python -m neurofly_body queue run runs/queue            # add --watch 30 to keep polling
+python -m neurofly_body queue status runs/queue
+```
+
+`add` checks the run arguments right away. Each job runs in its own process,
+in the order it was added. Its output goes to `runs/queue/runs/<name>`, its
+log to `runs/queue/logs/<name>.log`, and the job file moves from `pending/`
+through `running/` to `done/` or `failed/`. A finished job file records the
+exit status, wall time, `trajectory_sha256` and real-time factor. If the
+worker is killed during a job, the next `queue run` moves that job to
+`failed/` rather than running it again, because its output may be partial.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
