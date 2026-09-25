@@ -1628,6 +1628,10 @@ class LoomingEscapeParadigm(ExperimentParadigm):
         self.time_to_collision_at_jump_ms: Optional[float] = None
         self.looming_size_at_jump_deg: Optional[float] = None
         self.gf_spike: bool = False
+        # 'geometric': the GF fires when the disc passes gf_threshold_rad (modular
+        # baseline).  'connectome': the arena reports DNp01 spikes of the brain via
+        # record_gf_spike() and the size threshold is not used.
+        self.gf_source: str = 'geometric'
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
@@ -1656,11 +1660,9 @@ class LoomingEscapeParadigm(ExperimentParadigm):
         x, y, heading, speed, angular_vel = self._extract_fly_pose(fly)
         stimuli = self.sample_stimuli(x, y, heading)
 
-        if stimuli['theta_rad'] >= self.gf_threshold_rad and not self.escape_initiated:
-            self.escape_initiated = True
-            self.gf_spike = True
-            self.time_to_collision_at_jump_ms = stimuli['time_to_collision_s'] * 1000.0
-            self.looming_size_at_jump_deg = stimuli['theta_deg']
+        if (self.gf_source == 'geometric' and stimuli['theta_rad'] >= self.gf_threshold_rad
+                and not self.escape_initiated):
+            self._mark_escape(stimuli)
         else:
             self.gf_spike = False
 
@@ -1671,6 +1673,17 @@ class LoomingEscapeParadigm(ExperimentParadigm):
             'time_to_collision_at_jump_ms': self.time_to_collision_at_jump_ms,
             'metrics': self.get_metrics()
         }
+
+    def _mark_escape(self, stimuli: Dict[str, Any]) -> None:
+        self.escape_initiated = True
+        self.gf_spike = True
+        self.time_to_collision_at_jump_ms = stimuli['time_to_collision_s'] * 1000.0
+        self.looming_size_at_jump_deg = stimuli['theta_deg']
+
+    def record_gf_spike(self) -> None:
+        """A DNp01 spike of the connectome brain: the first one of a loom is the jump."""
+        if not self.escape_initiated:
+            self._mark_escape(self.sample_stimuli(0.0, 0.0, 0.0))
 
     def reset_trial(self) -> Dict[str, Any]:
         self.trial_manager.reset()

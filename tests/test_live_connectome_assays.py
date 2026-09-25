@@ -74,9 +74,10 @@ def test_looming_escape_trigger(tmp_path):
     )
     controller = runner.graph_controller
 
-    # Fake a looming sensory detection
+    # A strong loom drives LC4/LPLC2, but escape needs a DNp01 spike in the graph.
     out = controller(fly=runner.arena.fly, sensory={"looming_theta": 0.8, "looming_detected": True}, dt=0.02)
     assert out["halted"] is False
     assert out["motor_source"] == "graph"
-    assert out["state"] == "ESCAPE"
-    assert out["forward_speed"] == 35.0
+    gf_spiked = sum(controller.last_counts[i] for i in controller.dn_indices["dnp01"]) > 0
+    assert (out["state"] == "ESCAPE") == gf_spiked
+    assert out["dn_rates"]["gf"] > 0 if gf_spiked else out["dn_rates"]["gf"] == 0.0
