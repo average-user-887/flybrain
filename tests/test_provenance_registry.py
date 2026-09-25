@@ -428,3 +428,28 @@ def test_retention_never_removes_the_published_version(tmp_path):
     assert (checkpoints / 'ckpt-000002.npz').exists()
     meta, _ = registry.read_checkpoint(a.instance_id)
     assert meta['version'] == 2
+
+
+def test_retention_unlinks_symlinked_checkpoints_but_keeps_their_targets(tmp_path):
+    # Old checkpoints moved to another drive leave a symlink at the old path;
+    # pruning removes the link and never the moved file.
+    registry = make_registry(tmp_path / 'r', keep_checkpoints=2)
+    a = registry.activate('t-maze', 'connectome-fixed')
+    for _ in range(3):
+        registry.checkpoint()
+    checkpoints = registry.instance_dir(a.instance_id) / 'checkpoints'
+    storage = tmp_path / 'storage'
+    storage.mkdir()
+    moved = {}
+    for path in sorted(checkpoints.iterdir()):
+        target = storage / path.name
+        os.replace(path, target)
+        path.symlink_to(target)
+        moved[path.name] = target.read_bytes()
+    registry.checkpoint()
+    registry.checkpoint()
+    assert sorted(p.name for p in checkpoints.iterdir()) == ['ckpt-000004.npz', 'ckpt-000005.npz']
+    for name, data in moved.items():
+        assert (storage / name).read_bytes() == data
+    meta, _ = registry.read_checkpoint(a.instance_id)
+    assert meta['version'] == 5
