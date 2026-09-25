@@ -116,11 +116,33 @@ to named descending neurons are disabled.
 
 The current interface makes two explicit engineering choices:
 
-- DNa02 left/right spike rates are mapped to the opposite-side leg CPG
-  magnitude commands used by FlyGym's stock hybrid turning controller. The
-  gain, smoothing time and cap are controller parameters, not fitted
-  biological values. Zero DNa02 rates produce zero CPG drive; there is no
-  hidden tonic drive or minimum walking speed.
+- The default decoder `dn-v2` (`neurofly_body/decoder.py`,
+  `DNCommandDecoder`) maps descending-neuron rates to the signed left/right
+  commands of FlyGym's hybrid turning controller. The signs and sides come
+  from the literature, but the gains are assumptions:
+
+  | DN | Mapping | Source for the sign and side | Gain |
+  |---|---|---|---|
+  | DNp09 | forward amplitude of the opposite-side legs, so one active P9 turns the fly toward its own side | Bidaye et al. 2020, Neuron | 0.02 per Hz, assumed |
+  | DNa02 | multiplies the same-side amplitude by `max(0, 1 - k·rate)`, which shortens the strides on that side; alone it produces no walking | Yang et al. 2024, Cell; Rayshubskiy et al. 2025, eLife | k = 0.01 per Hz, assumed |
+  | MDN | when its drive beats the forward drive, both sides go negative (reverse stepping) | Bidaye et al. 2014, Science | 0.02 per Hz, assumed |
+  | GF (DNp01) | any spike logs a `takeoff_command` event | von Reyn et al. 2014, Nat Neurosci | none |
+
+  The rates are filtered with a 50 ms time constant (assumed), and the
+  command is clipped to ±1.2, the NeuroMechFly v2 drive range. No published
+  calibration from firing rate to speed exists for these neurons, so no gain
+  was fitted to behaviour. Zero spikes give zero drive, and there is no tonic
+  term. Some things are reported rather than faked: the legs-only body cannot
+  take off, FlyGym's reverse replays the forward step backwards instead of the
+  hindleg-led MDN program, and speed changes through stride amplitude only.
+  The sides of DNp09, MDN, GF and DNa02 are resolved from annotated soma sides
+  (`brainlab/io_map.py`, `resolve_locomotion_dns`). The run refuses to start
+  when that map is missing.
+- `--decoder dna02-crossed-v1` keeps the earlier MVP mapping, in which the
+  DNa02 rates drive the opposite-side legs and DNa02 is the only source of
+  propulsion. It contradicts Yang et al. 2024 and is kept only so that
+  earlier runs can be reproduced. `replay-check` uses it for runs recorded
+  before `--decoder` existed.
 - A retinal-slip proxy is computed from commanded world angular velocity minus
   measured body yaw velocity and fed to the connectome's visual input. It is
   not a rendered retinal image or a calibrated optic-flow pathway.
@@ -143,5 +165,5 @@ is engineered and should be read as a testable interface hypothesis.
 
 Useful source references: `brainlab/graph_identity.py` (identity checks),
 `brainlab/transmitter_policy.py` (transmitter mapping),
-`neurofly_body/decoder.py` (engineered CPG mapping), and
+`neurofly_body/decoder.py` (declared DN-to-CPG decoders), and
 `neurofly_body/flygym_body.py` (FlyGym adapter).

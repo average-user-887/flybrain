@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, Sequence
 
-from .decoder import DNa02CPGDecoder
+from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .runner import EmbodiedConfig, run_embodied
 
 
@@ -33,9 +33,17 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--warmup-s", type=float, default=0.05)
     run.add_argument("--world-angular-velocity-rad-s", type=float, default=4.0)
     run.add_argument("--contrast", type=float, default=1.0)
+    run.add_argument(
+        "--decoder", choices=("dn-v2", "dna02-crossed-v1"), default="dn-v2",
+        help="dn-v2: DNp09 forward, DNa02 ipsilateral stride, MDN reverse, GF event "
+             "(docs/EMBODIED_MVP.md); dna02-crossed-v1: legacy MVP mapping",
+    )
     run.add_argument("--decoder-tau-ms", type=float, default=50.0)
-    run.add_argument("--cpg-gain-per-hz", type=float, default=0.04)
     run.add_argument("--max-cpg-drive", type=float, default=1.2)
+    run.add_argument("--p9-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    run.add_argument("--dna02-stride-k-per-hz", type=float, default=0.01, help="dn-v2 (assumption)")
+    run.add_argument("--mdn-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    run.add_argument("--cpg-gain-per-hz", type=float, default=0.04, help="dna02-crossed-v1 only")
     run.add_argument(
         "--video",
         action="store_true",
@@ -55,8 +63,13 @@ def _parser() -> argparse.ArgumentParser:
 RUN_ARGUMENTS = (
     "duration", "mode", "graph_dir", "connectome_dir", "seed", "neural_dt_ms",
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
-    "decoder_tau_ms", "cpg_gain_per_hz", "max_cpg_drive",
+    "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
+    "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz",
 )
+# Runs recorded before an argument existed ran with this value.
+# The dn-v2 gains did not exist then and do not affect the legacy decoder.
+INVOCATION_BACKFILL = {"decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
+                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02}
 
 
 def _invocation(args: argparse.Namespace) -> dict[str, Any]:
@@ -100,7 +113,7 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("status") != "complete":
         raise SystemExit(f"{run_dir} did not complete (status {manifest.get('status')!r})")
-    invocation = manifest.get("invocation") or {}
+    invocation = {**INVOCATION_BACKFILL, **(manifest.get("invocation") or {})}
     missing = [name for name in RUN_ARGUMENTS if name not in invocation]
     if missing:
         raise SystemExit(f"{run_dir}/manifest.json has no recorded invocation for {missing}")
@@ -192,11 +205,20 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             contrast=args.contrast,
             seed=args.seed,
         )
-        decoder = DNa02CPGDecoder(
-            gain_per_hz=args.cpg_gain_per_hz,
-            tau_ms=args.decoder_tau_ms,
-            max_drive=args.max_cpg_drive,
-        )
+        if args.decoder == "dn-v2":
+            decoder = DNCommandDecoder(
+                gain_p9_per_hz=args.p9_gain_per_hz,
+                k_dna02_per_hz=args.dna02_stride_k_per_hz,
+                gain_mdn_per_hz=args.mdn_gain_per_hz,
+                tau_ms=args.decoder_tau_ms,
+                max_drive=args.max_cpg_drive,
+            )
+        else:
+            decoder = DNa02CPGDecoder(
+                gain_per_hz=args.cpg_gain_per_hz,
+                tau_ms=args.decoder_tau_ms,
+                max_drive=args.max_cpg_drive,
+            )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))
     except BaseException:
