@@ -3,7 +3,9 @@
 Project NeuroFly (v1.0-release) — Continuous Background Learning Daemon
 ========================================================================
 Runs 24/7 headless biological simulation and continuous online learning
-on a workstation, a server, or a laptop; it needs only the Python standard library and NumPy.
+on a workstation, a server, or a laptop. The modular backend needs only the Python
+standard library and NumPy; the connectome backends also need numba, pandas and
+pyarrow, and CuPy or numba.cuda for the GPU brain.
 
 Key Capabilities:
 1. 24/7 Continuous Headless Simulation: Steps active neuroethological paradigms
@@ -17,7 +19,8 @@ Key Capabilities:
    - GET  /api/paradigms  : Catalog of 14 standard experimental paradigms.
    - POST /api/command    : Bidirectional interventions (stimuli, speed, parameters, switches).
 4. Auto-Checkpointing: Periodically writes weight matrices and trial summaries to disk.
-5. Zero External Dependencies: Pure Python 3.12 standard library + NumPy.
+5. Light dependencies: Python 3.12 + NumPy for the modular backend (see item above
+   for the connectome backends).
 6. Public mode (--public / NEUROFLY_PUBLIC=1): read-only stream for untrusted
    viewers -- POST /api/command needs a bearer token equal to NEUROFLY_ADMIN_TOKEN,
    SSE clients are capped and the stream is throttled (stream_gateway.py).
@@ -551,6 +554,33 @@ class _Snapshot:
         self.wall_time = wall_time
 
 
+class SlowStepBallast:
+    """TEST ONLY: makes every daemon step take about ``wall_ms`` longer on this CPU.
+
+    It runs the real compiled LIF kernel (``Brain.step``, CPU backend) on a private,
+    fully driven synthetic graph, so a fast machine behaves like a slow laptop:
+    the step holds the simulation lock and runs the same native code, with the
+    same GIL behaviour.  The ballast brain is never read, so the simulated
+    trajectory is unchanged (tests/test_daemon_responsiveness.py).
+    """
+
+    def __init__(self, wall_ms: float, neurons: int = 50000, k_out: int = 40):
+        from brainlab.brain import Brain
+        from brainlab.graph_identity import synthetic_test_graph
+        arrays, _, _ = synthetic_test_graph(n=neurons, k_out=k_out, seed=0)
+        self.brain = Brain(arrays=arrays, dynamics="v3", backend="cpu")
+        self.drive = np.full(self.brain.n, 30.0, dtype=np.float32)
+        self.brain.step(self.drive, 0.1)   # compile before the first timed step
+        start = time.perf_counter()
+        self.brain.step(self.drive, 2.0)
+        per_ms = max(1e-6, (time.perf_counter() - start) / 2.0)
+        # ONE long kernel call per step, like the real brain step on a slow laptop.
+        self.duration_ms = max(0.1, round(max(0.0, float(wall_ms)) / 1e3 / per_ms, 1))
+
+    def __call__(self, runner=None):
+        self.brain.step(self.drive, self.duration_ms)
+
+
 class ContinuousExperimentRunner:
     """Manages the continuous headless simulation loop and online plasticity."""
 
@@ -645,7 +675,22 @@ class ContinuousExperimentRunner:
         self.max_batch_wall_s = 0.008   # longest uninterrupted lock hold for a step batch
         self.max_lag_wall_s = 0.25      # schedule debt beyond this is forgiven, not burst
         self.yield_wall_s = 0.001       # GIL hand-over after every batch (see _yield_lock)
-        self.command_timeout_s = 5.0
+        # A command is applied by the simulation thread at the next step boundary.  On
+        # a slow computer one step can take seconds, so the HTTP reply waits at most
+        # ``command_reply_wait_s``; after that it answers ``queued`` with a command id
+        # and the acknowledgement follows in the stream (``command_acks``).  Commands
+        # are never dropped and never applied mid-step, so results do not change.
+        self.command_reply_wait_s = 1.0
+        self.command_acks: deque = deque(maxlen=8)
+        self._command_seq = 0
+        self._step_started: Optional[float] = None   # perf_counter() while a step runs
+        self.last_step_wall_s = 0.0
+        # Views that need a consistent state (brain summaries, manifest) are rebuilt
+        # at step boundaries while a client asks for them, so a reader never waits
+        # behind a long step (read_view).
+        self._views: Dict[str, Any] = {}
+        self._view_demand: Dict[str, Any] = {}
+        self._view_built: Dict[str, float] = {}
         self.published: Optional[_Snapshot] = None
         self._snapshot_seq = 0
         self._publish_due = True
@@ -946,10 +991,15 @@ class ContinuousExperimentRunner:
         """One scheduled step: step-indexed commands first, then the fixed-dt tick. Holds lock."""
         for entry in self._scheduled.pop(self.total_steps, ()):
             entry["result"] = self._apply_command(entry["cmd"])
-        result = self.step_once(publish=False)
-        self.sched_stats["steps_since_publish"] += 1
-        if self.step_hook is not None:
-            self.step_hook(self)
+        started = self._step_started = time.perf_counter()
+        try:
+            result = self.step_once(publish=False)
+            self.sched_stats["steps_since_publish"] += 1
+            if self.step_hook is not None:
+                self.step_hook(self)
+        finally:
+            self._step_started = None
+            self.last_step_wall_s = time.perf_counter() - started
         return result
 
     def schedule_command(self, step: int, cmd: dict) -> dict:
@@ -972,18 +1022,28 @@ class ContinuousExperimentRunner:
                 if not self._commands:
                     return
                 entry = self._commands.popleft()
-                entry["taken"] = True
             with self.lock:
                 try:
                     entry["result"] = self._apply_command(entry["cmd"])
                 except Exception as exc:  # never kill the loop over one bad command
                     entry["result"] = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+                self._note_latency(entry["result"], entry["received"])
+                if isinstance(entry["result"], dict):
+                    entry["result"]["command_id"] = entry["id"]
+                    self.command_acks.append(entry["result"])
             entry["done"].set()
 
     # ------------------------------------------------------------------ publication
+    def step_in_progress_s(self) -> float:
+        """Wall seconds the current step has been running (0 between steps)."""
+        started = self._step_started
+        return 0.0 if started is None else round(time.perf_counter() - started, 3)
+
     def timing_snapshot(self) -> Dict[str, Any]:
         """Requested versus achieved speed and delivery counters (JSON-safe)."""
         return {
+            "last_step_wall_s": round(self.last_step_wall_s, 4),
+            "step_in_progress_s": self.step_in_progress_s(),
             "requested_speed": self.sim_speed,
             "achieved_speed": 0.0 if not self._can_step() else self.sched_stats["achieved_speed"],
             "integration_dt_s": self.dt,
@@ -1018,6 +1078,8 @@ class ContinuousExperimentRunner:
             self._snapshot_seq += 1
             telemetry = self._assemble_telemetry(self._last_step_result)
             telemetry["timing"]["steps_in_frame"] = self.sched_stats["steps_since_publish"]
+            telemetry["command_acks"] = list(self.command_acks)
+            self._refresh_views()
             self.sched_stats["steps_since_publish"] = 0
             self.latest_telemetry = telemetry
             data = json.dumps(telemetry).encode("utf-8")
@@ -1025,6 +1087,47 @@ class ContinuousExperimentRunner:
             self.sched_stats["published_snapshots"] += 1
             self._publish_due = False
         return self.published
+
+    # ------------------------------------------------------------------ consistent reads
+    VIEW_DEMAND_S = 10.0     # keep rebuilding a view this long after the last request
+    VIEW_REFRESH_S = 0.5     # at most this often, so a fast simulation is not slowed
+
+    def _refresh_views(self):
+        """Rebuild recently requested views at a step boundary. Caller holds the lock."""
+        now = time.monotonic()
+        for key, (build, asked) in list(self._view_demand.items()):
+            if now - asked > self.VIEW_DEMAND_S:
+                self._view_demand.pop(key, None)
+                continue
+            if now - self._view_built.get(key, -1e9) < self.VIEW_REFRESH_S:
+                continue
+            try:
+                self._views[key] = build()
+                self._view_built[key] = now
+            except Exception as exc:  # a view must never stop the simulation
+                print(f"[Daemon] view {key!r} failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+
+    def read_view(self, key: str, build, wait_s: float = 0.2, max_wait_s: float = 3.0):
+        """A consistent read of simulation state that never waits behind a long step.
+
+        ``build`` runs under the simulation lock.  When the lock is free within
+        ``wait_s`` the view is built now.  Otherwise the copy built at the last step
+        boundary is returned (the simulation thread keeps it fresh while clients
+        ask).  Only the very first request, with no copy yet, waits up to
+        ``max_wait_s``.  Returns None when nothing could be read in time.
+        """
+        self._view_demand[key] = (build, time.monotonic())
+        for timeout, allow_cached in ((wait_s, True), (max_wait_s, False)):
+            if self.lock.acquire(timeout=timeout):
+                try:
+                    view = self._views[key] = build()
+                    self._view_built[key] = time.monotonic()
+                finally:
+                    self.lock.release()
+                return view
+            if allow_cached and key in self._views:
+                return self._views[key]
+        return self._views.get(key)
 
     def step_once(self, publish: bool = True) -> Dict[str, Any]:
         """One simulation tick plus trial bookkeeping. Caller holds ``self.lock``.
@@ -1365,26 +1468,31 @@ class ContinuousExperimentRunner:
         if not isinstance(cmd, dict):
             return {"status": "error", "message": "Command must be a JSON object"}
         if self._loop_active():
-            entry = {"cmd": cmd, "done": threading.Event(), "result": None, "taken": False}
             with self._commands_lock:
+                self._command_seq += 1
+                entry = {"cmd": cmd, "done": threading.Event(), "result": None,
+                         "id": f"{self.run_id[:8]}-{self._command_seq}", "received": received}
                 self._commands.append(entry)
             self._wake.set()
-            if not entry["done"].wait(self.command_timeout_s):
-                with self._commands_lock:
-                    if not entry["taken"]:
-                        self._commands.remove(entry)
-                        return {"status": "error", "applied": False,
-                                "message": f"Command not applied within {self.command_timeout_s:g} s"}
-                entry["done"].wait()
-            result = entry["result"]
-        else:
-            with self.lock:
-                result = self._apply_command(cmd)
+            if not entry["done"].wait(self.command_reply_wait_s):
+                # A long step is running.  The command stays queued and is applied at
+                # the next step boundary; its acknowledgement arrives in the stream.
+                return {"status": "queued", "applied": False, "command_id": entry["id"],
+                        "action": cmd.get("action", ""),
+                        "step_in_progress_s": self.step_in_progress_s(),
+                        "message": "Queued: applied when the current simulation step finishes"}
+            return entry["result"]
+        with self.lock:
+            result = self._apply_command(cmd)
+        self._note_latency(result, received)
+        return result
+
+    def _note_latency(self, result, received: float):
+        """Record request-to-application latency and put it on the acknowledgement."""
         latency = time.perf_counter() - received
         self.command_latency.append(latency)
         if isinstance(result, dict) and isinstance(result.get("ack"), dict):
             result["ack"]["latency_ms"] = round(latency * 1e3, 3)
-        return result
 
     def _apply_command(self, cmd: dict) -> dict:
         """Apply one command now. Caller holds ``self.lock``; adds the acknowledgement."""
@@ -1732,6 +1840,30 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["lock_profile"] = self.runner.lock.profile()
         return payload
 
+    def _send_json(self, data, status: int = 200):
+        body = json.dumps(data, default=str).encode("utf-8")
+        self.send_response(status)
+        self._set_cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _consistent_view(self, key, build):
+        """A lock-consistent view that never waits behind a long step, or a 503."""
+        runner = self.runner
+        if hasattr(runner, "read_view"):
+            view = runner.read_view(key, build)
+        else:   # minimal runners (tests, tools)
+            with runner.lock:
+                view = build()
+        if view is None:
+            self.send_response(503)
+            self._set_cors_headers()
+            self.send_header("Retry-After", "2")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "simulation step in progress; retry shortly",
+                                         "step_in_progress_s": runner.step_in_progress_s()}).encode("utf-8"))
+        return view
+
     def do_GET(self):
         url = self.path.split("?")[0].rstrip("/")
 
@@ -1767,36 +1899,33 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
         elif url == "/api/observatory":
-            # One lock and one response prevent mixed experiment identities during switches.
-            with self.runner.lock:
-                data = {"status": self._status_payload(),
-                        "brain": self.runner.active_brain.summary(details=True),
-                        "telemetry": self.runner.latest_telemetry,
-                        "brains": self.runner.brains.catalog(self.runner.active_paradigm_id)}
-            self.send_response(200)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+            # One consistent view (built at a step boundary) prevents mixed experiment
+            # identities during switches without waiting behind a long step.
+            runner = self.runner
+            view = self._consistent_view("observatory", lambda: {
+                "brain": runner.active_brain.summary(details=True),
+                "telemetry": runner.latest_telemetry,
+                "brains": runner.brains.catalog(runner.active_paradigm_id)})
+            if view is not None:
+                self._send_json(dict(view, status=self._status_payload()))
 
         elif url == "/api/manifest":
             # Full machine-readable run manifest of the active run (exports embed it).
-            with self.runner.lock:
-                manifest = self.runner.manifest.to_dict() if getattr(self.runner, "manifest", None) else None
-                data = {"identity": self.runner.identity(), "manifest": manifest}
-            self.send_response(200)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
+            runner = self.runner
+            view = self._consistent_view("manifest", lambda: {
+                "identity": runner.identity(),
+                "manifest": runner.manifest.to_dict() if getattr(runner, "manifest", None) else None})
+            if view is not None:
+                self._send_json(view)
 
         elif url in ("/api/brains", "/api/brain"):
-            with self.runner.lock:
-                data = (self.runner.active_brain.summary(details=True) if url == "/api/brain"
-                        else {"active": self.runner.active_paradigm_id,
-                              "brains": self.runner.brains.catalog(self.runner.active_paradigm_id)})
-            self.send_response(200)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+            runner = self.runner
+            view = self._consistent_view(url, lambda: (
+                runner.active_brain.summary(details=True) if url == "/api/brain"
+                else {"active": runner.active_paradigm_id,
+                      "brains": runner.brains.catalog(runner.active_paradigm_id)}))
+            if view is not None:
+                self._send_json(view)
 
         elif url == "/api/recordings":
             from neurofly.recording import list_recordings
@@ -1939,6 +2068,10 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                 last_write = now
             elif now - last_write >= 1.0:
                 beat = {"server_time": round(time.time(), 3), "seq": last_seq}
+                if hasattr(runner, "step_in_progress_s"):
+                    # A slow computer, not a dead daemon: say how long this step has run.
+                    beat["step_in_progress_s"] = runner.step_in_progress_s()
+                    beat["last_step_wall_s"] = round(runner.last_step_wall_s, 4)
                 self.wfile.write(f"event: heartbeat\ndata: {json.dumps(beat)}\n\n".encode("utf-8"))
                 self.wfile.flush()
                 last_write = now
@@ -2055,6 +2188,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
                                     "<checkout>/outputs/brainlab/malecns_v1). Missing graph = startup error.")
     backend_group.add_argument("--graph-step-ms", type=float, default=None,
                                help="Simulated brain milliseconds per 20 ms arena step (default 20)")
+    backend_group.add_argument("--test-slow-step-ms", type=float, default=0.0,
+                               help="TEST ONLY: add about this many wall ms of real kernel work to every "
+                                    "step (a private ballast brain), to reproduce a slow computer")
     backend_group.add_argument("--test-synthetic-graph", action="store_true",
                                help="TEST ONLY: run the graph backend on a small synthetic graph. The run is "
                                     "labelled SYNTHETIC in every packet and in the dashboard.")
@@ -2154,6 +2290,10 @@ def run_daemon():
             info = runner.start_recording(name=args.record, record_every=args.record_every,
                                           raster=args.record_raster)
         print(f"[Daemon] Recording to {runner.recordings_dir / info['name']}", flush=True)
+    if args.test_slow_step_ms > 0:
+        runner.step_hook = SlowStepBallast(args.test_slow_step_ms)
+        print(f"[Daemon] TEST ONLY: every step slowed by ~{args.test_slow_step_ms:g} ms of ballast kernel work",
+              flush=True)
     runner.start()
 
     # Durable learning records: a poller thread that never touches the sim loop.

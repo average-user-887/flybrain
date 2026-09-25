@@ -44,16 +44,20 @@ stage of `scripts/benchmark.py`.
 | `integration/firefox_headless_receipt*.json` | modular | Dashboard checks in headless Firefox | Valid (software) |
 | `live-signoff/`, `live-signoff-fresh/` | modular | Owner's live dashboard: all 14 assays switch; speed, pause, tab sync and error banner checked in real Firefox | Valid (software) |
 | `wp1_wp2/determinism_receipt.json` | modular | Wind tunnel is bit-identical at 1x, 20x and 100x | Valid (modular) |
-| `body_speedup/cloud_before.json`, `cloud_after.json` | n/a (body only) | FlyGym body alone: 0.107x to 0.55x real time on a 4-vCPU cloud Xeon, with trajectories bit-identical to the stock controller (`tests/test_fast_controller.py`). The "after" run has `git_dirty: true` because it was measured before the commit. | Valid; the Ryzen has not been measured |
+| `body_speedup/cloud_before.json`, `cloud_after.json` | n/a (body only) | FlyGym body alone: 0.107x to 0.55x real time on a 4-vCPU cloud Xeon, with trajectories bit-identical to the stock controller (`tests/test_fast_controller.py`). The "after" run has `git_dirty: true` because it was measured before the commit. | Valid; the Ryzen figure (0.648x, PR #3) has no committed receipt |
 | `wp1_wp2/stress_*`, `gil_starvation_probe.json`, `lock_profile_receipt.json`, `firefox_baseline_*` | modular | At a requested 100x the modular daemon achieves about 30x (12-thread Linux host) | Valid (modular) |
+| `ryzen/bench-ryzen-1f4a58a.json` | v3 (policy applied) | Ryzen 5600X + GTX 1660 Ti at `1f4a58a` (PR #11). Full daemon, open-arena, 5 s: 0.0433x CPU, 0.4296x GPU. Brain only, MaleCNS, 0.5 s: 0.0418x CPU, 0.3841x GPU. The GPU brain stage reports `active_neurons_end: 0` (CPU 157,141), which looks like a reporting gap, not a speed issue. | Valid |
+| `ryzen/gpu-parity-malecns-1f4a58a.json` | v3 (policy applied) | 2 s MaleCNS, CPU vs GPU per-neuron rate r 0.9986, 0.47 % spike difference; CPU vs 1e-5 mV nudged CPU r 0.9993; two GPU runs identical | Valid |
+| `validation/optomotor-yaw-v3-1.md` | v3 (policy applied) | Preregistered optomotor confirmatory run under `validation/specs/optomotor_v3.json`: behaviour 7/7, physiology 5/7, verdict **FAIL**. The raw `receipt.json` is still only on the Ryzen. | Valid (negative result); rerun under `optomotor_v3_2.json` pending |
 
 ## Results reported without a committed receipt
 
 | Claim | Where it is stated | Problem |
 |---|---|---|
 | Embodied co-simulation: 26.98° yaw intact vs 0.02° disconnected, `runs/embodied-video/body.mp4` | `docs/archive/SESSION_HANDOFF_2026-09-23.md` | No run directory or manifest is committed. `neurofly_body` does use the v3 policy, so a re-run can produce a real receipt. |
-| GPU brain: MaleCNS v3 0.40x real time on the GTX 1660 Ti vs 0.041x on the Ryzen CPU; parity per-neuron rate r 0.9986 | PR #2 description | The runs used the real v3 policy, but the JSON output is not committed. |
-| Full daemon: 0.398x real time on GPU vs 0.0405x on CPU | PR #2 description | Measured before PR #4 with `NEUROFLY_LIF_DYNAMICS=v3`, so the daemon ran v3 equations on v1 weights. The speed is probably similar, but the label is wrong. |
+| Full daemon: 0.398x real time on GPU vs 0.0405x on CPU | PR #2 description | Measured before PR #4 with `NEUROFLY_LIF_DYNAMICS=v3`, so the daemon ran v3 equations on v1 weights. Superseded by `ryzen/bench-ryzen-1f4a58a.json` (0.43x / 0.043x on true v3). |
+| Brain on the laptop i5-1334U: 0.0085x | PR #2 description | No committed receipt. |
+| Body on the Ryzen: 0.648x | PR #3, `docs/ROADMAP.md` | No committed receipt; the committed body receipts are from a cloud Xeon. |
 | `experiment_data/ryzen_battery/` (12 paradigms, 3 trials each, 2026-09-18) | tracked data | No controller or dynamics identity is recorded. Every trial is identical (for example, optomotor gain 8.8 × 10⁻²³ and HS rate exactly 76.0 Hz in all three). Not evidence. |
 
 ## Re-run queue
@@ -63,9 +67,12 @@ commit its JSON here with `dynamics`, `transmitter_policy`, `graph_sha256`, back
 (CPU or GPU) and git commit recorded.
 
 1. **WP5 optomotor confirmatory set on v3.** Preregistered, 24 runs (intact, DNa02
-   silenced, sham, shuffled × 6 seeds), `scripts/wp5_optomotor.py --dynamics v3`,
-   written to `wp5_v3_optomotor.json`. This is the ROADMAP P1 gate. Nothing else on
-   the connectome can be called tested until it exists.
+   silenced, sham, shuffled × 6 seeds). *Run 2026-09-24 through the validation
+   harness (`neurofly validate`), not `scripts/wp5_optomotor.py`: verdict FAIL
+   ([`validation/optomotor-yaw-v3-1.md`](validation/optomotor-yaw-v3-1.md)). The rerun
+   under `validation/specs/optomotor_v3_2.json` (seeds 100-105) is pending, and the
+   raw v3-1 `receipt.json` still has to be copied in.* This is the ROADMAP P1 gate.
+   Nothing else on the connectome can be called tested until one passes.
 2. **Closed-loop optomotor on v3**, replacing `connectome_closed_loop_optomotor.json`
    (v1, 1 s). Use a duration long enough to cover the preregistered block schedule,
    not 1 s.
@@ -74,10 +81,10 @@ commit its JSON here with `dynamics`, `transmitter_policy`, `graph_sha256`, back
 4. **WP6 plasticity smoke run on v3**, replacing
    `connectome_closed_loop_wp6_plasticity.json` (plastic v1, 1 s). Run it only after
    item 1, since WP6 depends on the DNa02 decoder.
-5. **Daemon benchmark after PR #4**: `scripts/benchmark.py --stages
+5. *Done in PR #11 (`ryzen/bench-ryzen-1f4a58a.json`).* **Daemon benchmark after PR #4**: `scripts/benchmark.py --stages
    daemon-connectome,daemon-connectome-cuda`, committed as a receipt so the daemon
    speed comes from true v3.
-6. **Commit the PR #2 GPU receipts**: `scripts/benchmark.py --stages
+6. *Done in PR #11 (`ryzen/`).* **Commit the PR #2 GPU receipts**: `scripts/benchmark.py --stages
    brain-malecns,brain-malecns-cuda` and `scripts/gpu_parity.py` output.
 7. **Embodied intact vs output-disconnected pair** (`neurofly embodied`, seed 1, 2 s),
    committing both manifests, so the 26.98° claim has a receipt or is dropped.

@@ -1,6 +1,8 @@
 # Working cue-learning demo
 
-Open **http://127.0.0.1:8767** while the local server is running. The page replays actual recorded choices, shows trained/untrained/shuffled-label results, and can launch a new full experiment with a chosen seed. Runs remain local and are never overwritten.
+> **Engine note (2026-09-24):** the results quoted here were produced by the original current-based **v1** LIF engine (runaway, about 10⁶ spikes/s; see `docs/LIF_DYNAMICS_SPEC.md`). Since PR #10 the commands below run **v3** by default (`Brain(graph)` applies v3 and its transmitter policy), so a repeat will not reproduce these numbers. Set `NEUROFLY_LIF_DYNAMICS=v1` to reproduce them.
+
+Open **http://127.0.0.1:8767** once the local server is running (see below). The page replays actual recorded choices, shows trained/untrained/shuffled-label results, and can launch a new full experiment with a chosen seed. Runs remain local and are never overwritten.
 
 To start the server again:
 

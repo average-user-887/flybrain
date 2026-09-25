@@ -1,0 +1,307 @@
+{
+ "schema": "flybrain.validation-spec.v1",
+ "id": "looming-gf-v3-1",
+ "paradigm": "looming",
+ "status": "draft",
+ "status_reason": "the gate rests on the von Reyn 2014 Fig. 1 caption, read once and not re-readable in the 2026-09-24 check (main text paywalled); the von Reyn 2014 loom start/end size and elevation are still unread; the encoder saturation constants and the stimulus elevation need owner review before this is preregistered",
+ "declared_at": "2026-09-24",
+ "summary": "Frontal dark looming disc at five approach speeds: does the Giant Fiber spike more often for faster looms (lower r/v), as the GF-mediated short-mode takeoff fraction does in flies, and never without a stimulus?",
+ "dynamics": {
+  "version": "v3",
+  "transmitter_policy": "v3-modulatory-only",
+  "unclear_mode": "excitatory"
+ },
+ "stimulus": {
+  "r_over_v_ms": [
+   8,
+   14,
+   40,
+   70,
+   140
+  ],
+  "theta_start_deg": 10.0,
+  "end": "collision (180 deg)",
+  "pre_ms": 200,
+  "post_ms": 100,
+  "step_ms": 2.0,
+  "geometry": "frontal (azimuth 0), both eyes driven equally; elevation effects (Dombrovski et al., bioRxiv 10.1101/2024.09.04.610846) are not modelled",
+  "literature_match": "r/v set and per-condition n from von Reyn 2014 Fig. 1; start size 10 deg as in Jang 2023 (10 to 63 deg), von Reyn 2017 and Klapoetke 2017 (10 to 90 deg); Ache 2019 behaviour looms 10 to 90 deg at 11 deg elevation, 50 deg azimuth (read via summary, not verbatim); von Reyn 2014 start/end sizes still not verified"
+ },
+ "encoder": {
+  "i_max": 20.0,
+  "noise_sd": 0.1,
+  "lplc2": {
+   "drives": "angular size",
+   "theta_on_deg": 10.0,
+   "theta_sat_deg": 60.0
+  },
+  "lc4": {
+   "drives": "angular velocity",
+   "omega_sat_deg_s": 1000.0
+  },
+  "assumption": "division of labour from von Reyn 2017 / Ache 2019 (qualitative). i_max equals the WP5 encoder amplitude. Ramp end points are declared engineering choices, set before any run and never tuned. No direct DNp01 drive."
+ },
+ "decoder": {
+  "rule": "GF-mediated (short-mode) takeoff = at least one DNp01 spike from loom onset to post-window end",
+  "not_decoded": "long-mode takeoffs via parallel DNs"
+ },
+ "populations": {
+  "LC4_L": {
+   "types": [
+    "LC4"
+   ],
+   "side": "L"
+  },
+  "LC4_R": {
+   "types": [
+    "LC4"
+   ],
+   "side": "R"
+  },
+  "LPLC2_L": {
+   "types": [
+    "LPLC2"
+   ],
+   "side": "L"
+  },
+  "LPLC2_R": {
+   "types": [
+    "LPLC2"
+   ],
+   "side": "R"
+  },
+  "GF": {
+   "types": [
+    "DNp01"
+   ]
+  }
+ },
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29
+ ],
+ "seed_role": "encoder per-cell noise; network starts from rest every trial",
+ "controls": {
+  "sham_no_input": 140,
+  "receding": 40
+ },
+ "behaviour": {
+  "analysis": {
+   "unit": "trial",
+   "bootstrap_seed": 20260924,
+   "bootstrap_resamples": 10000,
+   "ci": 0.95
+  },
+  "gates": [
+   {
+    "id": "L1_faster_looms_more_GF",
+    "type": "slope_ci_upper_below",
+    "sample": "gf_by_log10_rv",
+    "threshold": 0.0,
+    "claim": "The fraction of looms evoking a GF spike falls with log10(r/v) (slope 95% CI below 0).",
+    "basis": "published: short-mode (GF-driven) takeoff fraction declines linearly with log(r/v), R^2 = 0.903, n = 660 flies",
+    "verified": true,
+    "sources": [
+     "vonreyn2014"
+    ]
+   },
+   {
+    "id": "L2_no_stimulus_no_GF",
+    "type": "all_equal",
+    "sample": "sham_no_input_gf",
+    "value": 0.0,
+    "claim": "No GF spike in any sham trial (encoder runs, nothing delivered).",
+    "basis": "causal control of the model itself; not a literature value",
+    "verified": true,
+    "sources": []
+   }
+  ],
+  "reported": [
+   {
+    "id": "pooled_short_mode_fraction",
+    "type": "proportion_ci_lower_above",
+    "sample": "pooled_gf_fraction",
+    "threshold": 0.11,
+    "claim": "GF-spike fraction pooled over r/v 14, 40, 70 ms vs the published short-mode fraction 95/450 = 0.21.",
+    "basis": "reported only: the published fraction is among flies that took off, the simulated one is per loom; for comparison Ache 2019 control flies: 26% [47/178] short-mode (TNT control) and 17% [18/105] (Kir2.1 control), r/v mix differs",
+    "verified": true,
+    "sources": [
+     "vonreyn2014",
+     "ache2019"
+    ]
+   },
+   {
+    "id": "receding_control",
+    "type": "proportion_ci_upper_below",
+    "sample": "receding_gf",
+    "threshold": 0.5,
+    "claim": "GF-spike fraction to a receding disc.",
+    "basis": "report only; no published GF response to receding looms was found. Related: LPLC2 'did not respond to dark receding looming or to luminance-matched motion-free darkening stimulus' (Klapoetke 2017, calcium imaging), which predicts little GF drive; not gated",
+    "verified": false,
+    "sources": [
+     "klapoetke2017"
+    ]
+   }
+  ]
+ },
+ "reported": {
+  "pooled_r_over_v_ms": [
+   14,
+   40,
+   70
+  ]
+ },
+ "physiology": {
+  "bounds_file": "firing_rate_bounds_v2.json",
+  "checks": [
+   {
+    "id": "P1_GF_spont",
+    "population": "GF",
+    "window": "baseline",
+    "bound": "GF",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv14",
+     "loom_rv40",
+     "loom_rv70",
+     "loom_rv140"
+    ]
+   },
+   {
+    "id": "P2_LPLC2_L_driven",
+    "population": "LPLC2_L",
+    "window": "stimulus",
+    "bound": "LC_looming",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv14",
+     "loom_rv40",
+     "loom_rv70",
+     "loom_rv140"
+    ]
+   },
+   {
+    "id": "P3_LC4_L_driven",
+    "population": "LC4_L",
+    "window": "stimulus",
+    "bound": "LC_looming",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv14",
+     "loom_rv40",
+     "loom_rv70",
+     "loom_rv140"
+    ]
+   },
+   {
+    "id": "P4_brain_mean_driven",
+    "population": "__brain__",
+    "measure": "mean_hz",
+    "window": "stimulus",
+    "bound": "brain_mean",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv140"
+    ]
+   },
+   {
+    "id": "P5_brain_max_driven",
+    "population": "__brain__",
+    "measure": "max_hz",
+    "window": "stimulus",
+    "bound": "brain_max_single_neuron",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv140"
+    ]
+   }
+  ]
+ },
+ "decision_rule": "Behaviour PASS iff every gate passes. Physiology PASS iff every check lies in its bound. Verdict PASS iff both pass on a confirmatory run (real graph, this spec committed and unchanged, these seeds, clean tree); PASS_PROVISIONAL if any gating value is marked unverified; FAIL if any gate or check fails; INCONCLUSIVE if one cannot be evaluated. Full rule: validation/harness.py VERDICTS.",
+ "citations": {
+  "vonreyn2014": {
+   "citation": "von Reyn CR, et al., Card GM (2014) A spike-timing mechanism for action selection. Nat Neurosci 17:962-970",
+   "doi": "10.1038/nn.3741",
+   "doi_status": "resolved",
+   "read": "Fig. 1 caption and abstract (earlier check); supplementary PDF (this check). Main text paywalled, not re-read.",
+   "values_read": [
+    "short/long takeoff split at 6.87 ms wing-raise+jump duration; pooled r/v 14, 40, 70 ms: 95 short vs 355 long (n = 450)",
+    "short-mode fraction declines linearly with log(r/v): slope -19.27 (units as printed), R^2 = 0.903; n = 108, 115, 202, 133, 102 flies at r/v 8, 14, 40, 70, 140 ms",
+    "a GF spike forces a short-mode takeoff; the GF has a higher activation threshold than the parallel pathways (abstract)",
+    "Supp. Fig. 5: GF whole-cell example spike responses (from 10 flies) and subthreshold responses (from 33 flies) to looms at three r/v",
+    "Supp. Fig. 3a: takeoff percentages across r/v 14, 40, 70 ms compared by chi-square (P = 0.015, 0.087, 0.148); percentages shown only as bars"
+   ]
+  },
+  "vonreyn2017": {
+   "citation": "von Reyn CR, et al., Card GM (2017) Feature integration drives probabilistic behavior in the Drosophila escape response. Neuron 94:1190-1204",
+   "doi": "10.1016/j.neuron.2017.05.036",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "LC4 conveys angular velocity, LPLC2 angular size; the GF integrates them (qualitative; encoder assumption)",
+    "'looming stimuli generate GF spikes in only a small subset of tethered flies'",
+    "'Both single GF spikes and GF-mediated takeoffs occur, on average, at a fixed delay after a looming disk surpasses 39 deg'",
+    "looms r/v 10, 20, 40, 80 ms, 10 to 90 deg"
+   ]
+  },
+  "ache2019": {
+   "citation": "Ache JM, et al., Card GM (2019) Neural basis for looming size and velocity encoding in the Drosophila giant fiber escape pathway. Curr Biol 29:1073-1081",
+   "doi": "10.1016/j.cub.2019.01.079",
+   "doi_status": "resolved",
+   "read": "full text (ScienceDirect)",
+   "values_read": [
+    "LC4 (velocity) and LPLC2 (size) inputs to the GF, summed approximately linearly (qualitative; encoder assumption)",
+    "GF recordings kept if resting potential below -55 mV; only trials without a GF action potential analysed",
+    "no LC4/LPLC2 electrophysiology rates",
+    "short-mode takeoffs: TNT control 26% [47/178] vs LPLC2-silenced 3% [3/93]; Kir2.1 control 17% [18/105] vs 7% [5/70] (Figs 1C-D)"
+   ]
+  },
+  "jang2023": {
+   "citation": "Jang H, Goodman DP, Ausborn J, von Reyn CR (2023) Azimuthal invariance to looming stimuli in the Drosophila giant fiber escape circuit. J Exp Biol 226(8):jeb244790",
+   "doi": "10.1242/jeb.244790",
+   "doi_status": "resolved",
+   "read": "methods (bioRxiv 10.1101/2022.07.15.500271)",
+   "values_read": [
+    "GF accepted if resting potential less than -50 mV; looms 10 to 63 deg at r/v 10, 20, 40, 80 ms"
+   ]
+  },
+  "klapoetke2017": {
+   "citation": "Klapoetke NC, et al., Reiser MB (2017) Ultra-selective looming detection from radial motion opponency. Nature 551:237-241",
+   "doi": "10.1038/nature24626",
+   "doi_status": "resolved",
+   "read": "full text (PMC7457385)",
+   "values_read": [
+    "LPLC2 measured by calcium imaging only (no Hz)",
+    "'LPLC2 neurons did not respond to dark receding looming or to luminance-matched motion-free darkening stimulus'"
+   ]
+  }
+ }
+}

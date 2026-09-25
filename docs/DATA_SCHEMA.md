@@ -148,7 +148,7 @@ across segments. Display interpolation is not part of the data.
 | `action` | string | the command |
 | `applied` | bool | whether it took effect |
 | `applied_step`, `applied_sim_time_s` | int, float | step boundary at which it was applied |
-| `latency_ms` | float | request receipt to reply |
+| `latency_ms` | float | request receipt to application (a queued command: includes the wait for the running step) |
 | `run_id` | string | daemon process run id |
 | `paradigm` | string | active assay after the command |
 | `identity` | object | identity **after** the command (see below) |
@@ -157,6 +157,18 @@ For `switch_paradigm` the reply is sent only after the target's brain snapshot
 (graph backends: `ExperimentRegistry.activate`) and world snapshot
 (`Arena.restore_world`) are restored. The reply's `identity` is the newly
 active run.
+
+Commands are applied only at step boundaries. When a step is still running
+after `command_reply_wait_s` (1 s; on a slow CPU one step can take seconds), the
+reply is `{"status": "queued", "applied": false, "command_id": ...}` instead of
+waiting. The command stays queued and is never dropped; its full result (the
+reply it would have had, plus `command_id`) appears in the `command_acks` list
+(latest 8) of every stream frame after it is applied. The dashboard waits for
+that acknowledgement before it treats the command as done.
+
+SSE `heartbeat` events carry `step_in_progress_s` (wall seconds the current step
+has run, 0 between steps) and `last_step_wall_s`; `timing` in frames and
+`/api/status` carries the same two fields.
 
 ### Identity (`identity`, also in `/api/status`, the ack and exports)
 
@@ -212,7 +224,8 @@ backend, assay, instance and run ids, seed, graph identity, dynamics with
 units, learned parameter locations, source revision and file hashes,
 intervention schedule and events (activations, checkpoints, restores). Modular
 manifests are written to `<output-dir>/manifests/<run_id>.json`; graph
-manifests live in the registry (`<output-dir>/registry/<assay>/<backend>/<instance_id>/manifest.json`).
+manifests live in the registry (`<output-dir>/registry-v3/<assay>/<backend>/<instance_id>/manifest.json`
+under the default v3 dynamics; v1 brains stay in `<output-dir>/registry/`).
 The dashboard's JSON export embeds `identity`, `manifest` and `motor`; its CSV
 rows carry `controller_run_id`, `instance_id`, `backend`, `synthetic`,
 `motor_source`, `assists` and `controller_fault`.

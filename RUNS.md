@@ -1,5 +1,7 @@
 # Experiment recording
 
+> **Engine note (2026-09-24):** the results quoted here were produced by the original current-based **v1** LIF engine (runaway, about 10⁶ spikes/s; see `docs/LIF_DYNAMICS_SPEC.md`). Since PR #10 the commands below run **v3** by default (`Brain(graph)` applies v3 and its transmitter policy), so a repeat will not reproduce these numbers. Set `NEUROFLY_LIF_DYNAMICS=v1` to reproduce them.
+
 Run a reproducible full-brain baseline experiment from this workspace:
 
 ```bash

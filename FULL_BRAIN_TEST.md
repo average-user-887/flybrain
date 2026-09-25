@@ -1,5 +1,7 @@
 # Full MaleCNS test — 2026-09-14
 
+> **Engine note (2026-09-24):** the results quoted here were produced by the original current-based **v1** LIF engine (runaway, about 10⁶ spikes/s; see `docs/LIF_DYNAMICS_SPEC.md`). Since PR #10 the commands below run **v3** by default (`Brain(graph)` applies v3 and its transmitter policy), so a repeat will not reproduce these numbers. Set `NEUROFLY_LIF_DYNAMICS=v1` to reproduce them.
+
 Downloaded all three MaleCNS v1.0 source tables and verified their SHA-256 hashes against the preserved DOOMFLY source lock. Imported and compiled **166,700 neurons, 25,582,938 directed connections, and 124,177,617 synaptic contacts**.
 
 Every released connection between retained neuronal entries is kept, including 10,299,701 weight-one edges and 101 self-connections. Raw segmentation objects outside the upstream neuronal inclusion policy are excluded and accounted for in `connectome_data/malecns_v1/normalized/report.json`. The full raw source tables remain on disk.
