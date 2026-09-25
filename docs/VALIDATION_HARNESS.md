@@ -68,6 +68,7 @@ last touched the spec, so it shows the spec predates the run.
 |---|---|---|---|
 | `optomotor_v3.json` (v3-1) | **preregistered**; confirmatory run FAILED on the HS spike ceiling ([record](receipts/validation/optomotor-yaw-v3-1.md)) | syndirectional TI; each direction alone; half contrast; minus sham; minus shuffled graph; DNa02-silenced yaw exactly 0 | Every behaviour gate. Duistermars et al. 2007 and Mano et al. 2023 were read in full. The rest are causal controls of the model. |
 | `optomotor_v3_2.json` (v3-2) | **preregistered** | identical behaviour gates | Amended after the v3-1 FAIL: the HS spike-rate checks became report-only because HS cells signal with graded potentials and no published HS spike rate exists. It uses bounds v2 and new seeds 100-105. See its `amendment` block. |
+| `optomotor_v3_3.json` (v3-3) | **preregistered** | identical behaviour gates | Uses bounds v3, where DNa02 is verified from recordings and the brain-wide mean and maximum are declared model-health limits. New seeds 200-205. A pass can now be a full `PASS`. See its `amendment` block. |
 | `looming_gf_v3.json` | draft | GF-spike fraction falls with log10(r/v); no GF spike without a stimulus | The slope's sign comes from von Reyn et al. 2014, but only the Fig. 1 caption, the abstract and (on 2026-09-24) the supplement were read; the main text is paywalled. The encoder ramps and the stimulus elevation still need owner review. |
 | `tmaze_odour_naive_v3.json` | draft | the fly chooses; OCT and MCH avoided vs air (OCT vs MCH balance reported only) | Naive avoidance of each odour vs air was read from Akalal et al. 2006 Table 1, but it is still unverified: Barth et al. 2014 reports slight attraction, and the model's concentration is not mapped to the published ones. The OCT/MCH balance is an experimenter calibration, not a fly property, so it is reported, not gated. The ORN encoder is DoOR 2.0 data from a pinned commit. |
 
@@ -81,17 +82,31 @@ decoded yaw in rad/s cannot be compared with a fly's turning speed. For the
 same reason the looming fraction (per loom) is reported beside the published
 short-mode fraction (per takeoff), not gated against it.
 
-**Physiology bounds.** `firing_rate_bounds_v1.json` is kept unchanged, because
-the preregistered optomotor spec points at it. `firing_rate_bounds_v2.json`
-holds the 2026-09-24 literature check, and the two draft specs use it. In v2,
-**ORN** and **KC** are verified. The KC driven ceiling drops from 20 to 5 Hz,
-derived in the file from Turner et al. 2008. **PN** spontaneous is verified
-(4.6 ± 4.2 Hz, Turner 2008), but the PN driven ceiling is not. **MBON**,
-**DNa02**, **GF**, **LC4/LPLC2** and **HS** stay unverified: no read source
-gives rates in Hz for them. LC4 and LPLC2 have only been imaged, and HS cells
-are graded or non-spiking. The brain-wide mean and the single-neuron maximum
-remain declared design choices. The best verdict any spec can reach today is
-therefore still `PASS_PROVISIONAL`.
+**Physiology bounds.** Bounds files are never edited once a preregistered
+spec points at them. `firing_rate_bounds_v1.json` belongs to v3-1 and
+`firing_rate_bounds_v2.json` to v3-2. `firing_rate_bounds_v3.json` holds the
+2026-09-25 check, done blind to every receipt:
+
+| bound | v3 interval (spont. / driven, Hz) | status | main sources |
+|---|---|---|---|
+| ORN | 0.5-50 / 0-300 | verified (unchanged) | Hallem 2006, Kazama 2008 |
+| PN | 0-20 / 0-250 | verified; driven ceiling holds for windows of 0.5 s or longer | Turner 2008, Bhandawat 2007, Olsen 2010 |
+| KC | 0-1 / 0-5 | verified (unchanged) | Turner 2008 |
+| MBON | 0-40 / 0-180 | verified (widened from 0-30 / 0-150) | Vrontou 2021, Yamada 2023, Nanami 2024 data, Hige 2015 |
+| DNa02 | 0-40 / 0-150 | verified (widened from 0-20 / 0-100) | Yang 2024 Fig. S7A, Rayshubskiy 2025 data |
+| GF | 0-1 / 0-50 | verified (unchanged) | Dombrovski 2023, Dombrovski 2025 data, Mu 2014 |
+| LC4/LPLC2 | 0-10 / 0-150 | unverified: the only readable recordings say these cells do not spike | Mu 2012 |
+| HS | 0-20 / 0-50 | unverified: graded cells | Fujiwara 2017, Joesch 2008 |
+| brain mean | 0-5 | model-health limit (`kind: model_health`) | none measure it; ~4 Hz energy estimate as context |
+| brain max | 0-300 | model-health limit | none can; real ORN and PN peaks pass 300 Hz only in windows under 0.5 s |
+
+"Read" includes text, numeric data files, coordinates in vector figures, and
+our own analysis of deposited raw recordings with a committed script in
+`validation/specs/sources/` (DNa02: `dna02_rates_read.json` and the two
+scripts beside it). Raster images and axis limits never count. A
+`model_health` bound is a check on the model, like gates O5-O7, and is
+marked verified in that sense. No DNa02 recording under visual motion
+exists, so the DNa02 driven bound is the cell's recorded range in any state.
 
 ## Declared engineering assumptions
 
@@ -127,9 +142,10 @@ bounds file and the specs. What could not be read:
    0.62-0.84). Barth et al. 2014 reports slight attraction in another setup.
    The naive 50:50 OCT/MCH split is a concentration calibration the
    experimenters make, so it is reported, not gated.
-3. **Firing rates.** Wilson et al. 2004 and Bhandawat et al. 2007 (PN peaks)
-   could not be read. No in-vivo MBON spontaneous rate was found. DNa02 rates
-   appear in figures only. H2 and HS have no rates in Hz.
+3. **Firing rates.** Bounds v3 (2026-09-25) closed PN, MBON, DNa02 and GF.
+   LC4/LPLC2 and HS have no rates in Hz. Kim et al. 2023 (Curr Biol, LPLC2
+   and DNp06 patch recordings) and the GF looming-spike papers (von Reyn 2014
+   and 2017, Ache 2019 Curr Biol) could not be read.
 
 When a value is read, set its `verified` flag in the spec or bounds file,
 record where it was read, and commit the change before any run that uses it.
