@@ -420,7 +420,7 @@ compared with DAN-activation data first, and with shock data only by analogy.
 
 - **Graph.** All five variants of §2.2. Only V2_primary is gated.
 - **Encoder.** The P3 T-maze encoder, by reference: the `encoder` block of
-  `tmaze_odour_naive_v3.json` at sha256 `7ac171fa…`. Odours are presented
+  `tmaze_odour_naive_v3.json` at sha256 `7eb6f62b…`. Odours are presented
   bilaterally.
 - **Protocol per seed** (20 s):
   - 2 s of air warm-up;
