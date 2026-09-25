@@ -16,6 +16,7 @@ API (JSON unless noted):
     GET  /api/studio/metrics/<source>/<name>      comparison numbers of a finished run
     GET  /api/studio/files/<source>/<name>/<file> summary.json, manifest.json or
                                                   body.nfbody (gzip, not inflated)
+    GET  /api/studio/export/<source>/<name>.zip   the run bundle (neurofly_studio/export.py)
 
 ``<source>`` is ``queue`` or ``curated``.  POST needs ``Content-Type:
 application/json`` and, when the browser sends one, a same-host ``Origin``, so
@@ -140,6 +141,7 @@ class Studio:
                          "title": info.get("title", run_dir.name), "paradigm": info.get("paradigm"),
                          "explanation": info.get("explanation"), "role": info.get("role"),
                          "pair": info.get("pair"), "parameters": info.get("parameters"),
+                         "controller": info.get("controller"),
                          "label": info.get("label", "exploratory"),
                          "silence": info.get("silence") or [],
                          "clamp_held": _clamp_held(run_dir),
@@ -169,6 +171,23 @@ class Studio:
         if not path.is_dir():
             raise FileNotFoundError(name)
         return path
+
+    def metrics(self, source: str, name: str) -> dict[str, Any]:
+        run_dir = self.run_dir(source, name)
+        if not (run_dir / "telemetry.jsonl").is_file():
+            stored = (_read_json(run_dir / "curated.json") or {}).get("metrics")
+            if stored is None:
+                raise FileNotFoundError(f"{name} has no telemetry")
+            return stored
+        return run_metrics(run_dir)
+
+    def export(self, source: str, name: str) -> bytes:
+        from .export import build_bundle
+
+        run_dir = self.run_dir(source, name)
+        meta = _read_json(self.meta_dir / f"{name}.json") if source == "queue" else \
+            _read_json(run_dir / "curated.json")
+        return build_bundle(run_dir, name=name, studio_meta=meta)
 
     # -- actions --------------------------------------------------------------
     def submit(self, raw: Any) -> dict[str, Any]:
@@ -262,7 +281,12 @@ class StudioHandler(BaseHTTPRequestHandler):
         if parts == ["runs"]:
             return self._json(self.studio.runs())
         if len(parts) == 3 and parts[0] == "metrics":
-            return self._json(run_metrics(self.studio.run_dir(parts[1], parts[2])))
+            return self._json(self.studio.metrics(parts[1], parts[2]))
+        if len(parts) == 3 and parts[0] == "export" and parts[2].endswith(".zip"):
+            name = parts[2][: -len(".zip")]
+            data = self.studio.export(parts[1], name)
+            return self._send(200, data, "application/zip",
+                              {"Content-Disposition": f'attachment; filename="{name}.zip"'})
         if len(parts) == 4 and parts[0] == "files" and parts[3] in RUN_FILES:
             file = self.studio.run_dir(parts[1], parts[2]) / parts[3]
             if not file.is_file():

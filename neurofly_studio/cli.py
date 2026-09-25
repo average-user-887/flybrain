@@ -42,6 +42,21 @@ def _parser() -> argparse.ArgumentParser:
 
     status = sub.add_parser("status", help="list the studio queue")
     common(status)
+
+    export = sub.add_parser("export", help="write a finished run as a bundle zip")
+    export.add_argument("run_dir", type=Path, metavar="RUN_DIR")
+    export.add_argument("--out", type=Path, required=True, metavar="BUNDLE.zip")
+
+    curate = sub.add_parser("curate", help="add a replay-verified run (and its control) to the gallery")
+    common(curate)
+    curate.add_argument("run_dir", type=Path, metavar="RUN_DIR")
+    curate.add_argument("control_dir", type=Path, nargs="?", metavar="CONTROL_RUN_DIR")
+    curate.add_argument("--name", required=True, help="gallery name, e.g. optomotor-intro")
+    curate.add_argument("--title", required=True)
+    curate.add_argument("--explanation", required=True, help="plain-language text for the gallery card")
+    curate.add_argument("--control-explanation", help="card text for the control run")
+    curate.add_argument("--with-telemetry", action="store_true",
+                        help="also copy telemetry.jsonl (large; the gallery does not need it)")
     return parser
 
 
@@ -56,6 +71,28 @@ def _graph_args(args: argparse.Namespace) -> list[str]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "export":
+        from .export import build_bundle
+
+        meta_path = args.run_dir.parent.parent / "studio" / f"{args.run_dir.name}.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else None
+        data = build_bundle(args.run_dir, studio_meta=meta)
+        with args.out.open("xb") as handle:   # never overwrite
+            handle.write(data)
+        print(f"{args.out} ({len(data)} bytes)")
+        return 0
+    if args.command == "curate":
+        from .curate import CurationError, curate
+
+        try:
+            targets = curate(args.run_dir, args.curated, name=args.name, title=args.title,
+                             explanation=args.explanation, control_dir=args.control_dir,
+                             control_explanation=args.control_explanation,
+                             with_telemetry=args.with_telemetry)
+        except CurationError as error:
+            raise SystemExit(str(error)) from error
+        print("\n".join(str(t) for t in targets))
+        return 0
     from .server import Studio, is_loopback, make_server
     from . import experiment as experiment_mod
 

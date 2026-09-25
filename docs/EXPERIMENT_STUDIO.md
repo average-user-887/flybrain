@@ -26,10 +26,10 @@ who can reach a non-loopback `--host` can queue runs.
 | Experiment builder | Done for optomotor, the one stimulus the embodied loop drives: rotation speed, contrast, simulated time, seed, repeats. The other 13 paradigms are listed with their badge and "Not in the studio yet". |
 | Queue | Done: live list, cancel before start, failures with their reason. |
 | Watch a run | Done: opens `embodied_replay.html` on the run's `body.nfbody` (1x, seek, speed). |
-| Side-by-side comparison | Done: two replays and a table of descriptive numbers. Playback of the two sides is not synchronised yet. |
-| Curated gallery | The page and format exist; no curated runs ship yet (they need Ryzen runs). |
+| Side-by-side comparison | Done: two replays driven by one clock (play, pause, seek and speed for both), and a table of descriptive numbers. |
+| Curated gallery | Done as the "Start here" section of the gallery, filled by `python -m neurofly_studio curate`. The first curated runs still have to be made on the reference machine (plan below). |
 | Silence a named neuron type | Done when the installed runner has `neurofly_body run --silence` (PR #31); hidden otherwise. Five groups for optomotor, both sides or one, paired by default with the same fly un-silenced. |
-| Research API and CLI | `python -m neurofly_studio submit EXPERIMENT.json` and the HTTP API. Export to Parquet or NWB is still to decide. |
+| Research API and CLI | `python -m neurofly_studio submit EXPERIMENT.json`, the HTTP API, and run bundles (`export`, a Download button on every run). |
 
 ## Design decisions
 
@@ -128,19 +128,75 @@ experiment, its role, seed and paired run.
 | POST | `/api/studio/runs/<name>/cancel` | drop a job that has not started |
 | GET | `/api/studio/metrics/<queue\|curated>/<name>` | comparison numbers of a finished run |
 | GET | `/api/studio/files/<queue\|curated>/<name>/<file>` | `summary.json`, `manifest.json` or `body.nfbody` |
+| GET | `/api/studio/export/<queue\|curated>/<name>.zip` | the run bundle |
+
+## Run bundles (export)
+
+`python -m neurofly_studio export RUN_DIR --out run.zip`, or Download on any
+run card, gives one zip per run:
+
+- the run's own files, unchanged: `manifest.json`, `summary.json`,
+  `telemetry.jsonl`, `timing.jsonl`, `body.nfbody` and, if present,
+  `replay_check.json`;
+- `telemetry.parquet`: one row per 2 ms step, with nested fields flattened to
+  dotted column names (`body.thorax.yaw_rad`, `motor.applied_cpg_drive.0`, …);
+- `studio.json`: the experiment and its exploratory label;
+- `bundle.json`: the format, the provenance (manifest subset) and the SHA-256 of
+  every file;
+- a README.
+
+The zip is deterministic, so the same run always gives the same bytes and the
+same SHA-256.
+
+**Why Parquet, not NWB.** The roadmap left this choice to P5. A run today
+records body kinematics, motor commands, per-type DN rates and whole-graph
+spike counts. It has no per-neuron spike trains and no measured data, which
+are what NWB's structure is for. Parquet opens directly in pandas, R (arrow)
+and Julia, and pyarrow is already a dependency. The original JSON lines stay in
+the bundle, so the conversion loses nothing. Revisit NWB once runs can export
+per-neuron rasters.
 
 ## Curated runs
 
-A curated run is a finished run directory under `experiment_data/curated/<name>/`
-(or `--curated DIR`) with a `curated.json`: `title`, `paradigm`, `explanation`,
-`role`, `pair` and `parameters`. They are produced on the reference machine,
-checked with `replay-check`, and ship with the first public release (P6).
+Curated runs are the citizen entry point: the first thing the gallery shows,
+each with a plain-language explanation, Watch, Download and "Compare with
+pair".
+
+```bash
+python -m neurofly_studio curate RUN_DIR [CONTROL_RUN_DIR] --name optomotor-intro \
+    --title "The fly turns with the world" --explanation "..." [--control-explanation "..."]
+```
+
+A run can be curated only when it completed and `neurofly_body replay-check`
+reproduced it bit for bit. Its `replay_check.json`, copied into the run
+directory, must say `BIT_IDENTICAL` and name the run's trajectory hash.
+Curation checks every run first and only then copies anything, and it never
+overwrites. It copies `manifest.json`, `summary.json`, `body.nfbody` and
+`replay_check.json` to `experiment_data/curated/<name>/` (and `<name>-control/`)
+and writes `curated.json`: the explanation, role and pair, the parameters, the
+comparison numbers computed from `telemetry.jsonl`, and the SHA-256 of every
+copied file. `telemetry.jsonl` is left out to keep the install small; use
+`--with-telemetry` to keep it. Curated runs keep the exploratory label:
+curation checks reproducibility, not scientific validity.
+
+The first set is planned in `experiment_data/curated_plan/`:
+`optomotor-intro.json` (10 s, intact vs brain disconnected from the legs) and
+`optomotor-dna02-silenced.json` (10 s, DNa02 silenced vs the same fly
+unsilenced; needs `--silence`). Both use seed 1 and the connectome controller.
+
+## Synchronised playback
+
+The comparison view drives both replays from one clock. It calls
+`window.embodiedReplay.seekTime(t)` in each same-origin replay frame, a small
+additive hook in `web/embodied_replay.js` (`duration`, `seekTime`, `pause`).
+Each replay can still be played on its own with its own controls.
 
 ## Checks
 
 - `tests/test_studio.py`: catalog and badges, experiment validation, planning,
-  the HTTP API end to end with a stand-in runner, cancel, the cross-origin and
-  content-type guards.
+  silencing, the HTTP API end to end with a stand-in runner, cancel, the
+  cross-origin and content-type guards, bundle determinism and checksums,
+  and curation's replay requirement.
 - `scripts/studio_headless_check.py --out DIR`: headless Chromium walk-through
   of every tab at desktop and phone width, with a stand-in runner
   (`tests/studio_fakes.py`: modular baseline and a stick-fly body, not a
@@ -149,8 +205,6 @@ checked with `replay-check`, and ship with the first public release (P6).
 
 ## Next slices
 
-1. Synchronised side-by-side playback.
-2. The first curated runs, produced on the reference machine (an intact vs
-   DNa02-silenced pair is the obvious first one).
-3. Export format (Parquet or NWB) with provenance.
-4. Looming and T-maze in the builder once the embodied loop drives those stimuli.
+1. Produce the first curated runs on the reference machine (plan above).
+2. Per-neuron raster export, and NWB with it.
+3. Looming and T-maze in the builder once the embodied loop drives those stimuli.
