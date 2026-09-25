@@ -956,8 +956,11 @@ class ConnectomeBridge:
         else:
             self.mdn_rate = max(0.0, self.mdn_rate - 50.0 * dt)
 
-        # DNp01 (Giant Fiber Looming Escape Trigger)
-        if not self.gf_lesioned and sensory["looming_trigger"] and not self.escape_active and self.escape_cooldown <= 0.0:
+        # DNp01 (Giant Fiber Looming Escape Trigger).  Hand-built surrogate only: in
+        # rpc mode the escape comes from remote DNp01 spikes alone (below), never
+        # from the stimulus crossing a threshold.
+        if (self.mode != "rpc" and not self.gf_lesioned and sensory["looming_trigger"]
+                and not self.escape_active and self.escape_cooldown <= 0.0):
             self.dnp01_gf_spikes += 1
             self.escape_active = True
             self.escape_timer = 0.30  # 300 ms ballistic jump takeoff flight
