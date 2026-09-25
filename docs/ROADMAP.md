@@ -228,6 +228,8 @@ plasticity in its own connectome.
 - A GPU plasticity kernel with the same parity rules as the static brain,
   checked against a CPU reference.
 - Then WP6 (the ER→EPG heading map) through the same pipeline.
+- Spec status: [`WP7_MB_LEARNING_SPEC.md`](WP7_MB_LEARNING_SPEC.md) is written and frozen
+  pending the owner gate; no real-graph run yet.
 
 **Depends on**: P3 (T-maze baseline) and the P1 harness.
 
