@@ -204,6 +204,11 @@ def frame_from_telemetry(telemetry: Dict[str, Any], segments: _Ordinals) -> Dict
     return frame
 
 
+def _brain_backend(instance) -> Optional[str]:
+    """Where the graph brain ran ('cpu' or 'cuda'); None for modular runs."""
+    return getattr(getattr(instance, "brain", None), "backend", None)
+
+
 def _lif_dynamics(runner) -> Optional[str]:
     """LIF dynamics version of a graph run (``NEUROFLY_LIF_DYNAMICS``); None for modular."""
     if getattr(runner, "shared_graph", None) is None:
@@ -266,6 +271,7 @@ class RunRecorder:
         provenance = dict(
             backend=runner.backend, assay=runner.active_paradigm_id,
             lif_dynamics=_lif_dynamics(runner),
+            brain_backend=_brain_backend(instance),
             seed=int(instance.seed) if instance is not None else int(getattr(brain, "seed", 0)),
             controller_version=getattr(manifest, "controller_version", ""),
             label=getattr(manifest, "label", ""), synthetic=bool(getattr(manifest, "synthetic", False)),
@@ -480,6 +486,7 @@ def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", reco
                           f"{runner.total_steps * runner.dt / wall:.3f}x real time", flush=True)
             summary = runner.stop_recording()
         summary["wall_s"] = round(time.perf_counter() - started, 3)
+        summary["brain_backend"] = _brain_backend(getattr(getattr(runner, "registry", None), "active", None))
         summary["error"] = runner.last_error
         return summary
 

@@ -75,7 +75,8 @@ def controller_version_for(spec: 'BackendSpec', dynamics: Optional[dict]) -> str
     A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
     a run under the conductance-based v2 engine records ``brainlab-lif-v2``,
     never ``brainlab-lif-v1``, so old and new results can never be confused.
-    Runs under the default v1 dynamics keep exactly the string they had.
+    Runs under v1 dynamics (the default before PR #10; v3 is now the default)
+    keep exactly the string they had.
     """
     version = (dynamics or {}).get('dynamics_version')
     if not spec.requires_graph or not version or version == 'v1':

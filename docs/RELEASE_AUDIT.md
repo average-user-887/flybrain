@@ -109,10 +109,11 @@ battery (owner: whoever owns `experiments/`).
 - [x] CI workflow with a private-infrastructure grep guard
 - [x] `CONTRIBUTING.md`
 - [ ] Items 5-12 above in files owned by others
-- [ ] Remove or relocate root-level duplicates (`app.js`, `index.html`,
-      `test_whole_brain.py`, `whole_brain_scientific_battery.py`)
+- [x] Remove or relocate root-level duplicates (`app.js`, `index.html`,
+      `test_whole_brain.py`, `whole_brain_scientific_battery.py`); moved to
+      `docs/archive/root_duplicates_20260924/`
 - [ ] Decide on `demo.html` / `flybrain_scientific_instrument.html` bundling
-- [ ] `git mv` the daemon scripts to neutral names
+- [x] `git mv` the daemon scripts to neutral names (`start_daemon.sh`, `stop_daemon.sh`)
 - [ ] Owner confirmation before publishing any stream URL
 
 ## 7. Decisions for the owner
