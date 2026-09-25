@@ -275,6 +275,25 @@ def test_graph_switch_restores_world_and_checkpoint_has_world_state(tmp_path):
     assert meta['world_state']['state']['time_step'] == runner.arena.time_step
 
 
+def test_periodic_daemon_checkpoints_keep_only_the_newest(tmp_path, monkeypatch):
+    monkeypatch.setenv('NEUROFLY_KEEP_CHECKPOINTS', '2')
+    runner = _graph_runner(tmp_path, paradigm='t-maze')
+    assert runner.registry.keep_checkpoints == 2
+    with runner.lock:
+        manual = runner.save_checkpoint('manual')
+        for _ in range(5):
+            runner.step_once()
+            last = runner.save_checkpoint('periodic')
+    instance_id = runner.registry.active.instance_id
+    npz = sorted(p.name for p in (runner.registry.instance_dir(instance_id) / 'checkpoints').iterdir())
+    assert npz == ['ckpt-000005.npz', 'ckpt-000006.npz']
+    periodic = sorted(runner.checkpoints_dir.glob('checkpoint_t-maze_periodic_*.json'))
+    assert len(periodic) == 2 and last in periodic and manual.exists()
+    saved = json.loads(last.read_text())
+    meta, _ = runner.registry.read_checkpoint(instance_id)
+    assert saved['graph_checkpoint'].endswith('ckpt-000006.npz') and meta['version'] == 6
+
+
 # ---------------------------------------------------------------------------
 # The modular default never touches the graph
 # ---------------------------------------------------------------------------

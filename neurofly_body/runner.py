@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -17,8 +18,13 @@ from typing import Any
 import numpy as np
 
 from . import __version__
-from .decoder import DNa02CPGDecoder
+from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .interfaces import BodyBackend, NeuralBackend
+
+
+# Neural reply fields that measure the host, not the simulation.  They go to
+# timing.jsonl so telemetry.jsonl depends only on the seed, config and code.
+WALL_CLOCK_FIELDS = ("elapsed_ms",)
 
 
 @dataclass(frozen=True)
@@ -122,9 +128,12 @@ class _RunOutput:
         self.output_dir = Path(output_dir).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=False)
         self.telemetry_path = self.output_dir / "telemetry.jsonl"
+        self.timing_path = self.output_dir / "timing.jsonl"
         self.manifest_path = self.output_dir / "manifest.json"
         self.summary_path = self.output_dir / "summary.json"
         self._stream = self.telemetry_path.open("x", encoding="utf-8", buffering=1)
+        self._timing = self.timing_path.open("x", encoding="utf-8", buffering=1)
+        self._digest = hashlib.sha256()
         self.manifest: dict[str, Any] = {}
 
     def set_manifest(self, manifest: dict[str, Any]) -> None:
@@ -134,15 +143,27 @@ class _RunOutput:
     def write(self, record: dict[str, Any]) -> None:
         record = _to_builtin(record)
         _assert_finite(record)
-        self._stream.write(json.dumps(record, sort_keys=True, allow_nan=False) + "\n")
+        line = json.dumps(record, sort_keys=True, allow_nan=False) + "\n"
+        self._digest.update(line.encode("utf-8"))
+        self._stream.write(line)
+
+    def write_timing(self, record: dict[str, Any]) -> None:
+        self._timing.write(json.dumps(_to_builtin(record), sort_keys=True) + "\n")
+
+    @property
+    def trajectory_sha256(self) -> str:
+        """SHA-256 of telemetry.jsonl as written so far."""
+        return self._digest.hexdigest()
 
     def complete(self, summary: dict[str, Any]) -> None:
         self._stream.flush()
+        self._timing.flush()
         _write_json(self.summary_path, summary)
         self.manifest.update(
             status="complete",
             completed_at=datetime.now(timezone.utc).isoformat(),
             records=int(summary["records"]),
+            trajectory_sha256=summary["trajectory_sha256"],
         )
         _write_json(self.manifest_path, self.manifest)
 
@@ -156,6 +177,7 @@ class _RunOutput:
 
     def close(self) -> None:
         self._stream.close()
+        self._timing.close()
 
 
 def run_embodied(
@@ -163,15 +185,21 @@ def run_embodied(
     neural: NeuralBackend,
     body: BodyBackend,
     *,
-    decoder: DNa02CPGDecoder | None = None,
+    decoder: DNCommandDecoder | DNa02CPGDecoder | None = None,
+    invocation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run a coupled experiment and return the written summary.
 
     The graph is stepped once per neural tick.  Its command is then held while
     the body/controller executes an integer number of fixed physics substeps.
+
+    ``telemetry.jsonl`` holds only simulated quantities, so the same code, seed,
+    config and brain backend give a byte-identical file; its SHA-256 is the
+    run's ``trajectory_sha256``.  Wall-clock measurements go to ``timing.jsonl``.
+    ``invocation`` (the CLI arguments) is stored so ``replay-check`` can re-run it.
     """
     config = config.validated()
-    decoder = decoder or DNa02CPGDecoder()
+    decoder = decoder or DNCommandDecoder()
     substeps = int(round((config.neural_dt_ms / 1000.0) / config.physics_dt_s))
     n_steps = int(round(config.duration_s / (config.neural_dt_ms / 1000.0)))
     if not math.isclose(body.physics_dt_s, config.physics_dt_s, abs_tol=1e-12):
@@ -186,11 +214,19 @@ def run_embodied(
     previous_body_time = -math.inf
     total_spikes = 0
     driven_steps = 0
+    decoded_steps = 0
+    events: list[dict[str, Any]] = []
     last_record: dict[str, Any] | None = None
     try:
         neural.reset()
         status = _to_builtin(neural.get_status())
-        validate_real_v3_status(status)
+        if status.get("controller_kind") != "modular-baseline":
+            validate_real_v3_status(status)
+        missing = [key for key in decoder.required_status if not status.get(key)]
+        if missing:
+            raise RuntimeError(
+                f"refusing embodied run: decoder {decoder.name} needs {missing} from the graph backend"
+            )
         body_obs = _to_builtin(body.reset(config.seed))
         _assert_finite(body_obs, "initial_body")
         previous_body_time = float(body_obs["body_sim_time_s"])
@@ -220,6 +256,12 @@ def run_embodied(
                 "intact": "decoded command reaches FlyGym CPG",
                 "output-disconnected": "same graph and feedback run, decoded command replaced by [0,0]",
             },
+            "determinism": {
+                "trajectory_sha256": "SHA-256 of telemetry.jsonl; set when the run completes",
+                "excluded_wall_clock_fields": list(WALL_CLOCK_FIELDS),
+                "replay_requires": "same code, config, seed, graph and brain_backend",
+            },
+            "invocation": _to_builtin(invocation or {}),
             "provenance": {
                 "python": sys.version,
                 "platform": platform.platform(),
@@ -227,7 +269,7 @@ def run_embodied(
                 "pid": os.getpid(),
             },
             "limitations": [
-                "DNa02-to-CPG is an engineered decoder, not a biological VNC model.",
+                "The DN-to-CPG decoder is an engineered bridge, not a biological VNC model; its gains are assumptions.",
                 "The model does not establish full behavioral reproduction.",
                 "Passive v3 graph activity may yield sparse or zero DNa02 spikes.",
                 "Contact force and torque values remain in raw MuJoCo model units.",
@@ -236,6 +278,7 @@ def run_embodied(
         output.set_manifest(manifest)
 
         for step_index in range(n_steps):
+            step_started = time.perf_counter()
             body_yaw_velocity = float(body_obs["thorax"]["yaw_velocity_rad_s"])
             slip = config.world_angular_velocity_rad_s - body_yaw_velocity
             reply = _to_builtin(
@@ -248,7 +291,11 @@ def run_embodied(
                 )
             )
             _assert_finite(reply, "neural")
-            for field in ("sim_ms", "dna02_rate_l", "dna02_rate_r", "total_step_spikes"):
+            timing = {"step": step_index + 1}
+            for field in WALL_CLOCK_FIELDS:
+                if field in reply:
+                    timing[f"neural_{field}"] = reply.pop(field)
+            for field in ("sim_ms", "total_step_spikes"):
                 if field not in reply:
                     raise RuntimeError(f"neural reply is missing required field {field!r}")
             neural_ms = float(reply["sim_ms"])
@@ -261,15 +308,15 @@ def run_embodied(
                 )
             previous_neural_ms = neural_ms
 
-            decoded = decoder.decode(
-                float(reply["dna02_rate_l"]),
-                float(reply["dna02_rate_r"]),
-                config.neural_dt_ms,
-            )
+            decoded = decoder.decode_reply(reply, config.neural_dt_ms)
             decoded_command = (
                 float(decoded["left_cpg_drive"]),
                 float(decoded["right_cpg_drive"]),
             )
+            if decoded_command != (0.0, 0.0):
+                decoded_steps += 1
+            for event in decoded["events"]:
+                events.append({"step": step_index + 1, **event})
             applied_command = (
                 (0.0, 0.0) if config.mode == "output-disconnected" else decoded_command
             )
@@ -308,6 +355,8 @@ def run_embodied(
                 "body": body_obs,
             }
             output.write(last_record)
+            timing["step_wall_ms"] = (time.perf_counter() - step_started) * 1000.0
+            output.write_timing(timing)
 
         if hasattr(body, "save_video"):
             body.save_video()  # type: ignore[attr-defined]
@@ -320,17 +369,17 @@ def run_embodied(
             "wall_time_s": time.perf_counter() - started,
             "total_graph_spikes": total_spikes,
             "steps_with_nonzero_applied_drive": driven_steps,
-            "any_neural_motor_output": bool(
-                last_record
-                and (
-                    last_record["motor"]["decoder"]["filtered_rate_l_hz"] > 0
-                    or last_record["motor"]["decoder"]["filtered_rate_r_hz"] > 0
-                )
-            ),
+            "steps_with_nonzero_decoded_drive": decoded_steps,
+            "any_neural_motor_output": decoded_steps > 0,
+            "decoder": decoder.name,
+            "motor_events": events,
             "final_thorax": None if last_record is None else last_record["body"]["thorax"],
+            "trajectory_sha256": output.trajectory_sha256,
+            "real_time_factor": config.duration_s / max(time.perf_counter() - started, 1e-12),
             "artifacts": {
                 "manifest": "manifest.json",
                 "telemetry": "telemetry.jsonl",
+                "timing": "timing.jsonl",
                 "summary": "summary.json",
             },
         }

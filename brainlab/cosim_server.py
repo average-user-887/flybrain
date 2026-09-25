@@ -118,6 +118,7 @@ class ConnectomeServer:
         self.transmitter_policy_report = describe_transmitter_policy(
             self.transmitter_policy, self.unclear_mode)
         self.optomotor = None          # (io map, encoder, decoder) on the real graph only
+        self.locomotion_dn = None      # LocomotionDNMap (DNp09/MDN/GF/DNa02 by side), real graph only
         self.shared_graph = None        # retains transformed v3 arrays for this controller
         self.brain = None
         self.identity = None
@@ -232,6 +233,14 @@ class ConnectomeServer:
                               DNa02YawDecoder(io))
         except GraphUnavailable as error:
             print(f"[ConnectomeServer] optomotor IO map unavailable: {error}", flush=True)
+        try:
+            try:
+                from .io_map import resolve_locomotion_dns
+            except ImportError:
+                from brainlab.io_map import resolve_locomotion_dns
+            self.locomotion_dn = resolve_locomotion_dns(self.connectome_dir)
+        except GraphUnavailable as error:
+            print(f"[ConnectomeServer] locomotion DN map unavailable: {error}", flush=True)
         self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["visual_looming"] = df[df['cell_type'].isin(['LC4', 'LPLC2'])]['node_index'].tolist()
@@ -261,30 +270,33 @@ class ConnectomeServer:
             "transmitter_policy_report": self.transmitter_policy_report,
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
+            "locomotion_dn_map_sha256": self.locomotion_dn.sha256 if self.locomotion_dn else None,
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
+            # CPU and GPU agree statistically, not bit for bit, so a replay must
+            # run on the backend that made the recording.
+            "brain_backend": self.brain.backend,
             "lif_dynamics_pin": dynamics_pin(self.brain.dynamics),
             "controller_version": ('synthetic-test-v1' if self.is_synthetic
                                    else f'brainlab-lif-{self.brain.dynamics}'),
         }
 
     def reset(self):
-        """Resets membrane potentials and conductances to resting state."""
-        self.brain.v.fill(-52.0)
-        self.brain.g.fill(0.0)
-        self.brain.refractory.fill(0)
-        self.brain.queue.fill(0)
-        self.brain.queue_count.fill(0)
-        self.brain.counts.fill(0)
-        self.brain.active.fill(0)
-        self.brain.active_flag.fill(0)
-        self.brain.nactive.fill(0)
-        self.brain.cursor = 0
-        self.brain.total_spikes = 0
-        self.brain.sim_ms = 0.0
+        """Return the server to the state it was built in.
+
+        Membrane, conductances, delay queue and clocks go back to rest (on the
+        GPU as well as the host), and the optomotor encoder is rebuilt from
+        ``optomotor_seed``, so its random phases and noise stream restart.  A
+        run after ``reset()`` is therefore identical to one on a new server.
+        """
+        self.brain.reset_state(-52.0)
+        self.total_steps = 0
         if self.optomotor is not None:
-            self.optomotor[2].reset()
+            io, encoder, decoder = self.optomotor
+            encoder = type(encoder)(io, np.random.default_rng(self.optomotor_seed))
+            decoder.reset()
+            self.optomotor = (io, encoder, decoder)
 
     def step(self, sensory: Dict[str, Any], duration_ms: float = 2.0) -> Dict[str, Any]:
         """
@@ -378,7 +390,10 @@ class ConnectomeServer:
         spk_dna02_r = sum(spike_counts[i] for i in self.dn_indices["dna02_r"] if i < self.n_neurons)
         dna02_rate_l = spk_dna02_l / sec
         dna02_rate_r = spk_dna02_r / sec
-        dna02_diff = float(dna02_rate_r - dna02_rate_l)
+        # Steering convention shared with the daemon and neurofly_body: DNa02 drives
+        # ipsilateral turning, and yaw is + counter-clockwise (a left turn), so the
+        # steering signal is L - R.
+        dna02_diff = float(dna02_rate_l - dna02_rate_r)
 
         # DNp09 pursuit forward drive
         spk_dnp09 = sum(spike_counts[i] for i in self.dn_indices["dnp09"] if i < self.n_neurons)
@@ -422,7 +437,21 @@ class ConnectomeServer:
             "dnp01_gf_spikes": dnp01_gf_spikes,
             "engineered_assistance_applied": applied_assistance,
             "optomotor": optomotor_reply,
+            "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }
+
+    def _locomotion_dn_reply(self, spike_counts, sec: float) -> Optional[Dict[str, Any]]:
+        """Per-side mean rates (Hz per neuron) of the locomotion DNs, plus raw GF spikes."""
+        dn = self.locomotion_dn
+        if dn is None:
+            return None
+        reply: Dict[str, Any] = {"map_sha256": dn.sha256}
+        for name, nodes in dn.populations.items():
+            spikes = int(spike_counts[nodes].sum())
+            reply[f"{name}_rate_hz"] = spikes / (len(nodes) * sec)
+            if name.startswith("GF_"):
+                reply[f"{name}_spikes"] = spikes
+        return reply
 
     def get_status(self) -> Dict[str, Any]:
         return {

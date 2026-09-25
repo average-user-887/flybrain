@@ -226,6 +226,21 @@ class RunManifest:
         return cls(**data)
 
 
+DEFAULT_KEEP_CHECKPOINTS = 20
+KEEP_CHECKPOINTS_ENV = 'NEUROFLY_KEEP_CHECKPOINTS'
+
+
+def resolve_keep_checkpoints(keep: Optional[int] = None) -> int:
+    """Checkpoints kept per instance: explicit value, else the env, else 20. 0 keeps all."""
+    if keep is None:
+        raw = os.environ.get(KEEP_CHECKPOINTS_ENV, '').strip()
+        keep = int(raw) if raw else DEFAULT_KEEP_CHECKPOINTS
+    keep = int(keep)
+    if keep < 0:
+        raise ValueError(f'keep_checkpoints must be >= 0 (0 keeps all), got {keep}')
+    return keep
+
+
 def atomic_write_bytes(path: Path, data: bytes) -> None:
     """Write via a same-directory temporary file, fsync, then rename."""
     path.parent.mkdir(parents=True, exist_ok=True)

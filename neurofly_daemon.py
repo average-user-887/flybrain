@@ -70,7 +70,7 @@ from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
 from experiment_brains import ExperimentBrains
 # Controller identity (WP4).  experiment_registry / brainlab are imported only when
 # a graph backend is selected, so the modular default never touches the graph.
-from provenance import GRAPH_BACKENDS, RunManifest, get_backend, source_revision
+from provenance import GRAPH_BACKENDS, RunManifest, get_backend, resolve_keep_checkpoints, source_revision
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
 
@@ -331,7 +331,8 @@ class GraphArenaController:
         if sensory.get("theta_deg") is not None and raw_loom == 0.0:
             raw_loom = math.radians(float(sensory["theta_deg"]))
         looming_theta = float(raw_loom)
-        looming_detected = bool(sensory.get("looming_detected", False)) or (looming_theta > 0.15) or bool(sensory.get("gf_spike", False))
+        # A paradigm's own GF flag ("gf_spike") is an output, never a retinal input.
+        looming_detected = bool(sensory.get("looming_detected", False)) or (looming_theta > 0.15)
         i_loom = 0.0
         if looming_detected:
             i_loom = float(min(55.0, looming_theta * 40.0 + 15.0))
@@ -398,7 +399,10 @@ class GraphArenaController:
         if mdn_rate > 20.0:
             forward_speed = -15.0
             state = "REVERSE"
-        if spk_dnp01 > 0 or (looming_detected and i_loom > 30.0):
+        # Escape comes from the connectome alone: a DNp01 (Giant Fiber) spike in
+        # this step.  Stimulus strength never triggers it (LC4/LPLC2 drive has to
+        # propagate through the graph to the GF).
+        if spk_dnp01 > 0:
             forward_speed = 35.0
             state = "ESCAPE"
 
@@ -610,11 +614,14 @@ class ContinuousExperimentRunner:
         test_synthetic_graph: bool = False,
         graph_step_ms: Optional[float] = None,
         shared_graph: Any = None,
-        registry_root: Optional[Path] = None
+        registry_root: Optional[Path] = None,
+        keep_checkpoints: Optional[int] = None
     ):
         self.output_dir = Path(output_dir) if output_dir else (PROJECT_ROOT / "outputs")
         self.graph_dir = graph_dir
         self.registry_root = registry_root
+        # Newest checkpoints kept per graph instance and per assay (0 keeps all).
+        self.keep_checkpoints = resolve_keep_checkpoints(keep_checkpoints)
         self.graph_step_ms = graph_step_ms if graph_step_ms is not None else 20.0
         # Controller backend (provenance.BACKENDS).  A graph backend loads ONE shared
         # immutable graph and ONE ExperimentRegistry; a missing or mismatching graph
@@ -646,7 +653,8 @@ class ContinuousExperimentRunner:
                 plasticity_rule = VisualHeadingPlasticityRule.from_shared(shared_graph)
             self.registry = GraphRegistry(shared_graph, Path(registry_root) if registry_root else
                                           default_registry_dir(self.output_dir), test_mode=self.test_mode,
-                                          plasticity_rule=plasticity_rule)
+                                          plasticity_rule=plasticity_rule,
+                                          keep_checkpoints=self.keep_checkpoints)
             self.graph_controller = GraphArenaController(
                 self, self.graph_step_ms)
             # Bookkeeping (curves, event logs) for graph runs never shares files with
@@ -760,7 +768,8 @@ class ContinuousExperimentRunner:
             if self.registry is None:
                 self.registry = GraphRegistry(self.shared_graph,
                                               Path(self.registry_root) if self.registry_root else default_registry_dir(self.output_dir),
-                                              test_mode=self.test_mode)
+                                              test_mode=self.test_mode,
+                                              keep_checkpoints=self.keep_checkpoints)
             if self.graph_controller is None:
                 self.graph_controller = GraphArenaController(self, self.graph_step_ms)
             if target_backend == "connectome-plastic" and self.registry.plasticity_rule is None:
@@ -1768,8 +1777,26 @@ class ContinuousExperimentRunner:
         }
         with open(target_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-
+        if safe_tag == "periodic":
+            self._prune_periodic_checkpoints()
         return target_file
+
+    def _prune_periodic_checkpoints(self) -> None:
+        """Keep the newest ``keep_checkpoints`` periodic JSON records of the active
+        assay.  Manual and shutdown records are never removed."""
+        if not self.keep_checkpoints:
+            return
+        prefix = f"checkpoint_{self.active_paradigm_id}_periodic_"
+        stamped = []
+        for path in self.checkpoints_dir.glob(prefix + "*.json"):
+            stamp = path.stem[len(prefix):]
+            if stamp.isdigit():
+                stamped.append((int(stamp), path))
+        for _, path in sorted(stamped, reverse=True)[self.keep_checkpoints:]:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
@@ -2166,6 +2193,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--paradigm", default="multisensory-sandbox", help="Initial experimental paradigm")
     parser.add_argument("--speed", type=float, default=5.0, help="Initial simulation speed multiplier (default: 5.0x for real connectome)")
     parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
+    parser.add_argument("--keep-checkpoints", type=int, default=None,
+                        help="Newest periodic checkpoints kept per assay; older ones are deleted "
+                             "(env: NEUROFLY_KEEP_CHECKPOINTS; default 20; 0 keeps all)")
     parser.add_argument("--trial-seconds", type=float, default=60.0,
                         help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
     parser.add_argument("--continuous", action="store_true", help="Observe continuously without automatic respawns; manual reset starts a new segment")
@@ -2266,6 +2296,7 @@ def run_daemon():
             initial_paradigm=args.paradigm,
             sim_speed=args.speed,
             checkpoint_interval=args.checkpoint_interval,
+            keep_checkpoints=args.keep_checkpoints,
             trial_length_s=args.trial_seconds,
             continuous=args.continuous,
             output_dir=Path(args.output_dir) if args.output_dir else None,
