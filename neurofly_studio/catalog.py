@@ -50,12 +50,26 @@ class Parameter:
 
 
 @dataclass(frozen=True)
+class SilenceGroup:
+    """A named set of MaleCNS cell types a citizen can silence together."""
+    id: str
+    label: str
+    cell_types: tuple[str, ...]
+    explanation: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "label": self.label, "cell_types": list(self.cell_types),
+                "explanation": self.explanation}
+
+
+@dataclass(frozen=True)
 class StudioParadigm:
     id: str
     runner: str
     explanation: str
     parameters: tuple[Parameter, ...]
     controls: dict[str, str] = field(default_factory=dict)
+    silence_groups: tuple[SilenceGroup, ...] = ()
 
 
 # Input ranges, not validity claims.  Rationale in docs/EXPERIMENT_STUDIO.md.
@@ -85,10 +99,33 @@ OPTOMOTOR = StudioParadigm(
     controls={
         "output-disconnected": "Brain disconnected from the legs: the connectome runs and is "
                                "recorded, but its commands never reach the body.",
+        "intact": "The same fly with nothing silenced.",
     },
+    # Cell types named in brainlab/io_map.py for this circuit; sources in docs/EXPERIMENT_STUDIO.md.
+    silence_groups=(
+        SilenceGroup("t4t5", "Motion detectors (T4 and T5)", ("T4a", "T4b", "T5a", "T5b"),
+                     "The direction-selective cells that receive the rotating pattern here. "
+                     "Silencing them should leave the fly motion-blind."),
+        SilenceGroup("hs", "Horizontal system cells (HS)", ("HSN", "HSE", "HSS"),
+                     "Large lobula plate cells that respond to horizontal motion across the eye."),
+        SilenceGroup("dna02", "Steering neurons (DNa02)", ("DNa02",),
+                     "Descending neurons whose activity predicts turning toward their own side."),
+        SilenceGroup("dnp09", "Forward-walking neurons (DNp09)", ("DNp09",),
+                     "Descending neurons that drive forward walking in the body model."),
+        SilenceGroup("mdn", "Moonwalker neurons (MDN)", ("MDN",),
+                     "Descending neurons that drive backward walking in real flies."),
+    ),
 )
 
 STUDIO_PARADIGMS: dict[str, StudioParadigm] = {OPTOMOTOR.id: OPTOMOTOR}
+
+
+def runner_supports_silence() -> bool:
+    """True when this install's neurofly_body run has --silence (PR #31)."""
+    from neurofly_body.cli import _parser
+
+    run = _parser()._subparsers._group_actions[0].choices["run"]
+    return any("--silence" in action.option_strings for action in run._actions)
 
 
 def badge_for(connectome_status: str) -> str:
@@ -153,6 +190,8 @@ def catalog(matrix_path: Path = MATRIX_PATH, specs_dir: Path = SPECS_DIR) -> dic
             "explanation": studio.explanation if studio else None,
             "parameters": [p.to_dict() for p in studio.parameters] if studio else [],
             "controls": dict(studio.controls) if studio else {},
+            "silence_groups": ([g.to_dict() for g in studio.silence_groups]
+                               if studio and runner_supports_silence() else []),
             "preregistered_specs": specs.get(SPEC_PARADIGM.get(row["id"], ""), []),
         })
     return {"schema": "neurofly-studio-catalog-v1", "matrix": str(matrix_path.name),

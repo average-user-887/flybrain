@@ -7,6 +7,7 @@ needs neither the MaleCNS graph nor FlyGym.  Nothing here is a simulation result
 """
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 
@@ -66,15 +67,38 @@ class StickFlyBody:
         pass
 
 
+def _split_silence(argv: list[str]) -> tuple[list[str], list[str]]:
+    rest, targets, items = [], [], iter(argv)
+    for item in items:
+        if item == "--silence":
+            targets.append(next(items))
+        else:
+            rest.append(item)
+    return rest, targets
+
+
 def fake_runner(argv: list[str], log_path: Path) -> int:
-    """Queue runner with the real argument parser and output format."""
+    """Queue runner with the real argument parser and output format.
+
+    ``--silence`` is stood in for by a modular controller with no turning, and
+    summary.json gets a ``silenced`` block shaped like the real runner's.  This
+    only exercises the studio; it says nothing about what silencing does.
+    """
+    argv, silence = _split_silence(list(argv))
     args = cli._parser().parse_args(["run", *argv])
     config = EmbodiedConfig(duration_s=args.duration, output_dir=args.output, mode=args.mode,
                             neural_dt_ms=args.neural_dt_ms, physics_dt_s=args.physics_dt_s,
                             world_angular_velocity_rad_s=args.world_angular_velocity_rad_s,
                             contrast=args.contrast, seed=args.seed, record_fps=args.record_fps)
-    run_embodied(config, ModularOptomotorBackend(), StickFlyBody(),
+    backend = ModularOptomotorBackend(turn_gain=0.0 if silence else 1.0)
+    run_embodied(config, backend, StickFlyBody(),
                  decoder=ModularCommandDecoder(max_drive=args.max_cpg_drive),
                  invocation=cli._invocation(args))
+    if silence:
+        summary_path = Path(args.output) / "summary.json"
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        summary["silenced"] = {"targets": silence, "total_neurons": 0, "spikes_total": 0,
+                               "clamp_held": True, "stand_in": "tests/studio_fakes.py"}
+        summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     Path(log_path).write_text("fake runner\n", encoding="utf-8")
     return 0

@@ -94,6 +94,11 @@
       <div class="field"><label for="b-repeats">Repeats (seeds in a row)</label>
         <select id="b-repeats"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select><span></span>
         <div class="help">Each repeat uses the next seed. One run is an anecdote; several show how much runs vary.</div></div>
+      <div id="b-silence" hidden>
+        <h3>Silence neurons</h3>
+        <p class="lead">Clamp a named neuron type for the whole run, to ask what it does. Compare the result with the same fly un-silenced.</p>
+        <div id="b-silence-list"></div>
+      </div>
       <div id="b-controls"></div>
       <div class="notice">Exploratory run. The simulation always uses full accuracy (2 ms brain steps, 0.1 ms physics); there is no faster, less accurate mode here.</div>
       <div id="b-prereg" class="prereg"></div>

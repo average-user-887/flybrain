@@ -50,4 +50,17 @@ def run_metrics(run_dir: Path) -> dict[str, Any]:
         "net_yaw_change_deg": None if previous_yaw is None else math.degrees(turned),
         "turning_gain": gain,
         "total_graph_spikes": spikes,
+        "silenced": _silenced(run_dir),
     }
+
+
+def _silenced(run_dir: Path) -> dict[str, Any] | None:
+    """The runner's silencing record from summary.json (None when nothing was silenced)."""
+    try:
+        summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    silenced = summary.get("silenced")
+    if not silenced:
+        return None
+    return {key: silenced.get(key) for key in ("targets", "total_neurons", "spikes_total", "clamp_held")}

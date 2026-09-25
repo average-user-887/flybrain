@@ -10,12 +10,17 @@ writes by hand::
       "parameters": {"world_angular_velocity_rad_s": 2.0, "contrast": 0.5,
                      "duration_s": 5.0, "seed": 1},
       "repeats": 1,
-      "control": "output-disconnected",
+      "silence": ["DNa02"],
+      "control": "intact",
       "controller": "connectome"
     }
 
 ``repeats`` queues seeds ``seed .. seed+repeats-1``; ``control`` adds, for each
-seed, a paired control run with the same seed.  ``controller`` may be
+seed, a paired control run with the same seed: ``"intact"`` (the same run with
+nothing silenced; needs ``silence``) or ``"output-disconnected"`` (the brain,
+silenced cell types included, runs but never reaches the legs).  ``silence``
+lists MaleCNS cell types, ``TYPE`` or one soma side ``TYPE:L`` / ``TYPE:R``,
+passed to ``neurofly_body run --silence`` (connectome controller only).  ``controller`` may be
 "modular" (the researcher baseline, never offered in the citizen page).
 
 Every run is labelled exploratory.  The file cannot name full-fidelity knobs
@@ -37,7 +42,10 @@ SCHEMA = "neurofly-studio-experiment-v1"
 LABEL = "exploratory"
 MAX_REPEATS = 6
 CONTROLLERS = ("connectome", "modular")
-_KEYS = {"schema", "title", "paradigm", "parameters", "repeats", "control", "controller", "label"}
+MAX_SILENCE = 16
+_KEYS = {"schema", "title", "paradigm", "parameters", "repeats", "control", "controller", "label",
+         "silence"}
+_TARGET = re.compile(r"^[A-Za-z0-9_.()'-]{1,40}(:[LR])?$")
 _SLUG = re.compile(r"[^a-z0-9]+")
 
 
@@ -50,10 +58,11 @@ class PlannedRun:
     name: str
     role: str          # "experiment" or the control name
     seed: int
+    silence: list[str]
     argv: list[str]    # neurofly_body run arguments, without --output
 
 
-def validate(raw: Any) -> dict[str, Any]:
+def validate(raw: Any, *, silence_supported: bool | None = None) -> dict[str, Any]:
     """Return a normalised experiment, or raise ExperimentError."""
     if not isinstance(raw, dict):
         raise ExperimentError("an experiment is a JSON object")
@@ -102,14 +111,34 @@ def validate(raw: Any) -> dict[str, Any]:
         raise ExperimentError(f"repeats: a whole number from 1 to {MAX_REPEATS}")
     if "seed" in parameters and parameters["seed"] + repeats - 1 > known["seed"].maximum:
         raise ExperimentError("seed + repeats is out of range")
-    control = raw.get("control")
-    if control is not None and control not in paradigm.controls:
-        raise ExperimentError(f"control must be one of: {', '.join(paradigm.controls) or 'none'}")
     controller = raw.get("controller", "connectome")
     if controller not in CONTROLLERS:
         raise ExperimentError(f"controller must be one of: {', '.join(CONTROLLERS)}")
+    silence = raw.get("silence") or []
+    if not isinstance(silence, list) or not all(isinstance(t, str) for t in silence):
+        raise ExperimentError("silence: a list of cell types such as \"DNa02\" or \"MDN:L\"")
+    silence = [t.strip() for t in silence]
+    bad = [t for t in silence if not _TARGET.match(t)]
+    if bad:
+        raise ExperimentError(f"silence: not a cell type or CELL_TYPE:L / CELL_TYPE:R: {bad[0]!r}")
+    if len(set(silence)) != len(silence) or len(silence) > MAX_SILENCE:
+        raise ExperimentError(f"silence: at most {MAX_SILENCE} different targets, none repeated")
+    if silence and controller != "connectome":
+        raise ExperimentError("silence needs the connectome controller; the modular baseline has no neurons")
+    if silence:
+        if silence_supported is None:
+            from .catalog import runner_supports_silence
+            silence_supported = runner_supports_silence()
+        if not silence_supported:
+            raise ExperimentError("this install's neurofly_body runner has no --silence option yet")
+    control = raw.get("control")
+    if control is not None and control not in paradigm.controls:
+        raise ExperimentError(f"control must be one of: {', '.join(paradigm.controls) or 'none'}")
+    if control == "intact" and not silence:
+        raise ExperimentError("an intact control needs something silenced in the experiment")
     return {"schema": SCHEMA, "title": title, "paradigm": paradigm.id, "parameters": parameters,
-            "repeats": repeats, "control": control, "controller": controller, "label": LABEL}
+            "repeats": repeats, "silence": silence, "control": control, "controller": controller,
+            "label": LABEL}
 
 
 def slug(text: str) -> str:
@@ -133,11 +162,15 @@ def plan(experiment: dict[str, Any], *, graph_args: list[str] | None = None,
         argv += ["--controller", experiment["controller"]]
         if experiment["controller"] == "connectome":
             argv += list(graph_args or [])
-        roles = [("experiment", "intact")]
-        if experiment["control"]:
-            roles.append((experiment["control"], experiment["control"]))
-        for role, mode in roles:
+        silence = list(experiment.get("silence") or [])
+        roles = [("experiment", "intact", silence)]
+        if experiment["control"] == "intact":
+            roles.append(("intact", "intact", []))
+        elif experiment["control"]:
+            roles.append((experiment["control"], experiment["control"], silence))
+        for role, mode, targets in roles:
             suffix = "" if role == "experiment" else "-control"
+            extra = [item for target in targets for item in ("--silence", target)]
             runs.append(PlannedRun(name=f"{base}-s{seed}{suffix}", role=role, seed=seed,
-                                   argv=[*argv, "--mode", mode]))
+                                   silence=targets, argv=[*argv, *extra, "--mode", mode]))
     return runs
