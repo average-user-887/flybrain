@@ -54,6 +54,11 @@ def _parser() -> argparse.ArgumentParser:
              "bit-identical to the same delay without --pipeline",
     )
     run.add_argument(
+        "--leg-load-feedback", action="store_true",
+        help="connectome only: drive each leg's campaniform sensilla afferents from its "
+             "measured load (contact force minus adhesion); off by default",
+    )
+    run.add_argument(
         "--silence", action="append", metavar="CELL_TYPE[:L|:R]",
         help="connectome only, repeatable: clamp this cell type (or one soma side) with the "
              "validation harness's SILENCE_DRIVE every step; off by default",
@@ -109,14 +114,14 @@ RUN_ARGUMENTS = (
     "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz", "silence",
-    "motor_delay_steps", "pipeline",
+    "motor_delay_steps", "pipeline", "leg_load_feedback",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
 INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
                        "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
                        "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02, "silence": None,
-                       "motor_delay_steps": 0, "pipeline": False}
+                       "motor_delay_steps": 0, "pipeline": False, "leg_load_feedback": False}
 
 
 def _invocation(args: argparse.Namespace) -> dict[str, Any]:
@@ -249,8 +254,9 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     if args.video:
         os.environ.setdefault("MUJOCO_GL", "egl")
     if args.controller == "modular":
-        if args.silence:
-            raise SystemExit("--silence needs the connectome controller; the modular baseline has no neurons")
+        if args.silence or args.leg_load_feedback:
+            raise SystemExit("--silence and --leg-load-feedback need the connectome controller; "
+                             "the modular baseline has no neurons")
         from .modular import ModularCommandDecoder, ModularOptomotorBackend
 
         neural = ModularOptomotorBackend(forward_drive=args.modular_forward_drive,
@@ -267,6 +273,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             engineered_assistance=False,
             optomotor_seed=args.seed,
             **({"silence": tuple(args.silence)} if args.silence else {}),
+            **({"leg_load_feedback": True} if args.leg_load_feedback else {}),
         )
     except TypeError as error:
         raise SystemExit(
@@ -300,6 +307,7 @@ def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, 
             physics_dt_s=args.physics_dt_s,
             warmup_s=args.warmup_s,
             video_path=video_path,
+            measure_leg_load=bool(getattr(args, "leg_load_feedback", False)),
         )
         config = EmbodiedConfig(
             duration_s=args.duration,
@@ -313,6 +321,7 @@ def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, 
             record_fps=args.record_fps,
             motor_delay_steps=args.motor_delay_steps,
             pipeline=args.pipeline,
+            leg_load_feedback=args.leg_load_feedback,
         )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))

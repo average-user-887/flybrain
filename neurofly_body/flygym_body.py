@@ -31,6 +31,7 @@ class FlyGymBody:
         warmup_s: float = 0.05,
         video_path: Path | None = None,
         fast_loop: bool = True,
+        measure_leg_load: bool = False,
     ) -> None:
         if physics_dt_s <= 0 or warmup_s < 0:
             raise ValueError("physics_dt_s must be positive and warmup_s non-negative")
@@ -119,6 +120,8 @@ class FlyGymBody:
         self._previous_yaw: float | None = None
         self._last_observation_time: float | None = None
         self._video_saved = False
+        self.measure_leg_load = bool(measure_leg_load)
+        self._adhesion_ids = np.asarray(self.sim._intern_adhesionactuatorids_by_fly[self.FLY_NAME])
 
     @property
     def physics_dt_s(self) -> float:
@@ -184,6 +187,9 @@ class FlyGymBody:
         contact_found, forces, torques, contact_pos, normals, tangents = (
             self.sim.get_ground_contact_info(self.FLY_NAME)
         )
+        extra = {}
+        if self.measure_leg_load:
+            extra["leg_load_uN"] = self.leg_load_uN(contact_found, forces).tolist()
         return {
             "body_sim_time_s": now,
             "thorax": {
@@ -209,7 +215,23 @@ class FlyGymBody:
             "cpg_magnitudes": np.asarray(
                 self.controller.cpg_network.curr_magnitudes, dtype=float
             ).tolist(),
+            **extra,
         }
+
+    def leg_load_uN(self, contact_found, forces) -> np.ndarray:
+        """Weight-bearing load per leg (uN, FlyGym leg order), signed.
+
+        The tarsal adhesion actuator (gain 40 uN) pulls each tarsus into the
+        ground and the contact solver pushes back, so the vertical contact force
+        is load + adhesion.  Load = -F_z - adhesion force while the leg is in
+        contact, else 0.  Model units are mm, g, s, so forces are in uN.  During
+        quiet standing the six loads sum to the body weight (about 10 uN).
+        Negative load means the adhesive pad is holding a leg that pulls away.
+        """
+        found = np.asarray(contact_found, dtype=float) > 0
+        vertical = -np.asarray(forces, dtype=float)[:, 2]
+        adhesion = np.asarray(self.sim.mj_data.actuator_force[self._adhesion_ids], dtype=float)
+        return np.where(found, vertical - adhesion, 0.0)
 
     def skeleton(self) -> dict[str, Any]:
         """Body segment names and parent indices (-1 = attached to the world)."""
