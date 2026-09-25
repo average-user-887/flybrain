@@ -142,6 +142,24 @@ exit status, wall time, `trajectory_sha256` and real-time factor. If the
 worker is killed during a job, the next `queue run` moves that job to
 `failed/` rather than running it again, because its output may be partial.
 
+## Replay in the browser
+
+The loop runs slower than real time, so each run also writes `body.nfbody`:
+the 3D positions of every body segment, the thorax yaw, the CPG command, leg
+contacts, per-side DN rates (connectome controller), graph spikes per frame
+and motor events, at `--record-fps` frames per simulated second (default 50;
+the frame period must be a whole number of 2 ms neural steps; 0 turns it off).
+The file holds no wall-clock data, so a replayed run gives a byte-identical
+recording, and `replay-check` compares its frame hash too.
+
+To watch a run at the fly's own speed, open `/embodied_replay.html` on the
+dashboard (or `web/embodied_replay.html` from any static server) and pick the
+`body.nfbody` file, drop it on the page, or pass `?src=<url>`. Playback is 1x
+simulated time by default, with 0.25x to 4x, seeking and pause (space). The page
+checks the frame SHA-256 against the file's end record where the browser allows
+it (localhost or HTTPS); on a plain-HTTP LAN address it says the file is not
+verified.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
