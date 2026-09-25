@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 
 from . import __version__
-from .decoder import DNa02CPGDecoder
+from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .interfaces import BodyBackend, NeuralBackend
 
 
@@ -185,7 +185,7 @@ def run_embodied(
     neural: NeuralBackend,
     body: BodyBackend,
     *,
-    decoder: DNa02CPGDecoder | None = None,
+    decoder: DNCommandDecoder | DNa02CPGDecoder | None = None,
     invocation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run a coupled experiment and return the written summary.
@@ -199,7 +199,7 @@ def run_embodied(
     ``invocation`` (the CLI arguments) is stored so ``replay-check`` can re-run it.
     """
     config = config.validated()
-    decoder = decoder or DNa02CPGDecoder()
+    decoder = decoder or DNCommandDecoder()
     substeps = int(round((config.neural_dt_ms / 1000.0) / config.physics_dt_s))
     n_steps = int(round(config.duration_s / (config.neural_dt_ms / 1000.0)))
     if not math.isclose(body.physics_dt_s, config.physics_dt_s, abs_tol=1e-12):
@@ -214,11 +214,18 @@ def run_embodied(
     previous_body_time = -math.inf
     total_spikes = 0
     driven_steps = 0
+    decoded_steps = 0
+    events: list[dict[str, Any]] = []
     last_record: dict[str, Any] | None = None
     try:
         neural.reset()
         status = _to_builtin(neural.get_status())
         validate_real_v3_status(status)
+        missing = [key for key in decoder.required_status if not status.get(key)]
+        if missing:
+            raise RuntimeError(
+                f"refusing embodied run: decoder {decoder.name} needs {missing} from the graph backend"
+            )
         body_obs = _to_builtin(body.reset(config.seed))
         _assert_finite(body_obs, "initial_body")
         previous_body_time = float(body_obs["body_sim_time_s"])
@@ -261,7 +268,7 @@ def run_embodied(
                 "pid": os.getpid(),
             },
             "limitations": [
-                "DNa02-to-CPG is an engineered decoder, not a biological VNC model.",
+                "The DN-to-CPG decoder is an engineered bridge, not a biological VNC model; its gains are assumptions.",
                 "The model does not establish full behavioral reproduction.",
                 "Passive v3 graph activity may yield sparse or zero DNa02 spikes.",
                 "Contact force and torque values remain in raw MuJoCo model units.",
@@ -300,15 +307,15 @@ def run_embodied(
                 )
             previous_neural_ms = neural_ms
 
-            decoded = decoder.decode(
-                float(reply["dna02_rate_l"]),
-                float(reply["dna02_rate_r"]),
-                config.neural_dt_ms,
-            )
+            decoded = decoder.decode_reply(reply, config.neural_dt_ms)
             decoded_command = (
                 float(decoded["left_cpg_drive"]),
                 float(decoded["right_cpg_drive"]),
             )
+            if decoded_command != (0.0, 0.0):
+                decoded_steps += 1
+            for event in decoded["events"]:
+                events.append({"step": step_index + 1, **event})
             applied_command = (
                 (0.0, 0.0) if config.mode == "output-disconnected" else decoded_command
             )
@@ -361,13 +368,10 @@ def run_embodied(
             "wall_time_s": time.perf_counter() - started,
             "total_graph_spikes": total_spikes,
             "steps_with_nonzero_applied_drive": driven_steps,
-            "any_neural_motor_output": bool(
-                last_record
-                and (
-                    last_record["motor"]["decoder"]["filtered_rate_l_hz"] > 0
-                    or last_record["motor"]["decoder"]["filtered_rate_r_hz"] > 0
-                )
-            ),
+            "steps_with_nonzero_decoded_drive": decoded_steps,
+            "any_neural_motor_output": decoded_steps > 0,
+            "decoder": decoder.name,
+            "motor_events": events,
             "final_thorax": None if last_record is None else last_record["body"]["thorax"],
             "trajectory_sha256": output.trajectory_sha256,
             "real_time_factor": config.duration_s / max(time.perf_counter() - started, 1e-12),

@@ -75,10 +75,19 @@ class TimedGraph(FakeGraph):
         super().__init__()
         self.calls = 0
 
+    def get_status(self):
+        return {**super().get_status(), "locomotion_dn_map_sha256": "d" * 64}
+
     def step(self, sensory, duration_ms=2.0):
         self.calls += 1
         reply = super().step(sensory, duration_ms)
         reply["elapsed_ms"] = 1.0 + 0.123 * self.calls * id(self) % 7
+        reply["locomotion_dn"] = {
+            "map_sha256": "d" * 64, "DNp09_L_rate_hz": 50.0, "DNp09_R_rate_hz": 50.0,
+            "DNa02_L_rate_hz": reply["dna02_rate_l"], "DNa02_R_rate_hz": 0.0,
+            "MDN_L_rate_hz": 0.0, "MDN_R_rate_hz": 0.0, "GF_L_rate_hz": 0.0, "GF_R_rate_hz": 0.0,
+            "GF_L_spikes": 0, "GF_R_spikes": 0,
+        }
         return reply
 
 

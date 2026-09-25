@@ -118,6 +118,7 @@ class ConnectomeServer:
         self.transmitter_policy_report = describe_transmitter_policy(
             self.transmitter_policy, self.unclear_mode)
         self.optomotor = None          # (io map, encoder, decoder) on the real graph only
+        self.locomotion_dn = None      # LocomotionDNMap (DNp09/MDN/GF/DNa02 by side), real graph only
         self.shared_graph = None        # retains transformed v3 arrays for this controller
         self.brain = None
         self.identity = None
@@ -232,6 +233,14 @@ class ConnectomeServer:
                               DNa02YawDecoder(io))
         except GraphUnavailable as error:
             print(f"[ConnectomeServer] optomotor IO map unavailable: {error}", flush=True)
+        try:
+            try:
+                from .io_map import resolve_locomotion_dns
+            except ImportError:
+                from brainlab.io_map import resolve_locomotion_dns
+            self.locomotion_dn = resolve_locomotion_dns(self.connectome_dir)
+        except GraphUnavailable as error:
+            print(f"[ConnectomeServer] locomotion DN map unavailable: {error}", flush=True)
         self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["visual_looming"] = df[df['cell_type'].isin(['LC4', 'LPLC2'])]['node_index'].tolist()
@@ -261,6 +270,7 @@ class ConnectomeServer:
             "transmitter_policy_report": self.transmitter_policy_report,
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
+            "locomotion_dn_map_sha256": self.locomotion_dn.sha256 if self.locomotion_dn else None,
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
@@ -427,7 +437,21 @@ class ConnectomeServer:
             "dnp01_gf_spikes": dnp01_gf_spikes,
             "engineered_assistance_applied": applied_assistance,
             "optomotor": optomotor_reply,
+            "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }
+
+    def _locomotion_dn_reply(self, spike_counts, sec: float) -> Optional[Dict[str, Any]]:
+        """Per-side mean rates (Hz per neuron) of the locomotion DNs, plus raw GF spikes."""
+        dn = self.locomotion_dn
+        if dn is None:
+            return None
+        reply: Dict[str, Any] = {"map_sha256": dn.sha256}
+        for name, nodes in dn.populations.items():
+            spikes = int(spike_counts[nodes].sum())
+            reply[f"{name}_rate_hz"] = spikes / (len(nodes) * sec)
+            if name.startswith("GF_"):
+                reply[f"{name}_spikes"] = spikes
+        return reply
 
     def get_status(self) -> Dict[str, Any]:
         return {

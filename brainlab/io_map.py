@@ -385,3 +385,54 @@ def resolve_visual_heading_io(connectome_dir: Optional[Path] = None, graph_dir: 
         plastic_edges=edges_arr,
         sha256=digest,
     )
+
+
+# ---------------------------------------------------------------------------
+# Locomotion descending neurons (P2 embodied decoder)
+# ---------------------------------------------------------------------------
+# Command-like DNs read by neurofly_body's DN decoder, split by annotated soma
+# side.  Types follow brainlab.graph_identity.DN_EXPECTED_TYPES.
+LOCOMOTION_DN_TYPES = {'DNp09': 'DNp09', 'MDN': 'MDN', 'GF': 'DNp01', 'DNa02': 'DNa02'}
+
+
+@dataclass
+class LocomotionDNMap:
+    populations: Dict[str, np.ndarray]   # 'DNp09_L' -> node indices
+    source_ids: Dict[str, List[int]]
+    sha256: str = ''
+
+    def describe(self) -> dict:
+        return dict(sha256=self.sha256, rule='cell type + annotated somaSide, sorted by source_id',
+                    source_ids=self.source_ids)
+
+
+def locomotion_dn_map_from_nodes(nodes) -> LocomotionDNMap:
+    """Resolve DNp09, MDN, GF and DNa02 per side from a node table with
+    ``node_index, source_id, cell_type, type, somaSide`` columns.
+
+    Fails closed: every population must be non-empty, prepared and annotated
+    types must agree, and no selected neuron may lack a soma side.
+    """
+    ctype = nodes.cell_type.fillna('')
+    side = nodes.somaSide.fillna('?')
+    populations, source_ids = {}, {}
+    for name, cell_type in LOCOMOTION_DN_TYPES.items():
+        rows = nodes[ctype.eq(cell_type)]
+        if rows.type.notna().any() and (rows.type.dropna() != cell_type).any():
+            raise GraphUnavailable(f'{cell_type}: prepared cell_type disagrees with annotation type')
+        unsided = rows[~side.loc[rows.index].isin(EYES)]
+        if len(unsided):
+            raise GraphUnavailable(f'{cell_type}: {len(unsided)} neurons without a L/R soma side')
+        for s in EYES:
+            chosen = rows[side.loc[rows.index].eq(s)].sort_values('source_id')
+            if not len(chosen):
+                raise GraphUnavailable(f'{name}_{s} resolved empty')
+            populations[f'{name}_{s}'] = chosen.node_index.to_numpy(dtype=np.int64)
+            source_ids[f'{name}_{s}'] = [int(v) for v in chosen.source_id]
+    digest = sha256_json(dict(source_ids=source_ids, rule='locomotion DNs by cell type + somaSide'))
+    return LocomotionDNMap(populations=populations, source_ids=source_ids, sha256=digest)
+
+
+def resolve_locomotion_dns(connectome_dir: Optional[Path] = None) -> LocomotionDNMap:
+    """Resolve the locomotion DN map from the released MaleCNS tables."""
+    return locomotion_dn_map_from_nodes(_load_tables(connectome_dir))
