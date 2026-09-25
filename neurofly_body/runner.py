@@ -10,6 +10,8 @@ import platform
 import sys
 import time
 import traceback
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +40,12 @@ class EmbodiedConfig:
     contrast: float = 1.0
     seed: int = 0
     record_fps: float = 0.0   # body.nfbody frames per simulated second; 0 = no recording
+    # Opt-in motor latency: the body executes the command decoded this many neural
+    # steps earlier (0 = the default zero-latency sequential loop).
+    motor_delay_steps: int = 0
+    # Opt-in: with a delay, run the graph step and the body step concurrently.
+    # Same result bit for bit as the sequential loop with the same delay.
+    pipeline: bool = False
 
     def validated(self) -> "EmbodiedConfig":
         if self.mode not in {"intact", "output-disconnected"}:
@@ -55,6 +63,12 @@ class EmbodiedConfig:
             raise ValueError("duration and timesteps must be positive")
         if not 0.0 <= self.contrast <= 1.0:
             raise ValueError("contrast must be between 0 and 1")
+        if isinstance(self.motor_delay_steps, bool) or not isinstance(self.motor_delay_steps, int) \
+                or self.motor_delay_steps < 0:
+            raise ValueError("motor_delay_steps must be a non-negative integer")
+        if self.pipeline and self.motor_delay_steps < 1:
+            raise ValueError("pipeline needs motor_delay_steps >= 1: with zero latency the body "
+                             "step depends on this step's graph output")
         if not math.isfinite(self.record_fps) or self.record_fps < 0:
             raise ValueError("record_fps must be finite and non-negative")
         if self.record_fps > 0:
@@ -226,6 +240,7 @@ def run_embodied(
     events: list[dict[str, Any]] = []
     last_record: dict[str, Any] | None = None
     recorder = None
+    executor = None
     try:
         neural.reset()
         status = _to_builtin(neural.get_status())
@@ -252,7 +267,12 @@ def run_embodied(
                 "neural_dt_ms": config.neural_dt_ms,
                 "physics_dt_s": config.physics_dt_s,
                 "physics_substeps_per_neural_step": substeps,
-                "ordering": "measure body -> compute retinal slip -> graph -> decode -> body substeps",
+                "ordering": ("measure body -> compute retinal slip -> graph -> decode -> body substeps"
+                             if not config.motor_delay_steps else
+                             f"measure body -> compute retinal slip -> graph -> decode -> queue; body substeps "
+                             f"run the command decoded {config.motor_delay_steps} step(s) earlier "
+                             f"(zeros until then){'; graph and body steps run concurrently' if config.pipeline else ''}"),
+                "motor_delay_ms": config.motor_delay_steps * config.neural_dt_ms,
             },
             "sensory_feedback": {
                 "equation": "retinal_slip_rad_s = world_angular_velocity_rad_s - body_yaw_velocity_rad_s",
@@ -303,10 +323,20 @@ def run_embodied(
                 **({"silenced": status["silence"]} if status.get("silence") else {}),
             })
 
+        delay = config.motor_delay_steps
+        pending = deque([(0.0, 0.0)] * delay)   # applied commands waiting for the body
+        if config.pipeline:
+            executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="neurofly-body")
         for step_index in range(n_steps):
             step_started = time.perf_counter()
             body_yaw_velocity = float(body_obs["thorax"]["yaw_velocity_rad_s"])
             slip = config.world_angular_velocity_rad_s - body_yaw_velocity
+            body_future = None
+            if delay:
+                body_command = pending.popleft()
+                if executor is not None:
+                    # Independent of this step's graph output, so it can run meanwhile.
+                    body_future = executor.submit(body.step, body_command, substeps)
             reply = _to_builtin(
                 neural.step(
                     {
@@ -343,12 +373,21 @@ def run_embodied(
                 decoded_steps += 1
             for event in decoded["events"]:
                 events.append({"step": step_index + 1, **event})
-            applied_command = (
+            connected_command = (
                 (0.0, 0.0) if config.mode == "output-disconnected" else decoded_command
             )
+            if delay:
+                pending.append(connected_command)
+                applied_command = body_command
+            else:
+                applied_command = connected_command
             if applied_command != (0.0, 0.0):
                 driven_steps += 1
-            body_obs = _to_builtin(body.step(applied_command, substeps))
+            if body_future is not None:
+                raw_obs, body_future = body_future.result(), None
+            else:
+                raw_obs = body.step(applied_command, substeps)
+            body_obs = _to_builtin(raw_obs)
             _assert_finite(body_obs, "body")
             body_time = float(body_obs["body_sim_time_s"])
             expected_body_time = previous_body_time + substeps * config.physics_dt_s
@@ -379,6 +418,7 @@ def run_embodied(
                     "decoded_cpg_drive": list(decoded_command),
                     "applied_cpg_drive": list(applied_command),
                     "output_connected": config.mode == "intact",
+                    **({"delay_steps": delay} if delay else {}),
                 },
                 "body": body_obs,
             }
@@ -438,5 +478,7 @@ def run_embodied(
         output.fail(error)
         raise
     finally:
+        if executor is not None:
+            executor.shutdown(wait=True)    # never close the body under a running step
         output.close()
         body.close()

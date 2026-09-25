@@ -44,6 +44,16 @@ def _parser() -> argparse.ArgumentParser:
              "optomotor model as a researcher baseline (neurofly_body/modular.py)",
     )
     run.add_argument(
+        "--motor-delay-steps", type=int, default=0, metavar="N",
+        help="opt-in motor latency: the body runs the command decoded N neural steps "
+             "(N x 2 ms) earlier; 0 (default) is the zero-latency sequential loop",
+    )
+    run.add_argument(
+        "--pipeline", action="store_true",
+        help="with --motor-delay-steps >= 1, step the graph and the body concurrently; "
+             "bit-identical to the same delay without --pipeline",
+    )
+    run.add_argument(
         "--silence", action="append", metavar="CELL_TYPE[:L|:R]",
         help="connectome only, repeatable: clamp this cell type (or one soma side) with the "
              "validation harness's SILENCE_DRIVE every step; off by default",
@@ -99,12 +109,14 @@ RUN_ARGUMENTS = (
     "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz", "silence",
+    "motor_delay_steps", "pipeline",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
 INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
                        "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
-                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02, "silence": None}
+                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02, "silence": None,
+                       "motor_delay_steps": 0, "pipeline": False}
 
 
 def _invocation(args: argparse.Namespace) -> dict[str, Any]:
@@ -176,7 +188,10 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     argv = ["run", "--output", str(output)]
     for name in RUN_ARGUMENTS:
         value = invocation[name]
-        if isinstance(value, list):          # repeatable flags (--silence)
+        if isinstance(value, bool):          # store_true flags (--pipeline)
+            if value:
+                argv.append("--" + name.replace("_", "-"))
+        elif isinstance(value, list):        # repeatable flags (--silence)
             for item in value:
                 argv += ["--" + name.replace("_", "-"), str(item)]
         elif value is not None:
@@ -296,6 +311,8 @@ def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, 
             contrast=args.contrast,
             seed=args.seed,
             record_fps=args.record_fps,
+            motor_delay_steps=args.motor_delay_steps,
+            pipeline=args.pipeline,
         )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))

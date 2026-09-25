@@ -184,6 +184,43 @@ lists the silenced source IDs, and the recording header carries the same
 `silenced` summary. `replay-check` repeats the flag. The modular baseline has
 no neurons and refuses it.
 
+## Motor delay and brain/body overlap (opt-in)
+
+The default loop is sequential with zero motor latency. The body runs the
+command decoded from this step's graph output, so the graph and the body cannot
+run at the same time. Overlapping them therefore changes the model: the body
+has to run a command from an earlier step. Both options below are off by
+default. Without them, a run is byte-identical to one made before they existed
+(checked against master on a 1 s modular run).
+
+- `--motor-delay-steps N` adds N neural steps (N x 2 ms) of motor latency. The
+  body executes the command decoded N steps earlier and zeros until then. This
+  is the sequential reference for the overlapped mode. Each telemetry record
+  keeps `decoded_cpg_drive` (this step's decode) and `applied_cpg_drive`
+  (what the body ran) and adds `motor.delay_steps`. The manifest gives
+  `lockstep.motor_delay_ms`.
+- `--pipeline` (needs `--motor-delay-steps` >= 1) runs this step's body
+  substeps in a worker thread while the graph computes. The body's input no
+  longer depends on the graph's current step. The graph kernels release the
+  GIL (`KERNEL_OPTIONS nogil=True`), and so do the GPU and MuJoCo steps. The
+  result is bit-identical to the same delay without `--pipeline`, because the
+  two steps share no state and the order in which results are joined is
+  fixed. Tests and a 1 s FlyGym run confirm this.
+
+Why a 2 ms delay is defensible: real flies are slower than that. The optomotor
+response has a pure delay of about 20 ms (Theobald et al. 2010, J Exp Biol
+213:1366), so one 2 ms step of latency lies inside the biological delay. It is
+still a model change, and it is recorded in every run.
+
+Measured cost:
+- **Behaviour:** in a 1 s modular run (seed 1, 4 rad/s drum), the final yaw was
+  2.89108 rad at zero latency and 2.89237 rad with a 2 ms delay, a difference of
+  0.04 %.
+- **Speed:** the modular controller is too cheap to show a speed-up (0.33x real
+  time in both modes on a cloud CPU). The speed-up has to be measured with the
+  connectome brain on the Ryzen: 2 s runs with `--motor-delay-steps 1`, with and
+  without `--pipeline`, compared on `real_time_factor`.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
