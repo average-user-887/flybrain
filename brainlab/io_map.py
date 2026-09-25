@@ -436,3 +436,76 @@ def locomotion_dn_map_from_nodes(nodes) -> LocomotionDNMap:
 def resolve_locomotion_dns(connectome_dir: Optional[Path] = None) -> LocomotionDNMap:
     """Resolve the locomotion DN map from the released MaleCNS tables."""
     return locomotion_dn_map_from_nodes(_load_tables(connectome_dir))
+
+
+# ---------------------------------------------------------------------------
+# Silencing named cell types (embodied runs; same clamp as the validation gate)
+# ---------------------------------------------------------------------------
+@dataclass
+class SilenceMap:
+    """Neurons clamped with :data:`SILENCE_DRIVE`, by requested target.
+
+    A target is a cell type (``DNa02``, both sides) or a cell type and one
+    annotated soma side (``DNa02:L``).  ``nodes`` is the sorted union.
+    """
+    targets: List[str]
+    populations: Dict[str, np.ndarray]
+    source_ids: Dict[str, List[int]]
+    nodes: np.ndarray
+    sha256: str = ''
+
+    def summary(self) -> dict:
+        """Compact identity, small enough to repeat in every telemetry record."""
+        return dict(targets=list(self.targets), map_sha256=self.sha256, drive=SILENCE_DRIVE,
+                    neurons={t: int(len(self.populations[t])) for t in self.targets},
+                    total_neurons=int(len(self.nodes)))
+
+    def describe(self) -> dict:
+        return dict(self.summary(), source_ids=self.source_ids,
+                    rule='cell type (+ annotated somaSide when given as TYPE:L or TYPE:R), sorted by source_id',
+                    semantics='input current of each silenced neuron is replaced by SILENCE_DRIVE every step, '
+                              'after all sensory drive; as in the validation harness (gate O7), '
+                              'the clamp can leak under v3 conductance dynamics, so silenced spikes are counted')
+
+
+def parse_silence_target(target: str) -> tuple:
+    """``'DNa02'`` -> ``('DNa02', None)``; ``'DNa02:L'`` -> ``('DNa02', 'L')``."""
+    text = str(target).strip()
+    cell_type, sep, side = text.partition(':')
+    if not cell_type or (sep and side not in EYES):
+        raise ValueError(f'silence target {target!r} must be CELL_TYPE or CELL_TYPE:L / CELL_TYPE:R')
+    return cell_type, (side if sep else None)
+
+
+def silence_map_from_nodes(nodes, targets) -> SilenceMap:
+    """Resolve silence targets from a node table (``node_index, source_id, cell_type, somaSide``).
+
+    Fails closed: an empty or repeated target, a cell type absent from the
+    graph, or a side with no annotated neurons is an error.
+    """
+    targets = [str(t).strip() for t in targets]
+    if not targets:
+        raise ValueError('no silence targets given')
+    if len(set(targets)) != len(targets):
+        raise ValueError(f'repeated silence target in {targets}')
+    ctype = nodes.cell_type.fillna('')
+    side = nodes.somaSide.fillna('?')
+    populations, source_ids = {}, {}
+    for target in targets:
+        cell_type, want_side = parse_silence_target(target)
+        mask = ctype.eq(cell_type)
+        if want_side is not None:
+            mask &= side.eq(want_side)
+        rows = nodes[mask].sort_values('source_id')
+        if not len(rows):
+            raise GraphUnavailable(f'silence target {target!r} resolved to no neurons')
+        populations[target] = rows.node_index.to_numpy(dtype=np.int64)
+        source_ids[target] = [int(v) for v in rows.source_id]
+    union = np.unique(np.concatenate(list(populations.values())))
+    digest = sha256_json(dict(targets=targets, source_ids=source_ids, rule='silence by cell type + somaSide'))
+    return SilenceMap(targets=targets, populations=populations, source_ids=source_ids, nodes=union, sha256=digest)
+
+
+def resolve_silence(targets, connectome_dir: Optional[Path] = None) -> SilenceMap:
+    """Resolve silence targets from the released MaleCNS tables."""
+    return silence_map_from_nodes(_load_tables(connectome_dir), targets)
