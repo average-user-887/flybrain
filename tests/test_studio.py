@@ -267,3 +267,102 @@ def test_silenced_pair_runs_end_to_end(served):
         time.sleep(0.1)
     assert jobs[silenced]["silence"] == ["DNa02"] and jobs[silenced]["clamp_held"] is True
     assert jobs[intact]["silence"] == [] and jobs[intact]["clamp_held"] is None
+
+
+# -- slice 2: bundles and curated runs ------------------------------------------
+def _finished_pair(tmp_path):
+    """A studio experiment + control, run by the stand-in runner, with replay receipts."""
+    studio = Studio(tmp_path / "queue", tmp_path / "curated", runner=fake_runner)
+    reply = studio.submit({**GOOD, "repeats": 1})
+    run_queue_run(studio)
+    dirs = [studio.queue_dir / "runs" / name for name in reply["queued"]]
+    for run_dir in dirs:
+        summary = json.loads((run_dir / "summary.json").read_text())
+        (run_dir / "replay_check.json").write_text(json.dumps({
+            "verdict": "BIT_IDENTICAL", "original_trajectory_sha256": summary["trajectory_sha256"]}))
+    return studio, dirs
+
+
+def run_queue_run(studio):
+    from neurofly_body import run_queue
+    run_queue.run(studio.queue_dir, runner=fake_runner, log=lambda message: None)
+
+
+def test_bundle_is_deterministic_and_checksummed(tmp_path):
+    import io
+    import zipfile
+
+    import pandas as pd
+
+    from neurofly_studio.export import build_bundle
+
+    studio, (run_dir, _) = _finished_pair(tmp_path)
+    first = studio.export("queue", run_dir.name)
+    assert first == studio.export("queue", run_dir.name)
+    archive = zipfile.ZipFile(io.BytesIO(first))
+    names = [n.split("/", 1)[1] for n in archive.namelist()]
+    assert names[:2] == ["README.txt", "bundle.json"]
+    assert {"telemetry.parquet", "telemetry.jsonl", "body.nfbody", "studio.json"} <= set(names)
+    bundle = json.loads(archive.read(f"{run_dir.name}/bundle.json"))
+    assert bundle["label"] == "exploratory"
+    for file, entry in bundle["files"].items():
+        import hashlib
+        assert hashlib.sha256(archive.read(f"{run_dir.name}/{file}")).hexdigest() == entry["sha256"]
+    table = pd.read_parquet(io.BytesIO(archive.read(f"{run_dir.name}/telemetry.parquet")))
+    records = (run_dir / "telemetry.jsonl").read_text().splitlines()
+    assert len(table) == len(records)
+    first_record = json.loads(records[0])
+    assert table["body.thorax.yaw_rad"].iloc[0] == first_record["body"]["thorax"]["yaw_rad"]
+    assert table["motor.applied_cpg_drive.1"].iloc[0] == first_record["motor"]["applied_cpg_drive"][1]
+    with pytest.raises(ValueError):
+        (run_dir / "summary.json").write_text(json.dumps({"status": "failed"}))
+        build_bundle(run_dir)
+
+
+def test_curation_needs_a_bit_identical_replay(tmp_path):
+    from neurofly_studio.curate import CurationError, curate
+
+    studio, (run_dir, control_dir) = _finished_pair(tmp_path)
+    args = dict(name="optomotor-intro", title="Intro", explanation="The fly turns with the world.")
+    (control_dir / "replay_check.json").write_text(json.dumps({"verdict": "DIVERGED"}))
+    with pytest.raises(CurationError, match="DIVERGED"):
+        curate(run_dir, studio.curated_dir, control_dir=control_dir, **args)
+    assert not studio.curated_dir.exists() or not any(studio.curated_dir.iterdir())  # all or nothing
+    (control_dir / "replay_check.json").unlink()
+    with pytest.raises(CurationError, match="replay-check"):
+        curate(control_dir, studio.curated_dir, **args)
+
+
+def test_curated_pair_shows_in_the_gallery_with_stored_metrics(tmp_path):
+    from neurofly_studio.curate import CurationError, curate
+
+    studio, (run_dir, control_dir) = _finished_pair(tmp_path)
+    targets = curate(run_dir, studio.curated_dir, control_dir=control_dir, name="optomotor-intro",
+                     title="Intro", explanation="The fly turns with the world.",
+                     control_explanation="Same brain, legs disconnected.")
+    assert [t.name for t in targets] == ["optomotor-intro", "optomotor-intro-control"]
+    assert not (targets[0] / "telemetry.jsonl").exists()
+    curated = {c["name"]: c for c in studio.runs()["curated"]}
+    assert curated["optomotor-intro"]["pair"] == "optomotor-intro-control"
+    assert curated["optomotor-intro-control"]["role"] == "output-disconnected"
+    assert curated["optomotor-intro"]["label"] == "exploratory"
+    stored = studio.metrics("curated", "optomotor-intro")
+    assert stored == run_metrics_of(run_dir)
+    info = json.loads((targets[0] / "curated.json").read_text())
+    import hashlib
+    assert info["files"]["body.nfbody"] == hashlib.sha256((targets[0] / "body.nfbody").read_bytes()).hexdigest()
+    assert studio.export("curated", "optomotor-intro")[:2] == b"PK"
+    with pytest.raises(CurationError, match="never overwritten"):
+        curate(run_dir, studio.curated_dir, name="optomotor-intro", title="x", explanation="y")
+
+
+def run_metrics_of(run_dir):
+    return metrics.run_metrics(run_dir)
+
+
+def test_export_endpoint_serves_a_zip(served):
+    studio, base = served
+    reply = studio.submit({**GOOD, "repeats": 1, "control": None})
+    run_queue_run(studio)
+    status, ctype, body = _get(f"{base}/api/studio/export/queue/{reply['queued'][0]}.zip")
+    assert status == 200 and ctype == "application/zip" and body[:2] == b"PK"

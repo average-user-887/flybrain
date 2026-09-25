@@ -28,6 +28,26 @@ from neurofly_studio.server import Studio, make_server  # noqa: E402
 from tests.studio_fakes import fake_runner  # noqa: E402
 
 
+def _seed_curated(tmp: Path) -> None:
+    """One curated pair made the real way (queue -> replay receipt -> curate), stand-in runner."""
+    from neurofly_body import run_queue
+    from neurofly_studio.curate import curate
+
+    seed = Studio(tmp / "seed-queue", tmp / "curated", runner=fake_runner)
+    reply = seed.submit({"paradigm": "optomotor", "title": "Intro", "control": "output-disconnected",
+                         "controller": "modular", "parameters": {"duration_s": 2.0}})
+    run_queue.run(seed.queue_dir, runner=fake_runner, log=lambda m: None)
+    dirs = [seed.queue_dir / "runs" / name for name in reply["queued"]]
+    for run_dir in dirs:
+        sha = json.loads((run_dir / "summary.json").read_text())["trajectory_sha256"]
+        (run_dir / "replay_check.json").write_text(json.dumps(
+            {"verdict": "BIT_IDENTICAL", "original_trajectory_sha256": sha, "note": "stand-in"}))
+    curate(dirs[0], tmp / "curated", control_dir=dirs[1], name="optomotor-intro",
+           title="The fly turns with the world (stand-in)",
+           explanation="Stand-in curated run for the headless check.",
+           control_explanation="Same brain, legs disconnected.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, required=True)
@@ -35,6 +55,7 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
 
     tmp = Path(tempfile.mkdtemp(prefix="studio-check-"))
+    _seed_curated(tmp)
     studio = Studio(tmp / "queue", tmp / "curated", runner=fake_runner)
     studio.start_worker(poll_s=0.1, log=lambda m: print(m, file=sys.stderr))
     server = make_server(studio, "127.0.0.1", 0)
@@ -57,14 +78,35 @@ def main() -> int:
             page.on("console", lambda m: m.type == "error" and report["console_errors"].append(m.text))
             page.on("pageerror", lambda e: report["page_errors"].append(str(e)))
             page.goto(base + "/")
-            page.wait_for_selector("#curated .empty")
+            page.wait_for_selector("#curated .card")
+            checks[f"{label}_curated_cards"] = page.locator("#curated .card").count() == 2
             checks[f"{label}_no_horizontal_scroll"] = page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth")
             if label == "phone":
                 shot(page, "phone-gallery")
                 context.close()
                 continue
-            shot(page, "1-gallery-empty")
+            shot(page, "1-gallery-curated")
+            href = page.get_attribute("#curated .card a[download]", "href")
+            response = page.request.get(base + href)
+            checks["download_is_zip"] = response.ok and response.body()[:2] == b"PK"
+            # Curated pair side by side, synced.
+            page.click("#curated [data-with]")
+            page.wait_for_selector("#sync:not([hidden])", timeout=20_000)
+            page.click("#sync-play")
+            page.wait_for_timeout(1200)
+            page.click("#sync-play")
+            frames = page.evaluate("""() => ['cmp-frame-a', 'cmp-frame-b'].map(
+                id => document.getElementById(id).contentWindow.embodiedReplay.frame)""")
+            checks["synced_frames"] = frames
+            checks["synced_frames_advance_together"] = frames[0] == frames[1] and frames[0] > 20
+            page.fill("#sync-seek", "500")
+            page.dispatch_event("#sync-seek", "input")
+            frames = page.evaluate("""() => ['cmp-frame-a', 'cmp-frame-b'].map(
+                id => document.getElementById(id).contentWindow.embodiedReplay.frame)""")
+            checks["synced_seek_halfway"] = frames[0] == frames[1] and 45 <= frames[0] <= 55
+            shot(page, "1b-compare-curated-synced")
+            page.click("nav [data-tab=gallery]")
 
             page.click("nav [data-tab=build]")
             page.wait_for_selector("[data-build=optomotor]")
@@ -107,7 +149,7 @@ def main() -> int:
 
             page.click("nav [data-tab=gallery]")
             page.wait_for_selector("#finished .card")
-            checks["gallery_cards"] = page.locator("#finished .card").count()
+            checks["gallery_cards"] = page.locator("#finished .card").count() == 2
             shot(page, "5-gallery")
             page.click("#finished [data-with]")
             page.wait_for_selector("#cmp-table td")

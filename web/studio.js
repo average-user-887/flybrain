@@ -31,6 +31,7 @@
     // ---- runs -------------------------------------------------------------
     const runKey = (run) => run.source + '/' + run.name;
     const fileUrl = (run, file) => '/api/studio/files/' + encodeURIComponent(run.source) + '/' + encodeURIComponent(run.name) + '/' + file;
+    const exportUrl = (run) => '/api/studio/export/' + encodeURIComponent(run.source) + '/' + encodeURIComponent(run.name) + '.zip';
     const replayUrl = (run) => 'embodied_replay.html?src=' + encodeURIComponent(fileUrl(run, 'body.nfbody'));
     function roleText(run) {
         const silenced = (run.silence || []).join(', ');
@@ -68,6 +69,7 @@
             '<div class="row">' +
             (run.has_recording ? '<a class="act" target="_blank" rel="noopener" href="' + esc(replayUrl(run)) + '">Watch</a>'
                 : '<span class="meta">no 3D recording</span>') +
+            '<a class="act" href="' + esc(exportUrl(run)) + '" download>Download</a>' +
             (pairRun ? '<button class="act" data-compare="' + esc(runKey(run)) + '" data-with="' + esc(runKey(pairRun)) + '">Compare with pair</button>'
                 : '<button class="act" data-compare="' + esc(runKey(run)) + '">Compare…</button>') +
             '</div></div>';
@@ -76,7 +78,7 @@
     function renderGallery() {
         const curated = state.runs.curated;
         $('curated').innerHTML = curated.length ? curated.map(runCard).join('')
-            : '<p class="empty">No curated runs are installed yet. They will ship with the first public release.</p>';
+            : '<p class="empty">No curated runs are installed yet. Build an experiment below, or wait for the curated set that ships with the first public release.</p>';
         const mine = state.runs.queue.filter((r) => r.state === 'done').reverse();
         $('finished').innerHTML = mine.length ? mine.map(runCard).join('')
             : '<p class="empty">Nothing has finished yet. Build an experiment to queue your first run.</p>';
@@ -153,7 +155,7 @@
         const picked = keys.map((k) => runs.find((r) => runKey(r) === k));
         ['cmp-frame-a', 'cmp-frame-b'].forEach((id, i) => {
             const url = picked[i] && picked[i].has_recording ? replayUrl(picked[i]) : 'about:blank';
-            if ($(id).dataset.url !== url) { $(id).dataset.url = url; $(id).src = url; }
+            if ($(id).dataset.url !== url) { $(id).dataset.url = url; $(id).src = url; syncSetPlaying(false); sync.clock = 0; }
         });
         const metrics = await Promise.all(picked.map((r) => r ? api('/api/studio/metrics/' + encodeURIComponent(r.source) + '/' + encodeURIComponent(r.name)).catch((e) => ({ error: e.message })) : null));
         const cell = (m, key, digits) => {
@@ -168,9 +170,44 @@
         $('cmp-table').innerHTML = picked.some(Boolean)
             ? '<thead><tr><th></th><th>' + esc(picked[0] ? picked[0].title + ' (' + roleText(picked[0]) + ')' : '') + '</th><th>' +
               esc(picked[1] ? picked[1].title + ' (' + roleText(picked[1]) + ')' : '') + '</th></tr></thead><tbody>' +
-              METRICS.map(([key, label, digits]) => '<tr><th>' + esc(label) + '</th><td>' + cell(metrics[0], key, digits) + '</td><td>' + cell(metrics[1], key, digits) + '</td></tr>').join('') + '</tbody>'
+              METRICS.filter(([key]) => !key.startsWith('silenced.') || metrics.some((m) => m && m.silenced))
+                  .map(([key, label, digits]) => '<tr><th>' + esc(label) + '</th><td>' + cell(metrics[0], key, digits) + '</td><td>' + cell(metrics[1], key, digits) + '</td></tr>').join('') + '</tbody>'
             : '';
     }
+    // ---- synced playback: one clock drives both replays ---------------------
+    const sync = { playing: false, clock: 0, last: null };
+    const players = () => ['cmp-frame-a', 'cmp-frame-b'].map((id) => {
+        try { return $(id).contentWindow && $(id).contentWindow.embodiedReplay; } catch (e) { return null; }
+    }).filter((p) => p && typeof p.seekTime === 'function');
+    const syncDuration = () => Math.max(0, ...players().map((p) => p.duration));
+    function syncShow() {
+        const duration = syncDuration();
+        players().forEach((p) => p.seekTime(sync.clock));
+        $('sync-seek').value = String(duration ? Math.round(sync.clock / duration * 1000) : 0);
+        $('sync-clock').textContent = sync.clock.toFixed(3) + ' / ' + duration.toFixed(3) + ' s';
+    }
+    function syncSetPlaying(on) {
+        sync.playing = on && players().length > 0;
+        sync.last = null;
+        if (sync.playing && sync.clock >= syncDuration()) sync.clock = 0;
+        $('sync-play').textContent = sync.playing ? 'Pause both' : 'Play both';
+    }
+    function syncTick(now) {
+        if (sync.playing) {
+            if (sync.last !== null) sync.clock += (now - sync.last) / 1000 * Number($('sync-speed').value);
+            sync.last = now;
+            const duration = syncDuration();
+            if (sync.clock >= duration) { sync.clock = duration; syncSetPlaying(false); }
+            syncShow();
+        }
+        $('sync').hidden = players().length < 2;
+        requestAnimationFrame(syncTick);
+    }
+    $('sync-play').addEventListener('click', () => syncSetPlaying(!sync.playing));
+    $('sync-seek').addEventListener('input', (e) => { sync.clock = Number(e.target.value) / 1000 * syncDuration(); syncShow(); });
+    requestAnimationFrame(syncTick);
+    window.studioSync = sync;
+
     $('cmp-a').addEventListener('change', updateCompare);
     $('cmp-b').addEventListener('change', updateCompare);
 
