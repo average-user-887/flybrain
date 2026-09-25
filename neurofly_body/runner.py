@@ -220,6 +220,7 @@ def run_embodied(
     previous_neural_ms = -math.inf
     previous_body_time = -math.inf
     total_spikes = 0
+    silenced_spikes = 0
     driven_steps = 0
     decoded_steps = 0
     events: list[dict[str, Any]] = []
@@ -299,6 +300,7 @@ def run_embodied(
                     "brain_backend", "locomotion_dn_map_sha256", "optomotor_io_map_sha256")},
                 "decoder": manifest["decoder"],
                 "sensory": manifest["sensory_feedback"],
+                **({"silenced": status["silence"]} if status.get("silence") else {}),
             })
 
         for step_index in range(n_steps):
@@ -359,6 +361,8 @@ def run_embodied(
             previous_body_time = body_time
 
             total_spikes += int(reply["total_step_spikes"])
+            if "silenced" in reply:
+                silenced_spikes += int(reply["silenced"]["spikes"])
             last_record = {
                 "schema": "neurofly-embodied-step-v1",
                 "step": step_index + 1,
@@ -410,6 +414,10 @@ def run_embodied(
                 "summary": "summary.json",
             },
         }
+        if status.get("silence"):
+            # The clamp held only if no silenced neuron spiked (the harness's gate O7 test).
+            summary["silenced"] = {**status["silence"], "spikes_total": silenced_spikes,
+                                   "clamp_held": silenced_spikes == 0}
         _assert_finite(summary, "summary")
         if recorder is not None:
             summary["recording"] = recorder.close()

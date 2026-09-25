@@ -18,7 +18,7 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Sequence
 import numpy as np
 
 # Root path resolution
@@ -79,12 +79,18 @@ class ConnectomeServer:
                  graph_dir: Optional[Path] = None, connectome_dir: Optional[Path] = None,
                  allow_synthetic: bool = False, engineered_assistance: bool = True,
                  optomotor_seed: int = 0, dynamics: Optional[str] = None,
-                 transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory'):
+                 transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory',
+                 silence: Sequence[str] = ()):
         """Create a fixed-weight controller with an explicit LIF/policy pairing.
 
         ``dynamics`` defaults to the declared process setting. v1/v2 keep the
         prepared graph unchanged; v3 defaults to ``v3-modulatory-only``, which
         derives a distinct in-memory graph identity without altering graph.npz.
+
+        ``silence`` names cell types (``DNa02``) or one side of a type
+        (``DNa02:L``) whose input current is clamped to ``SILENCE_DRIVE`` on
+        every step, as in the validation harness.  Real graph only; empty
+        by default, and then no reply or status field changes.
         """
         if graph_path is not None:
             graph_path = Path(graph_path)
@@ -148,6 +154,16 @@ class ConnectomeServer:
 
         self._load_brain()
         self._load_metadata()
+        self.silence_map = None
+        if silence:
+            if self.is_synthetic:
+                raise GraphUnavailable("silencing named cell types needs the real annotated graph")
+            try:
+                from .io_map import SILENCE_DRIVE, resolve_silence
+            except ImportError:
+                from brainlab.io_map import SILENCE_DRIVE, resolve_silence
+            self.silence_map = resolve_silence(silence, self.connectome_dir)
+            self._silence_drive = np.float32(SILENCE_DRIVE)
         self.sensory_map_sha256 = sha256_json(self.sensory_indices)
 
     def _load_brain(self):
@@ -271,6 +287,7 @@ class ConnectomeServer:
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
             "locomotion_dn_map_sha256": self.locomotion_dn.sha256 if self.locomotion_dn else None,
+            **({"silence": self.silence_map.summary()} if getattr(self, "silence_map", None) else {}),
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
@@ -378,11 +395,15 @@ class ConnectomeServer:
                 if idx < self.n_neurons:
                     currents[idx] += bpn_tonic
 
-        # 6. Step the LIF connectome kernel
+        # 6. Clamp silenced cell types last, overriding every drive above
+        if self.silence_map is not None:
+            currents[self.silence_map.nodes] = self._silence_drive
+
+        # 7. Step the LIF connectome kernel
         spike_counts, elapsed_s = self.brain.step(currents, duration_ms)
         self.total_steps += 1
 
-        # 7. Decode Descending Neuron Activity (spikes / duration -> Hz)
+        # 8. Decode Descending Neuron Activity (spikes / duration -> Hz)
         sec = duration_ms / 1000.0
 
         # DNa02 fine yaw steering
@@ -421,7 +442,7 @@ class ConnectomeServer:
                 "decoder": "yaw = 0.02*(rate DNa02_L - rate DNa02_R), + = counter-clockwise; unclipped",
             }
 
-        return {
+        reply = {
             "status": "ok",
             **self.identity_fields(),
             "server_step": self.total_steps,
@@ -439,6 +460,14 @@ class ConnectomeServer:
             "optomotor": optomotor_reply,
             "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }
+        if self.silence_map is not None:
+            # Spikes of clamped neurons: nonzero means the clamp leaked (cf. gate O7).
+            reply["silenced"] = {
+                "spikes": int(spike_counts[self.silence_map.nodes].sum()),
+                "by_target": {t: int(spike_counts[idx].sum())
+                              for t, idx in self.silence_map.populations.items()},
+            }
+        return reply
 
     def _locomotion_dn_reply(self, spike_counts, sec: float) -> Optional[Dict[str, Any]]:
         """Per-side mean rates (Hz per neuron) of the locomotion DNs, plus raw GF spikes."""
@@ -469,7 +498,8 @@ class ConnectomeServer:
             "total_steps": self.total_steps,
             "total_spikes": self.brain.total_spikes if self.brain else 0,
             "sim_ms": self.brain.sim_ms if self.brain else 0.0,
-            "brunel_scaled": True
+            "brunel_scaled": True,
+            **({"silence_map": self.silence_map.describe()} if self.silence_map else {}),
         }
 
 
