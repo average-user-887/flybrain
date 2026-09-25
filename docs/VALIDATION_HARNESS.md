@@ -108,6 +108,12 @@ scripts beside it). Raster images and axis limits never count. A
 marked verified in that sense. No DNa02 recording under visual motion
 exists, so the DNa02 driven bound is the cell's recorded range in any state.
 
+The P3 specs `looming_gf_v3.json` and `tmaze_odour_naive_v3.json` use bounds
+v3. This was set before any real-graph run of either spec. Looming gates GF
+spontaneous only; its LC4/LPLC2 checks are report-only, for the same reason
+as HS (see the spec's `physiology.amendment`). The T-maze PN check uses the
+2 s decision window, so the v3 PN driven ceiling applies.
+
 ## Declared engineering assumptions
 
 - **Optomotor.** Direction selectivity is put in by the encoder: T4/T5
