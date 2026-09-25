@@ -386,3 +386,45 @@ def test_brain_snapshot_restore_is_exact():
     two.restore_state(one.snapshot_state())
     np.testing.assert_array_equal(one.step(drive_vec, 4.0)[0], two.step(drive_vec, 4.0)[0])
     np.testing.assert_array_equal(one.v, two.v)
+
+
+def test_checkpoint_retention_keeps_newest_and_resumes_from_current(tmp_path, monkeypatch):
+    monkeypatch.delenv('NEUROFLY_KEEP_CHECKPOINTS', raising=False)
+    assert make_registry(tmp_path / 'default').keep_checkpoints == 20
+    monkeypatch.setenv('NEUROFLY_KEEP_CHECKPOINTS', '7')
+    assert make_registry(tmp_path / 'env').keep_checkpoints == 7
+    with pytest.raises(ValueError):
+        make_registry(tmp_path / 'bad', keep_checkpoints=-1)
+
+    registry = make_registry(tmp_path / 'r', keep_checkpoints=3)
+    a = registry.activate('t-maze', 'connectome-plastic')
+    for _ in range(8):
+        drive(a, 2)
+        registry.checkpoint()
+    checkpoints = registry.instance_dir(a.instance_id) / 'checkpoints'
+    assert sorted(p.name for p in checkpoints.iterdir()) == ['ckpt-000006.npz', 'ckpt-000007.npz', 'ckpt-000008.npz']
+    assert registry.current_pointer(a.instance_id)['version'] == 8
+    state = state_of(a)
+    registry.activate('optomotor', 'connectome-plastic')
+    restored = registry.activate('t-maze', 'connectome-plastic')
+    assert_same_state(state, state_of(restored))
+
+    unlimited = make_registry(tmp_path / 'all', keep_checkpoints=0)
+    b = unlimited.activate('y-maze', 'connectome-fixed')
+    for _ in range(5):
+        unlimited.checkpoint()
+    assert len(list((unlimited.instance_dir(b.instance_id) / 'checkpoints').iterdir())) == 5
+
+
+def test_retention_never_removes_the_published_version(tmp_path):
+    registry = make_registry(tmp_path, keep_checkpoints=1)
+    a = registry.activate('buridan', 'connectome-fixed')
+    registry.checkpoint()
+    registry.checkpoint()
+    checkpoints = registry.instance_dir(a.instance_id) / 'checkpoints'
+    # An unpublished higher version (interrupted write) does not count as newest.
+    (checkpoints / 'ckpt-000009.npz').write_bytes(b'partial')
+    assert registry.prune_checkpoints(a.instance_id) == []
+    assert (checkpoints / 'ckpt-000002.npz').exists()
+    meta, _ = registry.read_checkpoint(a.instance_id)
+    assert meta['version'] == 2
