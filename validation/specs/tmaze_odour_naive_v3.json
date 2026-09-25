@@ -438,7 +438,7 @@
   ]
  },
  "physiology": {
-  "bounds_file": "firing_rate_bounds_v2.json",
+  "bounds_file": "firing_rate_bounds_v3.json",
   "checks": [
    {
     "id": "P1_ORN_spont",

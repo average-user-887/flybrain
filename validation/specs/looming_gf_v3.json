@@ -238,39 +238,13 @@
   }
  },
  "physiology": {
-  "bounds_file": "firing_rate_bounds_v2.json",
+  "bounds_file": "firing_rate_bounds_v3.json",
   "checks": [
    {
     "id": "P1_GF_spont",
     "population": "GF",
     "window": "baseline",
     "bound": "GF",
-    "conditions": [
-     "loom_rv8",
-     "loom_rv14",
-     "loom_rv40",
-     "loom_rv70",
-     "loom_rv140"
-    ]
-   },
-   {
-    "id": "P2_LPLC2_L_driven",
-    "population": "LPLC2_L",
-    "window": "stimulus",
-    "bound": "LC_looming",
-    "conditions": [
-     "loom_rv8",
-     "loom_rv14",
-     "loom_rv40",
-     "loom_rv70",
-     "loom_rv140"
-    ]
-   },
-   {
-    "id": "P3_LC4_L_driven",
-    "population": "LC4_L",
-    "window": "stimulus",
-    "bound": "LC_looming",
     "conditions": [
      "loom_rv8",
      "loom_rv14",
@@ -301,7 +275,36 @@
      "loom_rv140"
     ]
    }
-  ]
+  ],
+  "reported": [
+   {
+    "id": "P2_LPLC2_L_driven",
+    "population": "LPLC2_L",
+    "window": "stimulus",
+    "bound": "LC_looming",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv14",
+     "loom_rv40",
+     "loom_rv70",
+     "loom_rv140"
+    ]
+   },
+   {
+    "id": "P3_LC4_L_driven",
+    "population": "LC4_L",
+    "window": "stimulus",
+    "bound": "LC_looming",
+    "conditions": [
+     "loom_rv8",
+     "loom_rv14",
+     "loom_rv40",
+     "loom_rv70",
+     "loom_rv140"
+    ]
+   }
+  ],
+  "amendment": "2026-09-25, before any real-graph run of this spec: the LC4/LPLC2 driven-rate checks (P2, P3) moved from checks to reported. The only electrophysiology of lobula output neurons, including LPLC2-like cells projecting to the GF glomerulus, says they 'never spike, even when injected with depolarizing current' (Mu et al. 2012, as read by the firing-rate bounds thread for bounds v3); every other LC4/LPLC2 study is calcium imaging, and no rate in Hz exists. A LIF proxy can pass the signal only by spiking, so a spike-rate bound would test the model class, not the fly. Same reasoning and precedent as the HS checks in optomotor v3-2. They are still measured and written to every receipt. No looming result had been seen when this was decided."
  },
  "decision_rule": "Behaviour PASS iff every gate passes. Physiology PASS iff every check lies in its bound. Verdict PASS iff both pass on a confirmatory run (real graph, this spec committed and unchanged, these seeds, clean tree); PASS_PROVISIONAL if any gating value is marked unverified; FAIL if any gate or check fails; INCONCLUSIVE if one cannot be evaluated. Full rule: validation/harness.py VERDICTS.",
  "citations": {
