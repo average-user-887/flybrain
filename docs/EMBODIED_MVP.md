@@ -101,6 +101,27 @@ includes the GPU copy of the brain state and the optomotor encoder's random
 stream, which restarts from `optomotor_seed`. So a second run in the same
 process matches a run on a new server.
 
+## Modular baseline controller
+
+`--controller modular` drives the same FlyGym body with the arena's
+phenomenological optomotor model (`vision.CompoundEyeVision`) instead of the
+connectome. This is the researcher baseline named in the roadmap. It is not
+derived from the connectome and makes no biological claim:
+
+```bash
+python -m neurofly_body run --controller modular --duration 10 --output runs/modular-10s --seed 1
+```
+
+It gets the same retinal-slip input as the connectome, with the drum at
+infinity so only rotation matters. It walks with a tonic amplitude
+(`--modular-forward-drive`, default 1.0) and turns by shrinking the amplitude
+of the legs on the side it turns toward, scaled by the arena's clipped yaw
+bias (`--modular-turn-gain`). Both values are assumptions. The manifest
+records `controller_kind: modular-baseline`, and `replay-check` works as it
+does for connectome runs. On the laptop CPU, a 1 s run with a 4 rad/s drum
+walked forward and turned counter-clockwise with the drum at about
+4.5 rad/s, at 0.38x real time. The replay was bit-identical.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
