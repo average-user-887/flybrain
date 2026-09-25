@@ -2,10 +2,10 @@
  "schema": "flybrain.validation-spec.v1",
  "id": "looming-gf-v3-1",
  "paradigm": "looming",
- "status": "draft",
- "status_reason": "the gate rests on the von Reyn 2014 Fig. 1 caption, read once and not re-readable in the 2026-09-24 check (main text paywalled); the von Reyn 2014 loom start/end size and elevation are still unread; the encoder saturation constants and the stimulus elevation need owner review before this is preregistered",
- "declared_at": "2026-09-24",
- "summary": "Frontal dark looming disc at five approach speeds: does the Giant Fiber spike more often for faster looms (lower r/v), as the GF-mediated short-mode takeoff fraction does in flies, and never without a stimulus?",
+ "status": "preregistered",
+ "status_reason": "preregistered 2026-09-25 before any real-graph run of this version. Stimulus and gates rebuilt from a primary-source read of von Reyn 2014 (figure captions, pp. 962-963, supplement and figure images; Online Methods still paywalled). The draft's slope gate (L1) was dropped: the published fall with r/v is per takeoff, and per loom presented it is flat over r/v 14-70 ms. The model cannot decode long-mode takeoffs, so the per-takeoff share cannot be measured the same way. Science choices were delegated to the project's Claude sessions by the owner (2026-09-25).",
+ "declared_at": "2026-09-25",
+ "summary": "Frontal dark disc looming from 5 to 90 deg (then held) at five approach speeds, as in von Reyn 2014: per loom, does the Giant Fiber spike at least as often as flies make GF-driven (short-mode) takeoffs and no more often than they take off at all, only once the disc is past ~39 deg, and never without a stimulus?",
  "dynamics": {
   "version": "v3",
   "transmitter_policy": "v3-modulatory-only",
@@ -19,13 +19,14 @@
    70,
    140
   ],
-  "theta_start_deg": 10.0,
-  "end": "collision (180 deg)",
+  "theta_start_deg": 5.0,
+  "theta_end_deg": 90.0,
+  "end": "expand to 90 deg, then hold 90 deg for post_ms (not collision)",
   "pre_ms": 200,
-  "post_ms": 100,
+  "post_ms": 1000,
   "step_ms": 2.0,
   "geometry": "frontal (azimuth 0), both eyes driven equally; elevation effects (Dombrovski et al., bioRxiv 10.1101/2024.09.04.610846) are not modelled",
-  "literature_match": "r/v set and per-condition n from von Reyn 2014 Fig. 1; start size 10 deg as in Jang 2023 (10 to 63 deg), von Reyn 2017 and Klapoetke 2017 (10 to 90 deg); Ache 2019 behaviour looms 10 to 90 deg at 11 deg elevation, 50 deg azimuth (read via summary, not verbatim); von Reyn 2014 start/end sizes still not verified"
+  "literature_match": "von Reyn 2014: r/v 8, 14, 40, 70, 140 ms (Fig. 1f caption, text). End size ~90 deg (+/-3) held ~1000 ms, read from the Supp. Fig. 5 'Retinal size' traces (figure). Start ~5 deg INFERRED by fitting theta(t) = 2 atan((r/v)/(T-t)) to the measured plateau onsets (5.0-5.2 deg at r/v 14, 40, 70); the traces read 4-7 deg at onset. Card-lab looms 2014-2024 started at 1-30 deg and ended at 45, 90 or 180 deg (Zhao 2025 Methods, secondary). Elevation, azimuth and contrast are in the unread Online Methods; frontal is kept as a declared choice. The receding control runs the same series from 90 to 5 deg."
  },
  "encoder": {
   "i_max": 20.0,
@@ -39,11 +40,12 @@
    "drives": "angular velocity",
    "omega_sat_deg_s": 1000.0
   },
-  "assumption": "division of labour from von Reyn 2017 / Ache 2019 (qualitative). i_max equals the WP5 encoder amplitude. Ramp end points are declared engineering choices, set before any run and never tuned. No direct DNp01 drive."
+  "assumption": "division of labour from von Reyn 2017 / Ache 2019 (qualitative). i_max equals the WP5 encoder amplitude. Ramp end points are declared engineering choices, set before any run and never tuned. No direct DNp01 drive. Kept unchanged on 2026-09-25 when the stimulus moved to 5-90 deg: LPLC2 gets no drive below 10 deg and saturates at 60 deg, both declared before any run of this version."
  },
  "decoder": {
-  "rule": "GF-mediated (short-mode) takeoff = at least one DNp01 spike from loom onset to post-window end",
-  "not_decoded": "long-mode takeoffs via parallel DNs"
+  "rule": "GF spike = at least one DNp01 spike from loom onset to the end of the 90 deg hold",
+  "not_decoded": "long-mode takeoffs via parallel DNs",
+  "comparison": "A GF spike forces a takeoff in the fly, and every short-mode (GF-mediated) takeoff needs a GF spike. So per loom presented, P(GF spike) lies between the short-mode takeoff rate and the total takeoff rate (von Reyn 2014; GF spikes also occur in some long-mode takeoffs, Fig. 4c)."
  },
  "populations": {
   "LC4_L": {
@@ -122,12 +124,15 @@
   },
   "gates": [
    {
-    "id": "L1_faster_looms_more_GF",
-    "type": "slope_ci_upper_below",
-    "sample": "gf_by_log10_rv",
-    "threshold": 0.0,
-    "claim": "The fraction of looms evoking a GF spike falls with log10(r/v) (slope 95% CI below 0).",
-    "basis": "published: short-mode (GF-driven) takeoff fraction declines linearly with log(r/v), R^2 = 0.903, n = 660 flies",
+    "id": "L1_gf_rate_between_short_mode_and_takeoff",
+    "type": "proportion_ci_within",
+    "sample": "pooled_gf_fraction",
+    "interval": [
+     0.149,
+     0.705
+    ],
+    "claim": "Per loom, pooled over r/v 14, 40, 70 ms, the GF-spike fraction's 95% CI lies within [0.149, 0.705]: at least the published short-mode takeoff rate and at most the published takeoff rate per fly tested.",
+    "basis": "von Reyn 2014, control flies (GF-split-AD and -DBD x UAS-Kir2.1), r/v 14/40/70 pooled. Floor: 95 short-mode takeoffs (28 + 43 + 24; Fig. 5a caption gives 28 and 43, Fig. 1b gives the pooled 95) / 638 flies tested (100 + 106, 125 + 149, 77 + 81, the n printed on the Supp. Fig. 3a bars) = 0.149. Ceiling: 450 takeoffs (115 + 202 + 133, Fig. 1f caption; the Supp. Fig. 3a percentages give ~115, ~203, ~134, confirming these n count takeoffs) / 638 = 0.705. A GF spike forces a takeoff, so the ceiling holds; every short-mode takeoff needs a GF spike, so the floor holds. Per condition the floor is flat (0.136, 0.157, 0.152), so no slope is gated.",
     "verified": true,
     "sources": [
      "vonreyn2014"
@@ -139,19 +144,44 @@
     "sample": "sham_no_input_gf",
     "value": 0.0,
     "claim": "No GF spike in any sham trial (encoder runs, nothing delivered).",
-    "basis": "causal control of the model itself; not a literature value",
+    "basis": "causal control of the model itself. Consistent with, but not taken from, the literature: no spontaneous GF spikes in the von Reyn 2014 Supp. Fig. 5 example traces (read from figure).",
     "verified": true,
     "sources": []
+   },
+   {
+    "id": "L3_gf_after_39_deg",
+    "type": "ci_lower_above",
+    "sample": "theta_at_first_gf_all_looms_deg",
+    "threshold": 39.0,
+    "claim": "Mean disc size at the first GF spike, over every loom that evoked one (all five r/v), has its 95% CI above 39 deg.",
+    "basis": "von Reyn 2017 (full text): 'Both single GF spikes and GF-mediated takeoffs occur, on average, at a fixed delay after a looming disk surpasses 39 deg'; so on average the disc is past 39 deg at the spike. von Reyn 2014 Supp. Fig. 6a inset (figure): size at the fixed neural delay before the GF spike ~40, 43, 49 deg at r/v 14, 40, 70. If no loom evokes a GF spike the gate is not evaluable (INCONCLUSIVE), and L1 fails anyway.",
+    "verified": true,
+    "sources": [
+     "vonreyn2017",
+     "vonreyn2014"
+    ]
    }
   ],
   "reported": [
    {
-    "id": "pooled_short_mode_fraction",
+    "id": "per_loom_slope_vs_log10_rv",
+    "type": "slope_ci_upper_below",
+    "sample": "gf_by_log10_rv",
+    "threshold": 0.0,
+    "claim": "Slope of the per-loom GF-spike fraction on log10(r/v), with its CI (reported, not gated; was gate L1 in the draft).",
+    "basis": "REPORTED ONLY: the published slope (-19.27 percentage points per log10 unit, R^2 0.903, reproduced exactly from the counts) is the short-mode share AMONG TAKEOFFS (n = 108, 115, 202, 133, 102 takeoffs; short 40, 28, 43, 24, ~9). Per fly tested the short-mode rate is flat over r/v 14-70 (0.136, 0.157, 0.152); per-trial data at 8 and 140 ms were not found.",
+    "verified": true,
+    "sources": [
+     "vonreyn2014"
+    ]
+   },
+   {
+    "id": "per_takeoff_short_mode_share",
     "type": "proportion_ci_lower_above",
     "sample": "pooled_gf_fraction",
-    "threshold": 0.11,
-    "claim": "GF-spike fraction pooled over r/v 14, 40, 70 ms vs the published short-mode fraction 95/450 = 0.21.",
-    "basis": "reported only: the published fraction is among flies that took off, the simulated one is per loom; for comparison Ache 2019 control flies: 26% [47/178] short-mode (TNT control) and 17% [18/105] (Kir2.1 control), r/v mix differs",
+    "threshold": 0.211,
+    "claim": "Per-loom GF-spike fraction (r/v 14, 40, 70) next to the published per-takeoff short-mode share 95/450 = 0.211.",
+    "basis": "REPORTED ONLY, different denominators (per loom vs per takeoff). Ache 2019 controls for comparison: 26% [47/178] and 17% [18/105] short-mode among takeoffs.",
     "verified": true,
     "sources": [
      "vonreyn2014",
@@ -177,7 +207,35 @@
    14,
    40,
    70
-  ]
+  ],
+  "published_per_loom_short_mode": {
+   "14": [
+    28,
+    206
+   ],
+   "40": [
+    43,
+    274
+   ],
+   "70": [
+    24,
+    158
+   ]
+  },
+  "published_takeoff_per_loom": {
+   "14": [
+    115,
+    206
+   ],
+   "40": [
+    202,
+    274
+   ],
+   "70": [
+    133,
+    158
+   ]
+  }
  },
  "physiology": {
   "bounds_file": "firing_rate_bounds_v2.json",
@@ -250,14 +308,17 @@
   "vonreyn2014": {
    "citation": "von Reyn CR, et al., Card GM (2014) A spike-timing mechanism for action selection. Nat Neurosci 17:962-970",
    "doi": "10.1038/nn.3741",
-   "doi_status": "resolved",
-   "read": "Fig. 1 caption and abstract (earlier check); supplementary PDF (this check). Main text paywalled, not re-read.",
+   "doi_status": "resolved (closed access)",
+   "read": "2026-09-25: main text pp. 962-963 (Springer page-one preview PDF), all six figure captions (nature.com), full-resolution figure images, supplementary PDF MOESM53 with its figure images. Online Methods (pp. 964-970) NOT read: paywalled, no OA copy (Unpaywall: closed). Notes: project file literature/vonreyn2014_looming_findings.md.",
    "values_read": [
-    "short/long takeoff split at 6.87 ms wing-raise+jump duration; pooled r/v 14, 40, 70 ms: 95 short vs 355 long (n = 450)",
-    "short-mode fraction declines linearly with log(r/v): slope -19.27 (units as printed), R^2 = 0.903; n = 108, 115, 202, 133, 102 flies at r/v 8, 14, 40, 70, 140 ms",
-    "a GF spike forces a short-mode takeoff; the GF has a higher activation threshold than the parallel pathways (abstract)",
-    "Supp. Fig. 5: GF whole-cell example spike responses (from 10 flies) and subthreshold responses (from 33 flies) to looms at three r/v",
-    "Supp. Fig. 3a: takeoff percentages across r/v 14, 40, 70 ms compared by chi-square (P = 0.015, 0.087, 0.148); percentages shown only as bars"
+    "Fig. 1f caption: 'The fraction of flies choosing a short-mode takeoff was negatively correlated with log(r/v) (slope = -19.27 ms-1, R2 = 0.903; n = 108, 115, 202, 133 and 102 for r/v = 8, 14, 40, 70 and 140 ms, respectively)'",
+    "Fig. 5a caption: short-mode n = 40, 28, 43 and long-mode n = 68, 87, 159 for r/v = 8, 14, 40 ms (sums equal the Fig. 1f n, so n are takeoffs)",
+    "Fig. 1b: pooled r/v 14, 40, 70: 95 short vs 355 long (n = 450); so r/v 70 = 24 short / 133; r/v 140 ~9 / 102 (read from Fig. 1f image; with it an unweighted OLS of percent short on log10(r/v) gives -19.273, R^2 0.9032)",
+    "Supp. Fig. 3a: flies tested printed on bars: AD Kir 100, 125, 77 and DBD Kir 106, 149, 81 at r/v 14, 40, 70; takeoff % read from figure ~58/54, ~78/71, ~88/82",
+    "Supp. Fig. 5 (figure): 'Retinal size' traces expand to ~90 deg (+/-3) and hold ~1000 ms; start ~5 deg inferred from plateau timing; baseline Vm ~-60 mV, no spikes outside the loom-locked spike in six 2-s example traces",
+    "Fig. 4b caption: 'rasters of first GF spike (27 trials, 10 flies)'; Supp. Fig. 6a: n = 8, 12, 7 GF spikes at r/v 14, 40, 70; inset (figure) size at the fixed delay before the GF spike ~40, 43, 49 deg",
+    "p. 963: 'we observed GF spikes during both short- and long-mode escapes'",
+    "abstract: a GF spike forces a short-mode takeoff; the GF has a higher activation threshold than the parallel pathways"
    ]
   },
   "vonreyn2017": {
