@@ -115,3 +115,13 @@ def test_auto_backend_selects_gpu_for_v3_only(monkeypatch):
     arrays = _graph()
     assert Brain(arrays=arrays, dynamics='v3').backend == 'cuda'
     assert Brain(arrays=arrays, dynamics='v1').backend == 'cpu'
+
+
+def test_cuda_reset_state_replays_like_a_new_brain():
+    arrays = _graph(seed=7)
+    brain = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    first = _run(brain)
+    assert first.sum() > 0, 'workload must spike'
+    brain.reset_state()
+    assert np.array_equal(_run(brain), first)
+    assert np.array_equal(_run(Brain(arrays=arrays, dynamics='v3', backend='cuda')), first)
