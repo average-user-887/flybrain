@@ -28,7 +28,7 @@ who can reach a non-loopback `--host` can queue runs.
 | Watch a run | Done: opens `embodied_replay.html` on the run's `body.nfbody` (1x, seek, speed). |
 | Side-by-side comparison | Done: two replays and a table of descriptive numbers. Playback of the two sides is not synchronised yet. |
 | Curated gallery | The page and format exist; no curated runs ship yet (they need Ryzen runs). |
-| Silence a named neuron type | Not yet. It needs a runner flag (below). |
+| Silence a named neuron type | Done when the installed runner has `neurofly_body run --silence` (PR #31); hidden otherwise. Five groups for optomotor, both sides or one, paired by default with the same fly un-silenced. |
 | Research API and CLI | `python -m neurofly_studio submit EXPERIMENT.json` and the HTTP API. Export to Parquet or NWB is still to decide. |
 
 ## Design decisions
@@ -61,6 +61,20 @@ the runner's own limit. Simulated time runs from 0.5 to 60 s in 0.1 s steps, so
 every run is a whole number of 2 ms steps and stays affordable on one GPU.
 Repeats go up to 6 seeds, the size of one preregistered optomotor seed block.
 
+**Silencing.** The builder offers groups of MaleCNS cell types named for this
+circuit in `brainlab/io_map.py`: the T4/T5 motion detectors that receive the
+stimulus (Maisak 2013), the HS cells (HSN, HSE, HSS) of the lobula plate,
+DNa02 (steering; Yang 2024, Rayshubskiy 2025), DNp09 (forward walking; Bidaye
+2020) and MDN (backward walking; Bidaye 2014). Each group can be silenced on
+both sides or on one soma side. Researchers can name any cell type in the
+experiment file; the runner refuses one that resolves to no neurons before the
+run starts. Silencing uses the validation harness's clamp (input current held
+at `SILENCE_DRIVE` every step). Under v3 that clamp can leak, so the queue,
+gallery and comparison show `clamp_held` from the run's `summary.json`, and a
+run where a silenced neuron spiked is marked "clamp leaked". When something is
+silenced, the default control is the same seed with nothing silenced ("what
+does this neuron do?"). The disconnected-brain control keeps the silencing.
+
 **Modular controller is a researcher baseline.** Experiment files may set
 `"controller": "modular"`; the citizen page never offers it. Modular runs do
 not load the graph, and the page labels them.
@@ -92,7 +106,8 @@ only finished runs are served.
   "parameters": {"world_angular_velocity_rad_s": 2.0, "contrast": 0.5,
                  "duration_s": 5.0, "seed": 1},
   "repeats": 3,
-  "control": "output-disconnected",
+  "silence": ["DNa02", "MDN:L"],
+  "control": "intact",
   "controller": "connectome"
 }
 ```
@@ -134,10 +149,8 @@ checked with `replay-check`, and ship with the first public release (P6).
 
 ## Next slices
 
-1. Silencing: a `--silence POPULATION` flag on `neurofly_body run` (the
-   clamp already exists in `brainlab/io_map.py`), then a studio control
-   "silence a named neuron type" and an intact-vs-silenced pair.
-2. Synchronised side-by-side playback.
-3. The first curated runs, produced on the reference machine.
-4. Export format (Parquet or NWB) with provenance.
-5. Looming and T-maze in the builder once the embodied loop drives those stimuli.
+1. Synchronised side-by-side playback.
+2. The first curated runs, produced on the reference machine (an intact vs
+   DNa02-silenced pair is the obvious first one).
+3. Export format (Parquet or NWB) with provenance.
+4. Looming and T-maze in the builder once the embodied loop drives those stimuli.
