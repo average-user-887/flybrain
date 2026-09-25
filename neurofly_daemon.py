@@ -331,7 +331,8 @@ class GraphArenaController:
         if sensory.get("theta_deg") is not None and raw_loom == 0.0:
             raw_loom = math.radians(float(sensory["theta_deg"]))
         looming_theta = float(raw_loom)
-        looming_detected = bool(sensory.get("looming_detected", False)) or (looming_theta > 0.15) or bool(sensory.get("gf_spike", False))
+        # A paradigm's own GF flag ("gf_spike") is an output, never a retinal input.
+        looming_detected = bool(sensory.get("looming_detected", False)) or (looming_theta > 0.15)
         i_loom = 0.0
         if looming_detected:
             i_loom = float(min(55.0, looming_theta * 40.0 + 15.0))
@@ -398,7 +399,10 @@ class GraphArenaController:
         if mdn_rate > 20.0:
             forward_speed = -15.0
             state = "REVERSE"
-        if spk_dnp01 > 0 or (looming_detected and i_loom > 30.0):
+        # Escape comes from the connectome alone: a DNp01 (Giant Fiber) spike in
+        # this step.  Stimulus strength never triggers it (LC4/LPLC2 drive has to
+        # propagate through the graph to the GF).
+        if spk_dnp01 > 0:
             forward_speed = 35.0
             state = "ESCAPE"
 
