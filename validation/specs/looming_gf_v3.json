@@ -364,5 +364,8 @@
     "'LPLC2 neurons did not respond to dark receding looming or to luminance-matched motion-free darkening stimulus'"
    ]
   }
+ },
+ "controls_not_run": {
+  "gf_silenced": "ROADMAP P3 lists GF silencing as the looming control. It is left out of this spec because the decoder IS the GF spike, so a silenced GF would fail to spike by construction and test nothing. It becomes informative once takeoffs are decoded from the body (P2), where GF silencing should remove short-mode takeoffs but not long-mode ones (von Reyn 2014 Fig. 2c: takeoff rate unchanged by GF silencing). Decision 2026-09-25, P3 specs thread with the coordinator."
  }
 }
