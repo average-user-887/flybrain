@@ -34,6 +34,11 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--world-angular-velocity-rad-s", type=float, default=4.0)
     run.add_argument("--contrast", type=float, default=1.0)
     run.add_argument(
+        "--record-fps", type=float, default=50.0,
+        help="write body.nfbody for 1x browser replay at this many frames per simulated "
+             "second (web/embodied_replay.html); 0 disables",
+    )
+    run.add_argument(
         "--controller", choices=("connectome", "modular"), default="connectome",
         help="connectome: MaleCNS v3 graph; modular: the arena's phenomenological "
              "optomotor model as a researcher baseline (neurofly_body/modular.py)",
@@ -86,13 +91,13 @@ def _parser() -> argparse.ArgumentParser:
 RUN_ARGUMENTS = (
     "duration", "mode", "graph_dir", "connectome_dir", "seed", "neural_dt_ms",
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
-    "controller", "modular_forward_drive", "modular_turn_gain",
+    "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
-INVOCATION_BACKFILL = {"controller": "connectome", "modular_forward_drive": 1.0,
+INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
                        "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
                        "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02}
 
@@ -176,7 +181,10 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     replay_backend = replay_manifest["neural_backend"].get("brain_backend")
     original_sha = _sha256_file(run_dir / "telemetry.jsonl")
     replay_sha = _sha256_file(Path(output) / "telemetry.jsonl")
-    identical = original_sha == replay_sha
+    original_recording = (json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+                          .get("recording") or {}).get("frames_sha256")
+    replay_recording = (summary.get("recording") or {}).get("frames_sha256")
+    identical = original_sha == replay_sha and original_recording == replay_recording
     receipt = {
         "schema": "neurofly-embodied-replay-check-v1",
         "verdict": "BIT_IDENTICAL" if identical else "DIVERGED",
@@ -185,13 +193,14 @@ def _replay_check(run_dir: Path, output: Path) -> int:
         "original_trajectory_sha256": original_sha,
         "replay_trajectory_sha256": replay_sha,
         "recorded_trajectory_sha256": manifest.get("trajectory_sha256"),
-        "first_differing_record": None if identical else _first_difference(
+        "first_differing_record": None if original_sha == replay_sha else _first_difference(
             run_dir / "telemetry.jsonl", Path(output) / "telemetry.jsonl"),
         "records": summary["records"],
         "duration_s": summary["duration_s"],
         "brain_backend": {"original": original_backend, "replay": replay_backend},
         "graph_sha256": manifest["neural_backend"].get("graph_sha256"),
         "invocation": invocation,
+        "recording_frames_sha256": {"original": original_recording, "replay": replay_recording},
         "replay_wall_time_s": summary["wall_time_s"],
         "replay_real_time_factor": summary["real_time_factor"],
     }
@@ -275,6 +284,7 @@ def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, 
             world_angular_velocity_rad_s=args.world_angular_velocity_rad_s,
             contrast=args.contrast,
             seed=args.seed,
+            record_fps=args.record_fps,
         )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))
