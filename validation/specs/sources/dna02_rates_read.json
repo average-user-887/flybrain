@@ -1,0 +1,100 @@
+{
+ "what": "DNa02 spike rates read for firing_rate_bounds_v3.json. Worked blind: no simulation output was opened.",
+ "read_on": "2026-09-25",
+ "yang2024_figS7A": {
+  "source": "Yang HH, et al., Wilson RI (2024) Cell. Europe PMC PMC12778575, supplementary file NIHMS2118063-supplement-Supplementary_Figure_7.pdf, panel A (DNa02, n = 4 cells in 4 flies)",
+  "legend": "Mean DNa02/DNg13 spike rate when the fly was walking (and not making ipsiversive turns, i.e. any turning was in the contraversive direction) compared to epochs the fly was not walking. Dots are individual flies, and horizontal lines are the means across flies.",
+  "method": "dot coordinates read from the vector PDF, y axis calibrated on its 10/40/70 Hz ticks (dna02_yang2024_figS7A.py); the recovered group means match the drawn mean lines",
+  "hz": {
+   "walking": [
+    35.2,
+    45.4,
+    52.4,
+    76.4
+   ],
+   "not_walking": [
+    7.8,
+    11.8,
+    18.3,
+    38.5
+   ],
+   "group_mean_walking": 52.4,
+   "group_mean_not_walking": 19.1
+  }
+ },
+ "yang2024_text": "Although this stride-locked firing rate modulation was only about 15 spikes/sec (approximately 10% of the cell's dynamic range), it was highly consistent across DNa02 recordings.",
+ "rayshubskiy2025_text": [
+  "DNa02 has a relatively high basal firing rate (Fig. 1D) (author response, eLife API articles/102230)",
+  "the entire dynamic range of neural activity is shifted downward during immobility, so that the peak firing rate (and peak depolarization) is reduced. (Fig. 6D legend)"
+ ],
+ "rayshubskiy2025_reanalysis": {
+  "source": "Harvard Dataverse doi:10.7910/DVN/0NCLP1 v1.2, ephys_data_a2_s_NN; spike detection with the authors' a2lib/spike_tools.py at commit 7e2895349266b5cc5fa1bf53ad56e8ecc6c842e8 of github.com/wilson-lab/rayshubskiy_elife_102230_secondary_analysis_code, prominence 15",
+  "method": "dna02_rayshubskiy2025_rates.py; our computation from deposited data, not a published number",
+  "threshold_sensitivity": "a2_s_08 max 1 s bin is 135 / 128 / 83 Hz at prominence 10 / 15 / 20",
+  "cells": {
+   "a2_s_01": {
+    "duration_s": 2875,
+    "spikes": 20262,
+    "mean_hz": 7.0,
+    "still_10pct_mean_hz": 2.1,
+    "p95_1s_hz": 25.0,
+    "max_1s_hz": 122,
+    "dataverse_file_id": 11634642
+   },
+   "a2_s_03": {
+    "duration_s": 1900,
+    "spikes": 12434,
+    "mean_hz": 6.3,
+    "still_10pct_mean_hz": 0.8,
+    "p95_1s_hz": 27.0,
+    "max_1s_hz": 105,
+    "dataverse_file_id": 11634643
+   },
+   "a2_s_04": {
+    "duration_s": 2346,
+    "spikes": 10046,
+    "mean_hz": 4.2,
+    "still_10pct_mean_hz": 0.4,
+    "p95_1s_hz": 17.0,
+    "max_1s_hz": 93,
+    "dataverse_file_id": 11634644
+   },
+   "a2_s_05": {
+    "duration_s": 1740,
+    "spikes": 2737,
+    "mean_hz": 1.6,
+    "still_10pct_mean_hz": 0.1,
+    "p95_1s_hz": 6.4500000000000455,
+    "max_1s_hz": 55,
+    "dataverse_file_id": 11634645
+   },
+   "a2_s_06": {
+    "duration_s": 1882,
+    "spikes": 16268,
+    "mean_hz": 8.7,
+    "still_10pct_mean_hz": 0.2,
+    "p95_1s_hz": 50.25,
+    "max_1s_hz": 98,
+    "dataverse_file_id": 11634646
+   },
+   "a2_s_07": {
+    "duration_s": 1840,
+    "spikes": 9253,
+    "mean_hz": 5.0,
+    "still_10pct_mean_hz": 7.2,
+    "p95_1s_hz": 31.0,
+    "max_1s_hz": 95,
+    "dataverse_file_id": 11634647
+   },
+   "a2_s_08": {
+    "duration_s": 2875,
+    "spikes": 27856,
+    "mean_hz": 9.7,
+    "still_10pct_mean_hz": 3.1,
+    "p95_1s_hz": 33.0,
+    "max_1s_hz": 128,
+    "dataverse_file_id": 11634648
+   }
+  }
+ }
+}
