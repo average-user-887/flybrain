@@ -221,6 +221,45 @@ Measured cost:
   connectome brain on the Ryzen: 2 s runs with `--motor-delay-steps 1`, with and
   without `--pipeline`, compared on `real_time_factor`.
 
+## Leg-load feedback (opt-in)
+
+`--leg-load-feedback` (connectome controller only) feeds each leg's measured
+load into that leg's campaniform sensilla (CS) afferents. CS are the insect
+cuticle load sensors. The flag is off by default, and a run without it is
+byte-identical to one made before it existed.
+
+- **Load.** FlyGym's tarsal adhesion actuator (gain 40 uN) pulls each tarsus
+  into the ground, and the contact solver pushes back. So the vertical contact
+  force equals the leg's load plus the adhesion force. `FlyGymBody.leg_load_uN`
+  subtracts the adhesion actuator force while a leg is in contact, and returns 0
+  otherwise. Model units are mm, g and s, so forces are in uN. Check: in quiet
+  standing the six loads sum to 10.02 uN against a body weight of 10.05 uN. A
+  test asserts this within 3 %. A negative load means the pad is holding a leg
+  that is pulling away.
+- **Neurons.** In MaleCNS v1.0 the leg comes from `entryNerve` (ProLN, MesoLN
+  and MetaLN for the front, middle and hind legs) and the side from `rootSide`.
+  Only SNpp53 has `subclass == "campaniform sensilla"` with a leg nerve: 12
+  neurons, two per leg (map sha256 `731f03e2…` from the pinned annotations
+  file). Most leg CS are still untyped (subclass `leg`). They get no drive; we
+  do not guess their identity. The resolver fails closed if a leg has no
+  afferent.
+- **Encoding.** `brainlab.io_map.LegLoadEncoder`:
+  `r = r_max * tanh(([F - F0]+ + tau_phasic * [dF/dt]+) / F_sat)`, with dF/dt
+  low-pass filtered over 10 ms, then `drive = i_max * r / r_max` on every
+  afferent of that leg. The tonic-to-force and phasic-to-loading-rate responses
+  with saturation follow insect CS recordings (Ridgel et al. 2000, J Comp
+  Physiol A 186:359; Zill et al. 2012, J Neurophysiol 108:1453). No Drosophila
+  leg CS rate curves are published. So these values are ASSUMPTIONS, declared
+  before any run and never fitted: F0 0.5 uN, F_sat 10 uN, tau_phasic 20 ms,
+  r_max 200 Hz. `i_max` is 20, the WP5 encoder amplitude. Not modelled:
+  adaptation, the CS groups selective for unloading, and noise.
+- **Check on a walking body** (1 s at drive 1.0): loads averaged 1.7 uN
+  (maximum 7.9). The model rates were 0 Hz for 45 % of the time (swing),
+  median 11 Hz, 95th percentile 154 Hz.
+- **Recorded.** Each record carries `sensory.leg_load_uN` and
+  `neural.leg_load` (model rates and afferent spikes per leg). The manifest
+  carries the encoder and the afferent map with source IDs.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and

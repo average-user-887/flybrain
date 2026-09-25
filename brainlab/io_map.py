@@ -509,3 +509,124 @@ def silence_map_from_nodes(nodes, targets) -> SilenceMap:
 def resolve_silence(targets, connectome_dir: Optional[Path] = None) -> SilenceMap:
     """Resolve silence targets from the released MaleCNS tables."""
     return silence_map_from_nodes(_load_tables(connectome_dir), targets)
+
+
+# ---------------------------------------------------------------------------
+# Leg-load feedback (P2 embodied loop): leg campaniform sensilla afferents
+# ---------------------------------------------------------------------------
+# FlyGym's leg order; the MaleCNS v1.0 annotation gives the leg by entry nerve
+# (ProLN/MesoLN/MetaLN = front/middle/hind) and the side by rootSide.  In v1.0
+# only SNpp53 carries subclass "campaniform sensilla" with a leg nerve (2 per
+# leg); most leg CS are untyped (subclass "leg"), so they get no drive rather
+# than a guessed identity.
+LEG_ORDER = ('lf', 'lm', 'lh', 'rf', 'rm', 'rh')
+LEG_NERVES = {'f': 'ProLN', 'm': 'MesoLN', 'h': 'MetaLN'}
+LEG_LOAD_SUBCLASS = 'campaniform sensilla'
+
+
+@dataclass
+class LegLoadAfferentMap:
+    populations: Dict[str, np.ndarray]   # FlyGym leg name -> node indices
+    source_ids: Dict[str, List[int]]
+    sha256: str = ''
+
+    def describe(self) -> dict:
+        return dict(sha256=self.sha256, source_ids=self.source_ids,
+                    rule=f'subclass == {LEG_LOAD_SUBCLASS!r}, leg from entryNerve '
+                         f'{LEG_NERVES}, side from rootSide, sorted by source_id')
+
+
+def leg_load_afferent_map_from_nodes(nodes) -> LegLoadAfferentMap:
+    """Resolve the leg CS afferents per FlyGym leg from a node table with
+    ``node_index, source_id, subclass, entryNerve, rootSide`` columns.
+
+    Fails closed: every leg must have at least one annotated afferent, and
+    none of the selected neurons may lack a root side.
+    """
+    subclass = nodes.subclass.fillna('')
+    nerve = nodes.entryNerve.fillna('')
+    rows = nodes[subclass.eq(LEG_LOAD_SUBCLASS) & nerve.isin(list(LEG_NERVES.values()))]
+    side = rows.rootSide.fillna('?')
+    if (~side.isin(EYES)).any():
+        raise GraphUnavailable(f'{int((~side.isin(EYES)).sum())} leg CS afferents without a L/R root side')
+    populations, source_ids = {}, {}
+    for leg in LEG_ORDER:
+        chosen = rows[side.eq(leg[0].upper()) & rows.entryNerve.eq(LEG_NERVES[leg[1]])].sort_values('source_id')
+        if not len(chosen):
+            raise GraphUnavailable(f'leg CS afferents for {leg} resolved empty')
+        populations[leg] = chosen.node_index.to_numpy(dtype=np.int64)
+        source_ids[leg] = [int(v) for v in chosen.source_id]
+    digest = sha256_json(dict(source_ids=source_ids, rule='leg CS by subclass + entryNerve + rootSide'))
+    return LegLoadAfferentMap(populations=populations, source_ids=source_ids, sha256=digest)
+
+
+def resolve_leg_load_afferents(connectome_dir: Optional[Path] = None) -> LegLoadAfferentMap:
+    """Resolve the leg-load afferent map from the released MaleCNS tables."""
+    import pyarrow.feather as feather
+    cdir, _ = resolve_connectome_dir(connectome_dir)
+    nodes_path = cdir / 'normalized/neurons.feather'
+    ann_path = cdir / 'annotations.feather'
+    for path in (nodes_path, ann_path):
+        if not path.is_file():
+            raise GraphUnavailable(f'{path} not found; set NEUROFLY_CONNECTOME_DIR')
+    nodes = feather.read_table(nodes_path, columns=['node_index', 'source_id']).to_pandas()
+    ann = feather.read_table(ann_path, columns=['bodyId', 'subclass', 'entryNerve', 'rootSide']).to_pandas()
+    ann = ann.drop_duplicates('bodyId').set_index('bodyId')
+    return leg_load_afferent_map_from_nodes(nodes.join(ann, on='source_id'))
+
+
+class LegLoadEncoder:
+    """Leg load (uN) -> drive on each leg's campaniform sensilla afferents.
+
+    Rate model (ASSUMPTIONS, declared before any run and never fitted): a
+    phasic-tonic, rectified, saturating response to loading,
+
+        x = ([F - F0]+ + tau_phasic * [dF/dt]+) / F_sat,   r = r_max * tanh(x)
+
+    where dF/dt is low-pass filtered (``tau_deriv_ms``) because contact forces
+    are noisy.  Tonic-to-force and phasic-to-loading-rate responses with
+    saturation follow insect CS recordings (Ridgel et al. 2000, J Comp Physiol A
+    186:359; Zill et al. 2012, J Neurophysiol 108:1453).  No Drosophila leg CS
+    rate curves are published, so r_max, F0 and F_sat are assumptions scaled to
+    a 10 uN fly (about 3 uN per stance leg).  Not modelled: adaptation, the
+    unloading-selective groups, noise.  Drive per neuron = i_max * r / r_max,
+    with i_max equal to the WP5 optomotor encoder amplitude.  Deterministic.
+    """
+
+    def __init__(self, amap: LegLoadAfferentMap, *, f0_uN: float = 0.5, f_sat_uN: float = 10.0,
+                 tau_phasic_ms: float = 20.0, tau_deriv_ms: float = 10.0, r_max_hz: float = 200.0,
+                 i_max: float = 20.0):
+        self.map = amap
+        self.f0 = float(f0_uN)
+        self.f_sat = float(f_sat_uN)
+        self.tau_phasic_s = float(tau_phasic_ms) / 1000.0
+        self.tau_deriv_ms = float(tau_deriv_ms)
+        self.r_max = float(r_max_hz)
+        self.i_max = float(i_max)
+        self.reset()
+
+    def reset(self) -> None:
+        self._previous = None
+        self._dfdt = np.zeros(len(LEG_ORDER))
+
+    def describe(self) -> dict:
+        return dict(model='r = r_max*tanh(([F-F0]+ + tau_phasic*[dF/dt]+)/F_sat); drive = i_max*r/r_max',
+                    f0_uN=self.f0, f_sat_uN=self.f_sat, tau_phasic_ms=self.tau_phasic_s * 1000.0,
+                    tau_deriv_ms=self.tau_deriv_ms, r_max_hz=self.r_max, i_max=self.i_max,
+                    leg_order=list(LEG_ORDER), load='FlyGym per-leg normal contact force minus adhesion, uN',
+                    first_step_derivative=0.0, not_modelled=['adaptation', 'unloading-selective CS', 'noise'],
+                    classification='ASSUMPTION: declared parameters, not fitted', afferent_map=self.map.sha256)
+
+    def encode(self, currents: np.ndarray, load_uN, dt_ms: float) -> dict:
+        """Add drive into ``currents`` in place; return per-leg model rates (Hz)."""
+        load = np.asarray(load_uN, dtype=np.float64)
+        if load.shape != (len(LEG_ORDER),) or not np.isfinite(load).all():
+            raise ValueError('leg_load_uN must be six finite values in FlyGym leg order')
+        raw = np.zeros_like(load) if self._previous is None else (load - self._previous) / (dt_ms / 1000.0)
+        self._previous = load
+        self._dfdt += (1.0 - math.exp(-dt_ms / self.tau_deriv_ms)) * (raw - self._dfdt)
+        x = (np.maximum(load - self.f0, 0.0) + self.tau_phasic_s * np.maximum(self._dfdt, 0.0)) / self.f_sat
+        rate = self.r_max * np.tanh(x)
+        for k, leg in enumerate(LEG_ORDER):
+            currents[self.map.populations[leg]] += np.float32(self.i_max * rate[k] / self.r_max)
+        return dict(zip(LEG_ORDER, (float(r) for r in rate)))

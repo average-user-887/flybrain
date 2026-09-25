@@ -46,6 +46,8 @@ class EmbodiedConfig:
     # Opt-in: with a delay, run the graph step and the body step concurrently.
     # Same result bit for bit as the sequential loop with the same delay.
     pipeline: bool = False
+    # Opt-in: feed each leg's measured load to its campaniform sensilla afferents.
+    leg_load_feedback: bool = False
 
     def validated(self) -> "EmbodiedConfig":
         if self.mode not in {"intact", "output-disconnected"}:
@@ -246,6 +248,9 @@ def run_embodied(
         status = _to_builtin(neural.get_status())
         if status.get("controller_kind") != "modular-baseline":
             validate_real_v3_status(status)
+        if config.leg_load_feedback and not status.get("leg_load_afferent_map_sha256"):
+            raise RuntimeError("refusing embodied run: leg-load feedback is on but the neural "
+                               "backend reports no leg-load afferent map")
         missing = [key for key in decoder.required_status if not status.get(key)]
         if missing:
             raise RuntimeError(
@@ -253,6 +258,9 @@ def run_embodied(
             )
         body_obs = _to_builtin(body.reset(config.seed))
         _assert_finite(body_obs, "initial_body")
+        if config.leg_load_feedback and "leg_load_uN" not in body_obs:
+            raise RuntimeError("refusing embodied run: leg-load feedback is on but the body "
+                               "does not report leg_load_uN")
         previous_body_time = float(body_obs["body_sim_time_s"])
         decoder.reset()
 
@@ -277,6 +285,10 @@ def run_embodied(
             "sensory_feedback": {
                 "equation": "retinal_slip_rad_s = world_angular_velocity_rad_s - body_yaw_velocity_rad_s",
                 "contrast": config.contrast,
+                **({"leg_load": "leg_load_uN measured at the start of each step (contact force minus "
+                                "adhesion, FlyGym leg order) -> leg campaniform sensilla afferents; "
+                                "encoder in neural_backend.leg_load_encoder"}
+                   if config.leg_load_feedback else {}),
             },
             "neural_backend": status,
             "body_backend": _to_builtin(body.describe()),
@@ -331,6 +343,9 @@ def run_embodied(
             step_started = time.perf_counter()
             body_yaw_velocity = float(body_obs["thorax"]["yaw_velocity_rad_s"])
             slip = config.world_angular_velocity_rad_s - body_yaw_velocity
+            sensory_input = {"optomotor_slip_rad_s": slip, "optomotor_contrast": config.contrast}
+            if config.leg_load_feedback:
+                sensory_input["leg_load_uN"] = list(body_obs["leg_load_uN"])
             body_future = None
             if delay:
                 body_command = pending.popleft()
@@ -338,13 +353,7 @@ def run_embodied(
                     # Independent of this step's graph output, so it can run meanwhile.
                     body_future = executor.submit(body.step, body_command, substeps)
             reply = _to_builtin(
-                neural.step(
-                    {
-                        "optomotor_slip_rad_s": slip,
-                        "optomotor_contrast": config.contrast,
-                    },
-                    duration_ms=config.neural_dt_ms,
-                )
+                neural.step(sensory_input, duration_ms=config.neural_dt_ms)
             )
             _assert_finite(reply, "neural")
             timing = {"step": step_index + 1}
@@ -411,6 +420,7 @@ def run_embodied(
                     "body_yaw_velocity_rad_s": body_yaw_velocity,
                     "retinal_slip_rad_s": slip,
                     "contrast": config.contrast,
+                    **({"leg_load_uN": sensory_input["leg_load_uN"]} if config.leg_load_feedback else {}),
                 },
                 "neural": reply,
                 "motor": {

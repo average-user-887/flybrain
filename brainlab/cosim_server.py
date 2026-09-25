@@ -80,7 +80,7 @@ class ConnectomeServer:
                  allow_synthetic: bool = False, engineered_assistance: bool = True,
                  optomotor_seed: int = 0, dynamics: Optional[str] = None,
                  transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory',
-                 silence: Sequence[str] = ()):
+                 silence: Sequence[str] = (), leg_load_feedback: bool = False):
         """Create a fixed-weight controller with an explicit LIF/policy pairing.
 
         ``dynamics`` defaults to the declared process setting. v1/v2 keep the
@@ -91,6 +91,10 @@ class ConnectomeServer:
         (``DNa02:L``) whose input current is clamped to ``SILENCE_DRIVE`` on
         every step, as in the validation harness.  Real graph only; empty
         by default, and then no reply or status field changes.
+
+        ``leg_load_feedback`` drives the leg campaniform sensilla afferents
+        from ``sensory['leg_load_uN']`` (``io_map.LegLoadEncoder``).  Real
+        graph only; off by default, and then nothing changes.
         """
         if graph_path is not None:
             graph_path = Path(graph_path)
@@ -164,6 +168,15 @@ class ConnectomeServer:
                 from brainlab.io_map import SILENCE_DRIVE, resolve_silence
             self.silence_map = resolve_silence(silence, self.connectome_dir)
             self._silence_drive = np.float32(SILENCE_DRIVE)
+        self.leg_load = None
+        if leg_load_feedback:
+            if self.is_synthetic:
+                raise GraphUnavailable("leg-load feedback needs the real annotated graph")
+            try:
+                from .io_map import LegLoadEncoder, resolve_leg_load_afferents
+            except ImportError:
+                from brainlab.io_map import LegLoadEncoder, resolve_leg_load_afferents
+            self.leg_load = LegLoadEncoder(resolve_leg_load_afferents(self.connectome_dir))
         self.sensory_map_sha256 = sha256_json(self.sensory_indices)
 
     def _load_brain(self):
@@ -288,6 +301,8 @@ class ConnectomeServer:
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
             "locomotion_dn_map_sha256": self.locomotion_dn.sha256 if self.locomotion_dn else None,
             **({"silence": self.silence_map.summary()} if getattr(self, "silence_map", None) else {}),
+            **({"leg_load_afferent_map_sha256": self.leg_load.map.sha256}
+               if getattr(self, "leg_load", None) else {}),
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
@@ -314,6 +329,8 @@ class ConnectomeServer:
             encoder = type(encoder)(io, np.random.default_rng(self.optomotor_seed))
             decoder.reset()
             self.optomotor = (io, encoder, decoder)
+        if self.leg_load is not None:
+            self.leg_load.reset()
 
     def step(self, sensory: Dict[str, Any], duration_ms: float = 2.0) -> Dict[str, Any]:
         """
@@ -395,6 +412,13 @@ class ConnectomeServer:
                 if idx < self.n_neurons:
                     currents[idx] += bpn_tonic
 
+        # 5b. Leg-load feedback onto leg campaniform sensilla afferents (opt-in)
+        leg_load_rates = None
+        if self.leg_load is not None:
+            if "leg_load_uN" not in sensory:
+                raise ValueError("leg-load feedback is on but the sensory input has no leg_load_uN")
+            leg_load_rates = self.leg_load.encode(currents, sensory["leg_load_uN"], duration_ms)
+
         # 6. Clamp silenced cell types last, overriding every drive above
         if self.silence_map is not None:
             currents[self.silence_map.nodes] = self._silence_drive
@@ -460,6 +484,12 @@ class ConnectomeServer:
             "optomotor": optomotor_reply,
             "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }
+        if self.leg_load is not None:
+            reply["leg_load"] = {
+                "model_rate_hz": leg_load_rates,
+                "afferent_spikes": {leg: int(spike_counts[idx].sum())
+                                    for leg, idx in self.leg_load.map.populations.items()},
+            }
         if self.silence_map is not None:
             # Spikes of clamped neurons: nonzero means the clamp leaked (cf. gate O7).
             reply["silenced"] = {
@@ -500,6 +530,8 @@ class ConnectomeServer:
             "sim_ms": self.brain.sim_ms if self.brain else 0.0,
             "brunel_scaled": True,
             **({"silence_map": self.silence_map.describe()} if self.silence_map else {}),
+            **({"leg_load_encoder": self.leg_load.describe(),
+                "leg_load_afferent_map": self.leg_load.map.describe()} if self.leg_load else {}),
         }
 
 
