@@ -1263,6 +1263,18 @@ class Arena:
         # Tethered: speed 0, reported, never the modular walking drive (WP5 section 8).
         return float(block.get('yaw_rad_s', 0.0)), 0.0, 'OPTOMOTOR-TETHERED'
 
+    def _gf_source(self, fly) -> str:
+        """Where a Giant Fiber escape comes from: 'connectome' (a DNp01 spike in a
+        graph, local or rpc) or 'geometric' (the modular/surrogate baseline, whose
+        paradigm fires the GF at a fixed looming size)."""
+        if self.graph_controller is not None:
+            return 'connectome'
+        bridge = getattr(fly, 'connectome_bridge', None)
+        if (getattr(fly, 'brain_type', 'modular') == 'connectome' and bridge is not None
+                and getattr(bridge, 'mode', None) == 'rpc'):
+            return 'connectome'
+        return 'geometric'
+
     def compute_steering(
         self,
         sensory: Dict[str, float],
@@ -1583,6 +1595,9 @@ class Arena:
                     fly.speed = math.copysign(math.hypot(new_vx, new_vy), fly.speed)
 
                 # 2. Query paradigm step
+                gf_source = self._gf_source(fly)
+                if hasattr(self.paradigm, 'gf_source'):
+                    self.paradigm.gf_source = gf_source
                 paradigm_res = self.paradigm.step(fly, dt)
 
                 # 3. Sample multi-modal stimuli (temperature, wind, odor, landmarks, laser, grating)
@@ -1676,10 +1691,20 @@ class Arena:
 
                 # The assay's expanding disk is an actual visual input, not merely
                 # a metric counter. A GF event triggers a bounded motor escape.
-                if paradigm_res.get('gf_spike') and not fly.ablate_lc4:
+                # With a connectome controller the GF event is a DNp01 spike in the
+                # graph (controller state ESCAPE); the paradigm's geometric size
+                # threshold is the modular baseline's GF model only.
+                if gf_source == 'connectome':
+                    gf_event = state == 'ESCAPE'
+                    if gf_event and hasattr(self.paradigm, 'record_gf_spike'):
+                        self.paradigm.record_gf_spike()
+                else:
+                    gf_event = bool(paradigm_res.get('gf_spike'))
+                if gf_event and not fly.ablate_lc4:
+                    if getattr(fly, 'assay_escape_remaining', 0.0) <= 0:
+                        fly.escapes_performed += 1
+                        self.total_escapes += 1
                     fly.assay_escape_remaining = 0.2
-                    fly.escapes_performed += 1
-                    self.total_escapes += 1
                 halted = bool(getattr(fly, 'motor_halted', False))
                 if getattr(fly, 'assay_escape_remaining', 0.0) > 0:
                     fly.assay_escape_remaining = max(0.0, fly.assay_escape_remaining - dt)

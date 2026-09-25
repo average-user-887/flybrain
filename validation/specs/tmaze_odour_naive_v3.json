@@ -2,9 +2,9 @@
  "schema": "flybrain.validation-spec.v1",
  "id": "tmaze-odour-naive-v3-1",
  "paradigm": "tmaze_odor",
- "status": "draft",
- "status_reason": "literature check 2026-09-24: the naive odour-vs-air avoidance direction is published at training concentrations (Akalal 2006 Table 1), but one other setup found OCT and MCH slightly attractive vs mineral oil (Barth 2014), and the naive OCT-vs-MCH 50:50 split is a concentration calibration made by the experimenters, not a property of the fly. The model's odour concentration is not mapped to the published ones. The OCT/MCH balance is now reported as a calibration check, not gated. The concentration mapping still needs an owner decision before preregistration.",
- "declared_at": "2026-09-24",
+ "status": "preregistered",
+ "status_reason": "preregistered 2026-09-25 before any real-graph run. The odour-vs-air avoidance gates are now verified: wild-type flies avoid OCT and MCH against air at the training dilutions in Li 2013 Fig. 1I (a table, read exactly), and in four other labs from 1e-3 to undiluted odour (Akalal 2006, Liu & Davis 2009, Iliadi 2018, LaFerriere 2011). Barth 2014's slight attraction was against a mineral-oil arm, not air. The model's arm without odour is air, so Li's comparison is the matching one. The concentration mapping is left as declared (DoOR consensus scale 1): the gates test only the sign, which holds at every published dilution from 1e-3 to neat. No numeric naive OCT/MCH split exists (343 open-access texts scanned), so the balance stays report-only. Tully & Quinn 1985 full text is still unreadable (abstract only). Science choices were delegated to the project's Claude sessions by the owner (2026-09-25).",
+ "declared_at": "2026-09-25",
  "summary": "Naive T-maze choice at the choice point, before any learning: OCT vs MCH should be balanced, and each odour vs air should be avoided.",
  "dynamics": {
   "version": "v3",
@@ -16,7 +16,7 @@
   "decision_ms": 2000,
   "step_ms": 2.0,
   "design": "one fly at the choice point, arm A left and arm B right, then reciprocal (swapped); relative concentration 1 = the DoOR consensus scale",
-  "literature_match": "T-maze: ~100 flies per trial, reciprocal half-PIs (Li 2013 methods); OCT 1.5e-3 and MCH 1e-3 v/v there. The body and the maze geometry are not simulated (roadmap P2/P3)."
+  "literature_match": "T-maze: ~100 flies per trial, 2 min choice, reciprocal half-PIs (Li 2013 methods); OCT 1.5e-3 and MCH 1e-3 v/v there. The model's concentration is the DoOR consensus scale 1 (not mapped to a dilution); the gated sign holds from 1e-3 to undiluted. The body and the maze geometry are not simulated (roadmap P2/P3)."
  },
  "encoder": {
   "r_max_hz": 200.0,
@@ -385,11 +385,14 @@
      0.0
     ],
     "claim": "Naive flies avoid OCT against air (PI for OCT below 0).",
-    "basis": "published direction at training concentrations: Akalal 2006 Table 1, naive OCT vs fresh air, CS;H24-GAL4 control 0.78 +/- 0.04 (positive = avoidance, n >= 6; range over four CS-background GAL4 controls: OCT 0.66-0.78, MCH 0.62-0.84); dilutions not stated there. Li 2013 measured the same (half-PI = (n_air - n_odour)/total, positive = avoidance) but its values are only in Fig. 1I (not read). Conflict: Barth 2014 found 3-octanol and MCH 'slightly attractive' vs mineral oil in Canton-S (values in figure only). Direction depends on concentration and setup, and the model's concentration is not mapped, so verified stays false. Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0.",
-    "verified": false,
+    "basis": "published direction against air: wild type at the training dilutions (OCT 1.5e-3, MCH 1e-3 v/v): Li 2013 Fig. 1I (table) w1118 (iso1CJ) avoidance index OCT 54.92 +/- 3.43, MCH 58.33 +/- 6.79 (SEM, N ~6-10); at 10x: OCT 71.96, MCH 74.66. Also Akalal 2006 Table 1 (OCT 0.66-0.78, MCH 0.62-0.84), Liu & Davis 2009 Table 1 (GH146/+ OCT 0.616, MCH 0.621, n = 8), Iliadi 2018 Table 1 (Canton S OCT 56.55, MCH 53.11; N = 6), LaFerriere 2011 Table 1 (undiluted, CS: OCT 12.7, MCH 20.6). Conflict recorded: Barth 2014 Fig. 1B (read from figure) Canton-S vs a MINERAL-OIL arm at 1:500 OCT and 1:750 MCH: about +0.21 and +0.24 (attraction); the model's comparison arm is air, as in Li 2013. Only the sign is gated (the decoder gain is not a fit). Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0 (Li's index = -100 x this PI).",
+    "verified": true,
     "sources": [
-     "akalal2006",
      "li2013",
+     "akalal2006",
+     "liudavis2009",
+     "iliadi2018",
+     "laferriere2011",
      "barth2014"
     ]
    },
@@ -402,11 +405,14 @@
      0.0
     ],
     "claim": "Naive flies avoid MCH against air.",
-    "basis": "published direction at training concentrations: Akalal 2006 Table 1, naive MCH vs fresh air, CS;H24-GAL4 control 0.84 +/- 0.06 (positive = avoidance, n >= 6; range over four CS-background GAL4 controls: OCT 0.66-0.78, MCH 0.62-0.84); dilutions not stated there. Li 2013 measured the same (half-PI = (n_air - n_odour)/total, positive = avoidance) but its values are only in Fig. 1I (not read). Conflict: Barth 2014 found 3-octanol and MCH 'slightly attractive' vs mineral oil in Canton-S (values in figure only). Direction depends on concentration and setup, and the model's concentration is not mapped, so verified stays false. Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0.",
-    "verified": false,
+    "basis": "published direction against air: wild type at the training dilutions (OCT 1.5e-3, MCH 1e-3 v/v): Li 2013 Fig. 1I (table) w1118 (iso1CJ) avoidance index OCT 54.92 +/- 3.43, MCH 58.33 +/- 6.79 (SEM, N ~6-10); at 10x: OCT 71.96, MCH 74.66. Also Akalal 2006 Table 1 (OCT 0.66-0.78, MCH 0.62-0.84), Liu & Davis 2009 Table 1 (GH146/+ OCT 0.616, MCH 0.621, n = 8), Iliadi 2018 Table 1 (Canton S OCT 56.55, MCH 53.11; N = 6), LaFerriere 2011 Table 1 (undiluted, CS: OCT 12.7, MCH 20.6). Conflict recorded: Barth 2014 Fig. 1B (read from figure) Canton-S vs a MINERAL-OIL arm at 1:500 OCT and 1:750 MCH: about +0.21 and +0.24 (attraction); the model's comparison arm is air, as in Li 2013. Only the sign is gated (the decoder gain is not a fit). Sign: this spec's PI(a) = (a - b)/choosers, so avoidance is PI < 0 (Li's index = -100 x this PI).",
+    "verified": true,
     "sources": [
-     "akalal2006",
      "li2013",
+     "akalal2006",
+     "liudavis2009",
+     "iliadi2018",
+     "laferriere2011",
      "barth2014"
     ]
    }
@@ -421,7 +427,7 @@
      0.2
     ],
     "claim": "Naive OCT vs MCH PI and its 95% CI, reported as a calibration check of the relative odour concentration (not gated).",
-    "basis": "REPORTED, NOT GATED (decision 2026-09-24): NOT a biological target: labs adjust the relative OCT/MCH concentrations until naive flies split ~50:50 ('Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze', Goodwin 1997; same in Akalal 2006). No paper read reports a numeric naive split. In the model both odours are at DoOR scale 1, so this gate tests the encoder's concentration choice, not the fly. Tolerance is a judgement.",
+    "basis": "REPORTED, NOT GATED (decision 2026-09-24): NOT a biological target: labs adjust the relative OCT/MCH concentrations until naive flies split ~50:50 ('Relative concentrations of OCT and MCH were adjusted such that naive flies distributed themselves 50:50 in the T maze', Goodwin 1997; same in Akalal 2006). No paper read reports a numeric naive split. In the model both odours are at DoOR scale 1, so this gate tests the encoder's concentration choice, not the fly. Tolerance is a judgement. 2026-09-25: no numeric naive OCT vs MCH split for wild type was found in 343 open-access full texts (only 'adjusted ... 50:50' statements, e.g. PMC2813723, PMC4928101, PMC5440665); Tully & Quinn 1985 full text unreadable.",
     "verified": false,
     "sources": [
      "goodwin1997",
@@ -507,7 +513,7 @@
    "citation": "Tully T, Quinn WG (1985) Classical conditioning and retention in normal and mutant Drosophila melanogaster. J Comp Physiol A 157:263-277",
    "doi": "10.1007/BF01350033",
    "doi_status": "Crossref metadata only",
-   "read": "abstract only (Springer); full text paywalled",
+   "read": "abstract only (Springer); full text still unreadable on 2026-09-25 (JS challenge, not OA per Unpaywall)",
    "values_read": [
     "'Typically, 95% of trained flies avoided the shock-associated odor (CS+)'; learning plateaued within one training session; memory decayed over 7 h and was still present at 24 h; ~150 flies per trial, 12 shock pulses",
     "no naive OCT/MCH split, concentrations, or exact 3-min PI in the abstract"
@@ -517,11 +523,11 @@
    "citation": "Li W, Cressy M, Qin H, Fulga T, Van Vactor D, Dubnau J (2013) MicroRNA-276a functions in ellipsoid body and mushroom body neurons for naive and conditioned olfactory avoidance in Drosophila. J Neurosci 33(13):5821",
    "doi": "10.1523/JNEUROSCI.4004-12.2013",
    "doi_status": "resolved (PMC3640307)",
-   "read": "Methods and Fig. 1 legend (jneurosci.org); Fig. 1I bar values NOT read (image only)",
+   "read": "Methods and Results (jneurosci.org); Fig. 1I on 2026-09-25 from the PMC figure image (cdn.ncbi.nlm.nih.gov/pmc/blobs/835f/6705062/5cd6019b8b7a/zns9991336030001.jpg), a table with every digit legible at 3x zoom",
    "values_read": [
-    "OCT 1.5e-3 v/v, MCH 1e-3 v/v, BA 0.5e-3; ~100 flies per trial",
-    "naive avoidance: odour vs air, odour side alternated; half-PI = (n_air - n_odour)/total, PI = mean of reciprocal halves (positive = avoidance)",
-    "Fig. 1I: MCH, OCT and BA avoidance at various concentrations, WT and miR-276a alleles, N = ~6-10"
+    "OCT 1.5e-3 v/v, MCH 1e-3 v/v, BA 0.5e-3: 'the concentrations used for our standard memory assay'; ~100 flies per trial",
+    "naive avoidance: odour vs air, 2 min, half-PI = (n_air - n_odour)/total, PI = mean of reciprocal halves (positive = avoidance); means +/- SEM",
+    "Fig. 1I 'Avoidance Index (Olfactory Acuity)', WT w1118 (iso1CJ): MCH 1e-2 74.66 +/- 5.07; MCH 1e-3 58.33 +/- 6.79; OCT 1.5e-2 71.96 +/- 2.93; OCT 1.5e-3 54.92 +/- 3.43; BA 0.5e-3 49.91 +/- 6.15; N = ~6-10 (legend)"
    ]
   },
   "munch2016": {
@@ -579,7 +585,35 @@
    "doi_status": "not checked",
    "read": "text (jneurosci.org)",
    "values_read": [
-    "Canton-S, odour vs mineral oil in the T-maze: 3-octanol, 1-octen-3-ol and MCH 'were slightly attractive ... positive preference indices' (Fig. 1B legend, n = 8); values and dilutions in the figure only"
+    "Canton-S, odour vs mineral oil in the T-maze: 3-octanol, 1-octen-3-ol and MCH 'were slightly attractive ... positive preference indices' (Fig. 1B legend, n = 8); values and dilutions in the figure only",
+    "Fig. 1B (read from figure, +/-0.02), naive Canton-S vs mineral oil, positive = odour: 3-Oct 1:500 about +0.21 +/- 0.05, MCH 1:750 about +0.24 +/- 0.03, air about 0.00; n = 8 naive"
+   ]
+  },
+  "liudavis2009": {
+   "citation": "Liu X, Davis RL (2009) The GABAergic anterior paired lateral neuron suppresses and is suppressed by olfactory learning. Nat Neurosci 12:53-59",
+   "doi": "10.1038/nn.2235",
+   "doi_status": "resolved (PMC2680707)",
+   "read": "Table 1 (PMC)",
+   "values_read": [
+    "Table 1 naive response, means +/- s.e.m., n = 8: GH146/+ MCH 0.621 +/- 0.068, OCT 0.616 +/- 0.039; concentration 'used for the behavioral tests' not given numerically"
+   ]
+  },
+  "iliadi2018": {
+   "citation": "Iliadi KG, et al. (2018) Sci Rep 8:2939",
+   "doi": "10.1038/s41598-018-21343-8",
+   "doi_status": "resolved (PMC5811537)",
+   "read": "full text (Europe PMC OA XML), Table 1",
+   "values_read": [
+    "Table 1 'Olfactory Avoidance and Shock Reactivity': Canton S (N = 6) 3-OCT 56.55 +/- 2.75, MCH 53.11 +/- 4.33; w1118 (CS) 59.80 +/- 3.71, 57.59 +/- 5.20 (SE); dilution 1.5e-3 or 1e-2 OCT and 1e-3 or 1e-2 MCH, which one for acuity not stated"
+   ]
+  },
+  "laferriere2011": {
+   "citation": "LaFerriere H, et al. (2011) PLoS ONE 6:e24557",
+   "doi": null,
+   "doi_status": "not checked (PMC3166323)",
+   "read": "Table 1 (PMC)",
+   "values_read": [
+    "Canton-S, undiluted odour, 1 min choice, starved 16-20 h: MCH avoidance PI 20.6 +/- 5.2 (N = 36), OCT 12.7 +/- 5.2 (N = 24)"
    ]
   }
  }

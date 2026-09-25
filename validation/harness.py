@@ -48,7 +48,8 @@ VERDICTS = {
     'SYNTHETIC_PLUMBING_ONLY': 'synthetic test graph; exercises the code path, no scientific claim',
 }
 GATE_TYPES = ('ci_lower_above', 'ci_upper_below', 'ci_within', 'ratio_ci_lower_above', 'ratio_ci_within',
-              'all_equal', 'slope_ci_upper_below', 'proportion_ci_lower_above', 'proportion_ci_upper_below')
+              'all_equal', 'slope_ci_upper_below', 'proportion_ci_lower_above', 'proportion_ci_upper_below',
+              'proportion_ci_within')
 
 
 class SpecError(ValueError):
@@ -146,14 +147,20 @@ def evaluate_gate(gate: dict, samples: dict, boot_seed: int, n_boot: int) -> dic
             s['spearman_condition_means'] = stats.spearman(s['x'], s['means'])
             out['statistic'] = s
             out['passed'] = s['ci'][1] < gate['threshold']
-        elif t in ('proportion_ci_lower_above', 'proportion_ci_upper_below'):
+        elif t in ('proportion_ci_lower_above', 'proportion_ci_upper_below', 'proportion_ci_within'):
             kn = samples[gate['sample']]
             if isinstance(kn, list):
                 kn = dict(k=int(sum(kn)), n=len(kn))
             s = stats.proportion(kn['k'], kn['n'])
             out['statistic'] = s
             lo, hi = s['ci']
-            out['passed'] = (lo > gate['threshold']) if t == 'proportion_ci_lower_above' else (hi < gate['threshold'])
+            if lo is None:
+                out['passed'] = None
+            elif t == 'proportion_ci_within':
+                a, b = gate['interval']
+                out['passed'] = a <= lo and hi <= b
+            else:
+                out['passed'] = (lo > gate['threshold']) if t == 'proportion_ci_lower_above' else (hi < gate['threshold'])
     except (KeyError, ValueError) as exc:
         out['passed'] = None
         out['error'] = f'{type(exc).__name__}: {exc}'
