@@ -1,0 +1,10 @@
+{
+  "schema": "neurofly-studio-experiment-v1",
+  "title": "What do the steering neurons do",
+  "paradigm": "optomotor",
+  "parameters": {"world_angular_velocity_rad_s": 4.0, "contrast": 1.0, "duration_s": 10.0, "seed": 1},
+  "repeats": 1,
+  "silence": ["DNa02"],
+  "control": "intact",
+  "controller": "connectome"
+}

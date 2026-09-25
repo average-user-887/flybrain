@@ -238,7 +238,21 @@
             camera.position.set(f0[0] - 4, f0[1] - 4, f0[2] + 3);
             showFrame(0);
             setStatus(rec.frames.length + ' frames' + (rec.verified ? ', SHA-256 verified' : ', not verified (insecure origin)'));
-            window.embodiedReplay = { frames: rec.frames.length, verified: rec.verified, get frame() { return state.frame; } };
+            // Also driven by a same-origin parent (the studio's synced side-by-side view).
+            window.embodiedReplay = {
+                frames: rec.frames.length, verified: rec.verified,
+                start: rec.frames[0].t, duration: rec.frames[rec.frames.length - 1].t,
+                get frame() { return state.frame; },
+                seekTime(t) {
+                    if (state.playing) setPlaying(false);
+                    const index = Math.max(0, Math.min(rec.frames.length - 1,
+                        Math.floor((t - rec.frames[0].t) * rec.header.fps + 1e-9)));
+                    state.clock = t;
+                    if (index !== state.frame || t <= rec.frames[0].t) showFrame(index);
+                    return index;
+                },
+                pause() { setPlaying(false); },
+            };
         } catch (err) {
             setStatus('Could not open: ' + err.message, true);
             console.error(err);
