@@ -378,7 +378,10 @@ class ConnectomeServer:
         spk_dna02_r = sum(spike_counts[i] for i in self.dn_indices["dna02_r"] if i < self.n_neurons)
         dna02_rate_l = spk_dna02_l / sec
         dna02_rate_r = spk_dna02_r / sec
-        dna02_diff = float(dna02_rate_r - dna02_rate_l)
+        # Steering convention shared with the daemon and neurofly_body: DNa02 drives
+        # ipsilateral turning, and yaw is + counter-clockwise (a left turn), so the
+        # steering signal is L - R.
+        dna02_diff = float(dna02_rate_l - dna02_rate_r)
 
         # DNp09 pursuit forward drive
         spk_dnp09 = sum(spike_counts[i] for i in self.dn_indices["dnp09"] if i < self.n_neurons)
