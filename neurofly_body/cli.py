@@ -34,6 +34,15 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--world-angular-velocity-rad-s", type=float, default=4.0)
     run.add_argument("--contrast", type=float, default=1.0)
     run.add_argument(
+        "--controller", choices=("connectome", "modular"), default="connectome",
+        help="connectome: MaleCNS v3 graph; modular: the arena's phenomenological "
+             "optomotor model as a researcher baseline (neurofly_body/modular.py)",
+    )
+    run.add_argument("--modular-forward-drive", type=float, default=1.0,
+                     help="modular only: tonic CPG amplitude (assumption)")
+    run.add_argument("--modular-turn-gain", type=float, default=1.0,
+                     help="modular only: yaw-bias-to-amplitude gain (assumption)")
+    run.add_argument(
         "--decoder", choices=("dn-v2", "dna02-crossed-v1"), default="dn-v2",
         help="dn-v2: DNp09 forward, DNa02 ipsilateral stride, MDN reverse, GF event "
              "(docs/EMBODIED_MVP.md); dna02-crossed-v1: legacy MVP mapping",
@@ -63,12 +72,14 @@ def _parser() -> argparse.ArgumentParser:
 RUN_ARGUMENTS = (
     "duration", "mode", "graph_dir", "connectome_dir", "seed", "neural_dt_ms",
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
+    "controller", "modular_forward_drive", "modular_turn_gain",
     "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz",
 )
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
-INVOCATION_BACKFILL = {"decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
+INVOCATION_BACKFILL = {"controller": "connectome", "modular_forward_drive": 1.0,
+                       "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
                        "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02}
 
 
@@ -170,6 +181,12 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
 
     if args.video:
         os.environ.setdefault("MUJOCO_GL", "egl")
+    if args.controller == "modular":
+        from .modular import ModularCommandDecoder, ModularOptomotorBackend
+
+        neural = ModularOptomotorBackend(forward_drive=args.modular_forward_drive,
+                                         turn_gain=args.modular_turn_gain)
+        return _run_with(args, neural, ModularCommandDecoder(max_drive=args.max_cpg_drive))
     try:
         neural = ConnectomeServer(
             graph_dir=args.graph_dir,
@@ -186,6 +203,25 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             "ConnectomeServer lacks the required explicit v3 transmitter-policy API; "
             "deploy the matching brainlab backend before running the body MVP."
         ) from error
+    if args.decoder == "dn-v2":
+        decoder = DNCommandDecoder(
+            gain_p9_per_hz=args.p9_gain_per_hz,
+            k_dna02_per_hz=args.dna02_stride_k_per_hz,
+            gain_mdn_per_hz=args.mdn_gain_per_hz,
+            tau_ms=args.decoder_tau_ms,
+            max_drive=args.max_cpg_drive,
+        )
+    else:
+        decoder = DNa02CPGDecoder(
+            gain_per_hz=args.cpg_gain_per_hz,
+            tau_ms=args.decoder_tau_ms,
+            max_drive=args.max_cpg_drive,
+        )
+    return _run_with(args, neural, decoder)
+
+
+def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, Any]:
+    from .flygym_body import FlyGymBody
 
     video_path = args.output.resolve() / "body.mp4" if args.video else None
     body = None
@@ -205,20 +241,6 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             contrast=args.contrast,
             seed=args.seed,
         )
-        if args.decoder == "dn-v2":
-            decoder = DNCommandDecoder(
-                gain_p9_per_hz=args.p9_gain_per_hz,
-                k_dna02_per_hz=args.dna02_stride_k_per_hz,
-                gain_mdn_per_hz=args.mdn_gain_per_hz,
-                tau_ms=args.decoder_tau_ms,
-                max_drive=args.max_cpg_drive,
-            )
-        else:
-            decoder = DNa02CPGDecoder(
-                gain_per_hz=args.cpg_gain_per_hz,
-                tau_ms=args.decoder_tau_ms,
-                max_drive=args.max_cpg_drive,
-            )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))
     except BaseException:

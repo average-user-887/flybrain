@@ -220,7 +220,8 @@ def run_embodied(
     try:
         neural.reset()
         status = _to_builtin(neural.get_status())
-        validate_real_v3_status(status)
+        if status.get("controller_kind") != "modular-baseline":
+            validate_real_v3_status(status)
         missing = [key for key in decoder.required_status if not status.get(key)]
         if missing:
             raise RuntimeError(
@@ -294,7 +295,7 @@ def run_embodied(
             for field in WALL_CLOCK_FIELDS:
                 if field in reply:
                     timing[f"neural_{field}"] = reply.pop(field)
-            for field in ("sim_ms", "dna02_rate_l", "dna02_rate_r", "total_step_spikes"):
+            for field in ("sim_ms", "total_step_spikes"):
                 if field not in reply:
                     raise RuntimeError(f"neural reply is missing required field {field!r}")
             neural_ms = float(reply["sim_ms"])
