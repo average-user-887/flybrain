@@ -216,3 +216,116 @@ def advance_v3(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,ste
             i=queue[future,q];v[i]=V_RESET_MV;g[0,i]=0.0;g[1,i]=0.0;refractory[i]=refractory_ticks
         cursor+=1
     return cursor
+
+
+# ---------------------------------------------------------------------------
+# v4: hybrid graded / spiking transmission (docs/LIF_DYNAMICS_SPEC.md §7).
+#
+# A DECLARED graded cell class is integrated as a passive membrane -- same
+# conductance model, same constants, same integrator, no threshold, no reset,
+# no refractory period -- and its SUBTHRESHOLD membrane potential drives
+# downstream synaptic conductance directly through the declared release
+# function of §7.3:
+#
+#     r(V) = R_MAX_HZ * (V - E_inh) / (E_exc - E_inh)      [events / s]
+#
+# Derived, not fitted: both anchors are the already-declared membrane bounds
+# (§3.1) and the ceiling is the already-declared refractory period (§1.1).  A
+# graded cell at rest therefore releases at R_MAX_HZ * 18/70 = 116.883 s^-1 --
+# the MAINTAINED BASELINE of §7.4, which the histaminergic photoreceptor ->
+# lamina synapse needs in order to work by disinhibition.  It is a consequence
+# of the anchors, not an added parameter.
+R_MAX_HZ = 1000.0 / REFRACTORY_MS       # 454.545 s^-1, the refractory ceiling
+
+
+@njit(**KERNEL_OPTIONS)
+def advance_v4(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive,e_inh,g_unit_exc,g_unit_inh,graded,graded_idx,rel_ring):
+    """v4: ``advance_v3`` plus declared graded classes.
+
+    ``graded`` is a per-neuron uint8 mask, ``graded_idx`` the indices it marks
+    (so graded cells are integrated every tick whether or not they are in the
+    active set), and ``rel_ring`` a ``(delay_slots, n)`` float32 ring buffer
+    holding each graded cell's release for the tick it is delivered on -- the
+    same 1.8 ms transmission delay the spiking path uses.
+
+    With an EMPTY graded mask every added loop runs zero times and the
+    surviving arithmetic is ``advance_v3``'s, executed in the same order, so v4
+    is then bit-identical to v3 (spec §7.7 P2, §7.8 F4).
+    """
+    ag=math.exp(-dt/TAU_SYN_MS)
+    delay_slots=queue.shape[0]
+    delay_ticks=int(round(DELAY_MS/dt))
+    refractory_ticks=int(round(REFRACTORY_MS/dt))
+    n_graded=graded_idx.shape[0]
+    rel_scale=R_MAX_HZ*dt*1e-3/(E_EXC_MV-e_inh)
+    for step in range(steps):
+        slot=cursor%delay_slots
+        future=(cursor+delay_ticks)%delay_slots
+        # Phase 1: the SPIKING cells of the active set, exactly as v3.
+        for k in range(nactive[0]):
+            i=active[k]
+            if graded[i]!=0: continue
+            if refractory[i]>0: refractory[i]-=1
+            if refractory[i]==0:
+                ge=g[0,i]; gi=g[1,i]
+                gtot=1.0+ge+gi
+                vinf=(V_REST_MV+ge*E_EXC_MV+gi*e_inh+drive[i])/gtot
+                vi=vinf+(v[i]-vinf)*math.exp(-dt*gtot/TAU_M_MS)
+                if vi<e_inh: vi=e_inh
+                elif vi>E_EXC_MV: vi=E_EXC_MV
+                v[i]=vi
+                g[0,i]=ge*ag; g[1,i]=gi*ag
+                if vi>V_THRESHOLD_MV:
+                    counts[i]+=1
+                    queue[future,queue_count[future]]=i
+                    queue_count[future]+=1
+        # Phase 1b: the GRADED cells -- passive membrane, no threshold, no
+        # reset, no refractory period; release written into the delay ring.
+        for k in range(n_graded):
+            i=graded_idx[k]
+            ge=g[0,i]; gi=g[1,i]
+            gtot=1.0+ge+gi
+            vinf=(V_REST_MV+ge*E_EXC_MV+gi*e_inh+drive[i])/gtot
+            vi=vinf+(v[i]-vinf)*math.exp(-dt*gtot/TAU_M_MS)
+            if vi<e_inh: vi=e_inh
+            elif vi>E_EXC_MV: vi=E_EXC_MV
+            v[i]=vi
+            g[0,i]=ge*ag; g[1,i]=gi*ag
+            rel_ring[future,i]=(vi-e_inh)*rel_scale
+        # Phase 2: deliver the spikes due this tick, as v3.
+        for q in range(queue_count[slot]):
+            i=queue[slot,q]
+            for e in range(ptr[i],ptr[i+1]):
+                j=post[e]
+                if refractory[j]>0: continue
+                w=weight[e]
+                if w>0.0:
+                    g[0,j]+=w*g_unit_exc
+                else:
+                    g[1,j]-=w*g_unit_inh
+                if active_flag[j]==0:
+                    active_flag[j]=1;active[nactive[0]]=j;nactive[0]+=1
+        queue_count[slot]=0
+        # Phase 2b: deliver the graded release due this tick.  Same weights,
+        # same per-sign quanta, same sign convention, same rule that an
+        # arrival at a refractory target is dropped.
+        for k in range(n_graded):
+            i=graded_idx[k]
+            x=rel_ring[slot,i]
+            if x==0.0: continue
+            rel_ring[slot,i]=0.0
+            for e in range(ptr[i],ptr[i+1]):
+                j=post[e]
+                if refractory[j]>0: continue
+                w=weight[e]
+                if w>0.0:
+                    g[0,j]+=w*g_unit_exc*x
+                else:
+                    g[1,j]-=w*g_unit_inh*x
+                if active_flag[j]==0:
+                    active_flag[j]=1;active[nactive[0]]=j;nactive[0]+=1
+        # Phase 3: reset this tick's spikers, as v3.
+        for q in range(queue_count[future]):
+            i=queue[future,q];v[i]=V_RESET_MV;g[0,i]=0.0;g[1,i]=0.0;refractory[i]=refractory_ticks
+        cursor+=1
+    return cursor
