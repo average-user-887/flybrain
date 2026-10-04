@@ -185,7 +185,11 @@ def main():
                 "assay_matches_daemon": s2["arena"]["packetAssay"] == st["active_paradigm"],
                 "clock_advanced": s2["simTime"] != s1["simTime"],
                 "steps_advanced": bool(s2["lastStep"] and s1["lastStep"] and s2["lastStep"] > s1["lastStep"]),
-                "identity_backend_modular": s2["ident"]["backend"] == "modular",
+                # The identity bar must report the backend the daemon is actually
+                # running, whichever it is. (This used to hard-code "modular", which
+                # was true only while the observatory ran the hand-built controller.)
+                "identity_backend_matches_daemon": bool(s2["ident"]["backend"])
+                                                   and s2["ident"]["backend"] == st.get("backend"),
                 "identity_label_present": bool(s2["ident"]["label"]),
                 "achieved_live": bool(s2["achieved"]) and s2["achieved"] != "--",
                 "data_age_live": s2["dataAgeMs"] is not None and s2["dataAgeMs"] < 3000,
@@ -362,7 +366,9 @@ def main():
                        "server_paused": paused_status["paused"] is True,
                        "steps_frozen": p1["lastStep"] == p2["lastStep"],
                        "clock_frozen": p1["simTime"] == p2["simTime"],
-                       "metrics_retained": bool(p2["ident"]["backend"] == "modular" and p2["step"] not in (None, "")),
+                       "metrics_retained": bool(p2["ident"]["backend"]
+                                                and p2["ident"]["backend"] == paused_status.get("backend")
+                                                and p2["step"] not in (None, "")),
                        "not_disconnected_flag": "DISCONNECTED" not in (p2["pill"] or ""),
                        "resumed": okr, "server_running_again": resumed_status["paused"] is False,
                        "no_errors": not r1["errors"] and not r1["consoleErrors"]}}
@@ -376,7 +382,7 @@ def main():
         time.sleep(4.0)
         final_ui = c.ui()
         final_status = c.status()
-        R["screenshots"].append(c.shot(out, "08-restored-open-arena-1x.png"))
+        R["screenshots"].append(c.shot(out, f"08-restored-{args.restore_assay}-{args.restore_speed}x.png"))
         R["scenarios"]["restore"] = {
             "target": {"assay": args.restore_assay, "sim_speed": float(args.restore_speed), "paused": False},
             "ui": final_ui,
