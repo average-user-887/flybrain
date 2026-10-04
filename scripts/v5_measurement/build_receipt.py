@@ -151,6 +151,15 @@ receipt = dict(
                       expensive_protocol_d_run=False if not (v5 and v5['gate']['passed']) else None),
     predictions=P, falsifiers=F, runs=S, unit_level=unit,
     raw_files=sorted(f for f in os.listdir(R)),
+    posthoc_not_preregistered=dict(
+        rate_locus=json.load(open(R + 'posthoc_rate_locus.json'))
+        if os.path.exists(R + 'posthoc_rate_locus.json') else None,
+        note='POST-HOC, not preregistered, cannot change any verdict: where the v5 primary\'s higher '
+             'no-stimulus spike rate (F4) lives, 1 s of gray after 1 s settle, GTX 1660 Ti'),
+    hardware_note='v4_protocol9, v5_primary, the a3 S0 check and the pre-lock speed probe ran on the '
+                  'Quadro P620 (CUDA_VISIBLE_DEVICES=1 under the default FASTEST_FIRST ordering selects it); '
+                  'v5_upper_S2 and the post-hoc diagnostic ran on the GTX 1660 Ti (CUDA_DEVICE_ORDER=PCI_BUS_ID). '
+                  'Same arithmetic; only float-rounding and speed differ.',
     post_lock_corrections=[
         'analyse_tuning.py D4: f1_im is stored as +sum V sin(wt), the negative of the declared F1 '
         'imaginary part; the first version mirrored every lag. Fixed before any v5 analysis was read; '

@@ -2766,6 +2766,7 @@
   "F2_triggered": false
  },
  "raw_files": [
+  "posthoc_rate_locus.json",
   "s0_real_graph.json",
   "speed_probe.json",
   "unit_level.json",
@@ -2780,6 +2781,284 @@
   "v5_upper_S2.npz",
   "yaw_axes.json"
  ],
+ "posthoc_not_preregistered": {
+  "rate_locus": {
+   "v4": {
+    "brain_mean_hz": 1.2083803239352129,
+    "spiking_neurons_active": 5763,
+    "by_superclass_hz": {
+     "ENS": 0.0,
+     "ascending_neuron": 3.294691224268689,
+     "cb_efferent": 0.0,
+     "cb_endocrine": 0.08333333333333333,
+     "cb_intrinsic": 3.2312523317995274,
+     "cb_motor": 11.523364485981308,
+     "cb_sensory": 0.0,
+     "cb_sensory_tbc": 0.0,
+     "descending_neuron": 7.014459665144597,
+     "descending_neuron_tbc": 0.0,
+     "efferent_ascending": 60.75,
+     "efferent_descending": 0.0,
+     "ol_intrinsic": 0.0,
+     "ol_sensory": 0.0,
+     "sensory_ascending": 0.0,
+     "sensory_ascending_tbc": 0.0,
+     "sensory_descending": 0.0,
+     "visual_centrifugal": 15.30550621669627,
+     "visual_projection": 4.602325834148462,
+     "visual_projection_tbc": 0.0,
+     "vnc_efferent": 5.276595744680851,
+     "vnc_endocrine": 11.409090909090908,
+     "vnc_intrinsic": 1.631638933211762,
+     "vnc_motor": 10.248587570621469,
+     "vnc_sensory": 0.005337519623233909,
+     "vnc_sensory_tbc": 0.0,
+     "vnc_tbc": 0.23684210526315788
+    },
+    "by_superclass_spikes": {
+     "ENS": 0,
+     "ascending_neuron": 6082,
+     "cb_efferent": 0,
+     "cb_endocrine": 6,
+     "cb_intrinsic": 103930,
+     "cb_motor": 1233,
+     "cb_sensory": 0,
+     "cb_sensory_tbc": 0,
+     "descending_neuron": 9217,
+     "descending_neuron_tbc": 0,
+     "efferent_ascending": 486,
+     "efferent_descending": 0,
+     "ol_intrinsic": 0,
+     "ol_sensory": 0,
+     "sensory_ascending": 0,
+     "sensory_ascending_tbc": 0,
+     "sensory_descending": 0,
+     "visual_centrifugal": 8617,
+     "visual_projection": 42346,
+     "visual_projection_tbc": 0,
+     "vnc_efferent": 496,
+     "vnc_endocrine": 251,
+     "vnc_intrinsic": 21474,
+     "vnc_motor": 7256,
+     "vnc_sensory": 34,
+     "vnc_sensory_tbc": 0,
+     "vnc_tbc": 9
+    },
+    "by_receptor_class_of_spiker_hz": {
+     "gaba_a": 2.8300783905025146,
+     "glucl": 0.7202921302300185,
+     "hiscl": 0.0,
+     "nicotinic": 1.0971350918669371
+    },
+    "rate_percentiles_hz": {
+     "50": 17.0,
+     "90": 96.0,
+     "99": 196.3800000000001,
+     "100": 334.0
+    },
+    "top_types_by_spikes": [
+     [
+      "LPLC2",
+      15167
+     ],
+     [
+      "LC10b",
+      4040
+     ],
+     [
+      "PEN_a(PEN1)",
+      2670
+     ],
+     [
+      "PEN_b(PEN2)",
+      2484
+     ],
+     [
+      "AVLP465",
+      2281
+     ],
+     [
+      "MeTu3c",
+      2204
+     ],
+     [
+      "LT52",
+      1883
+     ],
+     [
+      "LLPC3",
+      1737
+     ],
+     [
+      "LLPC2",
+      1659
+     ],
+     [
+      "EPG",
+      1627
+     ],
+     [
+      "MeTu3b",
+      1617
+     ],
+     [
+      "PVLP111",
+      1563
+     ],
+     [
+      "AN09A005",
+      1412
+     ],
+     [
+      "",
+      1397
+     ],
+     [
+      "FR1",
+      1365
+     ]
+    ]
+   },
+   "v5_primary": {
+    "brain_mean_hz": 10.40126574685063,
+    "spiking_neurons_active": 14848,
+    "by_superclass_hz": {
+     "ENS": 0.0,
+     "ascending_neuron": 9.940411700975082,
+     "cb_efferent": 0.0,
+     "cb_endocrine": 1.1527777777777777,
+     "cb_intrinsic": 43.34917920656635,
+     "cb_motor": 21.327102803738317,
+     "cb_sensory": 4.902013147082991,
+     "cb_sensory_tbc": 0.0,
+     "descending_neuron": 20.862252663622527,
+     "descending_neuron_tbc": 0.0,
+     "efferent_ascending": 103.875,
+     "efferent_descending": 1.25,
+     "ol_intrinsic": 0.0,
+     "ol_sensory": 0.0,
+     "sensory_ascending": 3.7243947858473,
+     "sensory_ascending_tbc": 0.0,
+     "sensory_descending": 0.0,
+     "visual_centrifugal": 38.38721136767318,
+     "visual_projection": 13.097272035648299,
+     "visual_projection_tbc": 0.0,
+     "vnc_efferent": 15.925531914893616,
+     "vnc_endocrine": 63.09090909090909,
+     "vnc_intrinsic": 7.307651394270952,
+     "vnc_motor": 33.25706214689266,
+     "vnc_sensory": 0.00847723704866562,
+     "vnc_sensory_tbc": 0.0,
+     "vnc_tbc": 0.0
+    },
+    "by_superclass_spikes": {
+     "ENS": 0,
+     "ascending_neuron": 18350,
+     "cb_efferent": 0,
+     "cb_endocrine": 83,
+     "cb_intrinsic": 1394283,
+     "cb_motor": 2282,
+     "cb_sensory": 23863,
+     "cb_sensory_tbc": 0,
+     "descending_neuron": 27413,
+     "descending_neuron_tbc": 0,
+     "efferent_ascending": 831,
+     "efferent_descending": 5,
+     "ol_intrinsic": 0,
+     "ol_sensory": 0,
+     "sensory_ascending": 2000,
+     "sensory_ascending_tbc": 0,
+     "sensory_descending": 0,
+     "visual_centrifugal": 21612,
+     "visual_projection": 120508,
+     "visual_projection_tbc": 0,
+     "vnc_efferent": 1497,
+     "vnc_endocrine": 1388,
+     "vnc_intrinsic": 96176,
+     "vnc_motor": 23546,
+     "vnc_sensory": 54,
+     "vnc_sensory_tbc": 0,
+     "vnc_tbc": 0
+    },
+    "by_receptor_class_of_spiker_hz": {
+     "gaba_a": 14.951017264035524,
+     "glucl": 5.831137806293086,
+     "hiscl": 0.0060828792295019645,
+     "nicotinic": 11.476619073326011
+    },
+    "rate_percentiles_hz": {
+     "50": 111.0,
+     "90": 229.0,
+     "99": 378.0,
+     "100": 424.0
+    },
+    "top_types_by_spikes": [
+     [
+      "KCg-m",
+      278530
+     ],
+     [
+      "KCab-s",
+      119359
+     ],
+     [
+      "KCab-m",
+      94710
+     ],
+     [
+      "KCab-c",
+      77635
+     ],
+     [
+      "LPLC2",
+      43531
+     ],
+     [
+      "",
+      19592
+     ],
+     [
+      "lLN1_bc",
+      11389
+     ],
+     [
+      "PAM08",
+      11334
+     ],
+     [
+      "PAM01",
+      10116
+     ],
+     [
+      "LLPC2",
+      8799
+     ],
+     [
+      "PAM04",
+      6973
+     ],
+     [
+      "LPC2",
+      6782
+     ],
+     [
+      "LLPC3",
+      6150
+     ],
+     [
+      "EPG",
+      5444
+     ],
+     [
+      "PEN_a(PEN1)",
+      5276
+     ]
+    ]
+   }
+  },
+  "note": "POST-HOC, not preregistered, cannot change any verdict: where the v5 primary's higher no-stimulus spike rate (F4) lives, 1 s of gray after 1 s settle, GTX 1660 Ti"
+ },
+ "hardware_note": "v4_protocol9, v5_primary, the a3 S0 check and the pre-lock speed probe ran on the Quadro P620 (CUDA_VISIBLE_DEVICES=1 under the default FASTEST_FIRST ordering selects it); v5_upper_S2 and the post-hoc diagnostic ran on the GTX 1660 Ti (CUDA_DEVICE_ORDER=PCI_BUS_ID). Same arithmetic; only float-rounding and speed differ.",
  "post_lock_corrections": [
   "analyse_tuning.py D4: f1_im is stored as +sum V sin(wt), the negative of the declared F1 imaginary part; the first version mirrored every lag. Fixed before any v5 analysis was read; definition unchanged; D1/D2/D5 unaffected."
  ]
