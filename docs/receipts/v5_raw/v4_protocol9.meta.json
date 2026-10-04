@@ -601,20 +601,76 @@
    "graded_at_floor_frac": 0.0,
    "graded_at_ceiling_frac": 0.0,
    "brain_mean_hz": 1.229142171565687
+  },
+  "dir135": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2229034193161368
+  },
+  "dir180": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.224631073785243
+  },
+  "dir225": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.226112777444511
+  },
+  "dir270": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2223515296940612
+  },
+  "dir315": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2014367126574685
+  },
+  "yaw_ccw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2250779844031194
+  },
+  "yaw_cw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2346820635872826
+  },
+  "flicker": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2345410917816437
   }
  },
  "timing": {
   "gray_wall_s": 444.82132675200046,
   "dir0_wall_s": 556.6318148520004,
   "dir45_wall_s": 556.7302423040001,
-  "dir90_wall_s": 557.21462221
+  "dir90_wall_s": 557.21462221,
+  "dir135_wall_s": 556.8828729119996,
+  "dir180_wall_s": 557.2178980579993,
+  "dir225_wall_s": 556.9442417289993,
+  "dir270_wall_s": 556.9174275949999,
+  "dir315_wall_s": 564.9280804160007,
+  "yaw_ccw_wall_s": 564.1489141180009,
+  "yaw_cw_wall_s": 560.5335084630005,
+  "flicker_wall_s": 558.7753218359994
  },
  "conditions_done": [
   "dir0",
   "dir45",
-  "dir90"
+  "dir90",
+  "dir135",
+  "dir180",
+  "dir225",
+  "dir270",
+  "dir315",
+  "yaw_ccw",
+  "yaw_cw",
+  "flicker"
  ],
- "wall_s": 2115.6655357170002,
- "simulated_s": 9.5,
- "simulated_s_per_wall_s": 0.004490312783197295
+ "wall_s": 6593.731494274,
+ "simulated_s": 29.5,
+ "simulated_s_per_wall_s": 0.004473946205667885
 }
