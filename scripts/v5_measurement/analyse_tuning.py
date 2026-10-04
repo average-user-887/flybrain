@@ -120,8 +120,14 @@ if 'flicker__f1_re' in raw:
         idx = pops[k]
         z = complex(float(raw['flicker__f1_re'][idx].mean()), float(raw['flicker__f1_im'][idx].mean()))
         amp = abs(z)
-        # drive ~ cos(wt) has phasor +1; V ~ a cos(wt - lag) has phasor a e^{-i lag}
-        lag = (-math.degrees(math.atan2(z.imag, z.real))) % 360
+        # measure_tuning stores f1_im = +2/N sum V sin(wt), i.e. MINUS the imaginary
+        # part of the declared F1 = 2/N sum V e^{-iwt}.  With that storage convention
+        # V ~ a cos(wt - lag) gives (re, im) = a (cos lag, sin lag), so
+        # lag = +atan2(im_stored, re).  (Post-lock correction of a sign error in the
+        # first version of this line; the declared definition is unchanged and the
+        # amplitudes used by D2/D5 are unaffected.)  Sampling at the end of each 2 ms
+        # step against a drive held at its start value adds ~1 deg (~2 ms).
+        lag = math.degrees(math.atan2(z.imag, z.real)) % 360
         sign = 'same' if (lag < 90 or lag > 270) else 'inverted'
         lag_mod = lag if sign == 'same' else (lag - 180) % 360
         if lag_mod > 180:
