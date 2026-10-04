@@ -65,11 +65,11 @@ def test_the_spec_document_exists_and_names_both_versions():
 
 
 def test_dynamics_pins_differ_and_are_stable():
-    pins = {v: dynamics_pin(v) for v in ('v1', 'v2', 'v3')}
-    assert len(set(pins.values())) == 3
+    pins = {v: dynamics_pin(v) for v in ('v1', 'v2', 'v3', 'v4')}
+    assert len(set(pins.values())) == 4
     assert dynamics_pin('v2') == pins['v2']
     with pytest.raises(ValueError):
-        dynamics_pin('v4')
+        dynamics_pin('v5')
 
 
 def test_default_is_v3_and_v1_stays_selectable(monkeypatch):

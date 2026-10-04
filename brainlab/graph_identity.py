@@ -195,7 +195,114 @@ LIF_DYNAMICS_V3 = {
                              'declared transmitter-class policy',
 }
 
-DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3}
+LIF_DYNAMICS_V4 = {
+    'dynamics_version': 'v4',
+    'model': 'HYBRID leaky integrate-and-fire: declared non-spiking cell classes are '
+             'integrated as passive membranes (no threshold, no reset, no refractory '
+             'period) and their SUBTHRESHOLD membrane potential drives downstream '
+             'synaptic conductance through a derived release function; every other '
+             'neuron behaves exactly as v3 (brainlab.engine.advance_v4)',
+    'dt_ms': 0.1, 'tau_membrane_ms': _engine.TAU_M_MS, 'tau_synapse_ms': _engine.TAU_SYN_MS,
+    'v_rest_mV': _engine.V_REST_MV, 'v_reset_mV': _engine.V_RESET_MV,
+    'v_threshold_mV': _engine.V_THRESHOLD_MV,
+    'refractory_ms': _engine.REFRACTORY_MS, 'transmission_delay_ms': _engine.DELAY_MS,
+    'synaptic_scale': 0.275,
+    'e_excitatory_mV': _engine.E_EXC_MV,
+    'e_inhibitory_mV': _engine.E_INH_MV,
+    'g_unit_excitatory_per_weight': _engine.G_UNIT_EXC_V3,
+    'g_unit_inhibitory_per_weight': _engine.G_UNIT_INH_V3,
+    'g_unit_ratio_inh_over_exc': _engine.G_UNIT_INH_V3 / _engine.G_UNIT_EXC_V3,
+    'weight_units': 'unchanged from v3; the same array means the same thing for a spiking '
+                    'and for a graded presynaptic cell because graded release is expressed '
+                    'as an event RATE',
+    'input_units': 'per-neuron drive current (upstream mV-equivalent), shunted by 1/(1+ge+gi)',
+    'output_units': 'spike counts per step window for spiking cells; membrane potential in mV '
+                    'and release rate in s^-1 for graded cells, which never spike',
+    'membrane_bounds_mV': [_engine.E_INH_MV, _engine.E_EXC_MV],
+    'reversal_potentials_mV': dict(LIF_DYNAMICS_V2['reversal_potentials_mV']),
+    'graded_release': {
+        'function': 'r(V) = r_max * (V - e_inhibitory) / (e_excitatory - e_inhibitory)',
+        'units': 'release events per second',
+        'r_max_hz': _engine.R_MAX_HZ,
+        'r_at_rest_hz': _engine.R_MAX_HZ * (_engine.V_REST_MV - _engine.E_INH_MV)
+                        / (_engine.E_EXC_MV - _engine.E_INH_MV),
+        'delivery': 'over each out-edge, every dt, after the same 1.8 ms transmission delay '
+                    'the spiking path uses: dg = |w| * g_unit_<sign> * r(V) * dt/1000. A '
+                    'graded cell at release rate r therefore delivers the mean conductance a '
+                    'v3 spiking cell firing at r Hz delivers, which is what lets the two '
+                    'populations interoperate on one weight array.',
+        'derivation': 'No free parameter. The two anchors are the already-declared membrane '
+                      'bounds (r=0 at e_inhibitory, r=r_max at e_excitatory, spec §3.1) and '
+                      'the ceiling is the already-declared refractory period '
+                      '(r_max = 1/t_rfc, spec §1.1). r(V_rest) is a consequence.',
+        'maintained_baseline': 'Because the zero of r(V) is at e_inhibitory and not at '
+                              'V_rest, a graded cell at rest releases tonically, so graded '
+                              'transmission is BIDIRECTIONAL about a set point. This breaks '
+                              'the zero-spontaneous-activity property v1-v3 inherit from '
+                              'Shiu et al. 2024, deliberately: the histaminergic '
+                              'photoreceptor -> lamina synapse is inhibitory and can only '
+                              'work by disinhibition. A v4 no-stimulus window is a '
+                              'tonic-release steady state, NOT silence, and is not '
+                              'comparable with a v1/v2/v3 gray window.',
+        'engineering_assumption': 'the LINEARITY between the two anchors. No graded '
+                                  'input-output curve measured in Drosophila is expressed in '
+                                  "this engine's units, so there is no shape to fit. Real "
+                                  'graded synapses are sigmoid, saturate and depress; v4 has '
+                                  'none of that.',
+    },
+    'graded_policy': {
+        'primary': 'v4-optic-lobe-graded',
+        'resolved_by': 'cell_type + superclass from normalized/neurons.feather, never row order',
+        'applied_by': 'brainlab.graded_policy.resolve; the resolved node set is hashed as '
+                      'graded_set_sha256 and recorded in every manifest and receipt',
+        'arms': ['none (must be bit-identical to v3)', 'v4-tier1-only (declared arm S1)'],
+        'spec': 'docs/LIF_DYNAMICS_SPEC.md#7',
+    },
+    'transmitter_policy': dict(LIF_DYNAMICS_V3['transmitter_policy']),
+    'integration': 'exponential Euler, conductances frozen within dt (first order in the '
+                   'synaptic term); identical for graded and spiking cells',
+    'changes_from_v3': [
+        'declared non-spiking cell classes have no threshold, no reset and no refractory '
+        'period, and are integrated as passive membranes',
+        'their subthreshold membrane potential drives downstream conductance directly '
+        'through r(V); under v3 a subthreshold cell transmitted nothing at all',
+        'graded cells release tonically at rest, so the network has a maintained baseline '
+        'and a v4 no-stimulus window is not silence',
+        'spiking and graded populations interoperate in both directions with no adapter',
+        'the state adds a delayed-release ring buffer, so a v4 snapshot is not '
+        'interchangeable with a v3 one even by shape',
+    ],
+    'unchanged_from_v3': [
+        'every membrane and synaptic constant, both reversal potentials, both conductance '
+        'quanta and the membrane bounds',
+        'the v3 transmitter policy (v3-modulatory-only, unclear_mode=excitatory) and the '
+        'weight array it produces; the pinned graph.npz is still never rewritten',
+        'the spike / delay / refractory / reset schedule for every spiking cell',
+        'arrivals at a refractory target are dropped; conductance zeroed on a spike',
+        'no adaptation, short-term plasticity or after-hyperpolarisation',
+        'no gap junctions, no internal state, no neuropeptides, no receptor kinetics, no '
+        'cell-type-specific synaptic time constants',
+    ],
+    'known_limitations': [
+        'one global tau_syn = 5 ms and one global 1.8 ms hop delay for the whole brain, so a '
+        '20-50 ms delay line cannot be expressed; this is the declared reason a working '
+        'graded pathway may still fail to compute motion (spec §7.7 P4)',
+        'the release function is linear, unsaturating and undepressing',
+        'no photoreceptor light adaptation, contrast gain control or spectral channels',
+        'graded cells still have one compartment, so CT1 and HS compartmentalisation is absent',
+    ],
+    'parameter_source': 'Shiu et al. 2024 for every shared constant; see spec §7 for the '
+                        'graded class evidence and §3.1 for the reversals',
+    'spec': DYNAMICS_SPEC_DOC,
+    'declaration_lock': 'docs/receipts/graded_transmission_v4_declaration.locked.md',
+    'declaration_sha256': '2634c824476c9b799bd2c0c656040255360cd10f8837e2d874a97af5f939872e',
+    'biological_validation': 'none; engineering proxy with declared reversal potentials, a '
+                             'declared transmitter-class policy and a declared non-spiking '
+                             'cell-class list',
+}
+
+DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3,
+                     'v4': LIF_DYNAMICS_V4}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v3'
 
