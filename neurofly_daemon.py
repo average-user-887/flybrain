@@ -715,7 +715,14 @@ class ContinuousExperimentRunner:
 
         self.continuous = bool(continuous)
         self.paused = False
+        # Fail-safe halt: an exception inside a step stops the simulation (nothing
+        # advances while ``last_error`` is set) instead of stepping a broken state.
+        # The halt is reported (status "error", packet ``halted``, the dashboard
+        # pill) and lifted only by a command that rebuilds the controller and world
+        # (a successful assay or backend switch); see _halt_on_error/_clear_error.
         self.last_error = None
+        self.error_detail: Optional[Dict[str, Any]] = None
+        self.cleared_errors: deque = deque(maxlen=16)   # lifted halts, newest last
         self.run_id = uuid.uuid4().hex
         self.transition = None
         self.lock = TimedLock()
@@ -1213,9 +1220,10 @@ class ContinuousExperimentRunner:
             step_result = self.arena.step(step_dt)
         except Exception as step_err:
             print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
-            self.last_error = str(step_err)
+            self._halt_on_error(step_err)
             self.active_brain.log("simulation_error", error=self.last_error, step=self.total_steps,
-                                  run_id=self.run_id, segment_id=self.segment_id)
+                                  run_id=self.run_id, segment_id=self.segment_id,
+                                  error_type=self.error_detail["type"])
             self._publish_due = True
             self.latest_telemetry = self._assemble_telemetry({})
             return {}
@@ -1246,6 +1254,38 @@ class ContinuousExperimentRunner:
             self.save_checkpoint("periodic")
             self.last_checkpoint_time = now
         return step_result
+
+    HALT_RECOVERY = ("The simulation is halted by this error and does not advance. Select an assay "
+                     "(selecting the same one retries it) or switch the controller backend to rebuild "
+                     "the controller and resume. Pausing, resuming or changing speed does not lift it.")
+
+    def _halt_on_error(self, exc: BaseException):
+        """Record the step failure that halts the simulation. Caller holds the lock."""
+        registry = self.registry if self.graph_mode else None
+        active = registry.active if registry is not None else None
+        self.last_error = str(exc) or type(exc).__name__
+        self.error_detail = {
+            "message": self.last_error, "type": type(exc).__name__, "step": self.total_steps,
+            "sim_time_s": round(self.total_steps * self.dt, 5), "paradigm": self.active_paradigm_id,
+            "backend": self.backend, "instance_id": active.instance_id if active is not None else None,
+            "at": round(time.time(), 3), "recover": self.HALT_RECOVERY}
+
+    def _clear_error(self, cleared_by: str) -> Optional[Dict[str, Any]]:
+        """Lift a halt after a successful rebuild; the cleared error is kept and logged."""
+        if self.last_error is None:
+            return None
+        detail = dict(self.error_detail or {"message": self.last_error})
+        detail.update(cleared_by=cleared_by, cleared_at=round(time.time(), 3), cleared_step=self.total_steps,
+                      resumed_paradigm=self.active_paradigm_id, resumed_backend=self.backend)
+        detail.pop("recover", None)
+        self.cleared_errors.append(detail)
+        self.last_error = None
+        self.error_detail = None
+        self.active_brain.log("simulation_error_cleared", error=detail["message"], cleared_by=cleared_by,
+                              step=self.total_steps, run_id=self.run_id, segment_id=self.segment_id)
+        print(f"[Daemon] Halt lifted by {cleared_by}: {detail['message']}", flush=True)
+        self._publish_due = True
+        return detail
 
     def _trial_end_reason(self, step_result: Dict[str, Any]) -> Optional[str]:
         """Why the current trial is over, or None while it continues."""
@@ -1394,6 +1434,8 @@ class ContinuousExperimentRunner:
             "continuous": self.continuous,
             "paused": self.paused,
             "error": self.last_error,
+            "halted": self.last_error is not None,
+            "error_detail": self.error_detail,
             "sim_time_s": round(self.total_steps * self.dt, 5),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
@@ -1564,7 +1606,9 @@ class ContinuousExperimentRunner:
                              # Built after the command (for a switch: after the target's
                              # brain and world snapshots are restored).  Packets whose
                              # identity is older are stale (identity_rejection).
-                             "identity": self.identity()}
+                             "identity": self.identity(),
+                             # Applied, but the simulation still does not advance.
+                             "halted_by_error": self.last_error}
         self._publish_due = True
         return result
 
@@ -1581,8 +1625,12 @@ class ContinuousExperimentRunner:
                 self._init_arena(target)
             except (ValueError, OSError, RuntimeError) as exc:
                 # RuntimeError covers BackendError, GraphUnavailable and checkpoint errors.
+                # A failed switch rebuilt nothing, so a standing halt stays.
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-            return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity()}
+            # The target's instance, world and arena are now active: lift a halt.
+            cleared = self._clear_error("switch_paradigm")
+            return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity(),
+                    "cleared_error": cleared}
 
         elif action in ("switch_backend", "switch_controller"):
             target = cmd.get("backend") or p.get("backend")
@@ -1591,11 +1639,15 @@ class ContinuousExperimentRunner:
                                                       "(a recording covers one graph)"}
             if target not in DAEMON_BACKENDS:
                 return {"status": "error", "message": f"Unknown backend {target!r}; choose one of {DAEMON_BACKENDS}"}
+            previous = self.backend
             try:
                 self._switch_backend(target)
             except Exception as exc:
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-            return {"status": "ok", "backend": self.backend, "identity": self.identity()}
+            # Only a real change rebuilds the controller; re-selecting it is a no-op.
+            cleared = self._clear_error("switch_backend") if self.backend != previous else None
+            return {"status": "ok", "backend": self.backend, "identity": self.identity(),
+                    "cleared_error": cleared}
 
         elif action in ("probe_brain", "teach_brain") and self.graph_mode:
             return {"status": "error", "message": f"{action} acts on the modular mushroom body, which is not "
@@ -1869,6 +1921,10 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         payload = {
             "status": "error" if self.runner.last_error else "online",
             "error": self.runner.last_error,
+            # A halted run is not paused: nothing advances until a rebuild lifts it.
+            "halted": self.runner.last_error is not None,
+            "error_detail": getattr(self.runner, "error_detail", None),
+            "cleared_errors": list(getattr(self.runner, "cleared_errors", ())),
             "paused": self.runner.paused,
             "continuous": self.runner.continuous,
             "service": "Project NeuroFly Continuous Learning Daemon",
