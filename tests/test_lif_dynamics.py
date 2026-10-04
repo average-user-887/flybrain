@@ -69,7 +69,7 @@ def test_dynamics_pins_differ_and_are_stable():
     assert len(set(pins.values())) == 4
     assert dynamics_pin('v2') == pins['v2']
     with pytest.raises(ValueError):
-        dynamics_pin('v5')
+        dynamics_pin('v6')  # v5 is now declared (spec §9); v6 is not
 
 
 def test_default_is_v3_and_v1_stays_selectable(monkeypatch):

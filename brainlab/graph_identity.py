@@ -301,8 +301,66 @@ LIF_DYNAMICS_V4 = {
                              'cell-class list',
 }
 
+def _v5_declaration():
+    from . import receptor_kinetics as _rk
+    d = {k: v for k, v in LIF_DYNAMICS_V4.items()
+         if k not in ('dynamics_version', 'model', 'tau_synapse_ms', 'changes_from_v3',
+                      'unchanged_from_v3', 'known_limitations', 'declaration_lock',
+                      'declaration_sha256', 'biological_validation')}
+    d.update({
+        'dynamics_version': 'v5',
+        'model': 'v4 (hybrid graded/spiking LIF) plus DECLARED per-receptor-class synaptic '
+                 'kinetics: each synapse takes the receptor class of its presynaptic '
+                 "neuron's transmitter (nicotinic, GABA_A/Rdl, GluCl, HisCl) and that class's "
+                 'single-exponential decay time constant, with a charge-preserving conductance '
+                 'quantum (brainlab.engine.advance_v5, brainlab.cupy_v5)',
+        'tau_synapse_ms': 'per receptor class; see receptor_kinetics',
+        'tau_reference_ms': _rk.TAU_REF_MS,
+        'receptor_kinetics': {name: dict(tau) for name, tau in _rk.KINETICS.items()},
+        'receptor_kinetics_primary': _rk.KINETICS_PRIMARY,
+        'receptor_kinetics_arms': [n for n in _rk.KINETICS if n != _rk.KINETICS_PRIMARY],
+        'receptor_class_from': 'presynaptic transmitter label; ' + str(_rk.TRANSMITTER_TO_CLASS)
+                               + f'; anything else -> {_rk.DEFAULT_CLASS}',
+        'quantum': 'q_k = (1 - exp(-dt/tau_k)) / (1 - exp(-dt/tau_ref)): the time-averaged '
+                   'conductance per release rate is v4\'s exactly; only the time course changes',
+        'changes_from_v4': [
+            'each synapse decays with its receptor class\'s declared time constant instead of '
+            'one global 5 ms',
+            'arrivals are scaled by the charge-preserving quantum factor of their class',
+            'the synaptic state is (2K, n) for K kinetic channels, so a v5 snapshot is not '
+            'interchangeable with a v4 one; snapshots also carry kinetics_sha256',
+        ],
+        'unchanged_from_v4': [
+            'every membrane constant, both reversal potentials, both conductance quanta, the '
+            'membrane bounds, the graded class list, the release function and its baseline',
+            'the single 1.8 ms transmission delay for every synapse',
+            'the v3 transmitter policy and the weights it produces',
+            'with every class at 5 ms, v5 is bit-identical to v4',
+        ],
+        'known_limitations': [
+            'single-exponential conductances: no rise time, no desensitisation, no '
+            'metabotropic (GABA_B, mGluR) component, no short-term plasticity',
+            'one class per presynaptic neuron (the released table has one transmitter per '
+            'neuron); postsynaptic receptor subunit differences within a class are not '
+            'represented',
+            'cell-type-specific intrinsic filtering (e.g. Mi4/Mi9 sustained, Tm3/Mi1 transient) '
+            'is NOT imposed; it can arise only from the graph and the class kinetics',
+            'no gap junctions, one compartment per cell',
+        ],
+        'spec': DYNAMICS_SPEC_DOC,
+        'declaration_lock': 'docs/receipts/receptor_kinetics_v5_declaration.locked.md',
+        'declaration_sha256': '3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b',
+        'biological_validation': 'none; engineering proxy with declared receptor-class '
+                                 'kinetics taken from published Drosophila recordings where they '
+                                 'exist and declared assumptions where they do not',
+    })
+    return d
+
+
+LIF_DYNAMICS_V5 = _v5_declaration()
+
 DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3,
-                     'v4': LIF_DYNAMICS_V4}
+                     'v4': LIF_DYNAMICS_V4, 'v5': LIF_DYNAMICS_V5}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v3'
 

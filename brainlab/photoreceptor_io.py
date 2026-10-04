@@ -237,3 +237,43 @@ class PhotoreceptorGratingEncoder:
             currents[self.io.r_nodes[eye]] += drive
             totals[f'R1-R6_{eye}'] = float(drive.sum())
         return totals
+
+    # -- added for LIF v5 (docs/LIF_DYNAMICS_SPEC.md §9.9); ``encode`` above is
+    # unchanged, and with equal directions ``encode_per_eye`` is bit-identical to it.
+    def encode_per_eye(self, currents: np.ndarray, t_ms: float, direction_by_eye: dict,
+                       contrast: float) -> dict:
+        """The same grating with its own drift direction on each eye.
+
+        A yaw rotation of a drum moves the pattern front-to-back on one eye and
+        back-to-front on the other, which no single lattice-plane direction
+        applied to both eyes can express.  Same arithmetic as :meth:`encode`.
+        """
+        contrast = min(1.0, max(0.0, float(contrast)))
+        k = 2 * math.pi / self.spatial_period_deg
+        phase_t = 2 * math.pi * self.temporal_frequency_hz * t_ms / 1000.0
+        totals = {}
+        for eye in EYES:
+            theta = math.radians(float(direction_by_eye[eye]))
+            pos = self.io.r_position_deg[eye]
+            projection = pos[:, 0] * math.cos(theta) + pos[:, 1] * math.sin(theta)
+            drive = self.i_max * 0.5 * (1.0 + contrast * np.cos(k * projection - phase_t))
+            drive = drive.astype(np.float32)
+            currents[self.io.r_nodes[eye]] += drive
+            totals[f'R1-R6_{eye}'] = float(drive.sum())
+        return totals
+
+    def encode_flicker(self, currents: np.ndarray, t_ms: float, contrast: float) -> dict:
+        """Spatially uniform sinusoidal flicker at the grating's temporal frequency
+        and mean: the grating with zero spatial frequency.  Every photoreceptor is
+        driven in phase, so a population's mean response phase is its temporal
+        filtering, free of retinotopy."""
+        contrast = min(1.0, max(0.0, float(contrast)))
+        phase_t = 2 * math.pi * self.temporal_frequency_hz * t_ms / 1000.0
+        totals = {}
+        for eye in EYES:
+            n = len(self.io.r_nodes[eye])
+            drive = self.i_max * 0.5 * (1.0 + contrast * np.cos(np.zeros(n) - phase_t))
+            drive = drive.astype(np.float32)
+            currents[self.io.r_nodes[eye]] += drive
+            totals[f'R1-R6_{eye}'] = float(drive.sum())
+        return totals
