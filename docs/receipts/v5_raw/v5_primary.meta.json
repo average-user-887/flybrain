@@ -668,6 +668,36 @@
    "graded_at_floor_frac": 0.0,
    "graded_at_ceiling_frac": 0.0,
    "brain_mean_hz": 10.440944811037792
+  },
+  "dir225": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.396985602879424
+  },
+  "dir270": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.410632873425316
+  },
+  "dir315": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.399547090581883
+  },
+  "yaw_ccw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.406004799040192
+  },
+  "yaw_cw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.41740551889622
+  },
+  "flicker": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 10.462114577084582
   }
  },
  "timing": {
@@ -676,16 +706,28 @@
   "dir45_wall_s": 308.83626709799864,
   "dir90_wall_s": 307.5619444969998,
   "dir135_wall_s": 304.9939781339999,
-  "dir180_wall_s": 304.89673849000064
+  "dir180_wall_s": 304.89673849000064,
+  "dir225_wall_s": 305.05150132999916,
+  "dir270_wall_s": 304.7306562140002,
+  "dir315_wall_s": 305.5685058069994,
+  "yaw_ccw_wall_s": 304.6819023520002,
+  "yaw_cw_wall_s": 304.8179559960008,
+  "flicker_wall_s": 304.77585152699976
  },
  "conditions_done": [
   "dir0",
   "dir45",
   "dir90",
   "dir135",
-  "dir180"
+  "dir180",
+  "dir225",
+  "dir270",
+  "dir315",
+  "yaw_ccw",
+  "yaw_cw",
+  "flicker"
  ],
- "wall_s": 1777.4595132550003,
- "simulated_s": 14.5,
- "simulated_s_per_wall_s": 0.008157710424271014
+ "wall_s": 3608.4591537250017,
+ "simulated_s": 29.5,
+ "simulated_s_per_wall_s": 0.00817523456502126
 }
