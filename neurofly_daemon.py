@@ -143,20 +143,42 @@ class GraphArenaController:
         self._load_indices()
 
     def _load_indices(self):
-        from brainlab.graph_identity import DN_CHANNELS, resolve_connectome_dir
-        self.dn_indices = {name: list(indices) for name, indices in DN_CHANNELS.items()}
+        """Resolve DN, sensory and EPG node indices against the graph actually loaded.
+
+        Indices are only meaningful for the neuron table the running graph was
+        verified against, so they derive from ``shared_graph`` itself: DN channels
+        from its ``io_map``, cell-type channels from the ``neurons.feather`` named
+        in its identity.  A synthetic graph has no cell-type annotations, so its
+        sensory channels stay empty (``sensory_unavailable`` says why) even when
+        real annotation files exist on disk.  Every resolved index is checked
+        against the graph's neuron count; a table that does not fit is refused.
+        """
+        from brainlab.graph_identity import DN_CHANNELS
         self.sensory_indices = {
             "orn_food": [], "orn_danger": [], "visual_l": [], "visual_r": [],
             "visual_looming": [], "jon_wind": [], "feco_proprio": [],
             "courtship_cva": [], "thermo_receptors": []
         }
         self.epg_indices = []
+        self.sensory_unavailable = None
+        graph = getattr(self.runner, "shared_graph", None)
+        identity = getattr(graph, "identity", None)
+        io_map = getattr(graph, "io_map", None) if graph is not None else None
+        self.dn_indices = {name: list(indices) for name, indices in (io_map or DN_CHANNELS).items()}
+        if identity is None or getattr(identity, "synthetic", False) or not getattr(identity, "neuron_map_path", None):
+            self.sensory_unavailable = ("synthetic test graph: no cell-type annotations"
+                                        if getattr(identity, "synthetic", False)
+                                        else "loaded graph names no neuron map")
+            return
+        n = int(graph.n)
         try:
-            cdir, _ = resolve_connectome_dir(getattr(self.runner, "connectome_dir", None))
-            neurons_path = cdir / "normalized/neurons.feather"
+            neurons_path = Path(identity.neuron_map_path)
+            cdir = neurons_path.parent.parent
             if neurons_path.is_file():
                 import pyarrow.feather as feather
                 df = feather.read_table(neurons_path).to_pandas()
+                if len(df) != n:
+                    raise ValueError(f"{neurons_path} has {len(df)} rows, the loaded graph {n} neurons")
                 if "cell_type" in df.columns:
                     self.sensory_indices["orn_food"] = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()[:50]
                     self.sensory_indices["orn_danger"] = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()[:50]
@@ -177,7 +199,18 @@ class GraphArenaController:
                     ann_thermo = feather.read_table(ann_path, columns=['bodyId', 'class']).to_pandas()
                     thermo_ids = set(ann_thermo[ann_thermo['class'] == 'thermosensory']['bodyId'].astype('int64'))
                     self.sensory_indices["thermo_receptors"] = df[df['source_id'].isin(thermo_ids)]['node_index'].tolist()
+            else:
+                self.sensory_unavailable = f"{neurons_path} missing"
+            channels = dict(self.sensory_indices, epg=self.epg_indices)
+            bad = {name: [i for i in idx if not 0 <= int(i) < n] for name, idx in channels.items()}
+            bad = {name: idx[:3] for name, idx in bad.items() if idx}
+            if bad:
+                raise ValueError(f"indices outside the loaded graph's {n} neurons: {bad}")
         except Exception as exc:
+            for name in self.sensory_indices:
+                self.sensory_indices[name] = []
+            self.epg_indices = []
+            self.sensory_unavailable = str(exc)
             print(f"[GraphArenaController] Note: sensory indices unavailable ({exc})", flush=True)
 
     @property
