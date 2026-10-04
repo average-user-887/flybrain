@@ -135,7 +135,10 @@ class GraphArenaController:
         # WP5 optomotor loop, resolved once: an OptomotorIOMap, or False when this
         # graph has none (the reason is kept in ``optomotor_unavailable``).
         self._optomotor_io = None
-        self._optomotor_loop = None          # (instance_id, OptomotorLoop)
+        # (GraphInstance, OptomotorLoop).  Keyed by the instance OBJECT, not its id:
+        # re-activating an assay builds a new GraphInstance with the same id, and a
+        # loop bound to the released one can never step (see _loop_for).
+        self._optomotor_loop = None
         self.optomotor_unavailable = None
         self.dn_indices = {}
         self.sensory_indices = {}
@@ -223,10 +226,20 @@ class GraphArenaController:
     ENGINEERED_ASSISTANCE_ENABLED = False
 
     def _loop_for(self, instance):
-        """The WP5 optomotor loop for ``instance``, or None with a recorded reason."""
+        """The WP5 optomotor loop for ``instance``, or None with a recorded reason.
+
+        The loop is bound to one GraphInstance object.  Leaving an assay checkpoints
+        and releases its instance; returning activates a NEW object with the same
+        ``instance_id`` (state restored from the checkpoint).  The cache therefore
+        matches on identity: a loop held for the released object is dropped and a
+        fresh one is built for the live object, exactly as after a daemon restart
+        (the encoder is re-seeded from ``instance.seed``).  Matching on the id alone
+        stepped the released instance and froze the 2026-10-04 live observatory.
+        """
         held = self._optomotor_loop
-        if held is not None and held[0] == instance.instance_id:
+        if held is not None and held[0] is instance:
             return held[1]
+        self._optomotor_loop = None
         if self._optomotor_io is False:
             return None
         try:
@@ -247,7 +260,7 @@ class GraphArenaController:
             print(f"[GraphArenaController] optomotor loop unavailable: {self.optomotor_unavailable}",
                   flush=True)
             return None
-        self._optomotor_loop = (instance.instance_id, loop)
+        self._optomotor_loop = (instance, loop)
         return loop
 
     def __call__(self, fly=None, sensory=None, dt=0.02, **kwargs):
