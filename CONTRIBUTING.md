@@ -39,7 +39,10 @@ the in-process behavioural models. Expect it to finish in under a minute.
    every ref you push. CI (`.github/workflows/privacy.yml`) checks every pushed
    branch, tag and pull request. Commits published before the guard existed are
    covered only by the frozen manifest
-   `scripts/private_infra_commit_exceptions.txt`, which is not to be extended.
+   `scripts/private_infra_commit_exceptions.txt` (metadata) and the frozen
+   publication boundary `scripts/private_infra_published_boundary.txt` (trees);
+   neither is to be extended. Every new commit's tree must be clean, not just
+   the tip: a value added and removed again before pushing is still caught.
 4. **No secrets.** The admin token for public mode is read from
    `NEUROFLY_ADMIN_TOKEN`; never add a `--token` style CLI flag (it would
    leak through process listings and shell history) and never commit `.env`

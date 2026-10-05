@@ -45,8 +45,10 @@ jobs:
       - name: Tree guard on the checkout
         run: bash scripts/check_private_infra.sh
 
-      - name: Tree guard on the published tip's committed tree
-        # For a pull request the checkout is GitHub's test merge; this scans the PR head itself.
+      - name: Tree guard on the published tip and its new history
+        # The tip's tree (for a pull request the checkout is GitHub's test merge; this scans the
+        # PR head itself) plus the tree of every commit in its history outside the frozen
+        # publication boundary scripts/private_infra_published_boundary.txt.
         run: bash scripts/check_private_infra.sh --tree-rev "${{ steps.tip.outputs.tip }}"
 
       - name: Commit metadata guard on the tip's whole ancestry

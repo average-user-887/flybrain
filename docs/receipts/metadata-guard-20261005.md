@@ -73,8 +73,18 @@ matched values.
 - The allow-list file does not apply to metadata.
 - Findings print the SHA, the field (with a line number for message and header) and the
   rule, never the matched text.
-- `check_private_infra.sh --tree-rev REV` scans the committed tree of REV, which is what
-  a push publishes, and not the checkout.
+- `check_private_infra.sh --tree-rev REV` scans what pushing REV publishes, not the
+  checkout:
+  - the tree of REV itself, always, even when REV is an old published commit;
+  - the tree of every commit in REV's history that is outside the frozen publication
+    boundary, so a value added in one new commit and removed in the next is still
+    caught. Content reused from old commits is scanned again in any new commit.
+- The publication boundary is `scripts/private_infra_published_boundary.txt`:
+  - It lists all 274 commits that were already public at the cutoff, from the same
+    88-ref scope and mirror snapshot as the exception manifest.
+  - It is pinned by `PUBLICATION_BOUNDARY_SHA256` and never extended from remote refs.
+  - Those commits' trees are not rescanned when they appear in a pushed history. That is
+    acknowledged exposure, not approval.
 - Tree findings, in every mode, are printed as
   `<path>:<line>: [<rule>] <redacted> (id <finding id>)`, never with the matched value.
   - Any path segment that itself matches a rule is shown as `<redacted>`.
@@ -128,6 +138,12 @@ bare remote. It covers:
   hook;
 - annotated tag metadata;
 - a ref that is not checked out but has a dirty tree, rejected;
+- a value added and then removed within the outgoing commits, rejected, both in one
+  chain and inside a merged branch, and through the real hook;
+- an old dirty file reused in a new commit, rejected;
+- a cleanup over frozen dirty history and a fast-forward to a published clean tip,
+  accepted;
+- a dirty commit that reached a remote, which still does not extend the boundary;
 - two new refs sharing a bad commit, rejected even after one of them reaches the remote;
 - a clean forward update and a new branch over frozen published history, accepted, and
   a new leak on top of it, rejected;

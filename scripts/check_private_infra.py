@@ -10,9 +10,12 @@ the same exclusions). Standard library only.
     scripts/check_private_infra.sh --commits HEAD        # commit metadata, whole ancestry
     scripts/check_private_infra.sh --tree-rev <sha>      # committed tree of a revision
 
-Tree mode (the default) scans the checkout. Revision mode (--tree-rev REV) scans the
-committed tree of REV, i.e. what a push of REV publishes; the pre-push hook and CI use
-it for every outgoing tip. Commit mode (--commits RANGE) scans the metadata of every
+Tree mode (the default) scans the checkout. Revision mode (--tree-rev REV) scans what a
+push of REV publishes: the tree of REV itself (always, even if REV is old) and the tree of
+every commit in REV's history that lies outside the frozen publication boundary
+scripts/private_infra_published_boundary.txt (all commits already public at the cutoff,
+digest-pinned, never extended from remote refs). The pre-push hook and CI use it for every
+outgoing tip. Commit mode (--commits RANGE) scans the metadata of every
 commit in a git revision range and of every annotated tag object reachable from its
 arguments (tag chains are followed to the end): the full message,
 author and committer (and tagger), plus other non-signature headers. RANGE is handed to
@@ -477,15 +480,38 @@ def main_commits(root: Path, spec: str, extra, exceptions, emit_exceptions=False
               f'message (git commit --amend / git rebase -i) and set user.email to a noreply address '
               f'before pushing. Published history is not rewritten; see docs/OWNER_DECISIONS.md.')
         return 1
-    print('[audit] PASSED: no personal or private data in commit metadata.')
+    print('[audit] PASSED: no unexempted metadata findings.')
     return 0
 
 
 # ---------------------------------------------------------------- tree of a revision
 
-def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra):
-    """Scan the files of a committed tree (what a push publishes), not the checkout."""
-    commit = _git(root, 'rev-parse', '--verify', '--end-of-options', f'{rev}^{{commit}}').decode().strip()
+# Frozen publication boundary: every commit already published at the cutoff. Their trees
+# are not rescanned when they occur in a pushed history; every other commit's tree is.
+PUBLICATION_BOUNDARY_FILE = 'scripts/private_infra_published_boundary.txt'
+PUBLICATION_BOUNDARY_SHA256 = '27ef1b6f41088314ae3d32ba2418a3d05dc5a8804f77683a248394b77a65ca19'
+
+
+def load_publication_boundary(path: Path, expected_sha256: str | None):
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        raise GuardError(f'publication boundary unreadable: {path.name}: {exc.strerror}') from exc
+    if expected_sha256 is not None and hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise GuardError(f'publication boundary {path.name} does not match the digest pinned in '
+                         f'check_private_infra.py; it is frozen and changes need owner review')
+    out = set()
+    for n, line in enumerate(data.decode('utf-8').splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if not _SHA_RX.match(line) or line in out:
+            raise GuardError(f'{path.name}:{n}: malformed entry (expected one full commit SHA)')
+        out.add(line)
+    return out
+
+
+def _tree_entries(root: Path, commit: str):
     listing = _git(root, 'ls-tree', '-r', '-z', '--full-tree', commit).decode('utf-8', 'surrogateescape')
     entries, allow_blob = [], None
     for rec in listing.split('\0'):
@@ -497,21 +523,42 @@ def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra):
             allow_blob = sha
         if otype == 'blob' and mode != '120000' and path not in SELF_FILES:
             entries.append((path, sha))
-    objs = read_objects(root, [sha for _, sha in entries] + ([allow_blob] if allow_blob else []))
-    if rules_path:
-        rules = load_allowlist(Path(rules_path))
-    elif allow_blob:          # the allow-list committed in that same revision, as CI would see it
-        rules = _rules_from_text(objs[allow_blob][1].decode('utf-8'), 'private_infra_allowlist.txt')
-    else:
-        rules = []
-    findings = []
-    for path, sha in entries:
-        findings += scan_path(path, rules, extra)
-        data = objs[sha][1]
-        if b'\0' in data[:8192]:
-            continue
-        findings += scan_text(path, data.decode('utf-8', 'replace'), rules, extra)
-    return commit, len(entries), findings
+    return entries, allow_blob
+
+
+def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra, boundary):
+    """Scan what pushing REV publishes: the tip's tree, plus the tree of every commit in its
+    ancestry that is outside the frozen publication boundary (new history), so a value added
+    in one new commit and removed in the next is still caught.
+
+    Each (path, blob, allow-list) is scanned once. Returns (tip, n_commits, n_files, findings)
+    where findings are (commit, path, line, class, hit) with commit None for the tip."""
+    tip = _git(root, 'rev-parse', '--verify', '--end-of-options', f'{rev}^{{commit}}').decode().strip()
+    ancestry = _git(root, 'rev-list', tip, '--').decode().split()
+    targets = [tip] + [c for c in ancestry if c not in boundary and c != tip]
+    rules_cache, done, findings, files = {}, set(), [], 0
+    for commit in targets:
+        entries, allow_blob = _tree_entries(root, commit)
+        if rules_path:
+            rules = rules_cache.setdefault('<cli>', load_allowlist(Path(rules_path)))
+        elif allow_blob:      # the allow-list committed in that same revision, as CI would see it
+            if allow_blob not in rules_cache:
+                text = read_objects(root, [allow_blob])[allow_blob][1].decode('utf-8')
+                rules_cache[allow_blob] = _rules_from_text(text, 'private_infra_allowlist.txt')
+            rules = rules_cache[allow_blob]
+        else:
+            rules = []
+        todo = [(p, b) for p, b in entries if (p, b, allow_blob) not in done]
+        objs = read_objects(root, [b for _, b in todo])
+        for path, blob in todo:
+            done.add((path, blob, allow_blob))
+            files += 1
+            hits = scan_path(path, rules, extra)
+            data = objs[blob][1]
+            if b'\0' not in data[:8192]:
+                hits += scan_text(path, data.decode('utf-8', 'replace'), rules, extra)
+            findings += [(None if commit == tip else commit, *h) for h in hits]
+    return tip, len(targets), files, findings
 
 
 def _rules_from_text(text: str, name: str):
@@ -530,9 +577,13 @@ def _rules_from_text(text: str, name: str):
 
 def _report_tree(findings, label):
     seen = {}
-    for rel, lineno, cls, _hit in findings:
-        k = seen[(rel, lineno, cls)] = seen.get((rel, lineno, cls), -1) + 1
-        print(f'{safe_location(rel)}:{lineno}: [{cls}] <redacted> (id {finding_id(rel, lineno, cls, k)})')
+    for f in findings:
+        commit, (rel, lineno, cls, _hit) = (f[0], f[1:]) if len(f) == 5 else (None, f)
+        k = seen[(commit, rel, lineno, cls)] = seen.get((commit, rel, lineno, cls), -1) + 1
+        where = f'{safe_location(rel)}:{lineno}'
+        if commit:
+            where = f'history {commit[:12]} {where}'
+        print(f'{where}: [{cls}] <redacted> (id {finding_id(rel, lineno, cls, k)})')
     if findings:
         print(f'[audit] FAILED: {len(findings)} private-data finding(s) in {label}. Redact them, or add a '
               f'narrow entry to scripts/private_infra_allowlist.txt if the match is a genuine exception.')
@@ -554,6 +605,9 @@ def main(argv=None):
     ap.add_argument('--commit-exceptions', metavar='FILE', default=None,
                     help=f'frozen historical exception manifest (default: {COMMIT_EXCEPTIONS_FILE} next to '
                          f'this script, digest-pinned)')
+    ap.add_argument('--publication-boundary', metavar='FILE', default=None,
+                    help=f'frozen list of already-published commits for --tree-rev (default: '
+                         f'{PUBLICATION_BOUNDARY_FILE} next to this script, digest-pinned)')
     ap.add_argument('--no-commit-exceptions', action='store_true',
                     help='apply no historical exceptions (used to rebuild the manifest for review)')
     ap.add_argument('--emit-exceptions', action='store_true',
@@ -579,9 +633,15 @@ def main(argv=None):
                                                     COMMIT_EXCEPTIONS_SHA256)
             return main_commits(root, args.commits, extra, exceptions, args.emit_exceptions)
         if args.tree_rev is not None:
-            commit, n, findings = scan_revision_tree(root, args.tree_rev, args.allowlist, extra)
-            print(f'[audit] scanning {n} files in the committed tree of {commit[:12]} (revision mode)')
-            return _report_tree(findings, f'the tree of {commit[:12]}')
+            if args.publication_boundary:
+                boundary = load_publication_boundary(Path(args.publication_boundary), None)
+            else:
+                boundary = load_publication_boundary(Path(__file__).resolve().parents[1] / PUBLICATION_BOUNDARY_FILE,
+                                                     PUBLICATION_BOUNDARY_SHA256)
+            commit, ncommits, n, findings = scan_revision_tree(root, args.tree_rev, args.allowlist, extra, boundary)
+            print(f'[audit] scanning the tree of {commit[:12]} and of {ncommits - 1} other unpublished commit(s) '
+                  f'in its history: {n} distinct file version(s) (revision mode)')
+            return _report_tree(findings, f'the tree or new history of {commit[:12]}')
         allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
         rules = load_allowlist(allow_path)
         files, mode = list_files(root, not args.no_git)

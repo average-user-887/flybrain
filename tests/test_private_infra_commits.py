@@ -44,6 +44,7 @@ GIT_ENV = {
 }
 SCRIPTS = ('scripts/check_private_infra.py', 'scripts/check_private_infra.sh',
            'scripts/private_infra_allowlist.txt', 'scripts/private_infra_commit_exceptions.txt',
+           'scripts/private_infra_published_boundary.txt',
            'scripts/hooks/pre-push')
 
 
@@ -345,6 +346,141 @@ def test_exceptions_never_exempt_a_tree(guard, tmp_path, capsys):
     capsys.readouterr()
     assert guard.main(['--root', str(repo), '--tree-rev', tip, '--commit-exceptions', str(m)]) == 1
     assert 'leak.md:1: [share-path]' in capsys.readouterr().out
+
+
+# --- new history: every unpublished commit's tree, anchored to a frozen boundary -----------
+
+def _add(repo, rel, text, msg=CLEAN_MSG):
+    (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+    (repo / rel).write_text(text)
+    _git(repo, 'add', rel)
+    return _commit(repo, msg)
+
+
+def _rm(repo, rel):
+    _git(repo, 'rm', '-q', rel)
+    return _commit(repo, CLEAN_MSG)
+
+
+def _tree_rev(guard, repo, rev, capsys, boundary=None):
+    args = ['--root', str(repo), '--tree-rev', rev]
+    if boundary is not None:
+        args += ['--publication-boundary', str(boundary)]
+    rc = guard.main(args)
+    cap = capsys.readouterr()
+    out = cap.out + cap.err
+    _no_secrets(out)
+    assert 'archive-share' not in out
+    return rc, out
+
+
+def _boundary(tmp_path, repo, rev='HEAD'):
+    b = tmp_path / 'boundary.txt'
+    b.write_text('# frozen\n' + _git(repo, 'rev-list', rev).stdout)
+    return b
+
+
+def test_secret_added_then_removed_in_one_chain_is_rejected(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'a.md', 'clean\n')
+    b = _boundary(tmp_path, repo)
+    dirty = _add(repo, 'leak.md', SHARE_LEAK + '\n')
+    _rm(repo, 'leak.md')
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 1 and f'history {dirty[:12]} leak.md:1: [share-path] <redacted>' in out, out
+    assert '1 other unpublished commit(s)' in out
+
+
+def test_secret_hidden_in_a_merged_branch_is_rejected(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'a.md', 'clean\n')
+    b = _boundary(tmp_path, repo)
+    _git(repo, 'checkout', '-q', '-b', 'side')
+    dirty = _add(repo, 'side/leak.md', SHARE_LEAK + '\n')
+    _rm(repo, 'side/leak.md')
+    _git(repo, 'checkout', '-q', 'master')
+    _add(repo, 'b.md', 'clean\n')
+    _git(repo, 'merge', '-q', '--no-ff', '--no-edit', 'side',
+         env={'GIT_AUTHOR_NAME': 'M', 'GIT_AUTHOR_EMAIL': NOREPLY, 'GIT_COMMITTER_NAME': 'M',
+              'GIT_COMMITTER_EMAIL': NOREPLY})
+    assert not (repo / 'side' / 'leak.md').exists()
+    rc, out = _tree_rev(guard, repo, 'master', capsys, b)
+    assert rc == 1 and f'history {dirty[:12]} side/leak.md:1: [share-path]' in out, out
+
+
+def test_frozen_dirty_history_cleanup_passes_but_reuse_fails(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'a.md', 'clean\n')
+    old_dirty = _add(repo, 'leak.md', SHARE_LEAK + '\n')            # published before the guard
+    b = _boundary(tmp_path, repo)
+    rc, out = _tree_rev(guard, repo, old_dirty, capsys, b)          # an old tip is still scanned
+    assert rc == 1 and '\nleak.md:1: [share-path]' in out and '0 other unpublished' in out
+    _rm(repo, 'leak.md')                                           # forward-only cleanup
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 0 and '0 other unpublished commit(s)' in out, out
+    _add(repo, 'x.md', 'more clean\n')                              # clean new chain
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 0, out
+    _add(repo, 'again/leak.md', SHARE_LEAK + '\n')                  # same old blob, new commit
+    _rm(repo, 'again/leak.md')
+    assert _git(repo, 'rev-parse', f'{old_dirty}:leak.md').stdout == \
+        _git(repo, 'rev-parse', 'HEAD~1:again/leak.md').stdout
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 1 and 'again/leak.md:1: [share-path]' in out, out
+
+
+def test_fast_forward_to_a_published_clean_tip_passes(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'leak.md', SHARE_LEAK + '\n')
+    _rm(repo, 'leak.md')
+    _add(repo, 'a.md', 'clean\n')
+    b = _boundary(tmp_path, repo)                                  # all of it already public
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 0 and '0 other unpublished commit(s)' in out, out
+
+
+def test_remote_refs_cannot_extend_the_boundary(guard, tmp_path, capsys):
+    remote = tmp_path / 'remote.git'
+    _git(tmp_path, 'init', '-q', '--bare', '-b', 'master', str(remote))
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'a.md', 'clean\n')
+    b = _boundary(tmp_path, repo)
+    _git(repo, 'remote', 'add', 'origin', str(remote))
+    _add(repo, 'leak.md', SHARE_LEAK + '\n')
+    _git(repo, 'push', '-q', 'origin', 'master')                     # reached a remote unchecked
+    _git(repo, 'fetch', '-q', 'origin')
+    _rm(repo, 'leak.md')
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys, b)
+    assert rc == 1 and 'history ' in out and 'leak.md:1: [share-path]' in out
+    rc, out = _tree_rev(guard, repo, 'HEAD', capsys)                # the real pinned boundary
+    assert rc == 1
+
+
+def test_publication_boundary_is_pinned_and_well_formed(guard, tmp_path, capsys):
+    path = REPO / guard.PUBLICATION_BOUNDARY_FILE
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == guard.PUBLICATION_BOUNDARY_SHA256
+    published = guard.load_publication_boundary(path, guard.PUBLICATION_BOUNDARY_SHA256)
+    exceptions = guard.load_commit_exceptions(REPO / guard.COMMIT_EXCEPTIONS_FILE, guard.COMMIT_EXCEPTIONS_SHA256)
+    commit_exceptions = {s for s, c in exceptions.items()}
+    assert len(published) == 274
+    assert len(commit_exceptions - published) == 1                  # only the v0.3.0 tag object
+    repo = _init(tmp_path / 'r')
+    _add(repo, 'a.md', 'clean\n')
+    for text in ('abc\n', 'a' * 40 + ' extra\n', 'a' * 40 + '\n' + 'a' * 40 + '\n'):
+        m = tmp_path / 'bad.txt'
+        m.write_text(text)
+        rc, out = _tree_rev(guard, repo, 'HEAD', capsys, m)
+        assert rc == 2 and 'malformed' in out
+
+
+def test_hook_rejects_secret_added_and_removed_before_push(hooked):
+    repo = hooked
+    assert _push(repo, 'master').returncode == 0
+    _add(repo, 'leak.md', SHARE_LEAK + '\n')
+    _rm(repo, 'leak.md')
+    r = _push(repo, 'master')
+    assert r.returncode != 0 and 'leak.md:1: [share-path]' in r.stdout + r.stderr
+    assert 'archive-share' not in r.stdout + r.stderr
 
 
 # --- CI tip selector -------------------------------------------------------------------------
