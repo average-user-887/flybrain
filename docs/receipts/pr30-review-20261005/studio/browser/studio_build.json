@@ -1,0 +1,73 @@
+{
+ "phase": "build",
+ "base": "http://127.0.0.1:8796/",
+ "started": "2026-10-05T15:32:27+0200",
+ "browser": "firefox 157.0",
+ "checks": {
+  "gallery_lead_text": "Watch finished runs of the simulated fly at its own speed: a 3D body whose legs are commanded by the whole MaleCNS connectome through engineered input and output stages. These are demonstrations of the simulator, not evidence that the connectome alone produces the behaviour.",
+  "paradigm_cards": 14,
+  "badges": [
+   "Mapped"
+  ],
+  "buildable": [
+   "optomotor"
+  ],
+  "builder_explanation": "The fly stands on a flat floor inside a patterned world that rotates around it. Real flies turn with the motion to keep their view steady (the optomotor response). Here an engineered encoder turns the rotation into input to the T4/T5 motion cells of the MaleCNS connectome, with the direction already built in: the connectome does not compute motion direction by itself. The whole graph is simulated, and an engineered decoder turns descending-neuron activity (DNa02, DNp09, MDN) into commands for the six-legged FlyGym body. It is not a biological nerve cord, and this paradigm has no passing validation yet.",
+  "silence_groups": [
+   "t4t5",
+   "hs",
+   "dna02",
+   "dnp09",
+   "mdn"
+  ],
+  "prereg_text": "Preregistered tests of this paradigm (read-only, never changed from here): optomotor-yaw-v3-1 declared 2026-09-24 sha256 acd09b370f37\u2026; optomotor-yaw-v3-2 declared 2026-09-24 sha256 7f47c56b9a6d\u2026; optomotor-yaw-v3-3 declared 2026-09-25 sha256 1b8f56d21b80\u2026",
+  "controls_default_unsilenced": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    true,
+    true
+   ],
+   "intact": [
+    false,
+    false
+   ]
+  },
+  "controls_after_silencing": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    false,
+    true
+   ],
+   "intact": [
+    true,
+    true
+   ]
+  },
+  "submit1": "Queued 2 runs. Follow them in the Queue tab.",
+  "controls_after_unsilencing": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    true,
+    true
+   ],
+   "intact": [
+    false,
+    false
+   ]
+  },
+  "submit2": "Queued 2 runs. Follow them in the Queue tab.",
+  "errors": []
+ },
+ "ok": false,
+ "exception": "NoSuchElementException: Message: Cannot locate option with value: 2; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#nosuchelementexception\n",
+ "finished": "2026-10-05T15:32:33+0200"
+}
