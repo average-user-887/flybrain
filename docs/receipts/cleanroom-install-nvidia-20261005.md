@@ -1,4 +1,4 @@
-# Clean-room install, NVIDIA Linux (Ryzen), 5 October 2026: gates G1 and G3
+# Clean-room install, NVIDIA Linux (reference NVIDIA host), 5 October 2026: gates G1 and G3
 
 Tester: a Claude worker acting as a stranger. It did not use the owner's checkout, venv,
 `outputs/` or `connectome_data/`, or any knowledge of how the owner's machine is set up.
@@ -24,10 +24,10 @@ README alone. With the workarounds in hand, expect about 5 minutes on a fast con
 |---|---|
 | clone | `git clone https://github.com/average-user-887/flybrain.git` (HTTPS) → `9a6c1c57743b47017f5c2b75d837132ee3f8c682` ("docs: release plan for v0.4.0"). `origin/master` later moved to `93f0b18`, which changes docs only and leaves the README untouched. |
 | location | `<worktree>/.cleanroom-20261005/flybrain` (not a git worktree; left on disk) |
-| Python | system `/usr/bin/python3` 3.12.3, fresh `python3 -m venv .venv` |
+| Python | system `python3` 3.12.3, fresh `python3 -m venv .venv` |
 | caches | `PIP_CACHE_DIR`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `MPLCONFIGDIR` redirected into the clean room; `PYTHONPATH` and all `NEUROFLY_*` unset |
 | OS / GPU | Ubuntu, kernel 7.0.0; NVIDIA driver 580.178.04 (CUDA 13.0); GPU 0 Quadro P620 2 GB (display), GPU 1 GTX 1660 Ti 6 GB; no CUDA toolkit installed |
-| browser | Firefox 157.0 (snap), geckodriver `/snap/bin/geckodriver`, selenium 4.50.0 in a separate venv |
+| browser | Firefox 157.0 (snap), geckodriver (snap), selenium 4.50.0 in a separate venv |
 | ports used | 8791 (daemon), 8792 (static web). The owner's 8769/8780/8781 were never contacted. Every dashboard URL carried an explicit `?daemon=` or was served by our own daemon. |
 
 ## Step log
@@ -56,7 +56,7 @@ Wall times come from the step wrapper. Severity codes: **B** = BLOCKER, **M** = 
 | 17 | `pytest tests/` (GPU hidden: `CUDA_VISIBLE_DEVICES=`) | 3 min 12 s | **706 passed, 20 skipped, 0 failed**. Skip reasons are listed below. |
 | 18 | `NEUROFLY_RUN_PHYSICS=1 pytest tests/test_embodied_*.py tests/test_fast_controller.py` | 24.7 s | **58 passed** |
 | 19 | `pytest -v tests/test_wp6_plasticity.py` | (in step 17) | passed |
-| 20 | `./scripts/check_private_infra.sh` | not run | It calls `git grep`, and this tester was limited to clone and `git log` inside the clean clone. An equivalent `grep -r` found no private IPs and no UNC paths, but 50 tracked files mention the owner's username or `<redacted-host>` (m6). |
+| 20 | `./scripts/check_private_infra.sh` | not run | It calls `git grep`, and this tester was limited to clone and `git log` inside the clean clone. An equivalent `grep -r` found no private IPs and no UNC paths, but 50 tracked files mention the owner's local username or a private host name (m6). |
 | 21 | GPU: `numba.cuda` on a fresh install | n/a | `cuda.is_available()` False: `libNVVM cannot be found`. CuPy is absent, so `cuda_available()` is False and everything silently runs on the CPU (M1). |
 | 22 | workaround A: `pip install "numba-cuda[cu12]"` | 9.1 s | numba-cuda 0.30.4 compiles nothing: `AttributeError: module 'numpy' has no attribute 'row_stack'` (numpy 2.5). Worse, it makes `cuda_available()` True, so the engine would choose a broken path. Uninstalled. |
 | 23 | workaround B: `pip install cupy-cuda12x` (with nvrtc and runtime wheels already present from step 22) | 5.3 s | `cuda_available()` True. Default device = 1660 Ti. |
@@ -151,8 +151,8 @@ the dashboard is never told that.
 - **m3.** `neurofly download-data --help` ignores the flag and starts the 1.1 GB download. `status` and `capability` also ignore all arguments. Only `neurofly --help` works. *(code)*
 - **m4.** Disk needs are under-stated: the README says 1.1 GB, but the real footprint is 1.7 GB venv + 1.4 GB `connectome_data` + 0.2 GB graph, plus about 30 MB of v3 checkpoints per assay visited (453 MB in `outputs/registry-v3` after the 14-assay sign-off). Normalization peaks at about 1.8 GB RAM. *(README)*
 - **m5.** G3 says "attribution shown", but `download-data` prints no licence (CC BY 4.0) or citation for the Janelia data. *(code)*
-- **m6.** Privacy/G9: 50 tracked files contain the owner's username or `<redacted-host>`. 19 scripts in `scripts/v4_measurement/` and the scripts in `docs/receipts/switch-race-20261004/scripts/` hard-code `<redacted-path>/...` paths, so they cannot run for anyone else. `check_private_infra.sh` does not look for home paths, and it needs a git checkout because it uses `git grep`. No secrets were seen. *(repo hygiene)*
-- **m7.** Browser tooling is undocumented: selenium is in no extra, `test_browser_recovery.py` silently skips without `NEUROFLY_BROWSER_PYTHON`, and `live_ui_signoff.py` defaults to the owner's ports 8780/8781 and a profile root `~/snap/firefox/common/neurofly-signoff`. *(README/test)*
+- **m6.** Privacy/G9: 50 tracked files contain the owner's local username or a private host name. 19 scripts in `scripts/v4_measurement/` and the scripts in `docs/receipts/switch-race-20261004/scripts/` hard-code absolute paths under the owner's home directory, so they cannot run for anyone else. `check_private_infra.sh` does not look for home paths, and it needs a git checkout because it uses `git grep`. No secrets were seen. *(repo hygiene)*
+- **m7.** Browser tooling is undocumented: selenium is in no extra, `test_browser_recovery.py` silently skips without `NEUROFLY_BROWSER_PYTHON`, and `live_ui_signoff.py` defaults to the owner's ports 8780/8781 and a profile root under `<home>/snap/firefox/common/`. *(README/test)*
 - **m8.** Counts differ between documents: the README says ">520 tests" while the suite has 726. The release plan says "717 passed, 9 skipped". A stranger without a GPU, CuPy or retained brains sees 706 passed and 20 skipped. *(README)*
 
 ### NOTE
@@ -165,7 +165,7 @@ the dashboard is never told that.
 
 ## Environment incidents (not project defects)
 
-- Disk: the root filesystem started at 8.3 GB free and fell to **7.9 MB free** at about 15:21, through activity outside this test. To avoid starving the owner's live services, this tester deleted its own clean-room pip cache (606 MB) and temporarily uninstalled the CuPy/NVIDIA wheels it had added. Free space later recovered to about 15 GB through other activity, and CuPy was reinstalled for the GPU daemon check. Some other session wrote `<redacted-path>/tmp/venv-pd305` and `venv-pd306` at the same time. The failed Docker build left about 0.6 GB of build cache, not pruned because pruning would also touch other users' caches.
+- Disk: the root filesystem started at 8.3 GB free and fell to **7.9 MB free** at about 15:21, through activity outside this test. To avoid starving the owner's live services, this tester deleted its own clean-room pip cache (606 MB) and temporarily uninstalled the CuPy/NVIDIA wheels it had added. Free space later recovered to about 15 GB through other activity, and CuPy was reinstalled for the GPU daemon check. The failed Docker build left about 0.6 GB of build cache, not pruned because pruning would also touch other users' caches.
 - The GTX 1660 Ti was busy (about 97 %, about 1 GB in use) with another worker throughout. GPU use here was kept to under 2 minutes in total, at a peak of 408 MiB.
 
 ## Clean-room artefacts (left on disk)
