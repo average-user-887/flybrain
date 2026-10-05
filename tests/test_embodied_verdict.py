@@ -2,8 +2,14 @@
 
 import json
 import math
+import os
+import shlex
+import shutil
+import subprocess
 
 import pytest
+
+from pathlib import Path
 
 from neurofly_body import verdict as V
 from neurofly_body.decoder import DNa02CPGDecoder
@@ -577,7 +583,8 @@ def _invocation(**overrides):
         "physics_dt_s": 0.0002, "warmup_s": 0.05, "decoder_tau_ms": 50.0,
         "max_cpg_drive": 1.2, "p9_gain_per_hz": 0.02, "dna02_stride_k_per_hz": 0.01,
         "mdn_gain_per_hz": 0.02, "cpg_gain_per_hz": 0.07,
-        "graph_dir": None, "connectome_dir": None,
+        "graph_dir": "'<repo>/outputs/brainlab/malecns_v1'",
+        "connectome_dir": "'<repo>/connectome_data/malecns_v1'",
     }
     invocation.update(overrides)
     return invocation
@@ -589,15 +596,15 @@ def test_reproduce_command_pins_the_backend_and_every_parameter():
 
     command = V.reproduce_command(_invocation(), "cpu")
     assert command.startswith("NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body verdict")
-    for flag in ("--angular-velocity 2.5", "--contrast 0.5", "--neural-dt-ms 1",
+    for flag in ("--angular-velocity 2.5", "--contrast 0.5", "--neural-dt-ms 1.0",
                  "--physics-dt-s 0.0002", "--warmup-s 0.05", "--cpg-gain-per-hz 0.07",
-                 "--decoder dna02-crossed-v1", "--decoder-tau-ms 50", "--max-cpg-drive 1.2",
+                 "--decoder dna02-crossed-v1", "--decoder-tau-ms 50.0", "--max-cpg-drive 1.2",
                  "--p9-gain-per-hz 0.02", "--dna02-stride-k-per-hz 0.01",
                  "--mdn-gain-per-hz 0.02", "--full-controls",
                  "--reuse-check-duration 0.1", "--seeds 0 1"):
         assert flag in command
     # The command parses back to the same parameters.
-    argv = command.split()[1:]
+    argv = shlex.split(command)[1:]
     assert argv[:3] == ["python", "-m", "neurofly_body"]
     args = cli._parser().parse_args(argv[3:])
     assert (args.angular_velocity, args.contrast, args.neural_dt_ms, args.physics_dt_s,
@@ -627,3 +634,114 @@ def test_markdown_reproduce_section_states_backend_code_data_and_dynamics():
     assert command in text
     assert "NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body replay-check" in text
     assert "c" * 40 in text and "g" * 64 in text and "`lif_dynamics_version` = `v3`" in text
+
+
+def test_reproduce_command_floats_round_trip_exactly():
+    """Six significant digits turned 0.12345678912345678 into 0.123457."""
+    from neurofly_body import cli
+
+    values = dict(contrast=0.12345678912345678, physics_dt_s=1e-4 / 3,
+                  p9_gain_per_hz=0.1 + 0.2, angular_velocity_rad_s=4.000000000000001)
+    command = V.reproduce_command(_invocation(**values), "cpu")
+    args = cli._parser().parse_args(shlex.split(command)[4:])
+    assert args.contrast == values["contrast"]
+    assert args.physics_dt_s == values["physics_dt_s"]
+    assert args.p9_gain_per_hz == values["p9_gain_per_hz"]
+    assert args.angular_velocity == values["angular_velocity_rad_s"]
+
+
+def _run_from(tmp_path, monkeypatch, path):
+    """A directory the server loaded -> its portable form -> what the CLI resolves."""
+    from neurofly.privacy import REPO_ROOT
+
+    token = V.portable_location(path, "graph-dir")
+    assert str(REPO_ROOT) not in token and "/home/" not in token
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is needed to expand the command as a shell would")
+    out = subprocess.run([bash, "-c", f"printf '%s' {token}"], capture_output=True,
+                         text=True, env={**os.environ, **{"NEUROFLY_GRAPH_DIR": str(path)}})
+    assert out.returncode == 0, out.stderr
+    return token, V.restore_location(out.stdout)
+
+
+def test_reproduce_locations_resolve_to_the_directories_actually_used(tmp_path, monkeypatch):
+    from neurofly.privacy import REPO_ROOT
+
+    inside = REPO_ROOT / "outputs" / "brainlab" / "malecns_v1"
+    token, resolved = _run_from(tmp_path, monkeypatch, inside)
+    assert token == "'<repo>/outputs/brainlab/malecns_v1'"
+    assert resolved == inside
+    # A relative argument is resolved against the working directory first.
+    monkeypatch.chdir(REPO_ROOT)
+    assert V.portable_location("outputs/brainlab/malecns_v1", "graph-dir") == token
+
+    # Outside the repository: never the private path, never a hard-coded
+    # default; the documented environment variable, which must be set.
+    outside = tmp_path / "private-graph-copy"
+    token, resolved = _run_from(tmp_path, monkeypatch, outside)
+    assert str(tmp_path) not in token and "NEUROFLY_GRAPH_DIR" in token
+    assert resolved == outside
+    unset = {k: v for k, v in os.environ.items() if k != "NEUROFLY_GRAPH_DIR"}
+    bash = shutil.which("bash")
+    if bash:
+        out = subprocess.run([bash, "-c", f"printf '%s' {token}"], capture_output=True,
+                             text=True, env=unset)
+        assert out.returncode != 0 and "set NEUROFLY_GRAPH_DIR" in out.stderr
+
+
+def test_the_whole_reproduce_command_runs_through_the_cli(tmp_path, monkeypatch):
+    """Expand the command as bash would, parse it, and resolve the directories."""
+    from neurofly.privacy import REPO_ROOT
+    from neurofly_body import cli
+
+    outside = tmp_path / "neurons"
+    invocation = _invocation(
+        graph_dir=V.portable_location(REPO_ROOT / "outputs/brainlab/malecns_v1", "graph-dir"),
+        connectome_dir=V.portable_location(outside, "connectome-dir"),
+    )
+    command = V.reproduce_command(invocation, "cpu")
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is needed to expand the command as a shell would")
+    script = "set -- " + command.split(" python -m neurofly_body ", 1)[1] + "; printf '%s\\0' \"$@\""
+    out = subprocess.run([bash, "-c", script], capture_output=True, text=True,
+                         env={**os.environ, "NEUROFLY_CONNECTOME_DIR": str(outside)})
+    assert out.returncode == 0, out.stderr
+    argv = out.stdout.split("\0")[:-1]
+    args = cli._parser().parse_args(argv)
+    assert V.restore_location(args.graph_dir) == REPO_ROOT / "outputs/brainlab/malecns_v1"
+    assert V.restore_location(args.connectome_dir) == outside
+    assert args.output == Path("<fresh-dir>")
+
+
+@pytest.mark.parametrize("name, value", [
+    ("NEUROFLY_LIF_E_INH_MV", "-75"),
+    ("NEUROFLY_LIF_DYNAMICS", "v4"),
+    ("NEUROFLY_GRADED_POLICY", "all"),
+    ("NEUROFLY_CUDA_IMPL", "cupy"),
+    ("NEUROFLY_BRAIN_BACKEND", "gpu-please"),
+])
+def test_a_model_override_in_the_environment_is_refused_before_running(
+        tmp_path, monkeypatch, name, value):
+    """E_inh changes Brain under explicit v3 while cosim reports the base v3 pin."""
+    from neurofly_body import cli
+
+    for other in V.REFUSED_ENVIRONMENT + ("NEUROFLY_BRAIN_BACKEND",):
+        monkeypatch.delenv(other, raising=False)
+    monkeypatch.setenv(name, value)
+    output = tmp_path / "verdict"
+    args = cli._parser().parse_args(["verdict", "--output", str(output)])
+    with pytest.raises(SystemExit, match="refuses to run") as caught:
+        V.run_verdict(args)
+    assert f"{name}={value}" in str(caught.value)
+    assert not output.exists()          # nothing ran, nothing was written
+
+
+def test_clean_or_supported_environment_is_accepted(monkeypatch):
+    for other in V.REFUSED_ENVIRONMENT:
+        monkeypatch.delenv(other, raising=False)
+    for backend in ("auto", "cpu", "cuda", ""):
+        V.refuse_unsupported_environment({"NEUROFLY_BRAIN_BACKEND": backend,
+                                          "NEUROFLY_LIF_DYNAMICS": "v3",
+                                          "NEUROFLY_LIF_E_INH_MV": ""})

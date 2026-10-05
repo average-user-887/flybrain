@@ -84,6 +84,8 @@ REPRODUCE_DATA_IDS = (
 )
 REPRODUCE_DYNAMICS_IDS = (
     "lif_dynamics_version",
+    "lif_dynamics_pin",
+    "controller_version",
     "transmitter_policy",
     "engineered_assistance_enabled",
 )
@@ -704,7 +706,14 @@ def _markdown(receipt: dict[str, Any]) -> str:
             f"The brain backend is pinned to `{backend_name}`, the backend that produced "
             "these numbers: CPU and CUDA agree statistically, not bit for bit, so an "
             "unpinned (`auto`) backend may not reproduce them. Every parameter is given "
-            "explicitly, defaults included.",
+            "explicitly, defaults included, and floats are written exactly. Replace "
+            "`<fresh-dir>` with a new directory. `<repo>` is the root of the checkout "
+            "the command runs from (the CLI maps it); a data directory outside the "
+            "repository is read from `NEUROFLY_GRAPH_DIR` / `NEUROFLY_CONNECTOME_DIR`. "
+            "The files are verified against the sha256 values below when they load. "
+            "The command refuses to run if a model override "
+            f"({', '.join(f'`{name}`' for name in reproduce.get('refused_environment') or REFUSED_ENVIRONMENT)}) "
+            "is set.",
             "",
             "```bash",
             reproduce["command"],
@@ -760,19 +769,97 @@ def _markdown(receipt: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Environment variables that change the model while the server still reports
+# the base dynamics pin.  The baseline verdict refuses them rather than
+# silently becoming a sensitivity variant.  NEUROFLY_LIF_DYNAMICS is accepted
+# only when it says v3, which the verdict pins explicitly anyway.
+REFUSED_ENVIRONMENT = (
+    "NEUROFLY_LIF_E_INH_MV",      # declared E_inh sensitivity variant (EINH_SENSITIVITY.md)
+    "NEUROFLY_LIF_DYNAMICS",      # process-wide dynamics selection
+    "NEUROFLY_GRADED_POLICY",     # graded-release class list (v4/v5)
+    "NEUROFLY_CUDA_IMPL",         # forces one CUDA implementation
+)
+BRAIN_BACKENDS = ("auto", "cpu", "cuda")
+
+# How the reproduce command names the graph and neuron-table directories.
+#  * inside the repository: ``<repo>/<relative path>``; the verdict CLI maps the
+#    ``<repo>`` prefix back to the checkout it runs from (neurofly.privacy).
+#  * anywhere else: the documented environment variable, as a shell expansion
+#    that stops with a message if it is unset.  The private location is never
+#    written; the graph is identified by its sha256, which every run verifies.
+LOCATION_ENV = {"graph-dir": "NEUROFLY_GRAPH_DIR", "connectome-dir": "NEUROFLY_CONNECTOME_DIR"}
+
+
+def refuse_unsupported_environment(environ: Any = None) -> None:
+    """Stop before any work if the environment would change the baseline model."""
+    environ = os.environ if environ is None else environ
+    problems = []
+    for name in REFUSED_ENVIRONMENT:
+        value = environ.get(name)
+        if value in (None, ""):
+            continue
+        if name == "NEUROFLY_LIF_DYNAMICS" and value == "v3":
+            continue
+        problems.append(f"{name}={value}")
+    backend = environ.get("NEUROFLY_BRAIN_BACKEND")
+    if backend not in (None, "") and backend not in BRAIN_BACKENDS:
+        problems.append(f"NEUROFLY_BRAIN_BACKEND={backend}")
+    if problems:
+        raise SystemExit(
+            "verdict refuses to run: the baseline verdict uses the clean v3 model, and "
+            + ", ".join(problems)
+            + " would change it while the receipt still reported the base v3 pin. "
+            "Unset it (NEUROFLY_BRAIN_BACKEND may be auto, cpu or cuda)."
+        )
+
+
+def portable_location(path: Any, flag: str) -> str:
+    """The shell-ready, portable form of a directory the run actually used."""
+    from neurofly.privacy import REPO_ROOT
+
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    for root in {Path(os.path.abspath(REPO_ROOT)), Path(REPO_ROOT).resolve()}:
+        try:
+            relative = absolute.relative_to(root)
+        except ValueError:
+            continue
+        return shlex.quote("<repo>" if str(relative) == "." else f"<repo>/{relative.as_posix()}")
+    env = LOCATION_ENV[flag]
+    return f'"${{{env}:?set {env} to the directory with the pinned files}}"'
+
+
+def restore_location(value: Any) -> Path | None:
+    """Map a ``<repo>/...`` argument back to this checkout (the CLI side of the convention)."""
+    if value is None:
+        return None
+    from neurofly.privacy import restore_local
+
+    restored = restore_local(os.fspath(value))
+    return None if restored is None else Path(restored)
+
+
+def _exact(value: float) -> str:
+    """A float that parses back to the identical value (``repr`` is round-trip safe)."""
+    return repr(float(value))
+
+
 def reproduce_command(invocation: dict[str, Any], brain_backend: str) -> str:
     """The complete command that reproduces a verdict, backend pinned.
 
     Every parameter is written out, defaults included, so a later change of a
-    default cannot silently change what the command runs.  The backend is
-    the one that actually ran (``status["brain_backend"]``), never ``auto``:
-    CPU and CUDA diverge, so an unpinned backend cannot reproduce the numbers.
+    default cannot silently change what the command runs.  Floats are written
+    with ``repr``, which round-trips exactly.  The backend is the one that
+    actually ran (``status["brain_backend"]``), never ``auto``: CPU and CUDA
+    diverge, so an unpinned backend cannot reproduce the numbers.  The graph
+    and neuron-table directories are the ones the server actually loaded, in
+    the portable form of :func:`portable_location`.
     """
     parts = [f"NEUROFLY_BRAIN_BACKEND={shlex.quote(str(brain_backend))}",
-             "python", "-m", "neurofly_body", "verdict", "--output", "<fresh-dir>"]
+             "python", "-m", "neurofly_body", "verdict", "--output", "'<fresh-dir>'"]
 
     def option(name: str, value: Any) -> None:
-        parts.extend([f"--{name}", shlex.quote(f"{value:g}" if isinstance(value, float) else str(value))])
+        text = _exact(value) if isinstance(value, float) else str(value)
+        parts.extend([f"--{name}", shlex.quote(text)])
 
     option("duration", float(invocation["duration_s"]))
     parts.append("--seeds")
@@ -795,8 +882,9 @@ def reproduce_command(invocation: dict[str, Any], brain_backend: str) -> str:
         option("reuse-check-duration", float(invocation["reuse_check_duration_s"]))
     else:
         parts.append("--no-reuse-check")
-    option("graph-dir", invocation.get("graph_dir") or "outputs/brainlab/malecns_v1")
-    option("connectome-dir", invocation.get("connectome_dir") or "connectome_data/malecns_v1")
+    # Already shell-ready (portable_location); never re-quoted.
+    parts.extend(["--graph-dir", invocation["graph_dir"]])
+    parts.extend(["--connectome-dir", invocation["connectome_dir"]])
     return " ".join(parts)
 
 
@@ -885,6 +973,9 @@ def run_verdict(args: Any) -> int:
     from .cli import _check_output_dir
 
     started = time.perf_counter()
+    refuse_unsupported_environment()
+    args.graph_dir = restore_location(args.graph_dir)
+    args.connectome_dir = restore_location(args.connectome_dir)
     output_root = _check_output_dir(args.output).resolve()
     seeds = list(dict.fromkeys(int(seed) for seed in args.seeds))
     conditions = plan(seeds, float(args.angular_velocity), bool(args.full_controls))
@@ -949,7 +1040,10 @@ def run_verdict(args: Any) -> int:
 
     judgement = judge(outcomes, seeds, YAW_PASS_THRESHOLD_RAD, reuse_check)
     status = neural.get_status()
-    from neurofly.privacy import portable_path
+    from brainlab.graph_identity import active_e_inh_mV
+
+    if active_e_inh_mV() is not None:  # pragma: no cover - refused before the load
+        raise SystemExit("an E_inh override appeared during the run; the receipt is not written")
 
     invocation = {
         "duration_s": float(args.duration),
@@ -969,8 +1063,11 @@ def run_verdict(args: Any) -> int:
         "dna02_stride_k_per_hz": args.dna02_stride_k_per_hz,
         "mdn_gain_per_hz": args.mdn_gain_per_hz,
         "cpg_gain_per_hz": args.cpg_gain_per_hz,
-        "graph_dir": portable_path(args.graph_dir),
-        "connectome_dir": portable_path(args.connectome_dir),
+        # The directories the server actually loaded (argument, environment or
+        # default), in the portable form the CLI resolves.
+        "graph_dir": portable_location(neural.graph_dir, "graph-dir"),
+        "connectome_dir": portable_location(neural.connectome_dir, "connectome-dir"),
+        "graph_dir_source": str(neural.graph_dir_source),
     }
     brain_backend = str(status.get("brain_backend"))
     from provenance import source_revision
@@ -978,7 +1075,8 @@ def run_verdict(args: Any) -> int:
     revision = source_revision()
     reproduce = {
         "brain_backend": brain_backend,
-        "brain_backend_requested": os.environ.get("NEUROFLY_BRAIN_BACKEND", "auto"),
+        "brain_backend_requested": os.environ.get("NEUROFLY_BRAIN_BACKEND") or "auto",
+        "refused_environment": list(REFUSED_ENVIRONMENT),
         "command": reproduce_command(invocation, brain_backend),
         # What the command must run against to reproduce the numbers.
         "code": {"commit": revision.get("commit"), "dirty": revision.get("dirty"),
