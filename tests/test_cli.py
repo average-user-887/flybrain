@@ -1,10 +1,19 @@
 """The `neurofly` CLI dispatches to the entry points that actually exist."""
+import re
 import sys
 import types
 
 import pytest
 
 from neurofly import cli
+
+
+_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+
+
+def _plain(text):
+    """Help text without ANSI colour: Python 3.14 argparse colours it under FORCE_COLOR."""
+    return _ANSI.sub('', text)
 
 
 def _fake_daemon(monkeypatch, seen):
@@ -61,7 +70,7 @@ def test_download_data_help_prints_usage_and_downloads_nothing(monkeypatch, tmp_
     with pytest.raises(SystemExit) as exit_info:
         cli.main(['download-data', flag])
     assert exit_info.value.code == 0
-    out = capsys.readouterr().out
+    out = _plain(capsys.readouterr().out)
     assert 'usage: neurofly download-data' in out and 'Downloading' not in out
     assert not list(tmp_path.iterdir()), 'help must not create connectome_data/'
 
@@ -84,7 +93,7 @@ def test_read_only_commands_answer_help_without_running(monkeypatch, capsys, com
     with pytest.raises(SystemExit) as exit_info:
         cli.main([command, '--help'])
     assert exit_info.value.code == 0
-    out = capsys.readouterr().out
+    out = _plain(capsys.readouterr().out)
     assert f'usage: neurofly {command}' in out and 'System Status' not in out
 
 
@@ -99,7 +108,7 @@ def test_every_subcommand_help_exits_cleanly_and_writes_nothing(tmp_path, comman
     proc = subprocess.run([sys.executable, '-m', 'neurofly.cli', command, '--help'],
                           cwd=tmp_path, env=env, capture_output=True, text=True, timeout=180)
     assert proc.returncode == 0, proc.stderr
-    assert 'usage:' in proc.stdout
+    assert 'usage:' in _plain(proc.stdout)
     assert not list(tmp_path.iterdir()), f'{command} --help wrote files'
 
 
@@ -113,4 +122,5 @@ def test_download_data_help_end_to_end(tmp_path):
     proc = subprocess.run([sys.executable, '-m', 'neurofly.cli', 'download-data', '--help'],
                           cwd=tmp_path, env=env, capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, proc.stderr
-    assert 'usage: neurofly download-data' in proc.stdout and 'Downloading' not in proc.stdout
+    out = _plain(proc.stdout)
+    assert 'usage: neurofly download-data' in out and 'Downloading' not in out
