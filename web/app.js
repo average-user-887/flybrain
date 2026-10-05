@@ -3669,6 +3669,7 @@ class DaemonBridgeClient {
         this.pendingCommands = new Map();
         this.commandAckTimeoutMs = 120000;
         this.lastHeartbeat = null;          // {step_in_progress_s, last_step_wall_s, at}
+        this.daemonHalt = null;             // {error, detail} while a step error halts the daemon
         this.rejectedIdentityPackets = 0;
         this.lastIdentityRejection = null;
         this.manifest = null;               // full run manifest (GET /api/manifest), for exports
@@ -3852,8 +3853,16 @@ class DaemonBridgeClient {
         // Old data while the daemon reports a step still running is a slow computer,
         // not a lost connection: say so instead of "stale".
         const slowStep = stale ? this.slowStepSeconds() : null;
-        const state = slowStep !== null ? 'slow' : stale ? 'stale' : 'live';
+        const halt = this.daemonHalt;
+        const state = halt ? 'error' : slowStep !== null ? 'slow' : stale ? 'stale' : 'live';
         const ro = this.readOnly ? ' (READ-ONLY)' : '';
+        if (state === 'error') {
+            // Connected and fresh, but the simulation does not advance: never show LIVE.
+            this.statusPill.textContent = `● SIMULATION HALTED${ro} · ERROR`;
+            this.statusPill.title = `The daemon is connected but the simulation is halted and not advancing: `
+                + `${halt.error}` + (halt.detail?.paradigm ? ` (assay ${halt.detail.paradigm}, step ${halt.detail.step}). ` : '. ')
+                + (halt.detail?.recover || 'Select an assay to rebuild the controller and resume.');
+        }
         if (state === 'slow') {
             this.statusPill.textContent = `● LIVE DAEMON${ro} · STEP RUNNING ${Math.round(slowStep)}s`;
             this.statusPill.title = `The daemon is connected and computing: the current simulation step has run for `
@@ -3861,14 +3870,16 @@ class DaemonBridgeClient {
                 + `This computer runs the simulation slower than real time; no steps are skipped.`;
             if (ageEl) ageEl.style.color = '#38bdf8';
         }
-        if (state === this.freshnessState && state !== 'slow') return;
+        if (state === this.freshnessState && state !== 'slow' && state !== 'error') return;
         this.freshnessState = state;
         this.showingStale = state === 'stale';
-        if (state !== 'slow') {
+        if (state === 'live' || state === 'stale') {
             this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
             if (this.connectedPillTitle && !this.readOnly) this.statusPill.title = this.connectedPillTitle;
         }
-        const color = {live: ['#4ade80', '#22c55e'], stale: ['#fbbf24', '#f59e0b'], slow: ['#38bdf8', '#0ea5e9']}[state];
+        const color = {live: ['#4ade80', '#22c55e'], stale: ['#fbbf24', '#f59e0b'], slow: ['#38bdf8', '#0ea5e9'],
+                       error: ['#f87171', '#ef4444']}[state];
+        this.statusPill.style.background = state === 'error' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(34, 197, 94, 0.25)';
         this.statusPill.style.color = color[0];
         this.statusPill.style.border = `1px solid ${color[1]}`;
     }
@@ -3990,6 +4001,11 @@ class DaemonBridgeClient {
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = pkt;
+        // A step error halts the daemon (nothing advances) until a switch rebuilds it.
+        // Frames still arrive, so without this the pill would read LIVE over a frozen run.
+        const halt = (pkt.halted || pkt.error) ? {error: pkt.error || 'unknown error', detail: pkt.error_detail || null} : null;
+        const haltChanged = (halt?.error || null) !== (this.daemonHalt?.error || null);
+        this.daemonHalt = halt;
         renderIdentity(pkt);
         if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 
@@ -4008,6 +4024,7 @@ class DaemonBridgeClient {
         const poseMatch = !!(pkt.fly && daemonParadigm === activeParadigm
             && Number.isFinite(pkt.fly.x) && Number.isFinite(pkt.fly.y));
         this.arena.remoteDriven = poseMatch;
+        if (haltChanged) this.updateFreshness();
 
         if (poseMatch) {
             this.arena.awaitingDaemon = false;

@@ -135,7 +135,10 @@ class GraphArenaController:
         # WP5 optomotor loop, resolved once: an OptomotorIOMap, or False when this
         # graph has none (the reason is kept in ``optomotor_unavailable``).
         self._optomotor_io = None
-        self._optomotor_loop = None          # (instance_id, OptomotorLoop)
+        # (GraphInstance, OptomotorLoop).  Keyed by the instance OBJECT, not its id:
+        # re-activating an assay builds a new GraphInstance with the same id, and a
+        # loop bound to the released one can never step (see _loop_for).
+        self._optomotor_loop = None
         self.optomotor_unavailable = None
         self.dn_indices = {}
         self.sensory_indices = {}
@@ -143,20 +146,42 @@ class GraphArenaController:
         self._load_indices()
 
     def _load_indices(self):
-        from brainlab.graph_identity import DN_CHANNELS, resolve_connectome_dir
-        self.dn_indices = {name: list(indices) for name, indices in DN_CHANNELS.items()}
+        """Resolve DN, sensory and EPG node indices against the graph actually loaded.
+
+        Indices are only meaningful for the neuron table the running graph was
+        verified against, so they derive from ``shared_graph`` itself: DN channels
+        from its ``io_map``, cell-type channels from the ``neurons.feather`` named
+        in its identity.  A synthetic graph has no cell-type annotations, so its
+        sensory channels stay empty (``sensory_unavailable`` says why) even when
+        real annotation files exist on disk.  Every resolved index is checked
+        against the graph's neuron count; a table that does not fit is refused.
+        """
+        from brainlab.graph_identity import DN_CHANNELS
         self.sensory_indices = {
             "orn_food": [], "orn_danger": [], "visual_l": [], "visual_r": [],
             "visual_looming": [], "jon_wind": [], "feco_proprio": [],
             "courtship_cva": [], "thermo_receptors": []
         }
         self.epg_indices = []
+        self.sensory_unavailable = None
+        graph = getattr(self.runner, "shared_graph", None)
+        identity = getattr(graph, "identity", None)
+        io_map = getattr(graph, "io_map", None) if graph is not None else None
+        self.dn_indices = {name: list(indices) for name, indices in (io_map or DN_CHANNELS).items()}
+        if identity is None or getattr(identity, "synthetic", False) or not getattr(identity, "neuron_map_path", None):
+            self.sensory_unavailable = ("synthetic test graph: no cell-type annotations"
+                                        if getattr(identity, "synthetic", False)
+                                        else "loaded graph names no neuron map")
+            return
+        n = int(graph.n)
         try:
-            cdir, _ = resolve_connectome_dir(getattr(self.runner, "connectome_dir", None))
-            neurons_path = cdir / "normalized/neurons.feather"
+            neurons_path = Path(identity.neuron_map_path)
+            cdir = neurons_path.parent.parent
             if neurons_path.is_file():
                 import pyarrow.feather as feather
                 df = feather.read_table(neurons_path).to_pandas()
+                if len(df) != n:
+                    raise ValueError(f"{neurons_path} has {len(df)} rows, the loaded graph {n} neurons")
                 if "cell_type" in df.columns:
                     self.sensory_indices["orn_food"] = df[df['cell_type'] == 'ORN_DM1']['node_index'].tolist()[:50]
                     self.sensory_indices["orn_danger"] = df[df['cell_type'] == 'ORN_DA2']['node_index'].tolist()[:50]
@@ -177,7 +202,18 @@ class GraphArenaController:
                     ann_thermo = feather.read_table(ann_path, columns=['bodyId', 'class']).to_pandas()
                     thermo_ids = set(ann_thermo[ann_thermo['class'] == 'thermosensory']['bodyId'].astype('int64'))
                     self.sensory_indices["thermo_receptors"] = df[df['source_id'].isin(thermo_ids)]['node_index'].tolist()
+            else:
+                self.sensory_unavailable = f"{neurons_path} missing"
+            channels = dict(self.sensory_indices, epg=self.epg_indices)
+            bad = {name: [i for i in idx if not 0 <= int(i) < n] for name, idx in channels.items()}
+            bad = {name: idx[:3] for name, idx in bad.items() if idx}
+            if bad:
+                raise ValueError(f"indices outside the loaded graph's {n} neurons: {bad}")
         except Exception as exc:
+            for name in self.sensory_indices:
+                self.sensory_indices[name] = []
+            self.epg_indices = []
+            self.sensory_unavailable = str(exc)
             print(f"[GraphArenaController] Note: sensory indices unavailable ({exc})", flush=True)
 
     @property
@@ -190,10 +226,20 @@ class GraphArenaController:
     ENGINEERED_ASSISTANCE_ENABLED = False
 
     def _loop_for(self, instance):
-        """The WP5 optomotor loop for ``instance``, or None with a recorded reason."""
+        """The WP5 optomotor loop for ``instance``, or None with a recorded reason.
+
+        The loop is bound to one GraphInstance object.  Leaving an assay checkpoints
+        and releases its instance; returning activates a NEW object with the same
+        ``instance_id`` (state restored from the checkpoint).  The cache therefore
+        matches on identity: a loop held for the released object is dropped and a
+        fresh one is built for the live object, exactly as after a daemon restart
+        (the encoder is re-seeded from ``instance.seed``).  Matching on the id alone
+        stepped the released instance and froze the 2026-10-04 live observatory.
+        """
         held = self._optomotor_loop
-        if held is not None and held[0] == instance.instance_id:
+        if held is not None and held[0] is instance:
             return held[1]
+        self._optomotor_loop = None
         if self._optomotor_io is False:
             return None
         try:
@@ -214,7 +260,7 @@ class GraphArenaController:
             print(f"[GraphArenaController] optomotor loop unavailable: {self.optomotor_unavailable}",
                   flush=True)
             return None
-        self._optomotor_loop = (instance.instance_id, loop)
+        self._optomotor_loop = (instance, loop)
         return loop
 
     def __call__(self, fly=None, sensory=None, dt=0.02, **kwargs):
@@ -669,7 +715,14 @@ class ContinuousExperimentRunner:
 
         self.continuous = bool(continuous)
         self.paused = False
+        # Fail-safe halt: an exception inside a step stops the simulation (nothing
+        # advances while ``last_error`` is set) instead of stepping a broken state.
+        # The halt is reported (status "error", packet ``halted``, the dashboard
+        # pill) and lifted only by a command that rebuilds the controller and world
+        # (a successful assay or backend switch); see _halt_on_error/_clear_error.
         self.last_error = None
+        self.error_detail: Optional[Dict[str, Any]] = None
+        self.cleared_errors: deque = deque(maxlen=16)   # lifted halts, newest last
         self.run_id = uuid.uuid4().hex
         self.transition = None
         self.lock = TimedLock()
@@ -1167,9 +1220,10 @@ class ContinuousExperimentRunner:
             step_result = self.arena.step(step_dt)
         except Exception as step_err:
             print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
-            self.last_error = str(step_err)
+            self._halt_on_error(step_err)
             self.active_brain.log("simulation_error", error=self.last_error, step=self.total_steps,
-                                  run_id=self.run_id, segment_id=self.segment_id)
+                                  run_id=self.run_id, segment_id=self.segment_id,
+                                  error_type=self.error_detail["type"])
             self._publish_due = True
             self.latest_telemetry = self._assemble_telemetry({})
             return {}
@@ -1200,6 +1254,38 @@ class ContinuousExperimentRunner:
             self.save_checkpoint("periodic")
             self.last_checkpoint_time = now
         return step_result
+
+    HALT_RECOVERY = ("The simulation is halted by this error and does not advance. Select an assay "
+                     "(selecting the same one retries it) or switch the controller backend to rebuild "
+                     "the controller and resume. Pausing, resuming or changing speed does not lift it.")
+
+    def _halt_on_error(self, exc: BaseException):
+        """Record the step failure that halts the simulation. Caller holds the lock."""
+        registry = self.registry if self.graph_mode else None
+        active = registry.active if registry is not None else None
+        self.last_error = str(exc) or type(exc).__name__
+        self.error_detail = {
+            "message": self.last_error, "type": type(exc).__name__, "step": self.total_steps,
+            "sim_time_s": round(self.total_steps * self.dt, 5), "paradigm": self.active_paradigm_id,
+            "backend": self.backend, "instance_id": active.instance_id if active is not None else None,
+            "at": round(time.time(), 3), "recover": self.HALT_RECOVERY}
+
+    def _clear_error(self, cleared_by: str) -> Optional[Dict[str, Any]]:
+        """Lift a halt after a successful rebuild; the cleared error is kept and logged."""
+        if self.last_error is None:
+            return None
+        detail = dict(self.error_detail or {"message": self.last_error})
+        detail.update(cleared_by=cleared_by, cleared_at=round(time.time(), 3), cleared_step=self.total_steps,
+                      resumed_paradigm=self.active_paradigm_id, resumed_backend=self.backend)
+        detail.pop("recover", None)
+        self.cleared_errors.append(detail)
+        self.last_error = None
+        self.error_detail = None
+        self.active_brain.log("simulation_error_cleared", error=detail["message"], cleared_by=cleared_by,
+                              step=self.total_steps, run_id=self.run_id, segment_id=self.segment_id)
+        print(f"[Daemon] Halt lifted by {cleared_by}: {detail['message']}", flush=True)
+        self._publish_due = True
+        return detail
 
     def _trial_end_reason(self, step_result: Dict[str, Any]) -> Optional[str]:
         """Why the current trial is over, or None while it continues."""
@@ -1348,6 +1434,8 @@ class ContinuousExperimentRunner:
             "continuous": self.continuous,
             "paused": self.paused,
             "error": self.last_error,
+            "halted": self.last_error is not None,
+            "error_detail": self.error_detail,
             "sim_time_s": round(self.total_steps * self.dt, 5),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
@@ -1518,7 +1606,9 @@ class ContinuousExperimentRunner:
                              # Built after the command (for a switch: after the target's
                              # brain and world snapshots are restored).  Packets whose
                              # identity is older are stale (identity_rejection).
-                             "identity": self.identity()}
+                             "identity": self.identity(),
+                             # Applied, but the simulation still does not advance.
+                             "halted_by_error": self.last_error}
         self._publish_due = True
         return result
 
@@ -1535,8 +1625,12 @@ class ContinuousExperimentRunner:
                 self._init_arena(target)
             except (ValueError, OSError, RuntimeError) as exc:
                 # RuntimeError covers BackendError, GraphUnavailable and checkpoint errors.
+                # A failed switch rebuilt nothing, so a standing halt stays.
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-            return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity()}
+            # The target's instance, world and arena are now active: lift a halt.
+            cleared = self._clear_error("switch_paradigm")
+            return {"status": "ok", "active_paradigm": self.active_paradigm_id, "identity": self.identity(),
+                    "cleared_error": cleared}
 
         elif action in ("switch_backend", "switch_controller"):
             target = cmd.get("backend") or p.get("backend")
@@ -1545,11 +1639,15 @@ class ContinuousExperimentRunner:
                                                       "(a recording covers one graph)"}
             if target not in DAEMON_BACKENDS:
                 return {"status": "error", "message": f"Unknown backend {target!r}; choose one of {DAEMON_BACKENDS}"}
+            previous = self.backend
             try:
                 self._switch_backend(target)
             except Exception as exc:
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-            return {"status": "ok", "backend": self.backend, "identity": self.identity()}
+            # Only a real change rebuilds the controller; re-selecting it is a no-op.
+            cleared = self._clear_error("switch_backend") if self.backend != previous else None
+            return {"status": "ok", "backend": self.backend, "identity": self.identity(),
+                    "cleared_error": cleared}
 
         elif action in ("probe_brain", "teach_brain") and self.graph_mode:
             return {"status": "error", "message": f"{action} acts on the modular mushroom body, which is not "
@@ -1823,6 +1921,10 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         payload = {
             "status": "error" if self.runner.last_error else "online",
             "error": self.runner.last_error,
+            # A halted run is not paused: nothing advances until a rebuild lifts it.
+            "halted": self.runner.last_error is not None,
+            "error_detail": getattr(self.runner, "error_detail", None),
+            "cleared_errors": list(getattr(self.runner, "cleared_errors", ())),
             "paused": self.runner.paused,
             "continuous": self.runner.continuous,
             "service": "Project NeuroFly Continuous Learning Daemon",

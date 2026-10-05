@@ -160,6 +160,106 @@ checks the frame SHA-256 against the file's end record where the browser allows
 it (localhost or HTTPS); on a plain-HTTP LAN address it says the file is not
 verified.
 
+## Silencing cell types
+
+`--silence CELL_TYPE` (repeatable; `CELL_TYPE:L` or `:R` for one annotated soma
+side) clamps those neurons in a connectome run. It is off by default, and a run
+without it is byte-identical to one made before the flag existed.
+
+```bash
+python -m neurofly_body run --duration 10 --seed 1 --silence DNa02 --output runs/dna02-silenced
+```
+
+The semantics match the validation harness's `dna02_silenced` condition. Every
+2 ms step, after all sensory drive, each silenced neuron's input current is
+replaced by `SILENCE_DRIVE` (-200, `brainlab/io_map.py`). Cell types are
+matched on the prepared `cell_type` and sides on the annotated `somaSide`. A
+target that resolves to no neurons stops the run before it starts. Under v3
+conductance dynamics the clamp can leak, which is why the harness's gate O7
+checks it. So every telemetry record counts the spikes of silenced neurons
+(`neural.silenced`), and `summary.json` gets a `silenced` block with the
+targets, neuron counts, map hash, `spikes_total` and `clamp_held`
+(no silenced spike in the whole run). The manifest's `neural_backend.silence_map`
+lists the silenced source IDs, and the recording header carries the same
+`silenced` summary. `replay-check` repeats the flag. The modular baseline has
+no neurons and refuses it.
+
+## Motor delay and brain/body overlap (opt-in)
+
+The default loop is sequential with zero motor latency. The body runs the
+command decoded from this step's graph output, so the graph and the body cannot
+run at the same time. Overlapping them therefore changes the model: the body
+has to run a command from an earlier step. Both options below are off by
+default. Without them, a run is byte-identical to one made before they existed
+(checked against master on a 1 s modular run).
+
+- `--motor-delay-steps N` adds N neural steps (N x 2 ms) of motor latency. The
+  body executes the command decoded N steps earlier and zeros until then. This
+  is the sequential reference for the overlapped mode. Each telemetry record
+  keeps `decoded_cpg_drive` (this step's decode) and `applied_cpg_drive`
+  (what the body ran) and adds `motor.delay_steps`. The manifest gives
+  `lockstep.motor_delay_ms`.
+- `--pipeline` (needs `--motor-delay-steps` >= 1) runs this step's body
+  substeps in a worker thread while the graph computes. The body's input no
+  longer depends on the graph's current step. The graph kernels release the
+  GIL (`KERNEL_OPTIONS nogil=True`), and so do the GPU and MuJoCo steps. The
+  result is bit-identical to the same delay without `--pipeline`, because the
+  two steps share no state and the order in which results are joined is
+  fixed. Tests and a 1 s FlyGym run confirm this.
+
+Why a 2 ms delay is defensible: real flies are slower than that. The optomotor
+response has a pure delay of about 20 ms (Theobald et al. 2010, J Exp Biol
+213:1366), so one 2 ms step of latency lies inside the biological delay. It is
+still a model change, and it is recorded in every run.
+
+Measured cost:
+- **Behaviour:** in a 1 s modular run (seed 1, 4 rad/s drum), the final yaw was
+  2.89108 rad at zero latency and 2.89237 rad with a 2 ms delay, a difference of
+  0.04 %.
+- **Speed:** the modular controller is too cheap to show a speed-up (0.33x real
+  time in both modes on a cloud CPU). The speed-up has to be measured with the
+  connectome brain on the Ryzen: 2 s runs with `--motor-delay-steps 1`, with and
+  without `--pipeline`, compared on `real_time_factor`.
+
+## Leg-load feedback (opt-in)
+
+`--leg-load-feedback` (connectome controller only) feeds each leg's measured
+load into that leg's campaniform sensilla (CS) afferents. CS are the insect
+cuticle load sensors. The flag is off by default, and a run without it is
+byte-identical to one made before it existed.
+
+- **Load.** FlyGym's tarsal adhesion actuator (gain 40 uN) pulls each tarsus
+  into the ground, and the contact solver pushes back. So the vertical contact
+  force equals the leg's load plus the adhesion force. `FlyGymBody.leg_load_uN`
+  subtracts the adhesion actuator force while a leg is in contact, and returns 0
+  otherwise. Model units are mm, g and s, so forces are in uN. Check: in quiet
+  standing the six loads sum to 10.02 uN against a body weight of 10.05 uN. A
+  test asserts this within 3 %. A negative load means the pad is holding a leg
+  that is pulling away.
+- **Neurons.** In MaleCNS v1.0 the leg comes from `entryNerve` (ProLN, MesoLN
+  and MetaLN for the front, middle and hind legs) and the side from `rootSide`.
+  Only SNpp53 has `subclass == "campaniform sensilla"` with a leg nerve: 12
+  neurons, two per leg (map sha256 `731f03e2…` from the pinned annotations
+  file). Most leg CS are still untyped (subclass `leg`). They get no drive; we
+  do not guess their identity. The resolver fails closed if a leg has no
+  afferent.
+- **Encoding.** `brainlab.io_map.LegLoadEncoder`:
+  `r = r_max * tanh(([F - F0]+ + tau_phasic * [dF/dt]+) / F_sat)`, with dF/dt
+  low-pass filtered over 10 ms, then `drive = i_max * r / r_max` on every
+  afferent of that leg. The tonic-to-force and phasic-to-loading-rate responses
+  with saturation follow insect CS recordings (Ridgel et al. 2000, J Comp
+  Physiol A 186:359; Zill et al. 2012, J Neurophysiol 108:1453). No Drosophila
+  leg CS rate curves are published. So these values are ASSUMPTIONS, declared
+  before any run and never fitted: F0 0.5 uN, F_sat 10 uN, tau_phasic 20 ms,
+  r_max 200 Hz. `i_max` is 20, the WP5 encoder amplitude. Not modelled:
+  adaptation, the CS groups selective for unloading, and noise.
+- **Check on a walking body** (1 s at drive 1.0): loads averaged 1.7 uN
+  (maximum 7.9). The model rates were 0 Hz for 45 % of the time (swing),
+  median 11 Hz, 95th percentile 154 Hz.
+- **Recorded.** Each record carries `sensory.leg_load_uN` and
+  `neural.leg_load` (model rates and afferent spikes per leg). The manifest
+  carries the encoder and the afferent map with source IDs.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
