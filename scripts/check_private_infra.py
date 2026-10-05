@@ -7,6 +7,14 @@ the same exclusions). Standard library only.
 
     python3 scripts/check_private_infra.py [--root DIR] [--no-git] [--allowlist FILE]
     scripts/check_private_infra.sh            # same, used by CI
+    scripts/check_private_infra.sh --commits origin/master..HEAD   # commit metadata
+
+Tree mode (the default) scans file contents. Commit mode (--commits RANGE) scans the
+metadata of every commit in a git revision range instead: the full message, author
+name and e-mail, committer name and e-mail. RANGE is handed to `git rev-list` after
+shell-style splitting, so "A..B" and "B --not --remotes=origin" both work. Only the
+commits a push or pull request introduces are meant to be scanned: older published
+commits are an accepted residual (docs/OWNER_DECISIONS.md, 2026-10-05, "no rewrite").
 
 Classes of finding (each can be silenced for a specific path and match through
 the allow-list, see scripts/private_infra_allowlist.txt):
@@ -18,9 +26,22 @@ the allow-list, see scripts/private_infra_allowlist.txt):
   agent-scratch  Claude/Codex/Gemini job, session and worktree paths, /tmp/claude-N
   email          any e-mail address except the noreply allow-list below
   host-field     a JSON "host"/"hostname" field holding a real machine name
+  agent-session  links to private agent sessions or tasks (Claude Code sessions,
+                 Claude chats/shares, ChatGPT/Codex tasks and chats, Gemini chats)
+  session-trailer  a commit trailer such as "Claude-Session:" or "Codex-Task:"
   denied-token   known private usernames, hostnames and internal host names. They
                  are stored as SHA-256 hashes so that the guard does not republish
                  them. Add your own at run time with NEUROFLY_PRIVATE_TOKENS=a,b,c.
+
+Commit mode adds two classes and is stricter about e-mail:
+
+  identity-email an author or committer e-mail outside {*@users.noreply.github.com,
+                 noreply@anthropic.com, noreply@github.com}; the same short list is
+                 the only one accepted for e-mail addresses inside commit messages
+  hostname       a LAN-style host name (<name>.local, .lan, .home, .internal, ...)
+
+Findings in commit mode, and agent-session findings anywhere, are reported by
+location and class only; the matched text is never printed.
 
 Placeholders used by redacted receipts (<repo>/, <home>/, <scratch>/,
 <reference-host>) never match. Exit status: 0 clean, 1 findings, 2 usage error.
@@ -32,6 +53,7 @@ import fnmatch
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -71,6 +93,26 @@ PATTERNS = [
                                  r'shell-snapshots|worktrees)/|/tmp/claude-\d+')),
     ('email', re.compile(r'(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')),
     ('host-field', re.compile(r'"(?:host|hostname)"\s*:\s*"([^"]*)"')),
+    ('agent-session', re.compile(
+        r'(?i)claude\.ai/(?:code/)?(?:sessions?|chat|share)[/_]|chatgpt\.com/(?:codex/tasks|c|share|g)/'
+        r'|chat\.openai\.com/(?:c|share)/|gemini\.google\.com/(?:app|share)/'
+        r'|\bsession_[A-Za-z0-9]{16,}')),
+    ('session-trailer', re.compile(
+        r'(?i)^\s*(?:claude|codex|chatgpt|openai|gemini|agent)[-_ ]?(?:session|task|chat|conversation)'
+        r'(?:[-_ ]?(?:id|url|link))?\s*:')),
+]
+# Classes whose matched text is never printed, in either mode.
+REDACT_CLASSES = {'denied-token', 'agent-session'}
+
+# Commit-metadata mode: the only e-mail addresses a new commit may carry.
+METADATA_EMAIL_ALLOW = [
+    re.compile(r'^[A-Za-z0-9._+-]+@users\.noreply\.github\.com$', re.I),
+    re.compile(r'^noreply@anthropic\.com$', re.I),
+    re.compile(r'^noreply@github\.com$', re.I),
+]
+METADATA_PATTERNS = PATTERNS + [
+    ('hostname', re.compile(r'(?i)\b[A-Za-z0-9][A-Za-z0-9-]*\.(?:local|lan|home|internal|intranet|'
+                            r'localdomain|fritz\.box)\b')),
 ]
 HOST_FIELD_OK = re.compile(r'^(?:|<[^>]+>|localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$')
 
@@ -144,18 +186,22 @@ def list_files(root: Path, use_git: bool):
     return files, 'walk'
 
 
-def scan_text(rel, text, rules, extra):
+def scan_text(rel, text, rules, extra, patterns=None, email_allow=None):
+    patterns = PATTERNS if patterns is None else patterns
+    email_allow = EMAIL_ALLOW if email_allow is None else email_allow
     findings = []
     for lineno, line in enumerate(text.splitlines(), 1):
-        for cls, rx in PATTERNS:
+        for cls, rx in patterns:
             for m in rx.finditer(line):
                 hit = m.group(0)
-                if cls == 'email' and any(a.match(hit) for a in EMAIL_ALLOW):
+                if cls == 'email' and any(a.match(hit) for a in email_allow):
                     continue
                 if cls == 'host-field' and HOST_FIELD_OK.match(m.group(1)):
                     continue
                 if allowed(rules, cls, rel, hit):
                     continue
+                if cls in REDACT_CLASSES:
+                    hit = f'<redacted: {cls} match>'
                 findings.append((rel, lineno, cls, hit))
         for w in WORD.finditer(line):
             for span in _denied_spans(w.group(0), extra):
@@ -165,11 +211,75 @@ def scan_text(rel, text, rules, extra):
     return findings
 
 
+_FIELDS = ('author-name', 'author-email', 'committer-name', 'committer-email', 'message')
+
+
+def read_commits(root: Path, rev_args):
+    """Yield (sha, {field: value}) for every commit in the revision range, oldest first."""
+    fmt = '%x1e%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B'
+    r = subprocess.run(['git', '-C', str(root), '-c', 'log.showSignature=false', 'log', '--reverse',
+                        '--no-color', '--no-mailmap', f'--format={fmt}', *rev_args, '--'],
+                       capture_output=True)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.decode('utf-8', 'replace').strip() or 'git log failed')
+    for rec in r.stdout.decode('utf-8', 'replace').split('\x1e')[1:]:
+        parts = rec.split('\x1f', 5)
+        if len(parts) != 6:
+            continue
+        yield parts[0].strip(), dict(zip(_FIELDS, parts[1:]))
+
+
+def scan_commits(root: Path, rev_args, rules, extra):
+    """Scan commit metadata. Returns (number of commits, findings); every hit is redacted."""
+    findings, n = [], 0
+    for sha, fields in read_commits(root, rev_args):
+        n += 1
+        for field, value in fields.items():
+            rel = f'commit:{sha}:{field}'
+            if field.endswith('-email'):
+                v = value.strip()
+                if not any(a.match(v) for a in METADATA_EMAIL_ALLOW) and not allowed(rules, 'identity-email', rel, v):
+                    findings.append((sha, field, 0, 'identity-email'))
+                hits = scan_text(rel, v, rules, extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
+                hits = [h for h in hits if h[2] != 'email']       # covered by identity-email
+            else:
+                hits = scan_text(rel, value, rules, extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
+            findings += [(sha, field, lineno, cls) for _, lineno, cls, _ in hits]
+    return n, findings
+
+
+def main_commits(root: Path, spec: str, rules, extra):
+    rev_args = shlex.split(spec)
+    if not rev_args:
+        print('[audit] --commits needs a revision range, e.g. origin/master..HEAD', file=sys.stderr)
+        return 2
+    try:
+        n, findings = scan_commits(root, rev_args, rules, extra)
+    except (OSError, RuntimeError) as exc:
+        print(f'[audit] cannot list commits for {spec!r}: {exc}', file=sys.stderr)
+        return 2
+    print(f'[audit] scanning metadata of {n} commit(s) in {spec!r}')
+    for sha, field, lineno, cls in findings:
+        where = f'{field}:{lineno}' if field == 'message' else field
+        print(f'{sha[:12]} {where}: [{cls}] <redacted>')
+    if findings:
+        bad = len({f[0] for f in findings})
+        print(f'[audit] FAILED: {len(findings)} private-data finding(s) in {bad} commit(s). Reword the '
+              f'message (git commit --amend / git rebase -i) and set user.email to a noreply address '
+              f'before pushing. Published history is not rewritten; see docs/OWNER_DECISIONS.md.')
+        return 1
+    print('[audit] PASSED: no personal or private data in commit metadata.')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--root', default=None, help='tree to scan (default: repository root)')
     ap.add_argument('--no-git', action='store_true', help='walk the directory even inside a git checkout')
     ap.add_argument('--allowlist', default=None, help='allow-list file (default: scripts/private_infra_allowlist.txt under the root)')
+    ap.add_argument('--commits', metavar='RANGE', default=None,
+                    help='scan commit metadata (message, author, committer) of a git revision range '
+                         'instead of the tree, e.g. origin/master..HEAD')
     args = ap.parse_args(argv)
     root = Path(args.root).resolve() if args.root else Path(__file__).resolve().parents[1]
     if not root.is_dir():
@@ -178,6 +288,8 @@ def main(argv=None):
     allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
     rules = load_allowlist(allow_path)
     extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
+    if args.commits is not None:
+        return main_commits(root, args.commits, rules, extra)
     files, mode = list_files(root, not args.no_git)
     print(f'[audit] scanning {len(files)} files under {root.name}/ ({mode} mode)')
     findings = []

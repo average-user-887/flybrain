@@ -4,6 +4,9 @@
 # hostnames, known private tokens). Works in a git checkout and in an exported tree.
 # All logic lives in check_private_infra.py; arguments are passed through
 # (e.g. --root DIR, --no-git). Allow-list: scripts/private_infra_allowlist.txt.
+# Commit-metadata mode (messages, author, committer of a revision range):
+#   scripts/check_private_infra.sh --commits origin/master..HEAD
+# The pre-push hook scripts/hooks/pre-push runs both; install: git config core.hooksPath scripts/hooks
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY="${PYTHON:-}"

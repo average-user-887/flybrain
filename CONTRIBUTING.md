@@ -29,6 +29,13 @@ the in-process behavioural models. Expect it to finish in under a minute.
    paths must not be committed. Use environment variables (`NEUROFLY_*`) or
    CLI flags with neutral defaults. `docs/RELEASE_AUDIT.md` lists the
    patterns the release audit greps for.
+   The same applies to **commit metadata**: messages must not carry agent
+   session or task links or session trailers, and author and committer
+   e-mail must be a `@users.noreply.github.com` address (or
+   `noreply@anthropic.com` / `noreply@github.com`). Before pushing, run
+   `scripts/check_private_infra.sh --commits origin/master..HEAD`, or install
+   the pre-push hook once per clone with `git config core.hooksPath scripts/hooks`.
+   CI checks the commits each push or pull request adds.
 4. **No secrets.** The admin token for public mode is read from
    `NEUROFLY_ADMIN_TOKEN`; never add a `--token` style CLI flag (it would
    leak through process listings and shell history) and never commit `.env`
