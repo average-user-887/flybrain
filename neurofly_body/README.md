@@ -36,9 +36,11 @@ Measured on the CPU backend, with both decoders:
   [`docs/receipts/embodied_stimulus_reversal.md`](../docs/receipts/embodied_stimulus_reversal.md).
 - **`dna02-crossed-v1` (legacy decoder): PASS.** Seed 0 turns +2.607 / -1.195 rad,
   seed 1 +3.107 / -1.017 rad; the turn is absent with the output cut, reverses
-  when the left and right drive channels are exchanged (-2.457 rad), and survives
-  shuffling the drive's time order (+1.966 rad), so what carries it is the mean
-  left/right difference, not the time course. Receipt:
+  when the left and right drive channels are exchanged (-2.457 rad), and same-sign
+  turning survives the one fixed time permutation of the drive, at a smaller
+  magnitude (+2.607 -> +1.966 rad); one permutation does not show that the time
+  course is irrelevant. Scope: CPU backend, two seeds, motion sign imposed on
+  T4/T5 by the encoder, engineered decoder. Receipt:
   [`docs/receipts/embodied_stimulus_reversal_legacy_decoder.md`](../docs/receipts/embodied_stimulus_reversal_legacy_decoder.md).
 
 The legacy decoder makes DNa02 the only source of propulsion, which the literature

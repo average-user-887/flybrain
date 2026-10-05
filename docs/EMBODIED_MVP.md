@@ -84,10 +84,17 @@ both seeds, but DNp09 is all but silent in the passive v3 graph, so there is no
 forward drive for DNa02 to shorten, and MDN spikes produce a small symmetric
 reverse command. The default decoder therefore does not turn the fly. This is a
 finding about the graph's DNp09 activity and the decoder's structure; no gain was
-changed to obtain a different answer. Under the legacy decoder the turn is absent
-with the output cut, reverses when the drive channels are exchanged (-2.457 rad)
-and survives the time shuffle (+1.966 rad): what carries it is the mean
-left/right drive difference, not its time course.
+changed to obtain a different answer; the dn-v2 FAIL stands as a negative result.
+Under the legacy decoder the turn is absent with the output cut, reverses when the
+drive channels are exchanged (-2.457 rad), and same-sign turning survives the one
+fixed time permutation the control applies, with a smaller magnitude (+2.607 rad
+in the source run, +1.966 rad shuffled). One permutation does not show that the
+drive's time course is irrelevant or that the mean alone carries the turn.
+
+Scope of the legacy PASS: CPU brain backend, two seeds, motion sign imposed on the
+T4/T5 direction-selective neurons by the optomotor encoder (no photoreceptor motion
+computation is tested), and an engineered DN-to-CPG decoder. It is a result about
+the circuit downstream of T4/T5 and the body only.
 
 **What changed against the 26 September receipt** (legacy decoder, CUDA backend):
 

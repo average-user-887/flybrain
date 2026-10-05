@@ -41,6 +41,13 @@ def _outcome(name, seed, omega, spikes_l, spikes_r, yaw, x=3.0, y=4.0, cumulativ
     )
 
 
+# A reuse check that ran over a whole condition and matched byte for byte.
+_FULL_CHECK = {
+    "ran": True, "bit_identical": True, "covers_full_condition": True,
+    "records_compared": 2500, "condition_records": 2500, "note": "byte-identical",
+}
+
+
 def _reversal_outcomes(yaw_positive=2.6, yaw_negative=-1.2):
     return {
         "seed0-positive-w": _outcome("seed0-positive-w", 0, 4.0, 30, 3, yaw_positive),
@@ -352,6 +359,41 @@ def test_control_findings_and_interpretation_come_from_the_numbers():
     assert any("seed0-zero-w" in line and "+0.004" in line for line in lines)
     legacy = V.interpretation("dna02-crossed-v1", judgement, outcomes, 5.0)
     assert any("two neurons wide" in line for line in legacy)
+
+
+def test_shuffle_claim_is_scoped_to_one_permutation_and_reports_the_magnitude():
+    outcomes = _reversal_outcomes(yaw_positive=2.607)
+    plan = {c.name: c for c in V.plan([0, 1], 4.0, full_controls=True)}
+    outcomes["seed0-drive-time-shuffled"] = V.Outcome(
+        condition=plan["seed0-drive-time-shuffled"], summary=_summary(9, 10, 1.966),
+        final_yaw_rad=1.966, cumulative_yaw_rad=1.966, planar_displacement_mm=5.0,
+    )
+    (finding,) = V.control_findings(outcomes, V.YAW_PASS_THRESHOLD_RAD)
+    assert finding["turn_survived"] is True
+    reading = finding["reading"]
+    assert "one time permutation" in reading and "2.607 -> 1.966" in reading
+    assert "mean left/right" not in reading
+    _, description = V.build_drive_override("time-shuffled", [(0.1, 0.2)] * 4)
+    assert "cannot show that the time course is irrelevant" in description["note"]
+    assert "depends on the mean" not in description["note"]
+
+
+def test_interpretation_states_the_imposed_t4_t5_input_and_scopes_a_pass():
+    outcomes = _reversal_outcomes()
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
+    assert judgement["verdict"] == "PASS"
+    lines = V.interpretation("dna02-crossed-v1", judgement, outcomes, 5.0, "cpu")
+    assert any("T4/T5" in line and "imposed" in line and "photoreceptor" in line
+               for line in lines)
+    (scope,) = [line for line in lines if line.startswith("What it establishes")]
+    assert "`cpu` brain backend" in scope and "2 seeds" in scope
+    assert "T4/T5-imposed input" in scope and "engineered decoder" in scope
+    # A failing verdict still states the imposed input, and claims nothing.
+    failing = V.judge(_reversal_outcomes(yaw_positive=0.01), [0, 1],
+                      V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
+    lines = V.interpretation("dn-v2", failing, outcomes, 5.0, "cpu")
+    assert any("T4/T5" in line for line in lines)
+    assert not any(line.startswith("What it establishes") for line in lines)
 
 
 def test_receipt_never_prints_an_absolute_output_path():

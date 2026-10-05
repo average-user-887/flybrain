@@ -25,8 +25,15 @@ on a freshly loaded server.
   drive so that the per-channel mean reaching the CPG is preserved exactly while
   its neural content is not.  ``channel-swapped`` exchanges left and right, which
   tests whether the body follows WHICH side the command came from.
-  ``time-shuffled`` permutes the time order of the drive pairs, which tests
-  whether the temporal pattern matters or only the mean difference does.
+  ``time-shuffled`` permutes the time order of the drive pairs under one fixed
+  seed.  It shows only whether same-sign turning survives that one
+  permutation; a single permutation cannot show that the time course is
+  irrelevant or that the turn is carried by the mean alone.
+
+The stimulus is not seen: the server injects the motion sign directly into the
+T4/T5 direction-selective neurons (``brainlab/cosim_server.py``, the WP5
+optomotor encoder).  A verdict is therefore about the circuit downstream of
+T4/T5 and the body, never about motion computation from photoreceptors.
 """
 
 from __future__ import annotations
@@ -244,9 +251,10 @@ def build_drive_override(
         note = (
             "the recorded intact drive with its time order permuted (both channels "
             "moved together, so each channel's values and mean are exactly "
-            "preserved and the left/right pairing is intact). This removes the "
-            "temporal pattern only: if the turn survives it, the turn depends on "
-            "the mean left/right difference and not on the drive's time course."
+            "preserved and the left/right pairing is intact), using one fixed "
+            f"permutation (seed {SHUFFLE_SEED}). It tests only whether same-sign "
+            "turning survives that one permutation; it cannot show that the time "
+            "course is irrelevant or that the turn is carried by the mean alone."
         )
     else:  # pragma: no cover - the CLI restricts the choices
         raise ValueError(f"unknown drive construction {construction!r}")
@@ -441,12 +449,17 @@ def control_findings(
                 )
             else:
                 entry["turn_survived"] = beyond and same_sign
+                magnitude = (
+                    f"|yaw| {abs(source.cumulative_yaw_rad):.3f} -> "
+                    f"{abs(outcome.cumulative_yaw_rad):.3f} rad"
+                )
                 entry["reading"] = (
-                    "the turn survives shuffling the time order: it depends on the "
-                    "mean left/right drive difference, not on the drive's time course"
+                    "same-sign turning survives this one time permutation "
+                    f"(seed {SHUFFLE_SEED}), with a changed magnitude ({magnitude}); "
+                    "one permutation does not show that the time course is irrelevant"
                     if entry["turn_survived"]
-                    else "the turn does not survive shuffling the time order: the "
-                    "drive's time course matters, not only its mean"
+                    else "same-sign turning beyond the threshold does not survive this "
+                    f"one time permutation (seed {SHUFFLE_SEED}; {magnitude})"
                 )
         findings.append(entry)
     return findings
@@ -457,15 +470,24 @@ def interpretation(
     judgement: dict[str, Any],
     outcomes: dict[str, Outcome],
     duration_s: float,
+    brain_backend: str | None = None,
 ) -> list[str]:
     """The receipt's reading, built from the measured numbers, never from memory."""
     reversal = [o for o in outcomes.values() if o.condition.role == "reversal"]
-    lines = []
+    seeds = len(judgement.get("per_seed", []))
+    lines = [
+        "The input is imposed, not seen: the stimulus sign is injected directly into "
+        "the T4/T5 direction-selective neurons by the optomotor encoder, so no "
+        "photoreceptor motion computation is tested. Any result here is about the "
+        "circuit downstream of T4/T5 and the body only."
+    ]
     if judgement["verdict"] == "PASS":
         lines.append(
-            "What it establishes: stimulus-sign-appropriate turning of an articulated "
-            f"fly driven through {DECODER_INPUTS.get(decoder_name, decoder_name)}, on "
-            "the real v3 MaleCNS graph, replicated across seeds."
+            "What it establishes, and only within this scope: stimulus-sign-appropriate "
+            f"turning on the `{brain_backend or 'unrecorded'}` brain backend, over "
+            f"{seeds} seeds, with T4/T5-imposed input, of an articulated fly driven "
+            f"through an engineered decoder ({DECODER_INPUTS.get(decoder_name, decoder_name)}), "
+            "on the real v3 MaleCNS graph."
         )
     else:
         lines.append(
@@ -955,7 +977,7 @@ def run_verdict(args: Any) -> int:
         "reuse_check": reuse_check,
         "seed_handling": equivalence_note,
         "interpretation": interpretation(
-            str(args.decoder), judgement, outcomes, float(args.duration)
+            str(args.decoder), judgement, outcomes, float(args.duration), brain_backend
         ),
         "wall_time_s": time.perf_counter() - started,
     }
