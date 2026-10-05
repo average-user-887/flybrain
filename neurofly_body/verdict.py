@@ -1121,10 +1121,16 @@ def run_verdict(args: Any) -> int:
         ),
         "wall_time_s": time.perf_counter() - started,
     }
+    # Both files are meant to be published: the whole receipt goes through the
+    # established sanitiser, so no absolute local path (the output directory,
+    # a graph location, a path inside a note) reaches them.  The local paths
+    # are printed to the console below and nowhere else.
+    from neurofly.privacy import redact_local, redact_text
+
     (output_root / "verdict.json").write_text(
-        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(redact_local(receipt), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    (output_root / "verdict.md").write_text(_markdown(receipt), encoding="utf-8")
+    (output_root / "verdict.md").write_text(redact_text(_markdown(receipt)), encoding="utf-8")
     print(json.dumps(receipt["judgement"], indent=2, sort_keys=True))
     print(f"\nreproduce (brain backend pinned):\n  {reproduce['command']}")
     print(f"\nreceipt: {output_root / 'verdict.md'}")

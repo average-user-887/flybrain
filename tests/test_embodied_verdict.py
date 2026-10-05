@@ -745,3 +745,75 @@ def test_clean_or_supported_environment_is_accepted(monkeypatch):
         V.refuse_unsupported_environment({"NEUROFLY_BRAIN_BACKEND": backend,
                                           "NEUROFLY_LIF_DYNAMICS": "v3",
                                           "NEUROFLY_LIF_E_INH_MV": ""})
+
+
+class _ServerLike(SeededGraph):
+    """A fake graph with the attributes run_verdict reads from ConnectomeServer."""
+
+    graph_dir_source = "argument"
+
+    def __init__(self, graph_dir=None, connectome_dir=None, optomotor_seed=0, **_):
+        super().__init__()
+        self.optomotor_seed = optomotor_seed
+        self.graph_dir = Path(graph_dir)
+        self.connectome_dir = Path(connectome_dir)
+
+    def get_status(self):
+        return {**super().get_status(), "brain_backend": "cpu", "num_neurons": 166700,
+                "lif_dynamics_pin": "e" * 64, "controller_version": "brainlab-lif-v3"}
+
+
+class _ClosableBody(FakeBody):
+    def close(self):
+        pass
+
+
+def _strings(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from _strings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _strings(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def test_the_published_receipt_carries_no_private_path_or_session_id(tmp_path, monkeypatch):
+    """verdict.json wrote the absolute output directory before it was sanitised."""
+    import getpass
+
+    import brainlab.cosim_server
+    import neurofly_body.flygym_body
+    from neurofly_body import cli
+
+    for name in V.REFUSED_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NEUROFLY_BRAIN_BACKEND", "cpu")
+    monkeypatch.setattr(brainlab.cosim_server, "ConnectomeServer", _ServerLike)
+    monkeypatch.setattr(neurofly_body.flygym_body, "FlyGymBody",
+                        lambda **_: _ClosableBody())
+    private_graph = tmp_path / "private" / "malecns_v1"
+    output = tmp_path / "out" / "verdict-run"
+    args = cli._parser().parse_args(
+        ["verdict", "--output", str(output), "--decoder", "dna02-crossed-v1",
+         "--duration", "0.04", "--reuse-check-duration", "0.04", "--full-controls",
+         "--graph-dir", str(private_graph), "--connectome-dir", str(tmp_path / "neurons")]
+    )
+    V.run_verdict(args)
+
+    receipt = json.loads((output / "verdict.json").read_text())
+    markdown = (output / "verdict.md").read_text()
+    forbidden = [str(tmp_path), str(Path.home()), "/home/", "/media/", "/mnt/", "/Users/",
+                 "session_", "claude.ai/code"]
+    user = getpass.getuser()
+    for text in [*_strings(receipt), markdown]:
+        for needle in forbidden:
+            assert needle not in text, (needle, text)
+        if len(user) >= 3:
+            assert not any(part == user for part in text.replace("/", " ").split()), text
+    # The receipt is still complete and the command still names its data.
+    assert receipt["judgement"]["verdict"] in V.VERDICTS
+    assert "NEUROFLY_GRAPH_DIR" in receipt["reproduce"]["command"]
+    assert receipt["output_dir"].endswith("verdict-run")
