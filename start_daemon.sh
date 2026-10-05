@@ -4,6 +4,10 @@
 #
 # Environment:
 #   NEUROFLY_PORT / NEUROFLY_SPEED / NEUROFLY_PARADIGM   launch parameters
+#   NEUROFLY_HOST                                        bind address. This script keeps its historical
+#                                                        0.0.0.0 (reachable from the LAN); set
+#                                                        NEUROFLY_HOST=127.0.0.1 for this machine only.
+#                                                        (neurofly_daemon.py itself defaults to 127.0.0.1.)
 #   NEUROFLY_PUBLIC=1                                    read-only public mode (see docs/PUBLIC_STREAMING.md)
 #   NEUROFLY_ADMIN_TOKEN                                 bearer token that re-enables commands in public mode
 #   NEUROFLY_DATA_DIR                                    where trials.jsonl / telemetry_summary.jsonl go
@@ -19,6 +23,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR"
 
 PORT="${NEUROFLY_PORT:-8769}"
+HOST="${NEUROFLY_HOST:-0.0.0.0}"
 SPEED="${NEUROFLY_SPEED:-15.0}"
 PARADIGM="${NEUROFLY_PARADIGM:-multisensory-sandbox}"
 BACKEND="${NEUROFLY_BACKEND:-modular}"
@@ -51,7 +56,10 @@ else
 fi
 
 echo "[NeuroFly] Launching Continuous Learning Daemon in background..."
-echo "[NeuroFly] Interpreter: $PYTHON_BIN | Port: $PORT | Speed: ${SPEED}x | Assay: $PARADIGM | Backend: $BACKEND"
+echo "[NeuroFly] Interpreter: $PYTHON_BIN | Bind: $HOST:$PORT | Speed: ${SPEED}x | Assay: $PARADIGM | Backend: $BACKEND"
+if [ "$HOST" = "0.0.0.0" ]; then
+    echo "[NeuroFly] Note: listening on all interfaces (reachable from your LAN). Set NEUROFLY_HOST=127.0.0.1 for this machine only."
+fi
 if [ "$BACKEND" != "modular" ] && [ -z "${NEUROFLY_GRAPH_DIR:-}" ]; then
     echo "[NeuroFly] Note: $BACKEND needs the prepared graph; set NEUROFLY_GRAPH_DIR=/path/to/malecns_v1 (or pass --graph-dir)."
 fi
@@ -60,6 +68,7 @@ if [ "${NEUROFLY_PUBLIC:-0}" != "0" ]; then
 fi
 
 nohup "$PYTHON_BIN" neurofly_daemon.py \
+    --host "$HOST" \
     --port "$PORT" \
     --speed "$SPEED" \
     --paradigm "$PARADIGM" \
