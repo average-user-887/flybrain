@@ -1,11 +1,12 @@
 """CPU vs GPU parity for the v4 hybrid engine on a small random graph."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import os
 import sys
 
 import numpy as np
 
-sys.path.insert(0, '<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded')
+sys.path.insert(0, str(REPO))
 from brainlab.brain import Brain
 
 rng = np.random.default_rng(7)

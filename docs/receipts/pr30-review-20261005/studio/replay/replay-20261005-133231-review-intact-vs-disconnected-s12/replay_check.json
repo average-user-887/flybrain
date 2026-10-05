@@ -1,0 +1,50 @@
+{
+  "brain_backend": {
+    "original": "cpu",
+    "replay": "cpu"
+  },
+  "duration_s": 0.5,
+  "first_differing_record": null,
+  "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+  "invocation": {
+    "connectome_dir": "<home>/Documents/ChatGPT/flybrain/connectome_data/malecns_v1",
+    "contrast": 1.0,
+    "controller": "connectome",
+    "cpg_gain_per_hz": 0.04,
+    "decoder": "dn-v2",
+    "decoder_tau_ms": 50.0,
+    "dna02_stride_k_per_hz": 0.01,
+    "duration": 0.5,
+    "graph_dir": "<home>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1",
+    "leg_load_feedback": false,
+    "max_cpg_drive": 1.2,
+    "mdn_gain_per_hz": 0.02,
+    "mode": "intact",
+    "modular_forward_drive": 1.0,
+    "modular_turn_gain": 1.0,
+    "motor_delay_steps": 0,
+    "neural_dt_ms": 2.0,
+    "p9_gain_per_hz": 0.02,
+    "physics_dt_s": 0.0001,
+    "pipeline": false,
+    "record_fps": 50.0,
+    "seed": 12,
+    "silence": null,
+    "warmup_s": 0.05,
+    "world_angular_velocity_rad_s": 4.0
+  },
+  "original_run": "<scratch>/pr30-studio/queue/runs/20261005-133231-review-intact-vs-disconnected-s12",
+  "original_trajectory_sha256": "571a6c4a710cc130ad989d61d7f7f180b0587f7ee01f31a68656a708f43acd2a",
+  "recorded_trajectory_sha256": "571a6c4a710cc130ad989d61d7f7f180b0587f7ee01f31a68656a708f43acd2a",
+  "recording_frames_sha256": {
+    "original": "d03fc8855f28aa69068856beb320bf4439c7b1b2682848c7c17d9b3b473faa09",
+    "replay": "d03fc8855f28aa69068856beb320bf4439c7b1b2682848c7c17d9b3b473faa09"
+  },
+  "records": 250,
+  "replay_real_time_factor": 0.04838742936125923,
+  "replay_run": "<scratch>/pr30-studio/replay-20261005-133231-review-intact-vs-disconnected-s12",
+  "replay_trajectory_sha256": "571a6c4a710cc130ad989d61d7f7f180b0587f7ee01f31a68656a708f43acd2a",
+  "replay_wall_time_s": 10.333255955003551,
+  "schema": "neurofly-embodied-replay-check-v1",
+  "verdict": "BIT_IDENTICAL"
+}

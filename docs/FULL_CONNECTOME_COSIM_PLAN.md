@@ -74,7 +74,7 @@ To transition Project NeuroFly from its current **compact modular controller** t
 ├────────────────────────────────┼───────────────────────────────────────────────────────┤
 │ 1. Sensory Ingress             │ 72-Ray Visual Ingress + Johnston's Organ Antennae      │
 │                                │   ──► 6,098 Sensory Nodes in MaleCNS v1.0             │
-│ 2. Whole-Brain Spiking Graph   │ MaleCNS v1.0 (166,700 Neurons / 25.58M Synapses)      │
+│ 2. Whole-Brain Spiking Graph   │ MaleCNS v1.0 (166,700 Neurons / 25.58M directed edges)│
 │                                │   ──► Numba / C++ LIF Spiking Kernel on Ryzen         │
 │ 3. Descending Premotor Bridge  │ 1,314 Descending Neurons (DNa02, DNp09, MDN, GF)      │
 │                                │   ──► Firing Rate Differential Decoders               │
@@ -136,7 +136,7 @@ Upgrade the web dashboard to visually expose the running full connectome and art
 - Add an interactive **3D Articulated Walking Viewport** (using Three.js) in the center stage or as a toggleable overlay next to the 2D arena.
 - Add a **Connectome Premotor Deck**: Real-time spike activity indicators and rate bars for `DNa02_L/R`, `DNp09`, `MDN`, and `GF`.
 - Update the Identity Bar to reflect:
-  `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.5M synapses)`
+  `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.58M directed edges)`
 
 #### [MODIFY] [`web/app.js`](../web/app.js)
 - Parse the 18-joint telemetry angles from the daemon SSE stream and animate the 3D articulated fly skeleton.

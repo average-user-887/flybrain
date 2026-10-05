@@ -290,6 +290,8 @@ class ConnectomeServer:
             "label": ident.label,
             "graph_sha256": ident.graph_sha256,
             "neuron_map_sha256": ident.neuron_map_sha256,
+            "graph_content_sha256": getattr(ident, "graph_content_sha256", None),
+            "neuron_map_content_sha256": getattr(ident, "neuron_map_content_sha256", None),
             "io_map_sha256": ident.io_map_sha256,
             "sensory_map_sha256": getattr(self, "sensory_map_sha256", None),
             # graph_sha256 identifies the exact effective CSR arrays; paired
@@ -513,11 +515,13 @@ class ConnectomeServer:
         return reply
 
     def get_status(self) -> Dict[str, Any]:
+        from neurofly.privacy import portable_path
         return {
             "status": "online",
             **self.identity_fields(),
-            "graph_path": self.identity.graph_path,
-            "graph_path_source": self.identity.graph_path_source,
+            # Status is copied into run manifests: no absolute local path (neurofly.privacy).
+            "graph_path": portable_path(self.identity.graph_path),
+            "graph_path_source": portable_path(self.identity.graph_path_source),
             "unmapped_channels": self.unmapped_channels,
             "mapping_warnings": MAPPING_WARNINGS,
             "engineered_assistance": ENGINEERED_ASSISTANCE,
@@ -577,7 +581,7 @@ class CoSimHTTPHandler(BaseHTTPRequestHandler):
         pass
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8768, *, graph_dir: Optional[Path] = None,
+def run_server(host: str = "127.0.0.1", port: int = 8768, *, graph_dir: Optional[Path] = None,
                connectome_dir: Optional[Path] = None, allow_synthetic: bool = False,
                engineered_assistance: bool = True):
     connectome = ConnectomeServer(graph_dir=graph_dir, connectome_dir=connectome_dir,
@@ -594,7 +598,8 @@ def run_server(host: str = "0.0.0.0", port: int = 8768, *, graph_dir: Optional[P
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MaleCNS v1.0 Spiking Co-Simulation Server")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Binding host address")
+    parser.add_argument("--host", type=str, default="127.0.0.1",
+                        help="Binding address (default 127.0.0.1; 0.0.0.0 exposes the server to the network)")
     parser.add_argument("--port", type=int, default=8768, help="Listening port")
     parser.add_argument("--graph-dir", type=Path, help="Directory holding graph.npz (else $NEUROFLY_GRAPH_DIR)")
     parser.add_argument("--connectome-dir", type=Path, help="connectome_data/malecns_v1 (else $NEUROFLY_CONNECTOME_DIR)")

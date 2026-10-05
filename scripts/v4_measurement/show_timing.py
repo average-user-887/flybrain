@@ -1,8 +1,9 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import sys
 
 d = json.load(open(sys.argv[1] if len(sys.argv) > 1
-                   else '<redacted-path>/tmp/graded/timing.json'))
+                   else str(SCRATCH / 'timing.json')))
 print('backend', d['backend'], 'graded', d['graded_report']['graded_neurons'],
       'load_s', round(d['graph_load_s'], 1), 'wall_s', round(d['wall_s'], 1),
       'sim_s', d['simulated_s'])

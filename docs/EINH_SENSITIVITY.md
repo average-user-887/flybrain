@@ -1,5 +1,15 @@
 # E_inh sensitivity: is the v3 optomotor result a property of the connectome or of one assumed constant?
 
+> **Correction, 5 October 2026 — read §7 before §1–§6.** §1.2 and §1.5 infer
+> `E_Cl ≈ V_rest` from "little chloride current at rest", and treat a GABA-evoked
+> voltage endpoint (−56 mV) as if it were a reversal potential. Both inferences are
+> invalid, two table rows in §1.1 misdescribe their preparations, and the "−55 to
+> −65 mV adult range" and "−60 mV is the most literature-supported value" have no
+> literature support. −60 mV was a sensitivity point. §0–§4 are left byte-identical
+> because they are the locked preregistration
+> (`docs/receipts/einh_sensitivity_declaration.locked.md`); §5–§6's numbers stand,
+> and their interpretation is corrected in §7.
+
 > **Ported onto `master` on 27 September 2026 from the remediation worktree.** This study
 > ran on the same LIF v3 engine and the same pinned graph as the receipts in
 > `docs/receipts/validation/`, but through the older Q1/R1/R2 gate, **not** through
@@ -384,6 +394,16 @@ the existing `outputs/wp5/v3-verify-20260926/gate.py`. The `E_inh = −70 mV`
 A-primary and A-S1 rows **reproduce the 20 and 26 September runs exactly**, arm
 for arm and window for window, so the sweep is on the same measurement surface.
 
+*Reproducing (code ported to master 2026-10-05):* the sweep is
+`scripts/lif_dynamics_diagnosis.py --dynamics v3 --e-inh-sweep=-70,-66,-63,-60,-58,-56
+--sweep-arms excitatory,zero --out <dir>/probe_c_sweep.json` with
+`NEUROFLY_BRAIN_BACKEND=cpu`, and the gate is `scripts/einh_gate_sweep.py <dir>`
+(the run directory's `gate_sweep.py` with only its input location made an argument).
+Confirmatory runs use `scripts/wp5_optomotor.py --dynamics v3 --e-inh <value>`, and
+`scripts/einh_summarise_confirmatory.py` prints them side by side. A re-run of the
+−70 and −60 mV rows of both arms on master reproduced every gate field in
+`docs/receipts/einh_sensitivity.json` and every raw probe-C window exactly.
+
 | configuration | Q1 | R1 | R2 | DNa02 L−R, dir +1 / dir −1 |
 |---|---|---|---|---|
 | A-primary `E_inh` −70 | PASS | PASS | PASS | +8 / −3 Hz |
@@ -553,3 +573,131 @@ the transmitter policy, the preregistration file, the metric, the seeds and the
 bootstrap are byte-identical to the published v3 run. `dynamics_pin('v3')` is
 unchanged; `E_inh = −60 mV` is a separately pinned variant `v3-einh-60`. v1, v2
 and v3 keep every number they had.
+
+---
+
+## 7. Correction (5 October 2026): what the chloride literature does and does not establish
+
+The project's independent audit raised this (Codex, "E_inh correction ticket",
+5 October 2026), and it was checked here against the primary papers. This section is
+appended. §0–§4 are the locked preregistration and are not edited, and the measured
+numbers in §5–§6 are not changed. The correction concerns what those numbers may be
+taken to mean.
+
+### 7.1 The two inferences in §1 that do not hold
+
+1. **"Little chloride current at rest" does not imply `E_Cl ≈ V_rest`** (§1.2, §1.5).
+   The current through a chloride conductance is `I_Cl = g_Cl (V − E_Cl)`. A small
+   `I_Cl` at rest fits a small resting `g_Cl` just as well, with `E_Cl` anywhere.
+   The cited experiment (below) moved `E_Cl` substantially by lowering external
+   chloride and found no significant change in `V_rest`. A small resting `g_Cl`
+   predicts exactly that, *whatever* `E_Cl` is. The experiment constrains the
+   conductance, not the reversal potential.
+2. **A voltage reached during GABA application is not a reversal potential** (§1.1,
+   §1.5, the §1.6 table, §2). The −56 ± 2 mV of Wilson & Laurent 2005 is a steady
+   state. The membrane carries the GABA-gated conductance in parallel with leak and
+   other conductances, plus the experimenter's holding current. The voltage was
+   measured at the soma, while the receptors are spread over the neurites. It equals
+   `E_GABA` only if the GABA conductance dominates everything else, and that was not
+   shown. The paper does not present it as a reversal measurement.
+
+It also follows that neither adult constraint in §1.5 is "pipette-independent". Both
+come from whole-cell recordings with a 1 mM KCl internal (7.2).
+
+### 7.2 What each primary paper actually measured
+
+Retrieved 5 October 2026. "Verified" means read in the retrieved text. Anything else
+is marked.
+
+| paper | preparation and cells | recording and pipette | what was measured | what it does **not** show |
+|---|---|---|---|---|
+| Gouwens & Wilson 2009, *J Neurosci* 29:6239–6249, PMC2709801 (verified) | adult female antennal-lobe projection neurons (PNs), 2–10 days post-eclosion, in vivo | whole-cell; internal 140 K-aspartate, 10 HEPES, 1 EGTA, 4 MgATP, 0.5 Na₃GTP, **1 KCl**, 13 biocytin hydrazide; external 103 NaCl, 3 KCl, … 1.5 CaCl₂, 4 MgCl₂ | Fig. 8D: replacing NaCl/KCl with Na/K gluconate did not significantly change the resting potential (paired t test, **p = 0.0514**), hence "little chloride current flowing at rest in PNs". Lowering external Na⁺ hyperpolarised the cells by ~10 mV, which indicates a resting Na⁺ conductance, partly TTX-sensitive. The true resting potential is estimated at ~−55 to −60 mV with ORN input intact and ~−65 mV without it. | It gives no value of `E_Cl` or `E_GABA`. With a 1 mM Cl⁻ internal, the `E_Cl` imposed at the soma is far from rest, so the result bears on resting `g_Cl` only. p = 0.0514 is borderline and does not show that the current is zero. |
+| Wilson & Laurent 2005, *J Neurosci* 25:9069–9079, PMC6725763 (verified) | adult antennal lobe, in vivo; the −56 mV value comes from **local neurons (LNs)** | whole-cell; internal 140 K-aspartate, 10 HEPES, **1 KCl**, 4 MgATP, 0.5 Na₃GTP, 1 EGTA; external 103 NaCl, 3 KCl, … 1.5 CaCl₂, 4 MgCl₂; d-tubocurarine 50 µM present; GABA applied by iontophoresis (250 mM pipette) | Each LN was held at threshold (−39 ± 1 mV) by current injection. A 1 s GABA pulse "hyperpolarized the soma to −56 ± 2 mV (n = 10)". Picrotoxin blocked 98 ± 3 % of the LN response (n = 6), so the response is GABA_A-type. PNs have an additional CGP54626-sensitive (GABA_B-type) component. The Methods state that the internal "yielded a GABA reversal potential near ECl"; the retrieved text gives no numeric reversal value. | It is not a reversal potential (see 7.1). The ≈ −120 mV "imposed `E_Cl`" in §1.1 is this project's Nernst estimate for the stated solutions, not a value from the paper. §1.1 reads the data as GABA having "stopped" at −56 mV "even under a pipette that should have imposed −120 mV"; that reading assumes −56 mV is a reversal, which it is not. |
+| Rohrbough & Broadie 2002, *J Neurophysiol* 88:847–860, PMID 12163536 (**abstract only**; full text refused with HTTP 403/405) | **larval** ventral nerve cord, dorsally positioned neurons, "primarily … identified motor neurons" | whole-cell current and voltage clamp; **internal composition not verified** | GABA and glutamate responses "reversed near normal resting potential" (resting −50 to −60 mV) and were blocked by picrotoxin | It is not an adult central value. The −56 ± 3 mV figure (6 of 9 neurons) quoted in §1.1 and in `LIF_DYNAMICS_SPEC.md` §3.1 is **UNVERIFIED** here: the abstract does not contain it, and the full text could not be retrieved. It is a whole-cell reversal, and the pipette chloride is unverified. |
+| Su & O'Dowd 2003, *J Neurosci* 23:9246–9253, PMC6740836 (verified) | **cultured** neurons from the central brain of **late-stage pupae**, recorded 3–21 days in vitro; Kenyon cells identified as GFP⁺ (OK107) | whole-cell; internal 120 CsOH, 120 D-gluconic acid, 0.1 CaCl₂, 2 MgCl₂, **20 NaCl**, 1.1 EGTA, 4 ATP, 10 HEPES (≈ 24 mM Cl⁻) | Picrotoxin-sensitive GABAergic IPSCs reversed at −37 ± 3 mV (n = 4), "close to the theoretical chloride equilibrium potential of −45 mV" for those solutions. | It says nothing about adult, in-situ chloride. §1.1's row ("**adult** Kenyon cells in situ") is wrong on both counts. |
+| Lee, Su & O'Dowd 2003, *J Neurosci* 23:4625–4634, PMC6740792 (verified) | **cultured embryonic** neurons (one or two mid-gastrula embryos per culture), up to 9 days in vitro | whole-cell; the standard internal above (≈ 24 mM Cl⁻), or one with 120 mM CsCl substituted (≈ symmetrical Cl⁻) | GABAergic sPSC I–V: mean reversal −41.5 ± 2.1 mV (n = 5; one example cell −44.5 mV), close to the calculated −45 mV. In symmetrical chloride the reversal was −1.1 ± 2.6 mV. | It gives no native value; it shows directly that the whole-cell reversal is set by the pipette. §1.1's "−44.5 mV and 0 mV" are one example cell and a rounded value; the means are −41.5 and −1.1 mV. |
+
+§1.3's sources on how intracellular chloride varies with time of day and cell type
+(Schellinger *et al.*; eLife 2022) were **not re-retrieved** for this correction. They
+are carried over unverified.
+
+### 7.3 What is and is not established about adult central `E_Cl`
+
+Established by the papers retrieved above:
+
+- Fast GABAergic inhibition in *Drosophila* central neurons is a picrotoxin-sensitive
+  chloride conductance (all five papers; GABA_A-type in LNs per Wilson & Laurent).
+- In whole-cell recordings the measured GABA reversal follows the pipette chloride.
+  Lee, Su & O'Dowd 2003 shows this directly in the same cells, so a whole-cell
+  reversal is not the native value.
+- In adult antennal-lobe PNs the resting chloride **conductance** appears small
+  (Gouwens & Wilson 2009; p = 0.0514).
+
+Not established by anything retrieved:
+
+- **No paper retrieved here reports a native adult central `E_Cl` or `E_GABA`.** Both
+  adult papers recorded whole-cell with a 1 mM Cl⁻ internal. A native value needs a
+  method that leaves intracellular chloride intact, such as gramicidin perforated
+  patch or a calibrated chloride indicator. This check found none for adult central
+  neurons. That describes what was retrieved; it does not claim that no such
+  measurement exists.
+- Whether fast inhibition in adult central neurons hyperpolarises or shunts at rest.
+- Any adult range. **"−55 to −65 mV" (§1.2, §1.5, and the "literature-supported
+  range" `[−65, −55]` of §4) is withdrawn as a literature claim**, because it rested
+  on the two invalid inferences of 7.1. Equally, nothing retrieved *excludes* −70 mV
+  or lower values, so §1.5's "−70 mV is outside the range the literature constrains"
+  is withdrawn too. The correct statement is the one already made in §1.5's first
+  paragraph: the value is not constrained.
+- −56 mV is **not** "the one value an actual *Drosophila* measurement supplies"
+  (§6.2). It is (a) a voltage endpoint in adult LNs, not a reversal, and (b) a
+  whole-cell reversal from larval, mostly motor, neurons, whose exact value and
+  pipette conditions could not be verified here.
+
+### 7.4 Consequences for §2–§6
+
+- **−60 mV was a sensitivity point, not a literature-supported value.** §2 declared it
+  "the single most literature-supported value". That declaration is withdrawn, along
+  with every later phrase built on it: "centre of the pipette-independent adult range",
+  "better-supported −60 mV", and "the number that a literature-supported reversal
+  potential supports is the smaller one".
+- **The locked decision rule is not re-applied or re-labelled.** §6.1's R-ROBUST is
+  what the rule returns as written and locked, and that record stands. Its third
+  clause ("inside the literature-supported range") now has no physiological content.
+  R-ROBUST here therefore means only this: **the verdict class was POSITIVE at every
+  configuration run at confirmatory level, namely `E_inh` −70 mV (both arms) and
+  −60 mV (primary arm), and silencing DNa02 abolished the turn in each.** It does
+  **not** mean the result survives a physiologically supported reversal potential,
+  because no such potential has been established. §6.2's "the POSITIVE verdict stands
+  and gains, not loses, standing" is withdrawn.
+- **Corrected reading.** The v3 optomotor result depends on the engine configuration.
+  It is reproducible and preregistered, and causally clean within its configuration.
+  Its verdict class held at both `E_inh` values run at confirmatory level, while its
+  effect size varied 3.6× across those values and the `unclear` arm (`dz` 4.78 /
+  3.18 / 1.47). The probe gate failed at −63 and −56 mV in the primary arm and at
+  −58 and −56 mV in arm S1, and no confirmatory run exists at those values. No
+  `E_inh` value is physiologically privileged, so no single magnitude is "the" one.
+  These limits come on top of WP5 §12.4's engine qualifiers and of the larger
+  reservation that the encoder imposes direction selectivity on T4/T5.
+- **Reproduction is not validation.** The code restoration merged at `3e9bc5d` and the
+  exact re-run of the −70 and −60 mV rows (§5) show that the computation reproduces
+  from the public repository. They say nothing about whether the physiological
+  interpretation in §1–§2 was right, and it was not.
+
+### 7.5 Whether a re-run is warranted (proposal only; nothing was run)
+
+The existing numbers remain valid measurements of the engine, and this correction
+needs no new simulation. The owner and Codex may want a sensitivity statement that
+does not lean on a privileged value. If so, a new preregistration (separate from this
+document) would at minimum need to:
+
+1. treat `E_inh` as unconstrained, and pre-declare a symmetric range around the engine
+   assumption with no value labelled physiological;
+2. separate the reversal from the calibration. §1.6 shows that `g_unit_inh =
+   1/(V_rest − E_inh)` moves the inhibitory quantum with `E_inh`, so a second arm that
+   holds the quantum fixed is needed to tell the two apart. That arm would be a new
+   declared variant, not an edit to v3;
+3. decide verdicts at confirmatory level, not through the 1-spike probe-C gate whose
+   detection floor §5 documents.
+
+That would be a new scientific scope, and it is left to the owner gate. It is not
+proposed as a v0.4 release requirement.

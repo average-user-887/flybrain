@@ -363,6 +363,80 @@ DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYN
                      'v4': LIF_DYNAMICS_V4, 'v5': LIF_DYNAMICS_V5}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v3'
+E_INH_ENV = 'NEUROFLY_LIF_E_INH_MV'
+# Only the v2/v3 conductance dynamics have declared E_inh sensitivity variants
+# (docs/EINH_SENSITIVITY.md).  v4/v5 derive their graded release function from
+# e_inhibitory as well, and no variant of them has been declared.
+E_INH_VARIANT_VERSIONS = ('v2', 'v3')
+
+
+def active_e_inh_mV() -> Optional[float]:
+    """Process-wide inhibitory-reversal override (``NEUROFLY_LIF_E_INH_MV``).
+
+    ``None`` when unset, which is the declared v2/v3 value
+    (``brainlab.engine.E_INH_MV`` = -70 mV).  A value here does NOT redefine
+    v2 or v3: it selects a declared *variant*, whose declaration and pin come
+    from :func:`dynamics_variant` / :func:`dynamics_variant_pin`, so the v3
+    pin and every number already published under it stay exactly as they are.
+    """
+    raw = os.environ.get(E_INH_ENV)
+    if raw is None or raw == '':
+        return None
+    return float(raw)
+
+
+def dynamics_variant(version: str, e_inh_mV=None) -> dict:
+    """The declared dict for an ``E_inh`` variant of a conductance dynamics.
+
+    Declared for ``docs/EINH_SENSITIVITY.md``: every swept value of the
+    inhibitory reversal potential is a NEW labelled variant carrying its own
+    pin, never a silent redefinition of v2 or v3.  ``e_inh_mV=None`` returns
+    the base declaration unchanged, so ``dynamics_variant('v3')`` is
+    byte-identical to ``LIF_DYNAMICS_V3`` and pins to the same sha256.
+
+    Under v3 the inhibitory conductance quantum is DERIVED from the driving
+    force at rest, so it moves with ``E_inh``; that is the calibration rule of
+    spec §6.2 and is not a second free parameter.
+    """
+    if version not in DYNAMICS_VERSIONS:
+        raise ValueError(f'Unknown dynamics version {version!r}')
+    base = dict(DYNAMICS_VERSIONS[version])
+    if e_inh_mV is None:
+        return base
+    if version not in E_INH_VARIANT_VERSIONS:
+        raise ValueError('e_inh_mV variants are declared only for the conductance-based '
+                         f'dynamics {E_INH_VARIANT_VERSIONS}, not {version!r}')
+    e_inh = float(e_inh_mV)
+    if e_inh >= _engine.V_REST_MV:
+        raise ValueError('e_inh_mV must be below v_rest for the v3 calibration to be finite')
+    base['dynamics_version'] = f'{version}-einh{e_inh:g}'
+    base['base_dynamics_version'] = version
+    base['base_dynamics_pin'] = dynamics_pin(version)
+    base['e_inhibitory_mV'] = e_inh
+    base['membrane_bounds_mV'] = [e_inh, _engine.E_EXC_MV]
+    reversals = dict(base.get('reversal_potentials_mV') or {})
+    for key in list(reversals):
+        if reversals[key] == _engine.E_INH_MV:
+            reversals[key] = e_inh
+    base['reversal_potentials_mV'] = reversals
+    if version == 'v3':
+        g_inh = 1.0 / (_engine.V_REST_MV - e_inh)
+        base['g_unit_inhibitory_per_weight'] = g_inh
+        base['g_unit_ratio_inh_over_exc'] = g_inh / _engine.G_UNIT_EXC_V3
+    base['e_inh_variant'] = {
+        'declared_by': 'docs/EINH_SENSITIVITY.md',
+        'e_inhibitory_mV': e_inh,
+        'note': 'DECLARED SENSITIVITY VARIANT of ' + version + '. The base version, its pin '
+                'and every result published under it are unchanged. Under v3 the inhibitory '
+                'conductance quantum follows E_inh by the spec §6.2 calibration rule '
+                '(g_unit_inh = 1/(v_rest - e_inhibitory)); it is not tuned independently.',
+    }
+    return base
+
+
+def dynamics_variant_pin(version: str, e_inh_mV=None) -> str:
+    """sha256 of the declared variant dict: the re-pin for an ``E_inh`` arm."""
+    return sha256_json(dynamics_variant(version, e_inh_mV))
 
 
 def active_dynamics_version() -> str:
@@ -414,6 +488,162 @@ def load_pins() -> dict:
     return json.loads(PINS_PATH.read_text())
 
 
+# ---------------------------------------------------------------------------
+# Content fingerprints of the files a user GENERATES locally.
+#
+# ``normalized/neurons.feather`` and ``graph.npz`` are written on the user's own
+# machine by ``brainlab.connectome`` and ``brainlab.prepare``.  Their raw bytes
+# carry more than the data: pandas stores its own version and pyarrow's in the
+# feather schema metadata, pandas 2 writes ``string`` where pandas 3 writes
+# ``large_string``, and zipfile stamps the host OS into every graph.npz member
+# header (``create_system`` 3 on Linux/macOS, 0 on Windows).  A byte pin of such
+# a file refuses identical data written by a different library version or OS
+# (pandas 3.0.6 vs 3.0.5 gave 416b4a36... vs the pinned 2103b520... for the
+# same table).  These files are therefore pinned by WHAT THEY CONTAIN.
+#
+# Files a user DOWNLOADS (the three MaleCNS source tables) are served as fixed
+# bytes, so they stay pinned by sha256 of the file.
+#
+# Both definitions below are sha256 over a byte stream in which every field has
+# a length that is either fixed or written in front of it, so the stream is
+# unambiguous.  All integers in the framing are unsigned 64-bit little-endian
+# ("u64").  ``bytes(s)`` of a text field is ``u64 len(utf8) || utf8``.
+#
+# TABLE scheme ``neurofly-table-content-v1`` (used for neurons.feather):
+#   b'neurofly-table-content-v1\0' || u64 n_rows || u64 n_columns
+#   then for every column IN FILE ORDER:
+#     bytes(column name) || bytes(dtype tag)
+#     || null mask: n_rows bytes, 1 where the value is null, else 0
+#     || values, null slots replaced by the zero value of the type:
+#        bool                 -> n_rows bytes 0/1          (tag 'bool')
+#        (u)int8..64          -> n_rows fixed-width little-endian two's
+#                                complement               (tag 'int32', 'uint64', ...)
+#        float16/32/64        -> n_rows fixed-width little-endian IEEE-754,
+#                                every NaN written as the default quiet NaN
+#                                                         (tag 'float32', ...)
+#        string / large_string / string_view
+#                             -> n_rows u64 UTF-8 byte lengths, then the
+#                                concatenated UTF-8 bytes  (tag 'utf8')
+#   Any other Arrow type (dictionary, temporal, binary, nested, null) is refused.
+#   Schema metadata, the pandas index metadata, record-batch chunking, buffer
+#   layout and the string offset width are NOT part of the content; column
+#   names, column order, row order, dtype, nullness and every value ARE.
+#
+# ARRAYS scheme ``neurofly-npz-content-v1`` (used for graph.npz):
+#   b'neurofly-npz-content-v1\0' || u64 n_members
+#   then for every member, sorted by name (the '.npy' suffix removed):
+#     bytes(name) || bytes(dtype tag) || u64 ndim || u64 each dimension
+#     || the values in C order, fixed-width little-endian, floats with every NaN
+#        written as the default quiet NaN.
+#   The dtype tag is numpy's little-endian type string ('<i8', '<i4', '<f4',
+#   '|b1', ...).  Object, string and structured dtypes are refused, and the
+#   archive is read with allow_pickle=False.  Zip headers (timestamps, host OS,
+#   zip64 extras), the .npy header text and memory order are NOT content.
+#
+# Neither scheme re-serialises through Arrow IPC or .npy, whose bytes may change
+# between library versions; each hashes values through numpy's fixed-width
+# little-endian representation, which is defined by the format, not by a library.
+# ---------------------------------------------------------------------------
+
+TABLE_CONTENT_SCHEME = 'neurofly-table-content-v1'
+ARRAYS_CONTENT_SCHEME = 'neurofly-npz-content-v1'
+
+
+def _u64(value: int) -> bytes:
+    return int(value).to_bytes(8, 'little', signed=False)
+
+
+def _text(value: str) -> bytes:
+    raw = value.encode('utf-8')
+    return _u64(len(raw)) + raw
+
+
+def _canonical_values(values: np.ndarray) -> bytes:
+    """Fixed-width little-endian bytes of a numeric array, NaNs canonicalised."""
+    values = np.ascontiguousarray(values)
+    if values.dtype.kind == 'f':
+        nan = np.isnan(values)
+        if nan.any():
+            values = values.copy()
+            values[nan] = np.nan  # the default quiet NaN of this width
+    if values.dtype.kind == 'b':
+        return values.astype(np.uint8).tobytes()
+    return values.astype(values.dtype.newbyteorder('<'), copy=False).tobytes()
+
+
+def table_content_sha256(table) -> str:
+    """Content fingerprint of a pyarrow Table (scheme ``neurofly-table-content-v1``).
+
+    See the block comment above for the exact definition.  Raises ValueError for
+    a column type the scheme does not define.
+    """
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    digest = hashlib.sha256()
+    digest.update(TABLE_CONTENT_SCHEME.encode() + b'\0')
+    digest.update(_u64(table.num_rows) + _u64(table.num_columns))
+    for name, column in zip(table.column_names, table.columns):
+        kind = column.type
+        if pa.types.is_dictionary(kind) or pa.types.is_null(kind):
+            raise ValueError(f'column {name!r}: type {kind} is not defined by {TABLE_CONTENT_SCHEME}')
+        column = column.combine_chunks() if isinstance(column, pa.ChunkedArray) else column
+        nulls = column.is_null()
+        null_mask = np.asarray(nulls.to_numpy(zero_copy_only=False), dtype=np.uint8)
+        if pa.types.is_string(kind) or pa.types.is_large_string(kind) or getattr(pa.types, 'is_string_view', lambda _: False)(kind):
+            tag = 'utf8'
+            text = pc.fill_null(column, '').cast(pa.large_string())
+            offsets = np.frombuffer(text.buffers()[1], dtype='<i8')[text.offset:text.offset + len(text) + 1]
+            data = text.buffers()[2]
+            lengths = np.diff(offsets).astype('<u8')
+            payload = [lengths.tobytes(),
+                       (data.to_pybytes()[offsets[0]:offsets[-1]] if data is not None and len(text) else b'')]
+        elif pa.types.is_boolean(kind):
+            tag = 'bool'
+            values = np.asarray(pc.fill_null(column, False).to_numpy(zero_copy_only=False), dtype=bool)
+            payload = [_canonical_values(values)]
+        elif pa.types.is_integer(kind) or pa.types.is_floating(kind):
+            tag = np.dtype(kind.to_pandas_dtype()).name  # 'int32', 'uint64', 'float32', ...
+            zero = pa.scalar(0, type=kind) if pa.types.is_integer(kind) else pa.scalar(0.0, type=kind)
+            values = pc.fill_null(column, zero).to_numpy(zero_copy_only=False)
+            payload = [_canonical_values(values)]
+        else:
+            raise ValueError(f'column {name!r}: type {kind} is not defined by {TABLE_CONTENT_SCHEME}')
+        digest.update(_text(name) + _text(tag) + null_mask.tobytes())
+        for part in payload:
+            digest.update(part)
+    return digest.hexdigest()
+
+
+def feather_content_sha256(path: os.PathLike) -> str:
+    """Content fingerprint of a feather / Arrow IPC file (all columns, file order)."""
+    import pyarrow.feather as feather
+    return table_content_sha256(feather.read_table(path, memory_map=False))
+
+
+def arrays_content_sha256(arrays: Dict[str, np.ndarray]) -> str:
+    """Content fingerprint of named numpy arrays (scheme ``neurofly-npz-content-v1``)."""
+    digest = hashlib.sha256()
+    digest.update(ARRAYS_CONTENT_SCHEME.encode() + b'\0')
+    digest.update(_u64(len(arrays)))
+    for name in sorted(arrays):
+        values = np.asarray(arrays[name])
+        if values.dtype.kind not in 'biuf':
+            raise ValueError(f'array {name!r}: dtype {values.dtype} is not defined by {ARRAYS_CONTENT_SCHEME}')
+        tag = values.dtype.newbyteorder('<').str if values.dtype.byteorder != '|' else values.dtype.str
+        digest.update(_text(name) + _text(tag) + _u64(values.ndim))
+        for dim in values.shape:
+            digest.update(_u64(dim))
+        digest.update(_canonical_values(values))
+    return digest.hexdigest()
+
+
+def npz_content_sha256(path: os.PathLike) -> str:
+    """Content fingerprint of every member of an .npz archive."""
+    with np.load(path, allow_pickle=False) as data:
+        return arrays_content_sha256({name: data[name] for name in data.files})
+
+
 def resolve_graph_dir(graph_dir: Optional[os.PathLike] = None) -> tuple[Path, str]:
     """Return (directory, how it was chosen).  Does not check existence."""
     if graph_dir is not None:
@@ -433,7 +663,20 @@ def resolve_connectome_dir(connectome_dir: Optional[os.PathLike] = None) -> tupl
 
 @dataclass
 class GraphIdentity:
-    """Immutable identity of the graph a controller runs on."""
+    """Immutable identity of the graph a controller runs on.
+
+    For the verified MaleCNS graph, ``graph_sha256`` and ``neuron_map_sha256``
+    are the REFERENCE identifiers recorded in ``graph_pins.json`` (the sha256 of
+    the reference graph.npz and neurons.feather, as carried by every receipt and
+    checkpoint).  They are reported only after the local files' CONTENT
+    fingerprints (``graph_content_sha256``, ``neuron_map_content_sha256``) have
+    matched the pins, so runs on identical data share one identity on every
+    machine.  The local files' own byte hashes are in ``graph_file_sha256`` and
+    ``neuron_map_file_sha256``; they are informational and may legitimately
+    differ from the reference with the pandas/pyarrow version or OS that wrote
+    the file.  For a synthetic or policy-transformed graph, ``graph_sha256`` is
+    the digest of the effective arrays.
+    """
     dataset: str
     synthetic: bool
     graph_path: Optional[str]
@@ -447,9 +690,18 @@ class GraphIdentity:
     ids_sha256: str
     data_sha256: Dict[str, str] = field(default_factory=dict)
     label: str = ''
+    graph_content_sha256: Optional[str] = None
+    neuron_map_content_sha256: Optional[str] = None
+    graph_file_sha256: Optional[str] = None
+    neuron_map_file_sha256: Optional[str] = None
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        """Identity as written into manifests and receipts. The in-memory
+        ``graph_path``/``neuron_map_path`` stay absolute (they are used to load the
+        files); the written copy carries ``<repo>/...``-style placeholders instead,
+        because the hashes, not the paths, identify the graph."""
+        from neurofly.privacy import redact_local
+        return redact_local(asdict(self))
 
 
 def _ids_digest(ids: np.ndarray) -> str:
@@ -459,11 +711,13 @@ def _ids_digest(ids: np.ndarray) -> str:
 def verify_graph(graph_dir: Optional[os.PathLike] = None,
                  connectome_dir: Optional[os.PathLike] = None,
                  *, pins: Optional[dict] = None, check_hashes: bool = True) -> GraphIdentity:
-    """Verify the real graph against pinned hashes, counts, IDs and DN cell types.
+    """Verify the real graph against pinned fingerprints, counts, IDs and DN cell types.
 
-    Reads only the small ``ids``/``ptr`` arrays of the graph (``np.load`` is
-    lazy per member) plus the neuron table; the full edge arrays are hashed as
-    bytes, never loaded here.
+    The two files the user generates locally (graph.npz, neurons.feather) must
+    match their pinned CONTENT fingerprints (scheme definitions above); their
+    byte hashes are recorded but not required, because pandas, pyarrow and
+    zipfile write version- and OS-dependent metadata into identical data.  The
+    downloaded source tables are still verified by byte hash.
     """
     pins = pins or load_pins()
     gdir, gsource = resolve_graph_dir(graph_dir)
@@ -477,12 +731,34 @@ def verify_graph(graph_dir: Optional[os.PathLike] = None,
             'substitution requires an explicit test option.')
     if not nodes_path.is_file():
         raise GraphUnavailable(f'Neuron map not found at {nodes_path}. Set {CONNECTOME_ENV}.')
-    graph_sha = sha256_file(graph) if check_hashes else pins['graph_sha256']
-    nodes_sha = sha256_file(nodes_path) if check_hashes else pins['neuron_map_sha256']
-    if graph_sha != pins['graph_sha256']:
-        raise GraphUnavailable(f'Graph hash mismatch at {graph}: {graph_sha} != pinned {pins["graph_sha256"]}')
-    if nodes_sha != pins['neuron_map_sha256']:
-        raise GraphUnavailable(f'Neuron map hash mismatch at {nodes_path}: {nodes_sha}')
+    for key in ('graph_content_sha256', 'neuron_map_content_sha256'):
+        if not pins.get(key):
+            raise GraphUnavailable(f'Pins lack {key}; a content fingerprint is required to verify the graph')
+    graph_file_sha = nodes_file_sha = None
+    if check_hashes:
+        try:
+            graph_content = npz_content_sha256(graph)
+        except Exception as exc:  # corrupt zip, pickled or non-numeric member
+            raise GraphUnavailable(f'Graph content hash mismatch at {graph}: unreadable ({exc})') from exc
+        if graph_content != pins['graph_content_sha256']:
+            raise GraphUnavailable(f'Graph content hash mismatch at {graph}: {graph_content} != pinned '
+                                   f'{pins["graph_content_sha256"]} ({ARRAYS_CONTENT_SCHEME})')
+        try:
+            nodes_content = feather_content_sha256(nodes_path)
+        except Exception as exc:  # pyarrow raises its own error types for a corrupt file
+            raise GraphUnavailable(f'Neuron map content hash mismatch at {nodes_path}: unreadable ({exc})') from exc
+        if nodes_content != pins['neuron_map_content_sha256']:
+            raise GraphUnavailable(f'Neuron map content hash mismatch at {nodes_path}: {nodes_content} != pinned '
+                                   f'{pins["neuron_map_content_sha256"]} ({TABLE_CONTENT_SCHEME})')
+        graph_file_sha = sha256_file(graph)
+        nodes_file_sha = sha256_file(nodes_path)
+    else:
+        graph_content = pins['graph_content_sha256']
+        nodes_content = pins['neuron_map_content_sha256']
+    # Reference identifiers (see GraphIdentity), reported only once the content
+    # fingerprints above have matched.
+    graph_sha = pins['graph_sha256']
+    nodes_sha = pins['neuron_map_sha256']
     import pyarrow.feather as feather
     nodes = feather.read_table(nodes_path, columns=['node_index', 'source_id', 'cell_type']).to_pandas()
     with np.load(graph, allow_pickle=False) as data:
@@ -531,7 +807,9 @@ def verify_graph(graph_dir: Optional[os.PathLike] = None,
         graph_path_source=gsource, graph_sha256=graph_sha,
         neuron_map_path=str(nodes_path.resolve()), neuron_map_sha256=nodes_sha,
         io_map_sha256=sha256_json(dn), neurons=len(ids), edges=int(ptr[-1]),
-        ids_sha256=ids_sha, data_sha256=data_sha, label='MaleCNS v1.0 prepared graph')
+        ids_sha256=ids_sha, data_sha256=data_sha, label='MaleCNS v1.0 prepared graph',
+        graph_content_sha256=graph_content, neuron_map_content_sha256=nodes_content,
+        graph_file_sha256=graph_file_sha, neuron_map_file_sha256=nodes_file_sha)
 
 
 def synthetic_test_graph(n: int = 64, k_out: int = 6, seed: int = 0):

@@ -110,11 +110,9 @@ extern "C" __global__ void advance_v3(
 
 
 def cupy_available() -> bool:
-    try:
-        import cupy
-        return cupy.cuda.runtime.getDeviceCount() > 0
-    except Exception:
-        return False
+    """True only when a CuPy cooperative kernel really compiles and runs (brainlab.gpu_probe)."""
+    from .gpu_probe import cupy_kernel
+    return cupy_kernel()[0]
 
 
 class CupyV3State:

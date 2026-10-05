@@ -1,0 +1,13 @@
+{
+ "url": "http://127.0.0.1:8793",
+ "passes": 2,
+ "mode": "settled",
+ "switches": 28,
+ "freezes": [],
+ "started": 1791207196.04125,
+ "final_status": "online",
+ "final_error": null,
+ "final_steps": 8509,
+ "cleared_errors": [],
+ "elapsed_s": 14.6
+}

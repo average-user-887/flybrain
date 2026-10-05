@@ -1,0 +1,55 @@
+{
+ "phase": "sync",
+ "base": "http://127.0.0.1:8796/",
+ "started": "2026-10-05T15:37:34+0200",
+ "browser": "firefox 157.0",
+ "checks": {
+  "playing_samples": [
+   [
+    [
+     2,
+     2
+    ],
+    "0.092 / 0.500 s"
+   ],
+   [
+    [
+     6,
+     6
+    ],
+    "0.162 / 0.500 s"
+   ],
+   [
+    [
+     10,
+     10
+    ],
+    "0.229 / 0.500 s"
+   ],
+   [
+    [
+     18,
+     18
+    ],
+    "0.396 / 0.500 s"
+   ]
+  ],
+  "advanced_while_playing": true,
+  "both_on_same_frame": true,
+  "label_after_pause": "Play both",
+  "paused_frames": [
+   [
+    19,
+    19
+   ],
+   [
+    19,
+    19
+   ]
+  ],
+  "paused_stays": true,
+  "errors": []
+ },
+ "ok": true,
+ "finished": "2026-10-05T15:37:48+0200"
+}

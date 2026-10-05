@@ -25,7 +25,6 @@ import argparse
 import hashlib
 import json
 import os
-import platform
 import sys
 import time
 from pathlib import Path
@@ -54,6 +53,7 @@ from brainlab.io_map_photoreceptor import (DELTA_PHI_DEG, LAYOUT_RULE, PATHWAY_M
                                            PhotoreceptorGratingEncoder,
                                            direction_selectivity_index, resolve_photoreceptor_io)
 from experiment_registry import SharedGraph  # noqa: E402
+from neurofly.privacy import host_description, redact_local  # noqa: E402
 
 PREREG = ROOT / 'docs/wp5_optomotor_prereg.json'
 DECLARATION = ROOT / 'docs/PHOTORECEPTOR_ENCODER.md'
@@ -301,7 +301,7 @@ def main():
                 budgets[key] = in_weight_budget(policy_graph.arrays, io.monitors[key], driven)
 
     header = dict(
-        started_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=platform.node(),
+        started_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=host_description(),
         declaration=dict(document='docs/PHOTORECEPTOR_ENCODER.md',
                          locked_copy='docs/receipts/photoreceptor_encoder_declaration.locked.md',
                          sha256=hashlib.sha256(DECLARATION_LOCK.read_bytes()).hexdigest()),
@@ -339,7 +339,7 @@ def main():
               f"DNa02 L-R {g['dna02_LminusR_per_direction']}; "
               f"first silent stage {diag['first_silent_stage']}", flush=True)
     result['finished_at'] = time.strftime('%Y-%m-%dT%H:%M:%S%z')
-    (args.out / 'photoreceptor_probe.json').write_text(json.dumps(result, indent=2) + '\n')
+    (args.out / 'photoreceptor_probe.json').write_text(json.dumps(redact_local(result), indent=2) + '\n')
     print('wrote', args.out / 'photoreceptor_probe.json')
 
 

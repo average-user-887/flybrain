@@ -948,3 +948,24 @@ Checked on Crossref on 2026-09-24. Status as in the header.
 
 No peer-reviewed whole-brain LIF model with MB learning was found for
 2024–2026.
+
+---
+
+## Scope and interpretation note (5 October 2026)
+
+Added after the independent audit. The design above is unchanged. It describes η for
+γ1pedc as "calibrated once … to Hige 2015's 80 % depression" and then "evaluated on
+10 fresh seeds" (§5). Checking a fitted target on fresh seeds is **calibration
+robustness, not independent biological validation**: it shows that the fitted rule
+reproduces its own target across seeds, not that the mushroom-body model learns as the
+fly does. Fresh seeds do not independently validate the fitted 80 % target.
+Quantities distinct from that target keep their declared gates in the spec: the
+specificity direction (CS+ depression > CS− depression, E1_G2) and the null-control
+comparisons. Only the quantitative comparison of the CS− depression to Hige's 27 % is
+report-only. The owner's
+standing fitting permission (`docs/OWNER_DECISIONS.md`, 5 October 2026, Ruling 2)
+covers non-motion input-cell physiology with the tested behaviour held out. Whether
+fitting a KC→MBON plasticity rate falls within it is an explicit owner-gate decision
+before any calibration run. Fitting beyond that permission is out of scope until it
+is scoped separately. See also `docs/WP7_MB_LEARNING_SPEC.md`, the note under its
+status.

@@ -1,7 +1,8 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import sys
 
-T = '<redacted-path>/tmp/graded/'
+T = str(SCRATCH) + '/'
 d = json.load(open(sys.argv[1] if len(sys.argv) > 1 else T + 'measure_bc.json'))
 dsi = d['direction_selectivity']
 print('dynamics', d['dynamics'], '| backend', d['backend'],

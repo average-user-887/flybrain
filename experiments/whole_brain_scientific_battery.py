@@ -1,4 +1,15 @@
-"""Whole-Brain Drosophila Connectome Scientific Experiment Battery.
+"""RETIRED (2026-10-05). See docs/RETIREMENT_INDEX.md.
+
+Running this file or ``python -m experiments.whole_brain_scientific_battery`` (with
+any arguments, including ``--help``) prints the reason and exits non-zero before any
+data, model or output work; ``run_complete_scientific_battery`` refuses as well.
+It drives the *surrogate* ConnectomeBridge, not the MaleCNS graph, and its report
+template hardcodes significance claims (e.g. "p < 0.001") and conclusions that no
+run measured. Nothing it produced is validation.
+
+Original description, kept for the record (its claims are not supported):
+
+Whole-Brain Drosophila Connectome Scientific Experiment Battery.
 
 Executes controlled, reproducible neuroethological assays comparing:
 1. Wild-Type (WT): Full MaleCNS v1.0 ConnectomeBridge with intact MB, CX, LAL, CPG
@@ -29,6 +40,31 @@ import time
 import json
 import csv
 from typing import Dict, List, Tuple, Any, Optional
+
+RETIRED_NOTICE = """\
+experiments/whole_brain_scientific_battery.py is RETIRED and does not run. It drives
+the surrogate ConnectomeBridge (not the MaleCNS graph) and its report hardcodes
+significance claims and conclusions that were never measured.
+
+Supported instead:
+  neurofly validate run <spec> --out <new dir>    preregistered validation specs
+
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
+
+
+def _retired(argv=None) -> int:
+    """Print the retirement notice (``--help`` shows it too) and refuse to run."""
+    import argparse
+    argparse.ArgumentParser(prog="whole_brain_scientific_battery", description=RETIRED_NOTICE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(argv)
+    print(RETIRED_NOTICE, file=sys.stderr, end="")
+    return 2
+
+
+if __name__ == "__main__":  # stop before numpy, the bridge or ./experiment_data/
+    sys.exit(_retired())
+
 import numpy as np
 
 # Adjust module path
@@ -329,7 +365,8 @@ def run_complete_scientific_battery(
     output_dir: str = "./experiment_data/whole_brain_battery",
     n_replicates: int = 6
 ) -> Dict[str, Any]:
-    """Runs the complete whole-brain scientific battery and compiles results."""
+    """Retired: raises before creating ``output_dir`` (see the module docstring)."""
+    raise RuntimeError(RETIRED_NOTICE)
     os.makedirs(output_dir, exist_ok=True)
     start_time = time.time()
     
@@ -481,7 +518,3 @@ This in-silico whole-brain battery confirms that:
         
     print(f"\n[DONE] Battery complete in {elapsed:.2f}s. Report generated at: {report_path}")
     return battery_summary
-
-
-if __name__ == "__main__":
-    run_complete_scientific_battery()

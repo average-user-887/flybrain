@@ -1,0 +1,1152 @@
+{
+ "open-arena": {
+  "wall_s": 242.2,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 79.94,
+  "inj_nonzero_max": 100,
+  "spikes_mean": 6565.066666666667,
+  "spikes_max": 7583,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   2.0,
+   98.0
+  ],
+  "y_range": [
+   17.30303,
+   98.0
+  ],
+  "path_extent": 125.41132710876198,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   5.0,
+   15.0
+  ],
+  "yaw_absmax": 3.0,
+  "near_wall_frac": 0.41,
+  "contact_frac": 0.4033333333333333,
+  "realized_mean": 0.08161919333333333,
+  "attempted_mean": 0.10133333333333332,
+  "dn_max": {
+   "dna02_l": 150.0,
+   "dna02_r": 100.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 50.0,
+  "act_nz_max": 16,
+  "epg_max": 3750.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "odor_a",
+   "odor_b",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {}
+ },
+ "t-maze": {
+  "wall_s": 60.7,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 100.0,
+  "inj_nonzero_max": 100,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   70.0,
+   70.0
+  ],
+  "y_range": [
+   18.5,
+   55.4999
+  ],
+  "path_extent": 36.9999,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.92,
+  "contact_frac": 0.92,
+  "realized_mean": 0.04,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "food_contact",
+   "odor_a",
+   "odor_b",
+   "odor_cs_minus",
+   "odor_cs_plus",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "performance_index": 0.0,
+   "cs_plus_choices": 0,
+   "cs_minus_choices": 0
+  }
+ },
+ "y-maze": {
+  "wall_s": 58.6,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 2.0,
+  "inj_nonzero_max": 2,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   60.5,
+   95.64668
+  ],
+  "y_range": [
+   44.74208,
+   60.0
+  ],
+  "path_extent": 38.31570484473436,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.97,
+  "contact_frac": 0.97,
+  "realized_mean": 0.042252609999999996,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "odor_a",
+   "odor_b",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "spontaneous_alternation_rate": 0.0,
+   "total_triads": 0,
+   "alternating_triads": 0,
+   "handedness_index": 0.0,
+   "left_turns": 0,
+   "right_turns": 0,
+   "choice_sequence": "C"
+  }
+ },
+ "heat-maze": {
+  "wall_s": 251.5,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 25.641666666666666,
+  "inj_nonzero_max": 27,
+  "spikes_mean": 6543.28,
+  "spikes_max": 7207,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   60.1,
+   109.62098
+  ],
+  "y_range": [
+   59.91004,
+   98.93535
+  ],
+  "path_extent": 63.04999826135208,
+  "states": {
+   "REVERSE": 2,
+   "GRAPH": 298
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   -15.0,
+   5.0,
+   15.0,
+   25.0
+  ],
+  "yaw_absmax": 2.0,
+  "near_wall_frac": 0.45666666666666667,
+  "contact_frac": 0.44333333333333336,
+  "realized_mean": 0.07864900999999999,
+  "attempted_mean": 0.10399999999999998,
+  "dn_max": {
+   "dna02_l": 100.0,
+   "dna02_r": 50.0,
+   "dnp09": 0.0,
+   "mdn": 37.5,
+   "gf": 0.0
+  },
+  "act_max": 50.0,
+  "act_nz_max": 16,
+  "epg_max": 4050.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "landmark_bearings",
+   "odor_a",
+   "odor_b",
+   "r_cold_thermosensory",
+   "r_warm_thermosensory",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "refuge_reached": false,
+   "cumulative_thermal_dose": 152.092424397526,
+   "time_in_target_quadrant_pct": 98.284561049445,
+   "path_length": 76.45274469280696
+  }
+ },
+ "buridan": {
+  "wall_s": 99.5,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 87.0,
+  "inj_nonzero_max": 87,
+  "spikes_mean": 126.26,
+  "spikes_max": 154,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   60.5,
+   108.5
+  ],
+  "y_range": [
+   60.0,
+   60.0
+  ],
+  "path_extent": 48.0,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.9,
+  "contact_frac": 0.9,
+  "realized_mean": 0.05,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.236,
+  "act_nz_max": 2,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "distance_to_center",
+   "is_in_moat",
+   "nearest_bearing",
+   "odor_a",
+   "odor_b",
+   "stripe_bearings",
+   "stripe_contrast",
+   "stripe_fixation",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.95,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.95,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.95,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "centrophobism_index": 0.9495459132189707,
+   "mean_stripe_fixation": 1.0,
+   "stripe_crossings": 0,
+   "time_center_pct": 5.045408678102927,
+   "time_perimeter_pct": 94.95459132189707
+  }
+ },
+ "visual-operant": {
+  "wall_s": 119.6,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 2.0,
+  "inj_nonzero_max": 2,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   40.0,
+   40.0
+  ],
+  "y_range": [
+   40.0,
+   40.0
+  ],
+  "path_extent": 0.0,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.0,
+  "contact_frac": 0.0,
+  "realized_mean": 0.0,
+  "attempted_mean": 0.0,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "drum_angle_deg",
+   "is_punished",
+   "laser_active",
+   "odor_a",
+   "odor_b",
+   "pattern_in_view",
+   "quadrant",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 1.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 1.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 1.0,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "operant_learning_index": 1.0,
+   "time_safe_pct": 100.0,
+   "time_punished_pct": 0.0,
+   "mean_torque_safe": 0.0,
+   "mean_torque_punished": 0.0
+  }
+ },
+ "wind-tunnel": {
+  "wall_s": 499.1,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 71.08333333333333,
+  "inj_nonzero_max": 102,
+  "spikes_mean": 6385.4766666666665,
+  "spikes_max": 6941,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   20.1,
+   84.52694
+  ],
+  "y_range": [
+   29.974,
+   58.4999
+  ],
+  "path_extent": 70.45961657980833,
+  "states": {
+   "REVERSE": 2,
+   "GRAPH": 298
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   -15.0,
+   5.0,
+   15.0,
+   25.0
+  ],
+  "yaw_absmax": 2.0,
+  "near_wall_frac": 0.4066666666666667,
+  "contact_frac": 0.3933333333333333,
+  "realized_mean": 0.07058267,
+  "attempted_mean": 0.10399999999999998,
+  "dn_max": {
+   "dna02_l": 100.0,
+   "dna02_r": 50.0,
+   "dnp09": 0.0,
+   "mdn": 50.0,
+   "gf": 0.0
+  },
+  "act_max": 43.75,
+  "act_nz_max": 15,
+  "epg_max": 3700.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "odor_a",
+   "odor_b",
+   "odor_conc",
+   "temperature_left",
+   "temperature_right",
+   "wind",
+   "wind_direction_rad",
+   "wind_speed"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.36239782016348776,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.5174506828528073,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.41843971631205673,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "surge_to_cast_ratio": 0.4238505747126437,
+   "surge_steps": 295,
+   "cast_steps": 696,
+   "source_reached": false,
+   "upwind_progress_mm": 43.95198825251226
+  }
+ },
+ "looming-escape": {
+  "wall_s": 299.6,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 13.403333333333334,
+  "inj_nonzero_max": 313,
+  "spikes_mean": 435.61333333333334,
+  "spikes_max": 3268,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   40.0,
+   42.5
+  ],
+  "y_range": [
+   39.95204,
+   40.026
+  ],
+  "path_extent": 2.501093777050353,
+  "states": {
+   "ESCAPE": 177,
+   "GRAPH": 123
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   -15.0,
+   5.0,
+   15.0,
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 1.0,
+  "near_wall_frac": 0.0,
+  "contact_frac": 0.0,
+  "realized_mean": 0.22363333333333335,
+  "attempted_mean": 0.22363333333333335,
+  "dn_max": {
+   "dna02_l": 50.0,
+   "dna02_r": 50.0,
+   "dnp09": 0.0,
+   "mdn": 62.5,
+   "gf": 550.0
+  },
+  "act_max": 56.25,
+  "act_nz_max": 15,
+  "epg_max": 3750.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "expansion_rate_rad_s",
+   "gf_membrane_potential_mv",
+   "odor_a",
+   "odor_b",
+   "temperature_left",
+   "temperature_right",
+   "theta_deg",
+   "theta_rad",
+   "time_to_collision_s",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "escape_initiated",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "escape_initiated": false,
+   "gf_threshold_deg": 65.0
+  }
+ },
+ "optomotor": {
+  "wall_s": 318.5,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 3322.0,
+  "inj_nonzero_max": 3322,
+  "spikes_mean": 1760.5433333333333,
+  "spikes_max": 2520,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   45.0,
+   45.0
+  ],
+  "y_range": [
+   45.0,
+   45.0
+  ],
+  "path_extent": 0.0,
+  "states": {
+   "OPTOMOTOR-TETHERED": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   0.0
+  ],
+  "yaw_absmax": 0.6973554480174456,
+  "near_wall_frac": 0.0,
+  "contact_frac": 0.0,
+  "realized_mean": 0.0,
+  "attempted_mean": 0.0,
+  "dn_max": {
+   "dna02_l": 34.87,
+   "dna02_r": 22.22,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 81.25,
+  "act_nz_max": 15,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "contrast",
+   "drum_velocity_deg_s",
+   "odor_a",
+   "odor_b",
+   "spatial_wavelength_deg",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.19995901124668422,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.19328139910808737,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.23851977996658083,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "optomotor_gain": 0.23750367733747224,
+   "mean_hs_firing_rate": 64.70488085426587,
+   "mean_retinal_slip": 22.874889679875835,
+   "efference_copy_shunt_pct": 85.0
+  }
+ },
+ "gap-crossing": {
+  "wall_s": 104.4,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 2.0,
+  "inj_nonzero_max": 2,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   20.5,
+   48.7
+  ],
+  "y_range": [
+   10.0,
+   10.0
+  ],
+  "path_extent": 28.200000000000003,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 1.0,
+  "contact_frac": 0.0,
+  "realized_mean": 0.5026666666666667,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "decision_outcome",
+   "dist_to_gap_mm",
+   "gap_width_mm",
+   "is_probing",
+   "odor_a",
+   "odor_b",
+   "p_cross",
+   "probing_duration_ms",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "crossing_success",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "gap_width_mm": 3.5,
+   "reachability_threshold_mm": 3.8,
+   "crossing_success": false,
+   "probing_duration_ms": 0.0
+  }
+ },
+ "circadian-dam": {
+  "wall_s": 119.8,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 2.0,
+  "inj_nonzero_max": 2,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   15.0,
+   58.5
+  ],
+  "y_range": [
+   5.0,
+   5.0
+  ],
+  "path_extent": 43.5,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.9166666666666666,
+  "contact_frac": 0.9166666666666666,
+  "realized_mean": 0.041666666666666664,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "hour_of_day",
+   "is_lights_on",
+   "minute_of_day",
+   "odor_a",
+   "odor_b",
+   "photoperiod",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "total_beam_crossings": 1,
+   "total_sleep_minutes": 0.0,
+   "sleep_bouts_count": 0,
+   "mean_sleep_bout_length_min": 0.0
+  }
+ },
+ "courtship": {
+  "wall_s": 367.0,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 52.0,
+  "inj_nonzero_max": 52,
+  "spikes_mean": 6381.42,
+  "spikes_max": 7075,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   9.99,
+   16.99736
+  ],
+  "y_range": [
+   3.00584,
+   12.90002
+  ],
+  "path_extent": 12.124268721947727,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   5.0,
+   15.0,
+   25.0
+  ],
+  "yaw_absmax": 2.0,
+  "near_wall_frac": 0.9033333333333333,
+  "contact_frac": 0.8933333333333333,
+  "realized_mean": 0.019128576666666668,
+  "attempted_mean": 0.10266666666666666,
+  "dn_max": {
+   "dna02_l": 100.0,
+   "dna02_r": 50.0,
+   "dnp09": 0.0,
+   "mdn": 12.5,
+   "gf": 0.0
+  },
+  "act_max": 43.75,
+  "act_nz_max": 16,
+  "epg_max": 3700.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "aphrodisiac_concentration",
+   "cva_concentration",
+   "female_type",
+   "inter_fly_distance_mm",
+   "odor_a",
+   "odor_b",
+   "social_bearing_rad",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   },
+   {
+    "reason": "max_duration_steps",
+    "metric": 0.0,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "courtship_index": 0.0,
+   "courtship_index_pct": 0.0,
+   "rejection_kicks_count": 0,
+   "female_type": "mated"
+  }
+ },
+ "labyrinth": {
+  "wall_s": 93.9,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 52.0,
+  "inj_nonzero_max": 52,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   15.0,
+   23.4999
+  ],
+  "y_range": [
+   15.0,
+   15.0
+  ],
+  "path_extent": 8.4999,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.9866666666666667,
+  "contact_frac": 0.9866666666666667,
+  "realized_mean": 0.006666666666666667,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "food_contact",
+   "goal_distance_mm",
+   "odor_a",
+   "odor_b",
+   "odor_conc",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind"
+  ],
+  "trials": [
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   },
+   {
+    "reason": "time_limit",
+    "metric": null,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "goal_reached": false,
+   "wall_collision_count": 0,
+   "dead_end_entries": 0,
+   "total_distance_mm": 8.4999,
+   "path_tortuosity": 1.0
+  }
+ },
+ "multisensory-sandbox": {
+  "wall_s": 113.3,
+  "graph_steps_called": 3000,
+  "inj_nonzero_mean": 103.248,
+  "inj_nonzero_max": 150,
+  "spikes_mean": 2.026666666666667,
+  "spikes_max": 4,
+  "frac_steps_spiking": 1.0,
+  "x_range": [
+   0.0,
+   73.49264
+  ],
+  "y_range": [
+   -0.00025,
+   0.0
+  ],
+  "path_extent": 73.49264000042521,
+  "states": {
+   "GRAPH": 300
+  },
+  "srcs": [
+   "graph"
+  ],
+  "fwd_set": [
+   25.0,
+   35.0
+  ],
+  "yaw_absmax": 0,
+  "near_wall_frac": 0.8566666666666667,
+  "contact_frac": 0.8566666666666667,
+  "realized_mean": 0.07166693333333332,
+  "attempted_mean": 0.5026666666666667,
+  "dn_max": {
+   "dna02_l": 0.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "act_max": 0.152,
+  "act_nz_max": 1,
+  "epg_max": 0.0,
+  "unsup": [],
+  "errors": [],
+  "stim_keys": [
+   "cva_concentration",
+   "egocentric_wind",
+   "food_contact",
+   "jo_antenna_deflect_un",
+   "landmarks",
+   "odor_a",
+   "odor_b",
+   "odor_cva",
+   "temperature",
+   "temperature_left",
+   "temperature_right",
+   "wind",
+   "wind_magnitude"
+  ],
+  "trials": [
+   {
+    "reason": "time_limit",
+    "metric": 0.6314232519894445,
+    "metrics": {}
+   },
+   {
+    "reason": "time_limit",
+    "metric": 0.6314232519894447,
+    "metrics": {}
+   }
+  ],
+  "last_metrics": {
+   "locomotor_coordination_index": 0.9999999999999997,
+   "multisensory_integration_score": 0.4822079439294521,
+   "biomechanical_efficiency": 0.04384604341284895,
+   "kinematic_smoothness": 1.0,
+   "composite_benchmark_score": 63.15134968355751,
+   "wall_collisions": 1,
+   "total_distance_mm": 73.0166407112421,
+   "total_energy_atp": 166.52959999999635
+  }
+ }
+}

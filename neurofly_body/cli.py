@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Any, Sequence
 
+from neurofly.privacy import portable_path, restore_local
+
 from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .runner import EmbodiedConfig, run_embodied
 
@@ -116,6 +118,8 @@ RUN_ARGUMENTS = (
     "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz", "silence",
     "motor_delay_steps", "pipeline", "leg_load_feedback",
 )
+# Path arguments: written into manifests with neurofly.privacy placeholders.
+PATH_ARGUMENTS = ("graph_dir", "connectome_dir")
 # Runs recorded before an argument existed ran with this value.
 # The dn-v2 gains did not exist then and do not affect the legacy decoder.
 INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
@@ -193,6 +197,11 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     argv = ["run", "--output", str(output)]
     for name in RUN_ARGUMENTS:
         value = invocation[name]
+        if name in PATH_ARGUMENTS:
+            # Manifests record these with placeholders (<repo>/..., <home>/...); map them
+            # back on this machine. An unmappable path falls back to the default graph
+            # location; the graph is identified by graph_sha256, not by its path.
+            value = restore_local(value)
         if isinstance(value, bool):          # store_true flags (--pipeline)
             if value:
                 argv.append("--" + name.replace("_", "-"))
@@ -216,8 +225,8 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     receipt = {
         "schema": "neurofly-embodied-replay-check-v1",
         "verdict": "BIT_IDENTICAL" if identical else "DIVERGED",
-        "original_run": str(run_dir.resolve()),
-        "replay_run": str(Path(output).resolve()),
+        "original_run": portable_path(run_dir.resolve()),
+        "replay_run": portable_path(Path(output).resolve()),
         "original_trajectory_sha256": original_sha,
         "replay_trajectory_sha256": replay_sha,
         "recorded_trajectory_sha256": manifest.get("trajectory_sha256"),

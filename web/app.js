@@ -3676,8 +3676,13 @@ class DaemonBridgeClient {
         this.manifestRunId = null;
         this.injectPending = NEUROFLY_INJECT;
 
+        this.addressBadge = document.getElementById('daemonAddress');
+        this.offeredUrl = null;   // a daemon that answered but was not chosen for this page
         if (this.statusPill) {
             this.statusPill.addEventListener('click', () => {
+                // Clicking a found-but-unchosen daemon is the explicit choice: record it in
+                // the address bar (?daemon=) so a reload keeps the same daemon.
+                if (!this.connected && this.offeredUrl) this.chooseDaemon(this.offeredUrl);
                 this.initConnection(true);
             });
         }
@@ -3706,31 +3711,86 @@ class DaemonBridgeClient {
     }
 
     /**
-     * Daemon base URLs to probe, in order:
-     *   1. `?daemon=http://host:port` query parameter (explicit),
-     *   2. the page's own origin (dashboard served by the daemon or behind one proxy),
-     *   3. the page's host on the daemon port,
-     *   4. localhost / 127.0.0.1 on the daemon port.
+     * Which daemons this page may use.  ``auto`` daemons are connected without asking:
+     *   1. `?daemon=http://host:port` (explicit; nothing else is ever tried),
+     *   2. the page's own origin (the dashboard served by the daemon itself),
+     *   3. the documented observatory pair: a page on port 8780 uses port 8781 on the
+     *      same host (scripts/observatory.py).
+     * ``offer`` daemons (the default port 8769 on this host or localhost) are probed but
+     * NEVER connected silently: a static page on some other port would otherwise attach
+     * to whatever daemon happens to hold 8769.  The pill offers them; a click connects.
      */
-    get candidateUrls() {
-        const list = [];
+    get daemonCandidates() {
+        const auto = [], offer = [];
+        const add = (list, u) => { if (u && !auto.includes(u) && !offer.includes(u)) list.push(u); };
         const port = this.daemonPort;
-        const add = (u) => { if (u && !list.includes(u)) list.push(u); };
         if (typeof window !== 'undefined' && window.location) {
             const loc = window.location;
             try {
                 const param = new URLSearchParams(loc.search || '').get('daemon');
-                if (param === 'off') return [];
+                if (param === 'off') return {auto, offer};
                 // An explicit endpoint must never fall through to a different live lab.
-                if (param) return [param.replace(/\/+$/, '')];
+                if (param) return {auto: [param.replace(/\/+$/, '')], offer};
             } catch (e) {}
             const httpLike = loc.protocol === 'http:' || loc.protocol === 'https:';
-            if (httpLike && loc.origin && loc.origin !== 'null') add(loc.origin);
-            if (httpLike && loc.hostname) add(`${loc.protocol}//${loc.hostname}:${port}`);
+            if (httpLike && loc.origin && loc.origin !== 'null') add(auto, loc.origin);
+            if (httpLike && loc.hostname && loc.port === '8780') add(auto, `${loc.protocol}//${loc.hostname}:8781`);
+            if (httpLike && loc.hostname) add(offer, `${loc.protocol}//${loc.hostname}:${port}`);
         }
-        add(`http://localhost:${port}`);
-        add(`http://127.0.0.1:${port}`);
-        return list;
+        add(offer, `http://localhost:${port}`);
+        add(offer, `http://127.0.0.1:${port}`);
+        return {auto, offer};
+    }
+
+    /** Back-compatible: the daemons this page connects to without asking. */
+    get candidateUrls() {
+        return this.daemonCandidates.auto;
+    }
+
+    chooseDaemon(url) {
+        try {
+            const next = new URL(window.location.href);
+            next.searchParams.set('daemon', url);
+            window.history.replaceState(null, '', next.toString());
+        } catch (e) {}
+        this.offeredUrl = null;
+    }
+
+    async probeDaemon(url) {
+        try {
+            const res = await fetch(`${url}/api/status`, {method: 'GET', signal: AbortSignal.timeout(4000)});
+            if (!res.ok) return null;
+            const status = await res.json();
+            return status && status.status === 'online' ? status : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    showDaemonAddress(status) {
+        const badge = this.addressBadge;
+        if (!badge) return;
+        if (this.connected && this.activeUrl) {
+            let shown = this.activeUrl;
+            try { shown = new URL(this.activeUrl).host; } catch (e) {}
+            const compute = status?.compute?.detail ? ` Brain compute: ${status.compute.detail}.` : '';
+            badge.textContent = `daemon ${shown}`;
+            badge.style.color = '#4ade80';
+            badge.title = `Connected to the NeuroFly daemon at ${this.activeUrl}`
+                + (status?.version ? ` (version ${status.version}, backend ${status.backend || '?'}).` : '.')
+                + compute + ' Choose another with ?daemon=http://host:port.';
+        } else if (this.offeredUrl) {
+            badge.textContent = `daemon found: ${this.offeredUrl} (not connected)`;
+            badge.style.color = '#fbbf24';
+            badge.title = `A NeuroFly daemon answers at ${this.offeredUrl}, but this page was not served by it `
+                + `and no ?daemon= was given, so it is not used automatically. Click the status pill to connect `
+                + `to it, or open this page with ?daemon=<url> to choose a daemon.`;
+        } else {
+            badge.textContent = 'no daemon';
+            badge.style.color = '#94a3b8';
+            badge.title = 'Not connected to a daemon. Start one with `neurofly run` and open the URL it prints, '
+                + 'or add ?daemon=http://host:port to this page.';
+        }
     }
 
     scheduleReconnect() {
@@ -3747,23 +3807,23 @@ class DaemonBridgeClient {
         this.probing = true;
         if (force) this.reconnectDelayMs = 4000;
         let foundUrl = null;
+        const {auto, offer} = this.daemonCandidates;
 
-        for (const url of this.candidateUrls) {
-            try {
-                const res = await fetch(`${url}/api/status`, {
-                    method: 'GET',
-                    signal: AbortSignal.timeout(4000)
-                });
-                if (res.ok) {
-                    const status = await res.json();
-                    if (status && status.status === 'online') {
-                        foundUrl = url;
-                        this.activeUrl = url;
-                        this.onDaemonConnected(status);
-                        break;
-                    }
-                }
-            } catch (e) {}
+        for (const url of auto) {
+            const status = await this.probeDaemon(url);
+            if (status) {
+                foundUrl = url;
+                this.activeUrl = url;
+                this.offeredUrl = null;
+                this.onDaemonConnected(status);
+                break;
+            }
+        }
+        if (!foundUrl) {
+            this.offeredUrl = null;
+            for (const url of offer) {
+                if (await this.probeDaemon(url)) { this.offeredUrl = url; break; }
+            }
         }
         this.probing = false;
 
@@ -3789,6 +3849,9 @@ class DaemonBridgeClient {
             this.statusPill.style.color = '#4ade80';
             this.statusPill.title = this.connectedPillTitle = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
         }
+        this.showDaemonAddress(status);
+        const versionBadge = document.getElementById('appVersionBadge');
+        if (versionBadge && status.version) versionBadge.textContent = `v${status.version}`;
         // Start the instrument on the experiment actually running on the daemon.
         // Updating the view must not send a switch command or create a new brain.
         const pid = (status.active_paradigm || '').replace(/_/g, '-');
@@ -3819,14 +3882,18 @@ class DaemonBridgeClient {
         this.arena.awaitingDaemon = !!this.activeUrl;
         if (!this.activeUrl) this.arena.remoteDriven = false;
         if (this.statusPill) {
-            this.statusPill.textContent = this.arena.awaitingDaemon ? '○ DISCONNECTED · FROZEN VIEW' : '○ LOCAL ENGINE';
+            this.statusPill.textContent = this.arena.awaitingDaemon ? '○ DISCONNECTED · FROZEN VIEW'
+                : this.offeredUrl ? '○ LOCAL ENGINE · DAEMON FOUND, CLICK TO CONNECT' : '○ LOCAL ENGINE';
             this.statusPill.style.background = 'rgba(148, 163, 184, 0.15)';
             this.statusPill.style.border = '1px solid #64748b';
             this.statusPill.style.color = '#94a3b8';
             this.statusPill.title = this.arena.awaitingDaemon
                 ? `Daemon connection lost${reason ? ' (' + reason + ')' : ''}. The last measured frame (step ${this.lastOrderedPacket?.step ?? '?'}) is kept unchanged; no local data replaces it. Click to retry now.`
-                : `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
+                : this.offeredUrl
+                    ? `In-browser simulation engine active. A daemon answers at ${this.offeredUrl}, but this page was not served by it, so it is not used automatically. Click to connect to it.`
+                    : `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
         }
+        this.showDaemonAddress(null);
         if (this.eventSource) {
             this.eventSource.onerror = null;
             this.eventSource.onmessage = null;

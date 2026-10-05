@@ -24,10 +24,10 @@
   "graph": {
     "dataset": "malecns_v1",
     "synthetic": false,
-    "graph_path": "<redacted-path>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path": "<repo>/outputs/brainlab/malecns_v1/graph.npz",
     "graph_path_source": "env:NEUROFLY_GRAPH_DIR",
     "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
-    "neuron_map_path": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_path": "<repo>/connectome_data/malecns_v1/normalized/neurons.feather",
     "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
     "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
     "neurons": 166700,
@@ -46,7 +46,7 @@
     "graph_path": null,
     "graph_path_source": "permute post of 4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01 with default_rng(777)",
     "graph_sha256": "1824accc8b9b3e82bfe1fd6c7e2eb0b81d8711e399e6e5cc9d8a7849a544fe4e",
-    "neuron_map_path": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_path": "<repo>/connectome_data/malecns_v1/normalized/neurons.feather",
     "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
     "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
     "neurons": 166700,
@@ -1284,7 +1284,7 @@
   "raw_outputs": "outputs/wp5/confirm-20260919 (ignored by git: results.json, trace-*.npz, registry/)",
   "started_at": "2026-09-19T22:09:13+0200",
   "finished_at": "2026-09-19T22:42:07+0200",
-  "host": "<redacted-host>",
+  "host": "<reference-host>",
   "exploratory_mirror": {
     "label": "EXPLORATORY - declared after confirmatory results; not part of the verdict",
     "blocks": [

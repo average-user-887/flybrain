@@ -5,7 +5,7 @@
 - Host: Ryzen GPU, real MaleCNS graph, LIF v3 with the `v3-modulatory-only` transmitter policy; clean tree
 - Seeds: 100-105 (new; v3-1 used 0-5); conditions: intact, sham_no_input, dna02_silenced, shuffled_graph
 - Run: 2026-09-24 17:26-17:44, 300 s simulated in 1065 s wall (0.28x real time)
-- Receipt: `~/Documents/ChatGPT/flybrain/outputs/validation/optomotor-v3-2-20260924-1726/receipt.json` on the Ryzen, sha256 `16669c11faba8076cc2e70bc923da6729123704a05f479a4d8683c6313f64768`. The raw JSON has not been copied into the repo. The values below were relayed from it and have not been re-read from the file.
+- Receipt: `<repo>/outputs/validation/optomotor-v3-2-20260924-1726/receipt.json` on the Ryzen, sha256 `16669c11faba8076cc2e70bc923da6729123704a05f479a4d8683c6313f64768`. The raw JSON has not been copied into the repo. The values below were relayed from it and have not been re-read from the file.
 
 ## Read this first: the pass is not blind on HS
 

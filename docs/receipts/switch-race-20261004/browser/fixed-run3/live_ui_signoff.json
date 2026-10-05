@@ -2021,39 +2021,39 @@
   },
   "screenshots": [
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/01-initial-load.png",
+      "file": "<scratch>/race/browser/fixed-run3/01-initial-load.png",
       "bytes": 428608
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/02-assay-optomotor.png",
+      "file": "<scratch>/race/browser/fixed-run3/02-assay-optomotor.png",
       "bytes": 428840
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/02-assay-labyrinth.png",
+      "file": "<scratch>/race/browser/fixed-run3/02-assay-labyrinth.png",
       "bytes": 408357
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/03-identity-bar.png",
+      "file": "<scratch>/race/browser/fixed-run3/03-identity-bar.png",
       "bytes": 475174
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/04-after-rapid.png",
+      "file": "<scratch>/race/browser/fixed-run3/04-after-rapid.png",
       "bytes": 433554
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/05-tabA-follows-tabB.png",
+      "file": "<scratch>/race/browser/fixed-run3/05-tabA-follows-tabB.png",
       "bytes": 402927
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/06-speed-100x.png",
+      "file": "<scratch>/race/browser/fixed-run3/06-speed-100x.png",
       "bytes": 403871
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/07-paused.png",
+      "file": "<scratch>/race/browser/fixed-run3/07-paused.png",
       "bytes": 401305
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/fixed-run3/08-restored-t-maze-3x.png",
+      "file": "<scratch>/race/browser/fixed-run3/08-restored-t-maze-3x.png",
       "bytes": 430939
     }
   ],

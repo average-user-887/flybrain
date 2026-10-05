@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pytest
 
-from brainlab.brain import Brain
+from brainlab.brain import Brain, gpu_name
 from brainlab.cuda_engine import cuda_available
 
 pytestmark = pytest.mark.skipif(
@@ -27,6 +27,24 @@ def _graph(n=120, k=12, seed=3):
     return dict(ptr=ptr, post=post, weight=np.ascontiguousarray(weight), ids=np.arange(n, dtype=np.int64))
 
 
+def _cpu(arrays, **kwargs):
+    """The numba CPU reference, pinned explicitly so neither ``auto`` nor
+    ``NEUROFLY_BRAIN_BACKEND`` can move it onto the GPU."""
+    brain = Brain(arrays=arrays, dynamics='v3', backend='cpu', **kwargs)
+    assert brain.backend == 'cpu' and brain._gpu is None, 'reference must run on the CPU'
+    return brain
+
+
+def _cuda(arrays, **kwargs):
+    """The device under test, pinned to CUDA; a silent CPU fallback fails here."""
+    brain = Brain(arrays=arrays, dynamics='v3', backend='cuda', **kwargs)
+    assert brain.backend == 'cuda' and brain.backend_note == 'requested', brain.backend_note
+    assert brain._gpu is not None, 'CUDA brain has no device state'
+    if os.environ.get('NUMBA_ENABLE_CUDASIM') != '1':
+        assert gpu_name(), 'CUDA backend reported but no CUDA device is visible'
+    return brain
+
+
 def _run(brain, ms=12.0, window=2.0):
     drive = np.zeros(brain.n, dtype=np.float32)
     drive[:brain.n // 8] = 20.0
@@ -39,12 +57,12 @@ def _run(brain, ms=12.0, window=2.0):
 
 def test_cuda_matches_cpu_reference():
     arrays = _graph()
-    cpu = _run(Brain(arrays=arrays, dynamics='v3'))
-    gpu_brain = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    cpu = _run(_cpu(arrays))
+    gpu_brain = _cuda(arrays)
     gpu = _run(gpu_brain)
     assert cpu.sum() > 0, 'workload must spike'
     assert np.array_equal(cpu, gpu)
-    ref = Brain(arrays=arrays, dynamics='v3')
+    ref = _cpu(arrays)
     _run(ref)
     state = gpu_brain.snapshot_state()
     np.testing.assert_allclose(state['v'], ref.v, atol=1e-4)
@@ -55,11 +73,11 @@ def test_cuda_matches_cpu_reference():
 
 def test_cuda_is_deterministic_and_restores():
     arrays = _graph(seed=5)
-    a = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    a = _cuda(arrays)
     first = _run(a, ms=6.0)
     snap = a.snapshot_state()
     tail_a = _run(a, ms=6.0)
-    b = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    b = _cuda(arrays)
     assert np.array_equal(_run(b, ms=6.0), first)
     b.restore_state(snap)
     assert np.array_equal(_run(b, ms=6.0), tail_a)
@@ -81,7 +99,8 @@ def test_plastic_edge_updates_match_cpu():
     new = (arrays['weight'][edges] * 1.5).astype(np.float32)
     results = []
     for backend in ('cpu', 'cuda'):
-        brain = Brain(arrays=dict(arrays, weight=arrays['weight'].copy()), dynamics='v3', backend=backend)
+        make = _cpu if backend == 'cpu' else _cuda
+        brain = make(dict(arrays, weight=arrays['weight'].copy()))
         _run(brain, ms=4.0)
         brain.set_edge_weights(edges, new)
         results.append(_run(brain, ms=8.0))
@@ -93,15 +112,15 @@ def test_weight_assignment_and_shared_device_graph():
     arrays = _graph(seed=11)
     for value in arrays.values():
         value.flags.writeable = False            # like SharedGraph
-    a = Brain(arrays=arrays, dynamics='v3', backend='cuda')
-    b = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    a = _cuda(arrays)
+    b = _cuda(arrays)
     assert a._gpu.d_post is b._gpu.d_post      # one device copy of the graph
     assert a._gpu.d_edge_inc is b._gpu.d_edge_inc
     working = arrays['weight'].copy()
     working[:50] *= 2.0
     b.weight = working                           # registry-style materialize
     assert a._gpu.d_edge_inc is not b._gpu.d_edge_inc
-    ref = Brain(arrays=dict(arrays, weight=working), dynamics='v3', backend='cpu')
+    ref = _cpu(dict(arrays, weight=working))
     assert np.array_equal(_run(b), _run(ref))
     b.update_weights(np.arange(10))              # in-place edit path of the registry
     working[:10] = 0.0
@@ -119,9 +138,9 @@ def test_auto_backend_selects_gpu_for_v3_only(monkeypatch):
 
 def test_cuda_reset_state_replays_like_a_new_brain():
     arrays = _graph(seed=7)
-    brain = Brain(arrays=arrays, dynamics='v3', backend='cuda')
+    brain = _cuda(arrays)
     first = _run(brain)
     assert first.sum() > 0, 'workload must spike'
     brain.reset_state()
     assert np.array_equal(_run(brain), first)
-    assert np.array_equal(_run(Brain(arrays=arrays, dynamics='v3', backend='cuda')), first)
+    assert np.array_equal(_run(_cuda(arrays)), first)

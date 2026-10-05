@@ -1,4 +1,15 @@
-"""Drosophila Neuroethological Paradigm Battery Runner.
+"""RETIRED (2026-10-05) as a scientific runner. See docs/RETIREMENT_INDEX.md.
+
+Running this file or ``python -m experiments.run_paradigm_battery`` prints the reason
+and exits non-zero before any data, model or output work. Its default
+``brain_type="connectome"`` is the *surrogate* ConnectomeBridge, not the MaleCNS
+graph, so its reports (e.g. ``experiment_data/ryzen_battery/``) are surrogate smoke
+output, not validation. ``run_battery`` stays importable only so the tests can keep
+checking the ParadigmDataLogger file formats; its metrics are not maintained.
+
+Original description, kept for the record:
+
+Drosophila Neuroethological Paradigm Battery Runner.
 
 Executes canonical behavioral paradigms in Arena, captures multi-modal telemetry
 via ParadigmDataLogger, computes cohort statistics, and outputs summary tables and reports.
@@ -17,6 +28,30 @@ import sys
 import argparse
 import time
 from typing import Dict, List, Optional, Any, Union
+
+RETIRED_NOTICE = """\
+experiments/run_paradigm_battery.py is RETIRED and does not run. By default it drove
+the surrogate ConnectomeBridge while labelling the run "connectome", so its reports
+are surrogate smoke output, not validation of the MaleCNS connectome.
+
+Supported instead:
+  neurofly validate run <spec> --out <new dir>    preregistered validation specs
+  neurofly record --backend connectome-fixed --paradigm <P> --seconds 30 --out run
+
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
+
+
+def _retired(argv=None) -> int:
+    """Print the retirement notice (``--help`` shows it too) and refuse to run."""
+    argparse.ArgumentParser(prog="run_paradigm_battery", description=RETIRED_NOTICE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(argv)
+    print(RETIRED_NOTICE, file=sys.stderr, end="")
+    return 2
+
+
+if __name__ == '__main__':  # stop before the arena, the bridge or any output directory
+    sys.exit(_retired())
 
 # Ensure flybrain root is on sys.path
 SIM_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -246,71 +281,6 @@ def run_battery(
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run Drosophila Neuroethological Paradigm Battery")
-    parser.add_argument(
-        "--paradigms",
-        type=str,
-        default="all",
-        help="Paradigms to run: 'all' or comma-separated list (e.g. t-maze,heat-maze,buridan)"
-    )
-    parser.add_argument(
-        "--trials",
-        type=int,
-        default=3,
-        help="Number of trials per paradigm (default: 3)"
-    )
-    parser.add_argument(
-        "--steps",
-        type=int,
-        default=500,
-        help="Number of simulation steps per trial (default: 500)"
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./experiment_data/battery",
-        help="Base directory for logs and reports (default: ./experiment_data/battery)"
-    )
-    parser.add_argument(
-        "--dt",
-        type=float,
-        default=0.02,
-        help="Simulation step size dt (default: 0.02)"
-    )
-    parser.add_argument(
-        "--brain-type",
-        type=str,
-        default="connectome",
-        choices=["connectome", "modular"],
-        help="Brain controller architecture (default: connectome)"
-    )
-    parser.add_argument(
-        "--connectome-mode",
-        type=str,
-        default="surrogate",
-        choices=["surrogate", "rpc"],
-        help="Connectome bridge mode (default: surrogate)"
-    )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Suppress verbose logging"
-    )
-
-    args = parser.parse_args()
-
-    run_battery(
-        paradigms=args.paradigms,
-        trials=args.trials,
-        steps=args.steps,
-        output_dir=args.output_dir,
-        dt=args.dt,
-        brain_type=args.brain_type,
-        connectome_mode=args.connectome_mode,
-        verbose=not args.quiet,
-    )
-
-
-if __name__ == '__main__':
-    main()
+def main(argv=None) -> int:
+    """Retired entry point: prints why and returns 2. Nothing is run or written."""
+    return _retired(argv)

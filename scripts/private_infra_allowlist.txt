@@ -1,0 +1,13 @@
+# Allow-list for scripts/check_private_infra.py. Keep it short; every entry is a
+# reviewed exception. One rule per line:
+#
+#   <class> <path-glob> <regex matched against the flagged text>
+#
+# <class> is one of private-ip, home-path, share-path, agent-scratch, email,
+# host-field, denied-token, or * for any. Paths are relative to the repository root.
+
+# Third-party copyright notices shipped verbatim with vendored/upstream licences.
+email licenses/upstream/** .
+
+# Cloud-VM receipts record the generic VM hostname "vm".
+host-field docs/receipts/body_speedup/*.json ^"hostname":\s*"vm"$
