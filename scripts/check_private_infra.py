@@ -106,16 +106,19 @@ PATTERNS = [
                               r'|//[A-Za-z0-9_-]+/Storage\b|\\\\[A-Za-z0-9_-]+\\[A-Za-z]'
                               r'|\b[A-Z]:[/\\]neurofly')),
     ('agent-scratch', re.compile(r'\.(?:claude|codex|gemini)/(?:jobs|projects|sessions|tmp|todos|'
-                                 r'shell-snapshots|worktrees)/|/tmp/claude-\d+')),
+                                 r'shell-snapshots|worktrees)/[^\s/\'"<>()\[\]]*|/tmp/claude-\d+')),
     ('email', re.compile(r'(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')),
     ('host-field', re.compile(r'"(?:host|hostname)"\s*:\s*"([^"]*)"')),
+    # The whole link is matched, including the identifier after the prefix (up to the end
+    # of that path segment), so redaction never leaves the payload behind.
     ('agent-session', re.compile(
-        r'(?i)claude\.ai/(?:code/)?(?:sessions?|chat|share)[/_]|chatgpt\.com/(?:codex/tasks|c|share|g)/'
-        r'|chat\.openai\.com/(?:c|share)/|gemini\.google\.com/(?:app|share)/'
+        r'(?i)(?:claude\.ai/(?:code/)?(?:sessions?|chat|share)[/_]|chatgpt\.com/(?:codex/tasks|c|share|g)/'
+        r'|chat\.openai\.com/(?:c|share)/|gemini\.google\.com/(?:app|share)/)[^\s/\'"<>()\[\]]*'
         r'|\bsession_[A-Za-z0-9]{16,}')),
+    # A session trailer is matched with its whole value (rest of the line).
     ('session-trailer', re.compile(
         r'(?i)^\s*(?:claude|codex|chatgpt|openai|gemini|agent)[-_ ]?(?:session|task|chat|conversation)'
-        r'(?:[-_ ]?(?:id|url|link))?\s*:')),
+        r'(?:[-_ ]?(?:id|url|link))?\s*:.*$')),
 ]
 # Output policy: no diagnostic ever prints a matched value. Findings are reported as
 # <safe location>:<line>: [<class>] <redacted> (id <finding id>); a path segment that itself

@@ -221,3 +221,49 @@ def test_error_paths_never_print_private_values(tmp_path):
     bad_allow.write_text(f'broken {v["token"]}\n')
     r = _guard_cli(['--root', str(root), '--no-git', '--allowlist', str(bad_allow)])
     assert r.returncode == 2 and 'failing closed' in r.stderr
+
+
+SYNTH_ID = J(['Kp4', 'Wm8', 'Zr2', 'Tn6'])                         # synthetic session identifier
+SESSION_PREFIXES = [J(['claude', '.ai/', 'code/', 'session', '_']), J(['claude', '.ai/', 'chat/']),
+                    J(['chatgpt', '.com/', 'codex/', 'tasks/', 'task_e_']), J(['chatgpt', '.com/', 'c/']),
+                    J(['gemini', '.google', '.com/', 'app/'])]
+
+
+def _cli_no_id(args):
+    r = subprocess.run([sys.executable, str(GUARD), *args], capture_output=True, text=True,
+                       env={'PATH': '/usr/bin:/bin', 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull})
+    assert SYNTH_ID not in r.stdout + r.stderr, (args, r.stdout, r.stderr)
+    return r
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git not installed')
+@pytest.mark.parametrize('prefix', SESSION_PREFIXES)
+def test_session_link_payload_is_redacted_in_locations(tmp_path, prefix):
+    """The identifier after a session-link prefix must never survive in a printed location."""
+    files = {f'docs/{prefix}{SYNTH_ID}/notes.md': 'clean',
+             f'docs/x-{prefix}{SYNTH_ID}.txt': 'clean',
+             'docs/body.md': f'see https://{prefix}{SYNTH_ID}/more\n' + J(['Claude', '-Session', ': ', SYNTH_ID])}
+    root = _tree(tmp_path, files)
+    r = _cli_no_id(['--root', str(root), '--no-git'])
+    assert r.returncode == 1
+    assert ':0: [agent-session] <redacted> (id ' in r.stdout
+    assert 'docs/body.md:1: [agent-session] <redacted> (id ' in r.stdout
+    assert 'docs/body.md:2: [session-trailer] <redacted> (id ' in r.stdout
+    _commit_all(root)
+    r = _cli_no_id(['--root', str(root), '--tree-rev', 'HEAD'])
+    assert r.returncode == 1 and '[agent-session] <redacted> (id ' in r.stdout
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git not installed')
+@pytest.mark.parametrize('prefix', SESSION_PREFIXES)
+def test_session_link_payload_is_redacted_in_errors(tmp_path, prefix):
+    root = _tree(tmp_path, {'docs/clean.md': CLEAN})
+    _commit_all(root)
+    link = f'{prefix}{SYNTH_ID}'
+    for args in (['--root', str(root), '--tree-rev', link],
+                 ['--root', str(root), '--tree-rev', f'HEAD:{link}'],
+                 ['--root', str(root), '--commits', f'{link}..HEAD'],
+                 ['--root', str(root), '--commits', f'HEAD {link}'],
+                 ['--root', str(root / link)]):
+        r = _cli_no_id(args)
+        assert r.returncode == 2, (args, r.stdout, r.stderr)
