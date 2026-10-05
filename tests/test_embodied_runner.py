@@ -121,3 +121,23 @@ def test_real_graph_validation_fails_closed():
     status["synthetic"] = True
     with pytest.raises(RuntimeError, match="refusing embodied run"):
         validate_real_v3_status(status)
+
+
+def test_cli_refuses_a_taken_output_directory_before_any_import(tmp_path):
+    """D6: the collision is detected before the graph load, not after it."""
+    from neurofly_body import cli
+
+    taken = tmp_path / "taken"
+    taken.mkdir()
+    with pytest.raises(SystemExit, match="already exists"):
+        cli._check_output_dir(taken)
+
+    args = cli._parser().parse_args(
+        ["run", "--duration", "1", "--output", str(taken)]
+    )
+    with pytest.raises(SystemExit, match="already exists"):
+        cli._run(args)
+
+    fresh = tmp_path / "fresh"
+    assert cli._check_output_dir(fresh) == fresh
+    assert not fresh.exists()
