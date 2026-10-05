@@ -93,6 +93,12 @@ and may propose fixes on its own branch; it does not validate NVIDIA-only behavi
 CPU execution on an AMD host is AMD CPU coverage, not AMD GPU coverage. An AMD GPU
 port is deferred until correctness and performance measurements justify one.
 
+*Superseding note, 5 October 2026 (later):* the owner has since assigned the Deck lane
+to implement AMD GPU acceleration on an isolated branch. Merging requires both Codex
+and Antigravity approval of the exact candidate. The deferral sentence above is
+replaced by that decision; see `docs/OWNER_DECISIONS.md`, "Isolated AMD GPU
+acceleration lane".
+
 | Priority | Work package | Responsible lane | Acceptance evidence |
 |---|---|---|---|
 | P0 | Finish freeze/watchdog candidate and error classification | NVIDIA implementation; Deck fault replication | Every F1–F7 path visible; heartbeat separate from simulated progress; paused/slow CPU distinguished from dead; required capture failure invalidates run; real compute errors halt |

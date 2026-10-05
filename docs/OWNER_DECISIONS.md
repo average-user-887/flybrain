@@ -7,6 +7,38 @@ never edited.
 
 ---
 
+## 2026-10-05 (later still) — Isolated AMD GPU acceleration lane. **Supersedes the AMD GPU deferral in `docs/DIRECTION_2026-10-05.md`.**
+
+The owner assigned the Claude worker on the AMD Steam Deck to implement AMD GPU
+acceleration. Earlier the same day, the direction document had deferred an AMD GPU
+port; this decision replaces that deferral. The entry headed "(latest)" below is
+older than this one and is left unedited, per the rule above.
+
+Conditions set by the owner:
+
+- **Isolation.** The work happens on a separate branch with a recorded base commit. It
+  must not interfere with `master`, the integration candidate or any default backend.
+- **Merge gate.** Merging requires **both** the Codex review approval **and** the
+  independent Antigravity audit approval, each tied to the exact candidate commit. A
+  later substantive change voids an approval until it is re-reviewed.
+- **No change of science.**
+  - The first target is the existing v3 LIF stepping path, with the same equations,
+    topology, weights, units and inputs.
+  - Unsupported dynamics or plasticity must refuse, or fall back visibly under a
+    documented policy.
+  - Gains, wiring and tolerances are never adjusted to obtain a pass.
+  - Numerical comparison criteria are registered before the final comparison.
+  - GPU execution and useful acceleration are reported as separate findings; a result
+    that does not accelerate is reported as such.
+- **Isolation of dependencies.** GPU dependencies are optional and the backend is chosen
+  explicitly. An unavailable device gives a safe error. The CPU and NVIDIA paths are
+  preserved, and no system driver or kernel changes are part of any automatic rollout.
+
+The main repair work (audits A–F) continues independently. This decision approves no
+biological approximation, invented connection or adapter-computed behaviour.
+
+---
+
 ## 2026-10-05 (latest) — Project leadership delegation
 
 The owner delegated **project direction and scope** to a separate Codex agent, and kept
