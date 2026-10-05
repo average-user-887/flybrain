@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import platform
 import resource
 import subprocess
 import time
@@ -31,6 +30,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from . import stats
+from neurofly.privacy import host_description, redact_local
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_SCHEMA = 'flybrain.validation-spec.v1'
@@ -445,9 +445,9 @@ def run(spec_path, out_dir: Path, *, synthetic: bool = False, backend: str = 'au
         compute=dict(sim_s=result['sim_ms'] / 1000, wall_s=wall_s,
                      sim_s_per_wall_s=(result['sim_ms'] / 1000 / wall_s) if wall_s > 0 else None,
                      peak_rss_mib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
-        host=platform.node(), started_at=started, finished_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'))
-    (out_dir / 'receipt.json').write_text(json.dumps(_jsonable(receipt), indent=2) + '\n')
-    (out_dir / 'trials.json').write_text(json.dumps(_jsonable(result['trials'])) + '\n')
+        host=host_description(), started_at=started, finished_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'))
+    (out_dir / 'receipt.json').write_text(json.dumps(redact_local(_jsonable(receipt)), indent=2) + '\n')
+    (out_dir / 'trials.json').write_text(json.dumps(redact_local(_jsonable(result['trials']))) + '\n')
     log(f"VERDICT {verdict}  behaviour {components['behaviour']}  physiology {components['physiology']}")
     for g in gates:
         log(f"  gate {g['id']}: {g['passed']}")

@@ -26,7 +26,6 @@ import argparse
 import importlib.util
 import json
 import os
-import platform
 import signal
 import socket
 import statistics
@@ -38,6 +37,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from neurofly.privacy import host_description, redact_local  # noqa: E402
 GATE_P95_MS = 250.0
 GATE_MAX_MS = 1000.0
 
@@ -243,8 +245,7 @@ def run(args) -> dict:
         "requested_speed": args.speed,
         "wall_seconds": args.seconds,
         "port": port,
-        "host": {"platform": platform.platform(), "python": platform.python_version(),
-                 "cpu_count": os.cpu_count(), "machine": platform.machine()},
+        "host": host_description(),
         "achieved_speed_server_timestamps": round(achieved, 3) if achieved else None,
         "achieved_speed_reported_last": frames[-1][3] if frames else None,
         "sse": {"frames": len(frames), "events": len(sse.events),
@@ -289,7 +290,7 @@ def main():
         serve(args)
         return
     result = run(args)
-    text = json.dumps(result, indent=2)
+    text = json.dumps(redact_local(result), indent=2)
     if args.receipt:
         Path(args.receipt).parent.mkdir(parents=True, exist_ok=True)
         Path(args.receipt).write_text(text + "\n")

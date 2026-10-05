@@ -110,3 +110,45 @@ files in a git checkout, and walks the directory with the same exclusions in an
 exported tree. Genuine exceptions go in `scripts/private_infra_allowlist.txt`.
 Hashing only hides these short tokens from casual reading, because a short token can
 be guessed. The tokens are already in the published history.
+
+## Artifacts written from now on (branch `claude/no-hostnames`)
+
+The redaction above cleaned files already in the tree. The code that produced them
+also had to stop writing personal data, or every new receipt, run manifest,
+recording and bundle a user shares would leak their machine's name and home
+directory again. All writers now go through one module, `neurofly/privacy.py`:
+
+- `host_description()` replaces `platform.node()` (the hostname). It records the OS
+  and architecture, OS release, CPU model, CPU count, GPU model(s) (or `"none"`),
+  Python version and key library versions. Hardware model names are public facts;
+  no hostname, account name or path is recorded.
+- `redact_local()` / `portable_path()` write absolute local paths with the placeholders
+  in the table above: `<repo>/...`, `<home>/...`, `<scratch>/...` (system temporary
+  directory), and `<local-path>/<last component>` for any other path under `/home/`,
+  `/Users/`, `/media/`, `/run/media/` or `/mnt/`. The account and machine names are
+  also removed from any remaining path-like string (`<user>`, `<host>`). Strings that
+  are not paths are never rewritten. In memory, paths stay absolute (they are used to
+  load files); only what is written changes.
+
+**Compatibility.** The `host` field keeps its name in run manifests, validation
+receipts, recording sidecars and the WP5 / LIF-diagnosis / registry-measurement
+receipts, but now holds the host-description object instead of a string.
+`RunManifest.read` accepts both shapes, and the receipt-assembly scripts copy `host`
+through unchanged. The benchmark receipt's `host.hostname` key was read by nothing and
+is no longer written; `host.description` holds the host description. Run manifests
+write `source.root` as `<repo>`, and graph identities write `graph_path` /
+`neuron_map_path` as placeholders; the graph is identified by its SHA-256, not its
+path. The embodied `replay-check` maps `<repo>`, `<home>` and `<scratch>` back to this
+machine's directories and treats an unmappable `<local-path>` graph directory as "use
+the default location". Committed receipts are not regenerated.
+
+Writers changed: `provenance.py` (`RunManifest`, `source_revision`),
+`brainlab/graph_identity.py` (`GraphIdentity.to_dict`), `brainlab/cosim_server.py`
+(status), `brainlab/runs.py`, `brainlab/measure_registry.py`, `neurofly/recording.py`,
+`neurofly_body/runner.py` and `cli.py` (manifest, summary, `body.nfbody` header,
+`replay_check.json`), `neurofly_daemon.py` (checkpoint JSON), `validation/harness.py`,
+`scripts/benchmark.py`, `scripts/lif_dynamics_diagnosis.py`, `scripts/timing_stress.py`,
+`scripts/wp5_optomotor.py`, `scripts/wp5_photoreceptor_probe.py`.
+`tests/test_no_personal_data.py` checks each, comparing against this machine's
+hostname and account name at test time, and fails if any code outside
+`neurofly/privacy.py` reads the hostname or account name.

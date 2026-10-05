@@ -72,6 +72,7 @@ from experiment_brains import ExperimentBrains
 # Controller identity (WP4).  experiment_registry / brainlab are imported only when
 # a graph backend is selected, so the modular default never touches the graph.
 from provenance import GRAPH_BACKENDS, RunManifest, get_backend, resolve_keep_checkpoints, source_revision
+from neurofly.privacy import redact_local
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
 
@@ -1907,7 +1908,7 @@ class ContinuousExperimentRunner:
             "weights_mean": self.latest_telemetry.get("plasticity", {}).get("mb_weights_mean", 0.5)
         }
         with open(target_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(redact_local(data), f, indent=2)   # no absolute local paths on disk
         if safe_tag == "periodic":
             self._prune_periodic_checkpoints()
         return target_file

@@ -622,7 +622,12 @@ class GraphIdentity:
     neuron_map_file_sha256: Optional[str] = None
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        """Identity as written into manifests and receipts. The in-memory
+        ``graph_path``/``neuron_map_path`` stay absolute (they are used to load the
+        files); the written copy carries ``<repo>/...``-style placeholders instead,
+        because the hashes, not the paths, identify the graph."""
+        from neurofly.privacy import redact_local
+        return redact_local(asdict(self))
 
 
 def _ids_digest(ids: np.ndarray) -> str:

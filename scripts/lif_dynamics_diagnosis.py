@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import platform
 import sys
 import time
 from pathlib import Path
@@ -33,6 +32,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from neurofly.privacy import host_description, redact_local  # noqa: E402
 
 
 def make_brain(arrays, dynamics):
@@ -232,7 +232,7 @@ def main():
     versions = [v.strip() for v in args.dynamics.split(',') if v.strip()]
 
     from brainlab.graph_identity import DYNAMICS_VERSIONS, dynamics_pin
-    result = dict(generated_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=platform.node(),
+    result = dict(generated_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=host_description(),
                   dynamics_declared={v: DYNAMICS_VERSIONS[v] for v in versions},
                   dynamics_pins={v: dynamics_pin(v) for v in versions},
                   probe_a=[probe_a(v) for v in versions],
@@ -302,7 +302,7 @@ def main():
                                                       'stimulus', 'gray_after_stimulus')}, indent=1),
                       flush=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2) + '\n')
+    args.out.write_text(json.dumps(redact_local(result), indent=2) + '\n')
     print('wrote', args.out)
 
 
