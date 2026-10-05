@@ -2,7 +2,7 @@
 
 Usage:
   neurofly run [daemon options]
-  neurofly full-sim [options]
+  neurofly full-sim              (retired: prints why and exits non-zero)
   neurofly embodied [options]
   neurofly download-data
   neurofly status
@@ -98,11 +98,27 @@ def cmd_embodied(args: list[str]) -> int:
     return body_cli.main(args)
 
 
+FULL_SIM_RETIRED = """\
+neurofly full-sim is RETIRED and no longer runs. It was not a full connectome
+simulation: the brain received empty sensory input (Arena.get_sensory_inputs does
+not exist, so every step fed it {}), and its motor output was overwritten by the
+modular controller inside arena.step.
+
+Use instead:
+  neurofly run --paradigm optomotor        connectome-fixed backend, dashboard on :8769
+  neurofly record --backend connectome-fixed --paradigm optomotor --seconds 30 --out run
+  neurofly validate run <spec> --out <new dir>    preregistered validation specs
+
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
+
+
 def cmd_full_sim(args: list[str]) -> int:
-    """Run unified full-connectome multi-task simulation across paradigms."""
-    from experiments.full_connectome_simulation import main as sim_main
-    sys.argv = ["neurofly full-sim"] + args
-    return sim_main()
+    """Retired: explain why and exit non-zero (docs/RETIREMENT_INDEX.md)."""
+    argparse.ArgumentParser(prog="neurofly full-sim", description=FULL_SIM_RETIRED,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(args)
+    print(FULL_SIM_RETIRED, file=sys.stderr, end="")
+    return 2
 
 
 def cmd_validate(args: list[str]) -> int:
@@ -141,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
-    subparsers.add_parser("full-sim", help="Run unified life-long multi-task simulation across 14 paradigms")
+    subparsers.add_parser("full-sim", help="RETIRED: not a full connectome simulation; prints why and exits")
     subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
