@@ -16,26 +16,36 @@ older than this one and is left unedited, per the rule above.
 
 Conditions set by the owner:
 
-- **Isolation.** The work happens on a separate branch with a recorded base commit. It
-  must not interfere with `master`, the integration candidate or any default backend.
+- **Isolation.** The work happens on a separate branch that does not interfere with
+  `master`.
 - **Merge gate.** Merging requires **both** the Codex review approval **and** the
-  independent Antigravity audit approval, each tied to the exact candidate commit. A
-  later substantive change voids an approval until it is re-reviewed.
-- **No change of science.**
-  - The first target is the existing v3 LIF stepping path, with the same equations,
-    topology, weights, units and inputs.
-  - Unsupported dynamics or plasticity must refuse, or fall back visibly under a
-    documented policy.
-  - Gains, wiring and tolerances are never adjusted to obtain a pass.
+  independent Antigravity audit approval.
+
+Codex implementation scope under the owner's delegation (these are not the owner's own
+words; changing them requires Codex review, not a new owner decision):
+
+- The branch records its base commit. It must not touch the integration candidate or
+  any default backend.
+- Each approval is tied to the exact candidate commit. A later substantive change voids
+  an approval until it is re-reviewed.
+- **Recommended first target:** the existing fixed-weight v3 LIF stepping path, with the
+  same equations, topology, weights, units and inputs.
+- **Refusal:** unsupported dynamics or plasticity must refuse, or fall back visibly
+  under a documented policy.
+- **Comparisons:**
   - Numerical comparison criteria are registered before the final comparison.
+  - Gains, wiring and tolerances are never adjusted to obtain a pass.
   - GPU execution and useful acceleration are reported as separate findings; a result
     that does not accelerate is reported as such.
-- **Isolation of dependencies.** GPU dependencies are optional and the backend is chosen
-  explicitly. An unavailable device gives a safe error. The CPU and NVIDIA paths are
-  preserved, and no system driver or kernel changes are part of any automatic rollout.
+- **Dependencies:**
+  - GPU dependencies are optional, and the backend is chosen explicitly.
+  - An unavailable device gives a safe error.
+  - The CPU and NVIDIA paths are preserved.
+  - No system driver or kernel changes are part of any automatic rollout.
 
-The main repair work (audits A–F) continues independently. This decision approves no
-biological approximation, invented connection or adapter-computed behaviour.
+The owner's standing scientific rules (entries below) apply unchanged. The main repair
+work (audits A–F) continues independently. This decision approves no biological
+approximation, invented connection or adapter-computed behaviour.
 
 ---
 
