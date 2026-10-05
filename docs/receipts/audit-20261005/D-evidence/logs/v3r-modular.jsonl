@@ -1,0 +1,23 @@
+{"t": "16:18:08", "control": "2d-before", "canvas_updating": true, "banner": {"shown": "none", "text": "", "resume_hidden": true}, "errs": []}
+{"t": "16:18:14", "control": "3d-on", "banner": {"shown": "flex", "text": "RENDER ERROR: can't access property \"x\", fly.pos is undefined \u2014 assay open-arena \u00b7 run f66469d5 \u00b7 step 27588 \u00b7 view suspended (render); last measured frame kept", "resume_hidden": false}, "errs": ["console.error: [NeuroFly] render [object Object]"], "webgl_canvas_changes": false, "fly3d_pos": [[0, 0, 0], [0, 0, 0]], "arena_fly_keys": ["x", "y", "heading", "speed", "yawRate", "energy", "radius", "wallTurnDir", "trail", "yawCommand"]}
+{"t": "16:18:18", "control": "3d-off", "canvas_updating": false, "banner": {"shown": "flex", "text": "RENDER ERROR: can't access property \"x\", fly.pos is undefined \u2014 assay open-arena \u00b7 run f66469d5 \u00b7 step 27588 \u00b7 view suspended (render); last measured frame kept", "resume_hidden": false}, "simtime": "561.82s"}
+{"t": "16:18:22", "control": "btnErrorResume", "canvas_updating": true, "banner": {"shown": "none", "text": "", "resume_hidden": false}, "errs": []}
+{"t": "16:18:23", "control": "btnErrorDismiss", "banner": {"shown": "none", "text": "", "resume_hidden": false}}
+{"t": "16:18:29", "control": "inject=render", "banner": {"shown": "flex", "text": "RENDER ERROR: Injected renderer fault (test build) \u2014 assay open-arena \u00b7 run f66469d5 \u00b7 step 28333 \u00b7 view suspended (render); last measured frame kept", "resume_hidden": false}, "canvas_updating": false, "errs": ["console.error: [NeuroFly] render [object Object]"]}
+{"t": "16:18:33", "control": "btnErrorResume(inject)", "banner": {"shown": "none", "text": "", "resume_hidden": false}, "canvas_updating": true}
+{"t": "16:18:33", "control": "btnErrorDismiss(inject)", "banner": {"shown": "none", "text": "", "resume_hidden": false}}
+{"t": "16:18:33", "control": "end", "errs": [], "alerts": []}
+{"t": "16:18:52", "control": "btnReplay(open chooser)", "chooser_hidden": false, "list": "auditd-modular.nfrec \u00b7 open-arena \u00b7 modular \u00b7 47.92 s \u00b7 4.1 MB", "n": 1}
+{"t": "16:18:53", "control": "btnReplayChooserClose", "hidden": true}
+{"t": "16:18:59", "control": "replay-list-item", "bar_hidden": false, "info": "open-arena \u00b7 modular \u00b7 seed 789510133 \u00b7 code b0abd8fa \u00b7 2397 frames \u00b7 0 inputs \u00b7 digest OK", "time": "3.52 / 47.92 s", "run_state": "SURGE \u00b7 TRIAL 22", "replayMode": true, "errs": []}
+{"t": "16:19:01", "control": "replay-playing", "t1": "3.73 / 47.92 s", "t2": "5.75 / 47.92 s"}
+{"t": "16:19:04", "control": "btnReplayPlay(pause)", "label": "Play", "t1": "5.78 / 47.92 s", "t2": "5.78 / 47.92 s"}
+{"t": "16:19:05", "control": "replaySeek=0.8", "time": "38.34 / 47.92 s", "simtime": "576.66s"}
+{"t": "16:19:06", "control": "replaySpeed=5 + play", "t1": "39.92 / 47.92 s", "t2": "45.01 / 47.92 s", "label": "Pause"}
+{"t": "16:19:08", "control": "btnPauseToggle-in-replay", "t1": "45.34 / 47.92 s", "t2": "45.34 / 47.92 s", "replay_btn": "Play", "daemon_paused": false}
+{"t": "16:19:09", "control": "selectSpeed-in-replay", "replaySpeed": "2", "daemon_speed": 1.0}
+{"t": "16:19:10", "control": "card-click-in-replay", "run_state": "SURGE \u00b7 TRIAL 23", "daemon_paradigm": "open-arena"}
+{"t": "16:19:11", "control": "btnResetTrial-in-replay", "trial": [24, 24], "cmds": []}
+{"t": "16:19:17", "control": "btnReplayExit", "bar_hidden": true, "replayMode": false, "connected": true, "pill": "\u25cf LIVE DAEMON", "errs": []}
+{"t": "16:19:22", "control": "replayFileInput", "file": "auditd-modular.nfrec", "bar_hidden": false, "info": "open-arena \u00b7 modular \u00b7 seed 789510133 \u00b7 code b0abd8fa \u00b7 2397 frames \u00b7 0 inputs \u00b7 digest OK", "time": "7.00 / 47.92 s", "errs": []}
+{"t": "16:19:25", "control": "end", "errs": [], "alerts": []}
