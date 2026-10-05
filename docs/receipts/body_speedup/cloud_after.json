@@ -2,7 +2,7 @@
   "schema": "neurofly.host-benchmark.v1",
   "started_at": "2026-09-24T13:25:20+0000",
   "args": {
-    "out": "<redacted-path>/after_3.json",
+    "out": "<scratch>/after_3.json",
     "stages": "body",
     "brain_ms": 500.0,
     "body_ms": 1000.0,

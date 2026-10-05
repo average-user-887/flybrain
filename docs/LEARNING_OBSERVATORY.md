@@ -4,8 +4,8 @@
 `github.com/average-user-887/flybrain`, `master` is authoritative, and the
 `worktree-neurofly-openready` worktree is no longer the development branch.)*
 
-Originally: the current development branch is `worktree-neurofly-openready`, under
-`<redacted-path> The main checkout is an earlier snapshot.
+Originally: the current development branch is `worktree-neurofly-openready`, in a separate
+local worktree of the repository. The main checkout is an earlier snapshot.
 No Git remote is configured; commits are local.
 
 ## Run the lab

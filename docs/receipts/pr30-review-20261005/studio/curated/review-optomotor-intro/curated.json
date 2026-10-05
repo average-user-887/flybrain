@@ -1,0 +1,43 @@
+{
+  "controller": "connectome",
+  "curated_at": "2026-10-05T13:36:48.428566+00:00",
+  "explanation": "0.5 s review run, seed 12: the connectome drives the legs.",
+  "files": {
+    "body.nfbody": "9cf010d4423684afc71dfea129d1aa71ad4dfe322a95ba9d920321523ce10795",
+    "manifest.json": "f7c476a9364b624c3a1651af42bf90cf1ccdb33292d5681a6822ddd791069cca",
+    "replay_check.json": "d49df68a3f084a034fbfe918921ee0d6c5168c54617500c97750b4443c5abdec",
+    "summary.json": "924f0704d5a04fbb31c10b1e42f0a5fd4e0cc7e136c0d173a004d5583673f045"
+  },
+  "label": "exploratory",
+  "metrics": {
+    "mean_body_yaw_velocity_rad_s": -0.0014584617159260245,
+    "net_yaw_change_deg": -0.013597471770184858,
+    "records": 250,
+    "silenced": null,
+    "simulated_s": 0.5,
+    "total_graph_spikes": 45053,
+    "turning_gain": -0.0003646154289815061,
+    "world_angular_velocity_rad_s": 4.0
+  },
+  "pair": "review-optomotor-intro-control",
+  "paradigm": "optomotor",
+  "parameters": {
+    "contrast": 1.0,
+    "duration_s": 0.5,
+    "seed": 12,
+    "world_angular_velocity_rad_s": 4.0
+  },
+  "redaction": "local absolute paths replaced: repository root -> <repo>, home directory -> <home>, other per-user or mount paths -> <local-path>/<last component>, host name -> <host>, account name -> <user>",
+  "replay_check": {
+    "brain_backend": {
+      "original": "cpu",
+      "replay": "cpu"
+    },
+    "verdict": "BIT_IDENTICAL"
+  },
+  "role": "experiment",
+  "schema": "neurofly-studio-curated-v1",
+  "silence": [],
+  "source_run": "20261005-133231-review-intact-vs-disconnected-s12",
+  "title": "Review: the fly with its brain connected vs disconnected"
+}

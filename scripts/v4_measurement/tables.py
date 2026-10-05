@@ -1,8 +1,9 @@
 """Emit the markdown tables for WP5 §13 from the measurement JSONs."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import sys
 
-T = '<redacted-path>/tmp/graded/'
+T = str(SCRATCH) + '/'
 v4 = json.load(open(T + 'measure_bc.json'))
 try:
     v3 = json.load(open(T + 'measure_bc_v3.json'))

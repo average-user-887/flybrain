@@ -1,10 +1,10 @@
 # Independent verification of `neurofly_body` (embodied MVP)
 
-Verified 26 September 2026 against the ROOT checkout (`~/Documents/ChatGPT/flybrain`,
+Verified 26 September 2026 against the ROOT checkout (`<repo>`,
 branch `master`, embodied HEAD `f79d288`). The component is **not** on the
 `worktree-neurofly-openready` branch; this file is the evidence record, and the
 defects below are for whoever owns `master`. Nothing in the root checkout was
-modified. Run artefacts: `<redacted-path>/tmp/embodied/`.
+modified. Run artefacts: `<scratch>/embodied/`.
 
 Environment: the root checkout's own `.venv`, genuine NeLy-EPFL FlyGym 2.1.0 from
 PyPI, MuJoCo 3.9.0, CUDA brain backend. `flygym_demo` ships inside the FlyGym
