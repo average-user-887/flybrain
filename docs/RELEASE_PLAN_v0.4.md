@@ -1,9 +1,15 @@
 # Release plan — NeuroFly v0.4.0
 
-Owner of this plan: the Claude orchestrator (on the reference NVIDIA host), to whom the project owner handed
-full responsibility on 5 October 2026 with the goal of a full public release.
-Status: **ACTIVE**. This file is the single source of truth for the release; it is
-updated in place as gates pass, with every change committed.
+Owner of this plan: the Claude agent responsible for day-to-day implementation, working
+under direction and acceptance gates set by a separate Codex agent. The owner delegated
+those roles on 5 October 2026; see `docs/OWNER_DECISIONS.md` and
+`docs/DIRECTION_2026-10-05.md`.
+
+Status: **HOLD** (5 October 2026). A functional audit
+(`docs/receipts/audit-20261005/SUMMARY.md`) found that the dashboard and assays do not
+work as claimed from a user's point of view. The release waits until the acceptance
+gates in `docs/DIRECTION_2026-10-05.md` pass on one reviewed, pinned candidate. Where
+that direction document and this plan differ, the direction document governs.
 
 ---
 
@@ -31,16 +37,21 @@ rather than wait for, or imply, a positive result.
 
 | item | state |
 |---|---|
-| Code on GitHub | master `5c54b03`, published 5 Oct; 29 previously unpublished commits now public |
-| Test suite (reference NVIDIA host, real graph, GPU) | **717 passed, 9 skipped, 0 failed** at `5c54b03` |
-| Live dashboard sign-off | **7/7** in real Firefox after the switch-freeze fix (`docs/receipts/live-signoff-20261004-postmerge-run2/`) |
-| GitHub releases | **none** — only a bare tag `v0.3.0` (24 Sep) |
+*Updated later on 5 October 2026. Test counts are given only for the exact commit they
+were run on.*
+
+| item | state |
+|---|---|
+| Release | **HOLD**; see the status above |
+| Code on GitHub | master moved several times on 5 October (install fixes, documentation, privacy guard, PRs #25/#30, hostname redaction, E_inh code restoration, audit receipts). None of these heads is a reviewed release candidate. |
+| Last exact-commit full suite on master | `3e9bc5d`: 893 passed, 9 skipped, 0 failed (reference NVIDIA host, real graph, GPU). Later master commits are documentation only and have not had a full-suite run. |
+| Functional audit (5 Oct) | modular controller: 1 of 14 assays fully works; connectome: 0 of 14 fully work (2 partial, 5 no behaviour, 7 misleading); 97 controls checked, several broken or misleading; 7 silent-freeze paths. See `docs/receipts/audit-20261005/`. |
+| Plumbing sign-off (`scripts/live_ui_signoff.py`) | It checks page load, counters and switching, **not** whether experiments work. Its earlier 7/7 passes are not acceptance evidence. |
+| GitHub releases | **none**, only a bare tag `v0.3.0` (24 Sep) |
 | Version in `pyproject.toml` | 0.3.0 |
 | Licence | MIT (code); MaleCNS data CC-BY 4.0; FlyGym/MuJoCo Apache-2.0 (see `NOTICE`) |
-| Discussions | **off** |
-| External feedback | none yet: 0 stars, 0 forks, all issues/PRs from the owner's account |
-| Open PRs | #25 WP7 mushroom-body learning spec (docs); #30 Experiment studio (dashboard feature). Both merge cleanly into `5c54b03`. |
-| AMD / non-NVIDIA | AMD test-host agent ready; CPU backend only; no AMD GPU engine exists |
+| Discussions | **on** |
+| AMD / non-NVIDIA | Earlier AMD CPU testing at `5c54b03` passed (full suite 0 failures; cross-machine bit-identical embodied runs). Verification of the current fixes on AMD is pending. CPU only; no AMD GPU engine exists. |
 
 ---
 

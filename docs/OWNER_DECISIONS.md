@@ -7,7 +7,24 @@ never edited.
 
 ---
 
-## 2026-10-05 (latest) — Personal data in git history: no rewrite
+## 2026-10-05 (latest) — Project leadership delegation
+
+The owner delegated **project direction and scope** to a separate Codex agent, and kept
+a Claude agent responsible for day-to-day implementation, worker coordination and
+assembling integration candidates.
+- **Codex** reviews each candidate independently before master integration,
+  deployment or release.
+- **The owner's earlier rulings** in this file stay binding on both agents.
+- **Codex's engineering direction and acceptance gates** are recorded separately in
+  `docs/DIRECTION_2026-10-05.md`. They are implementation decisions under this
+  delegation, not owner rulings on new scientific assumptions.
+
+Release status following this delegation: v0.4 is on **HOLD** until the acceptance gates
+in that direction document pass.
+
+---
+
+## 2026-10-05 — Personal data in git history: no rewrite
 
 **Context.** An external audit on 5 October 2026 found personal data in the public
 repository. The orchestrator verified it.
