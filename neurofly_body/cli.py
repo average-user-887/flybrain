@@ -249,7 +249,28 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     return 0 if identical else 1
 
 
+def _check_output_dir(output: Path) -> Path:
+    """Refuse a colliding output directory before any expensive work (D6).
+
+    ``_RunOutput`` also creates the directory with ``exist_ok=False``, but that
+    happens after the connectome graph has been loaded, which costs tens of
+    seconds.  Failing here keeps a typo cheap.  This is a pre-check, not a lock:
+    the authoritative exclusive reservation is still the ``mkdir`` in the runner.
+    """
+    output = Path(output)
+    if output.exists():
+        raise SystemExit(
+            f"output directory already exists: {output.resolve()} "
+            "(every run needs its own fresh directory)"
+        )
+    parent = output.parent
+    if parent.exists() and not parent.is_dir():
+        raise SystemExit(f"output parent is not a directory: {parent}")
+    return output
+
+
 def _run(args: argparse.Namespace) -> dict[str, Any]:
+    _check_output_dir(args.output)
     # Import after argument validation so CLI help has no heavyweight dependency.
     try:
         from brainlab.cosim_server import ConnectomeServer
