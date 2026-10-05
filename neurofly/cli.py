@@ -105,7 +105,7 @@ not exist, so every step fed it {}), and its motor output was overwritten by the
 modular controller inside arena.step.
 
 Use instead:
-  neurofly run --paradigm optomotor        connectome-fixed backend, dashboard on :8769
+  neurofly run --backend connectome-fixed --paradigm optomotor   dashboard on :8769
   neurofly record --backend connectome-fixed --paradigm optomotor --seconds 30 --out run
   neurofly validate run <spec> --out <new dir>    preregistered validation specs
 
