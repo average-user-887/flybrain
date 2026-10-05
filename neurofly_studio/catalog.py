@@ -97,7 +97,8 @@ OPTOMOTOR = StudioParadigm(
                        "queue and you watch them afterwards at the fly's own speed."),
         Parameter("seed", "--seed", "Random seed", "", 0, 2_147_483_647, 1, 1, integer=True,
                   help="Same seed and settings give a bit-identical run on the same computer. "
-                       "Agreement across different machines has not been measured yet."),
+                       "With the CPU brain backend this also held across the two different "
+                       "machines tested so far; across GPUs it has not been measured."),
     ),
     controls={
         "output-disconnected": "Brain disconnected from the legs: the connectome runs and is "

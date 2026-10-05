@@ -72,8 +72,10 @@ here is an optomotor result.
    direction-selective motion neurons of the connectome", and the gallery said the body is
    "driven by the full MaleCNS connectome". Both now say that an engineered encoder imposes the
    direction on T4/T5, that an engineered decoder drives the body, and that there is no passing
-   validation. The seed help no longer implies cross-machine bit-identity, which G11 has not
-   measured yet.
+   validation. The seed help now states reproducibility only as far as it has been measured:
+   bit-identical on the same computer, and across two machines on the CPU backend
+   (the G11 cross-machine determinism receipt of 5 Oct 2026 on master). Cross-GPU agreement has not been measured.
+   This is a text-only change made after the browser walk-through.
 3. **DNS rebinding.** The same-host Origin check compares Origin with Host, and a rebinding
    page controls both. On a loopback bind, requests must now name a loopback Host
    (421 otherwise). Test added.
