@@ -5,6 +5,7 @@ a string the guard would flag.
 """
 import hashlib
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -132,3 +133,91 @@ def test_shell_wrapper_runs(tmp_path):
                         '--no-git'], capture_output=True, text=True,
                        env={'PATH': '/usr/bin:/bin', 'PYTHON': sys.executable})
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+# --- no diagnostic may amplify a leak ------------------------------------------------------
+
+PRIVATE_VALUES = {
+    'email': J(['alice.smith', '@', 'corp-mail.com']),
+    'share': J(['/m', 'nt/archive-share']),
+    'home': J(['/ho', 'me/alice/']),
+    'ip': J(['192', '.168.4', '.20']),
+    'host': J(['alice-', 'desktop']),
+    'token': J(['build', '-box-', '7']),
+    'session': J(['claude', '.ai/', 'code/', 'session', '_', 'Qx9' * 8]),
+}
+NEEDLES = [*PRIVATE_VALUES.values(), 'alice', 'corp-mail', 'archive-share', 'Qx9Qx9', J(['build', '-box'])]
+
+
+def _leaky_tree(tmp_path):
+    """A failing tree: private values in file content and in file and directory names."""
+    v = PRIVATE_VALUES
+    files = {
+        'docs/content.md': '\n'.join([f'mail {v["email"]}', f'data at {v["share"]}/x', f'{v["home"]}flybrain',
+                                      f'ip = "{v["ip"]}"', f'ssh {v["token"]} uptime', f'https://{v["session"]}']),
+        'docs/host.json': J(['{"host', 'name": "', v['host'], '"}']),
+        f'docs/{v["email"]}/notes.md': 'clean',                 # private value as a directory name
+        f'docs/{v["token"]}-notes.txt': 'clean',                 # private value in a file name
+    }
+    return _tree(tmp_path, files)
+
+
+def _guard_cli(args):
+    r = subprocess.run([sys.executable, str(GUARD), *args], capture_output=True, text=True,
+                       env={'PATH': '/usr/bin:/bin', 'NEUROFLY_PRIVATE_TOKENS': PRIVATE_VALUES['token'],
+                            'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull})
+    both = r.stdout + r.stderr
+    for needle in NEEDLES:
+        assert needle not in both, (needle, both)
+    return r
+
+
+def _commit_all(root):
+    git = ['git', '-C', str(root), '-c', 'user.name=t', '-c', 'user.email=t' + '@example.com',
+           '-c', 'commit.gpgsign=false']
+    subprocess.run(['git', 'init', '-q', str(root)], check=True)
+    subprocess.run(git + ['add', '-A'], check=True)
+    subprocess.run(git + ['commit', '-qm', 'x'], check=True)
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git not installed')
+def test_tree_diagnostics_never_print_private_values(tmp_path):
+    root = _leaky_tree(tmp_path)
+    r = _guard_cli(['--root', str(root), '--no-git'])
+    assert r.returncode == 1
+    for cls in ('email', 'share-path', 'home-path', 'private-ip', 'denied-token', 'agent-session', 'host-field'):
+        assert f'[{cls}] <redacted> (id ' in r.stdout, cls
+    assert 'docs/<redacted>/notes.md:0: [email]' in r.stdout              # the path itself matched
+    assert 'docs/<redacted>:0: [denied-token]' in r.stdout
+    _commit_all(root)
+    assert _guard_cli(['--root', str(root)]).returncode == 1              # git mode
+    r = _guard_cli(['--root', str(root), '--tree-rev', 'HEAD'])          # pushed-revision mode
+    assert r.returncode == 1 and 'docs/<redacted>/notes.md:0: [email]' in r.stdout
+    ids = [ln.rsplit('(id ', 1)[1] for ln in r.stdout.splitlines() if '(id ' in ln]
+    assert ids and len(ids) == len(set(ids))                              # distinct finding ids
+    assert ids == [ln.rsplit('(id ', 1)[1] for ln in
+                   _guard_cli(['--root', str(root), '--tree-rev', 'HEAD']).stdout.splitlines() if '(id ' in ln]
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git not installed')
+def test_error_paths_never_print_private_values(tmp_path):
+    root = _leaky_tree(tmp_path)
+    _commit_all(root)
+    v = PRIVATE_VALUES
+    for args in (['--root', str(root), '--tree-rev', v['token']],
+                 ['--root', str(root), '--tree-rev', v['home'] + 'x'],
+                 ['--root', str(root), '--commits', f'{v["token"]}..{v["email"]}'],
+                 ['--root', str(root), '--commits', f'{v["host"]}.local'],
+                 ['--root', str(root / v['token'] / 'missing')]):
+        r = _guard_cli(args)
+        assert r.returncode == 2, (args, r.stdout, r.stderr)
+    # An absent allow-list means "no exceptions": still a failing scan, still nothing echoed.
+    r = _guard_cli(['--root', str(root), '--no-git', '--allowlist', str(tmp_path / f'{v["token"]}.txt')])
+    assert r.returncode == 1
+    bad_allow = tmp_path / 'allow.txt'
+    bad_allow.write_text(f'email docs/** ({v["email"]}\n')
+    r = _guard_cli(['--root', str(root), '--no-git', '--allowlist', str(bad_allow)])
+    assert r.returncode == 2 and 'failing closed' in r.stderr
+    bad_allow.write_text(f'broken {v["token"]}\n')
+    r = _guard_cli(['--root', str(root), '--no-git', '--allowlist', str(bad_allow)])
+    assert r.returncode == 2 and 'failing closed' in r.stderr

@@ -55,8 +55,10 @@ matched values.
 ## What is checked now
 
 - `check_private_infra.sh --commits REV_OR_RANGE` scans the metadata of every commit in
-  the range. A single revision means its whole ancestry. It also scans annotated tags
-  named in the range.
+  the range. A single revision means its whole ancestry. It also scans every annotated
+  tag object reachable from the arguments, following tag-to-tag chains to the end, so a
+  clean outer tag cannot hide an inner one. A broken chain, or a ref-selection option
+  the tag scan cannot expand, fails closed.
 - The fields scanned are the full message, author, committer and tagger names and
   e-mails, and other non-signature headers (for example an embedded mergetag).
 - The rules applied:
@@ -73,6 +75,13 @@ matched values.
   rule, never the matched text.
 - `check_private_infra.sh --tree-rev REV` scans the committed tree of REV, which is what
   a push publishes, and not the checkout.
+- Tree findings, in every mode, are printed as
+  `<path>:<line>: [<rule>] <redacted> (id <finding id>)`, never with the matched value.
+  - Any path segment that itself matches a rule is shown as `<redacted>`.
+  - File and directory names are scanned too; line 0 means the path itself matched.
+  - The finding id is derived from the location, not the value.
+  - Error messages and echoed arguments are redacted the same way.
+  - There is no raw-output option. To see what matched, inspect the source.
 - The guard fails closed with exit 2 on a bad or empty range, a missing object, a
   malformed object, a manifest that is malformed or does not match its pin, or any
   scanner error.

@@ -102,7 +102,7 @@ def planted(tmp_path):
 
 
 def _run(guard, repo, spec, capsys, *extra):
-    rc = guard.main(['--root', str(repo), '--commits', spec, *extra])
+    rc = guard.main(['--root', str(repo), f'--commits={spec}', *extra])
     cap = capsys.readouterr()
     return rc, cap.out + cap.err
 
@@ -192,13 +192,45 @@ def test_annotated_tag_metadata_is_scanned(guard, tmp_path, capsys):
     _no_secrets(out)
 
 
+def test_nested_annotated_tags_are_all_scanned(guard, tmp_path, capsys):
+    """An outer tag with clean metadata must not hide an inner tag it points at."""
+    repo = _init(tmp_path / 'r')
+    _commit(repo, CLEAN_MSG)
+    clean_tagger = {'GIT_COMMITTER_NAME': 'T', 'GIT_COMMITTER_EMAIL': NOREPLY}
+    _git(repo, 'tag', '-a', 'inner', '-m', 'inner\n\n' + SESSION_TRAILER, env=clean_tagger)
+    _git(repo, 'tag', '-a', 'middle', 'inner', '-m', 'middle', env=clean_tagger)
+    _git(repo, 'tag', '-a', 'outer', 'middle', '-m', 'outer', env=clean_tagger)
+    inner = _git(repo, 'rev-parse', 'inner').stdout.strip()
+    _git(repo, 'tag', '-d', 'inner')                        # only reachable through the chain now
+    outer = _git(repo, 'rev-parse', 'outer').stdout.strip()
+    for spec in ('outer', outer, f'HEAD..{outer}', '--tags', '--all'):
+        rc, out = _run(guard, repo, spec, capsys)
+        assert rc == 1, (spec, out)
+        assert f'{inner[:12]} message:3: [session-trailer] <redacted>' in out, (spec, out)
+        _no_secrets(out)
+    rc, out = _run(guard, repo, '--glob=refs/tags/*', capsys)   # unsupported selector: fail closed
+    assert rc == 2
+
+
+def test_broken_tag_chain_fails_closed(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _commit(repo, CLEAN_MSG)
+    _git(repo, 'tag', '-a', 'inner', '-m', 'inner', env={'GIT_COMMITTER_NAME': 'T', 'GIT_COMMITTER_EMAIL': NOREPLY})
+    _git(repo, 'tag', '-a', 'outer', 'inner', '-m', 'outer', env={'GIT_COMMITTER_NAME': 'T', 'GIT_COMMITTER_EMAIL': NOREPLY})
+    inner = _git(repo, 'rev-parse', 'inner').stdout.strip()
+    _git(repo, 'tag', '-d', 'inner')
+    (repo / '.git' / 'objects' / inner[:2] / inner[2:]).unlink()
+    rc, out = _run(guard, repo, 'outer', capsys)
+    assert rc == 2 and 'failing closed' in out
+
+
 def test_tree_mode_catches_and_redacts_session_links(guard, tmp_path, capsys):
     root = tmp_path / 'tree'
     (root / 'docs').mkdir(parents=True)
     (root / 'docs' / 'notes.md').write_text('handoff: ' + SESSION_URL + '\n' + SESSION_TRAILER + '\n')
     assert guard.main(['--root', str(root), '--no-git']) == 1
     out = capsys.readouterr().out
-    assert 'docs/notes.md:1: [agent-session] <redacted: agent-session match>' in out
+    assert 'docs/notes.md:1: [agent-session] <redacted> (id ' in out
     assert 'docs/notes.md:2: [session-trailer]' in out
     assert 'Zq7Zq7' not in out
 

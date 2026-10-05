@@ -13,7 +13,8 @@ the same exclusions). Standard library only.
 Tree mode (the default) scans the checkout. Revision mode (--tree-rev REV) scans the
 committed tree of REV, i.e. what a push of REV publishes; the pre-push hook and CI use
 it for every outgoing tip. Commit mode (--commits RANGE) scans the metadata of every
-commit in a git revision range (and of annotated tags named in it): the full message,
+commit in a git revision range and of every annotated tag object reachable from its
+arguments (tag chains are followed to the end): the full message,
 author and committer (and tagger), plus other non-signature headers. RANGE is handed to
 `git rev-list` after shell-style splitting; a single revision means its whole ancestry.
 
@@ -49,8 +50,11 @@ Commit mode adds two classes and is stricter about e-mail:
                  the only one accepted for e-mail addresses inside commit messages
   hostname       a LAN-style host name (<name>.local, .lan, .home, .internal, ...)
 
-Findings in commit mode, and agent-session findings anywhere, are reported by
-location and class only; the matched text is never printed.
+No mode ever prints a matched value. Tree findings are reported as
+<path>:<line>: [<class>] <redacted> (id <finding id>), where any path segment that itself
+matches a rule is replaced by <redacted> and line 0 means the path itself matched.
+Commit findings are <sha12> <field>[:line]: [<class>] <redacted>. Error messages and
+echoed arguments are redacted the same way. Inspect the source to see what matched.
 
 Placeholders used by redacted receipts (<repo>/, <home>/, <scratch>/,
 <reference-host>) never match. Exit status: 0 clean, 1 findings, 2 error (fail closed).
@@ -110,8 +114,11 @@ PATTERNS = [
         r'(?i)^\s*(?:claude|codex|chatgpt|openai|gemini|agent)[-_ ]?(?:session|task|chat|conversation)'
         r'(?:[-_ ]?(?:id|url|link))?\s*:')),
 ]
-# Classes whose matched text is never printed, in either mode.
-REDACT_CLASSES = {'denied-token', 'agent-session'}
+# Output policy: no diagnostic ever prints a matched value. Findings are reported as
+# <safe location>:<line>: [<class>] <redacted> (id <finding id>); a path segment that itself
+# matches a rule is replaced by <redacted>. Error messages and echoed arguments pass
+# through redact_text() as well. Inspect the source itself to see what matched.
+_RUNTIME_EXTRA: set = set()
 
 # Commit-metadata mode: the only e-mail addresses a new commit may carry.
 METADATA_EMAIL_ALLOW = [
@@ -152,6 +159,37 @@ def _denied_spans(word: str, extra: set[str]):
                 yield s
 
 
+def redact_text(text: str, extra=None) -> str:
+    """Replace every span any rule would flag (and every word containing a denied token)."""
+    extra = _RUNTIME_EXTRA if extra is None else extra
+    for cls, rx in METADATA_PATTERNS:
+        def _sub(m, cls=cls):
+            if cls == 'email' and any(a.match(m.group(0)) for a in EMAIL_ALLOW):
+                return m.group(0)
+            if cls == 'host-field' and HOST_FIELD_OK.match(m.group(1)):
+                return m.group(0)
+            return '<redacted>'
+        text = rx.sub(_sub, text)
+    return WORD.sub(lambda m: '<redacted>' if next(_denied_spans(m.group(0), extra), None) else m.group(0),
+                    text)
+
+
+def safe_location(rel: str) -> str:
+    """The path with any segment (or cross-segment span) that matches a rule redacted."""
+    red = redact_text('/' + rel)
+    return red[1:] if red.startswith('/') else red
+
+
+def finding_id(rel: str, lineno: int, cls: str, k: int) -> str:
+    """Stable identifier of a finding; derived from its location, never from the matched value."""
+    return hashlib.sha256(f'{rel}\0{lineno}\0{cls}\0{k}'.encode('utf-8', 'surrogateescape')).hexdigest()[:10]
+
+
+def scan_path(rel, rules, extra):
+    """Findings in a file's path itself (reported at line 0)."""
+    return [(r, 0, c, h) for r, _, c, h in scan_text(rel, '/' + rel, rules, extra)]
+
+
 def load_allowlist(path: Path):
     rules = []
     if not path.is_file():
@@ -162,7 +200,7 @@ def load_allowlist(path: Path):
             continue
         bits = line.split(None, 2)
         if len(bits) != 3:
-            raise SystemExit(f'{path}:{n}: expected "<class> <path-glob> <regex>"')
+            raise GuardError(f'{path.name}:{n}: expected "<class> <path-glob> <regex>"')
         cls, glob, rx = bits
         rules.append((cls, glob, re.compile(rx), f'{path.name}:{n}'))
     return rules
@@ -209,13 +247,11 @@ def scan_text(rel, text, rules, extra, patterns=None, email_allow=None):
                     continue
                 if allowed(rules, cls, rel, hit):
                     continue
-                if cls in REDACT_CLASSES:
-                    hit = f'<redacted: {cls} match>'
                 findings.append((rel, lineno, cls, hit))
         for w in WORD.finditer(line):
             for span in _denied_spans(w.group(0), extra):
                 if not allowed(rules, 'denied-token', rel, span):
-                    findings.append((rel, lineno, 'denied-token', '<redacted: matches a denied token>'))
+                    findings.append((rel, lineno, 'denied-token', span))
                 break
     return findings
 
@@ -345,15 +381,53 @@ def load_commit_exceptions(path: Path, expected_sha256: str | None):
     return out
 
 
-def _tag_objects(root: Path, rev_args):
-    """Annotated tags named directly among the revision arguments (their own metadata is scanned)."""
-    tags = []
+_REF_SELECTORS = {'--all': [], '--tags': ['refs/tags'], '--branches': ['refs/heads'],
+                  '--remotes': ['refs/remotes']}
+_TAG_DEPTH_LIMIT = 64
+
+
+def _start_points(root: Path, rev_args):
+    """Every object a revision argument list can name directly (positive or negative side).
+
+    Ref-selection options are expanded to the refs they select; any other selection option
+    that could name refs is refused rather than left unscanned (fail closed)."""
+    pts = []
     for tok in rev_args:
-        if tok.startswith('-') or '..' in tok or tok.startswith('^'):
-            continue
-        sha = _git(root, 'rev-parse', '--verify', '--end-of-options', tok).decode().strip()
-        if _git(root, 'cat-file', '-t', sha).decode().strip() == 'tag':
-            tags.append(sha)
+        if tok in _REF_SELECTORS:
+            pts += _git(root, 'for-each-ref', '--format=%(objectname)', *_REF_SELECTORS[tok]).decode().split()
+        elif tok.startswith(('--glob', '--tags=', '--branches=', '--remotes=', '--bisect', '--reflog',
+                             '--stdin', '--alternate-refs', '--indexed-objects')):
+            raise GuardError('revision option not supported by the tag scan; name the refs explicitly')
+        elif tok.startswith('-'):
+            continue                                   # --not, --exclude=..., ordering flags
+        else:
+            for part in re.split(r'\.\.\.?', tok.lstrip('^')):
+                if part:
+                    pts.append(_git(root, 'rev-parse', '--verify', '--end-of-options', part).decode().strip())
+    return list(dict.fromkeys(pts))
+
+
+def _tag_objects(root: Path, rev_args):
+    """Every annotated tag object reachable from the arguments by following tag targets.
+
+    A pushed outer tag also publishes any tag it points at, so tag chains are walked to the
+    end. Missing or malformed tag objects, and chains deeper than a sane limit, fail closed."""
+    tags, seen = [], set()
+    for start in _start_points(root, rev_args):
+        cur, depth = start, 0
+        while cur not in seen:
+            otype = _git(root, 'cat-file', '-t', cur).decode().strip()
+            if otype != 'tag':
+                break
+            seen.add(cur)
+            tags.append(cur)
+            raw = read_objects(root, [cur])[cur][1].decode('utf-8', 'replace')
+            first = raw.split('\n', 1)[0].split(' ')
+            if len(first) != 2 or first[0] != 'object' or not _SHA_RX.match(first[1]):
+                raise GuardError(f'tag {cur[:12]} has a malformed target')
+            cur, depth = first[1], depth + 1
+            if depth > _TAG_DEPTH_LIMIT:
+                raise GuardError(f'tag chain from {start[:12]} is deeper than {_TAG_DEPTH_LIMIT}')
     return tags
 
 
@@ -362,11 +436,11 @@ def scan_commits(root: Path, rev_args, extra, exceptions):
 
     Returns (n_objects, findings, acknowledged) where acknowledged counts findings
     matched by the frozen historical exception manifest."""
+    tags = _tag_objects(root, rev_args)                 # every reachable tag object first
     shas = _git(root, 'rev-list', *rev_args, '--').decode().split()
-    tags = _tag_objects(root, rev_args)
-    objs = read_objects(root, shas + tags)
+    objs = read_objects(root, tags + shas)
     findings, acknowledged = [], 0
-    for sha in shas + tags:
+    for sha in tags + shas:
         otype, raw = objs[sha]
         if otype not in ('commit', 'tag'):
             raise GuardError(f'object {sha[:12]} is a {otype}, not a commit or tag')
@@ -390,7 +464,7 @@ def main_commits(root: Path, spec: str, extra, exceptions, emit_exceptions=False
         for sha in sorted(by_sha):
             print(f'{sha} {",".join(sorted(by_sha[sha]))}')
         return 0
-    print(f'[audit] scanning metadata of {n} object(s) in {spec!r}')
+    print(f'[audit] scanning metadata of {n} object(s) in {redact_text(spec)!r}')
     for sha, field, lineno, cls in findings:
         where = f'{field}:{lineno}' if field in ('message', 'header') else field
         print(f'{sha[:12]} {where}: [{cls}] <redacted>')
@@ -432,6 +506,7 @@ def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra):
         rules = []
     findings = []
     for path, sha in entries:
+        findings += scan_path(path, rules, extra)
         data = objs[sha][1]
         if b'\0' in data[:8192]:
             continue
@@ -454,8 +529,10 @@ def _rules_from_text(text: str, name: str):
 
 
 def _report_tree(findings, label):
-    for rel, lineno, cls, hit in findings:
-        print(f'{rel}:{lineno}: [{cls}] {hit}')
+    seen = {}
+    for rel, lineno, cls, _hit in findings:
+        k = seen[(rel, lineno, cls)] = seen.get((rel, lineno, cls), -1) + 1
+        print(f'{safe_location(rel)}:{lineno}: [{cls}] <redacted> (id {finding_id(rel, lineno, cls, k)})')
     if findings:
         print(f'[audit] FAILED: {len(findings)} private-data finding(s) in {label}. Redact them, or add a '
               f'narrow entry to scripts/private_infra_allowlist.txt if the match is a genuine exception.')
@@ -482,11 +559,13 @@ def main(argv=None):
     ap.add_argument('--emit-exceptions', action='store_true',
                     help='with --commits and --no-commit-exceptions: print manifest lines (sha classes)')
     args = ap.parse_args(argv)
+    extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
+    _RUNTIME_EXTRA.clear()
+    _RUNTIME_EXTRA.update(extra)
     root = Path(args.root).resolve() if args.root else Path(__file__).resolve().parents[1]
     if not root.is_dir():
-        print(f'[audit] no such directory: {root}', file=sys.stderr)
+        print(f'[audit] no such directory: {redact_text(str(root))}', file=sys.stderr)
         return 2
-    extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
     try:
         if args.commits is not None:
             if args.emit_exceptions and not args.no_commit_exceptions:
@@ -503,25 +582,26 @@ def main(argv=None):
             commit, n, findings = scan_revision_tree(root, args.tree_rev, args.allowlist, extra)
             print(f'[audit] scanning {n} files in the committed tree of {commit[:12]} (revision mode)')
             return _report_tree(findings, f'the tree of {commit[:12]}')
-    except (GuardError, ValueError, OSError, UnicodeDecodeError) as exc:
-        print(f'[audit] ERROR (failing closed): {exc}', file=sys.stderr)
+        allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
+        rules = load_allowlist(allow_path)
+        files, mode = list_files(root, not args.no_git)
+        print(f'[audit] scanning {len(files)} files under {redact_text(root.name)}/ ({mode} mode)')
+        findings = []
+        for rel in files:
+            if rel in SELF_FILES:
+                continue
+            p = root / rel
+            if p.is_symlink() or not p.is_file():
+                continue
+            findings += scan_path(rel, rules, extra)
+            data = p.read_bytes()
+            if b'\0' in data[:8192]:
+                continue                               # binary
+            findings += scan_text(rel, data.decode('utf-8', 'replace'), rules, extra)
+        return _report_tree(findings, 'the tree')
+    except (GuardError, ValueError, OSError, UnicodeDecodeError, re.error) as exc:
+        print(f'[audit] ERROR (failing closed): {redact_text(str(exc))}', file=sys.stderr)
         return 2
-    allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
-    rules = load_allowlist(allow_path)
-    files, mode = list_files(root, not args.no_git)
-    print(f'[audit] scanning {len(files)} files under {root.name}/ ({mode} mode)')
-    findings = []
-    for rel in files:
-        if rel in SELF_FILES:
-            continue
-        p = root / rel
-        if p.is_symlink() or not p.is_file():
-            continue
-        data = p.read_bytes()
-        if b'\0' in data[:8192]:
-            continue                                   # binary
-        findings += scan_text(rel, data.decode('utf-8', 'replace'), rules, extra)
-    return _report_tree(findings, 'the tree')
 
 
 if __name__ == '__main__':
