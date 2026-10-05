@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .metrics import run_metrics
+from .redact import NOTE as REDACTION_NOTE, redact_bytes
 
 COPY = ("manifest.json", "summary.json", "body.nfbody", "replay_check.json")
 _NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}$")
@@ -71,9 +72,11 @@ def _copy_one(run_dir: Path, target: Path, *, info: dict[str, Any], with_telemet
     files = list(COPY) + (["telemetry.jsonl"] if with_telemetry else [])
     hashes = {}
     for file in files:
-        shutil.copyfile(run_dir / file, target / file)
+        # Curated runs are committed to a public repository: local paths, the host
+        # name and the account name are replaced by placeholders (neurofly_studio/redact.py).
+        (target / file).write_bytes(redact_bytes(file, (run_dir / file).read_bytes()))
         hashes[file] = hashlib.sha256((target / file).read_bytes()).hexdigest()
-    info = dict(info, files=hashes)
+    info = dict(info, files=hashes, redaction=REDACTION_NOTE)
     (target / "curated.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n",
                                          encoding="utf-8")
 

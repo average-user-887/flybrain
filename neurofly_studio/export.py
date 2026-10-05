@@ -2,9 +2,11 @@
 
     python -m neurofly_studio export RUN_DIR --out run.zip
 
-A bundle holds the run's own files unchanged (manifest.json, summary.json,
+A bundle holds the run's own files (manifest.json, summary.json,
 telemetry.jsonl, timing.jsonl, body.nfbody, replay_check.json when present),
-``telemetry.parquet`` (one row per 2 ms step, nested fields flattened to
+with local absolute paths, the host name and the account name replaced by
+placeholders (neurofly_studio/redact.py; the trajectory and frame hashes are
+unaffected), plus ``telemetry.parquet`` (one row per 2 ms step, nested fields flattened to
 dotted column names), ``studio.json`` (the experiment and its exploratory
 label, when the run came from the studio), ``bundle.json`` (format, provenance
 and the SHA-256 of every file) and a README.  The zip is deterministic: fixed
@@ -124,26 +126,31 @@ def build_bundle(run_dir: Path, *, name: str | None = None,
     if summary.get("status") != "complete":
         raise ValueError(f"{run_dir} did not complete")
 
+    from .redact import NOTE as REDACTION_NOTE, redact_bytes, redact_text
+
     members: dict[str, bytes] = {}
     for file in RUN_FILES:
         if (run_dir / file).is_file():
-            members[file] = (run_dir / file).read_bytes()
+            # A bundle is made to be shared: local paths, host and account names are
+            # replaced by placeholders (neurofly_studio/redact.py).
+            members[file] = redact_bytes(file, (run_dir / file).read_bytes())
     if "telemetry.jsonl" in members:
         text = members["telemetry.jsonl"].decode("utf-8")
         members["telemetry.parquet"] = _parquet_bytes(
             telemetry_table(line for line in text.splitlines() if line.strip()))
     if studio_meta is not None:
-        members["studio.json"] = (json.dumps(studio_meta, indent=2, sort_keys=True) + "\n").encode()
+        members["studio.json"] = redact_text(json.dumps(studio_meta, indent=2, sort_keys=True) + "\n").encode()
 
     label = (studio_meta or {}).get("label") or "exploratory"
     bundle = {
         "format": FORMAT, "version": VERSION, "name": name, "label": label,
         "trajectory_sha256": summary.get("trajectory_sha256"),
         "recording_frames_sha256": (summary.get("recording") or {}).get("frames_sha256"),
-        "provenance": {key: manifest.get(key) for key in (
+        "provenance": json.loads(redact_text(json.dumps({key: manifest.get(key) for key in (
             "schema", "package_version", "created_at", "completed_at", "config", "invocation",
             "neural_backend", "body_backend", "decoder", "determinism", "provenance")
-            if key in manifest},
+            if key in manifest}))),
+        "redaction": REDACTION_NOTE,
         "files": {file: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                   for file, data in sorted(members.items())},
         "parquet": {"flattening": "nested keys joined with '.', list items suffixed .0, .1, ...",

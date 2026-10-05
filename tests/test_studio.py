@@ -384,3 +384,56 @@ def test_export_endpoint_serves_a_zip(served):
     run_queue_run(studio)
     status, ctype, body = _get(f"{base}/api/studio/export/queue/{reply['queued'][0]}.zip")
     assert status == 200 and ctype == "application/zip" and body[:2] == b"PK"
+
+
+# -- privacy: nothing local leaves the machine in a bundle or a curated run --------
+def test_redaction_replaces_local_paths_host_and_account():
+    import getpass
+    import socket
+    from pathlib import Path
+
+    from neurofly_studio.catalog import PROJECT_ROOT
+    from neurofly_studio.redact import leaks, redact_text
+
+    text = json.dumps({"graph_dir": str(Path.home() / "data" / "malecns_v1"),
+                       "repo": str(PROJECT_ROOT / "outputs" / "brainlab"),
+                       "out": "/media/someone/Storage/runs/r1", "mnt": "/mnt/share/x",
+                       "host": socket.gethostname(), "user": getpass.getuser(), "dt": 2.0})
+    clean = redact_text(text)
+    assert not leaks(clean.encode())
+    data = json.loads(clean)
+    assert data["graph_dir"] == "<home>/data/malecns_v1"
+    assert data["repo"] == "<repo>/outputs/brainlab"
+    assert data["out"] == "<local-path>/r1" and data["mnt"] == "<local-path>/x"
+    assert data["dt"] == 2.0
+    if len(socket.gethostname()) >= 3:
+        assert data["host"] == "<host>"
+
+
+def test_bundles_and_curated_runs_carry_no_local_paths_and_still_verify(tmp_path):
+    import gzip
+    import hashlib
+    import io
+    import zipfile
+
+    from neurofly_studio.curate import curate
+    from neurofly_studio.redact import leaks
+
+    studio, (run_dir, control_dir) = _finished_pair(tmp_path)
+    assert leaks((run_dir / "manifest.json").read_bytes()), "the raw manifest records local paths"
+    archive = zipfile.ZipFile(io.BytesIO(studio.export("queue", run_dir.name)))
+    for member in archive.namelist():
+        if member.endswith((".json", ".jsonl", ".txt", ".nfbody")):
+            assert not leaks(archive.read(member), member), member
+    targets = curate(run_dir, tmp_path / "curated", control_dir=control_dir, name="optomotor-intro",
+                     title="Intro", explanation="The fly turns with the world.")
+    for target in targets:
+        for file in target.iterdir():
+            assert not leaks(file.read_bytes(), file.name), file
+        # The browser replay's frame digest still matches after the header was redacted.
+        lines = [line for line in gzip.decompress((target / "body.nfbody").read_bytes()).split(b"\n") if line]
+        records = [json.loads(line) for line in lines]
+        frames = b"".join(line + b"\n" for line, record in zip(lines, records) if record["k"] == "f")
+        end = [r for r in records if r["k"] == "end"][0]
+        assert hashlib.sha256(frames).hexdigest() == end["frames_sha256"]
+        assert json.loads((target / "curated.json").read_text())["redaction"]

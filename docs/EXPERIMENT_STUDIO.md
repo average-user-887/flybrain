@@ -138,9 +138,14 @@ experiment, its role, seed and paired run.
 `python -m neurofly_studio export RUN_DIR --out run.zip`, or Download on any
 run card, gives one zip per run:
 
-- the run's own files, unchanged: `manifest.json`, `summary.json`,
+- the run's own files: `manifest.json`, `summary.json`,
   `telemetry.jsonl`, `timing.jsonl`, `body.nfbody` and, if present,
-  `replay_check.json`;
+  `replay_check.json`. Local absolute paths (the graph, data and output
+  directories in the manifest and the recording header), the host name and the
+  account name are replaced by placeholders such as `<repo>`, `<home>` and
+  `<local-path>/malecns_v1` (`neurofly_studio/redact.py`), because a bundle is
+  made to be shared. The trajectory and recording-frame hashes cover records
+  that carry no paths, so they still verify;
 - `telemetry.parquet`: one row per 2 ms step, with nested fields flattened to
   dotted column names (`body.thorax.yaw_rad`, `motor.applied_cpg_drive.0`, …);
 - `studio.json`: the experiment and its exploratory label;
@@ -178,7 +183,8 @@ overwrites. It copies `manifest.json`, `summary.json`, `body.nfbody` and
 `replay_check.json` to `experiment_data/curated/<name>/` (and `<name>-control/`)
 and writes `curated.json`: the explanation, role and pair, the parameters, the
 comparison numbers computed from `telemetry.jsonl`, and the SHA-256 of every
-copied file. `telemetry.jsonl` is left out to keep the install small; use
+copied file. The copies go through the same redaction as bundles, because
+curated runs are committed to the public repository. `telemetry.jsonl` is left out to keep the install small; use
 `--with-telemetry` to keep it. Curated runs keep the exploratory label:
 curation checks reproducibility, not scientific validity.
 
