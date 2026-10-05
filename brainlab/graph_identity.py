@@ -363,6 +363,80 @@ DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYN
                      'v4': LIF_DYNAMICS_V4, 'v5': LIF_DYNAMICS_V5}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v3'
+E_INH_ENV = 'NEUROFLY_LIF_E_INH_MV'
+# Only the v2/v3 conductance dynamics have declared E_inh sensitivity variants
+# (docs/EINH_SENSITIVITY.md).  v4/v5 derive their graded release function from
+# e_inhibitory as well, and no variant of them has been declared.
+E_INH_VARIANT_VERSIONS = ('v2', 'v3')
+
+
+def active_e_inh_mV() -> Optional[float]:
+    """Process-wide inhibitory-reversal override (``NEUROFLY_LIF_E_INH_MV``).
+
+    ``None`` when unset, which is the declared v2/v3 value
+    (``brainlab.engine.E_INH_MV`` = -70 mV).  A value here does NOT redefine
+    v2 or v3: it selects a declared *variant*, whose declaration and pin come
+    from :func:`dynamics_variant` / :func:`dynamics_variant_pin`, so the v3
+    pin and every number already published under it stay exactly as they are.
+    """
+    raw = os.environ.get(E_INH_ENV)
+    if raw is None or raw == '':
+        return None
+    return float(raw)
+
+
+def dynamics_variant(version: str, e_inh_mV=None) -> dict:
+    """The declared dict for an ``E_inh`` variant of a conductance dynamics.
+
+    Declared for ``docs/EINH_SENSITIVITY.md``: every swept value of the
+    inhibitory reversal potential is a NEW labelled variant carrying its own
+    pin, never a silent redefinition of v2 or v3.  ``e_inh_mV=None`` returns
+    the base declaration unchanged, so ``dynamics_variant('v3')`` is
+    byte-identical to ``LIF_DYNAMICS_V3`` and pins to the same sha256.
+
+    Under v3 the inhibitory conductance quantum is DERIVED from the driving
+    force at rest, so it moves with ``E_inh``; that is the calibration rule of
+    spec §6.2 and is not a second free parameter.
+    """
+    if version not in DYNAMICS_VERSIONS:
+        raise ValueError(f'Unknown dynamics version {version!r}')
+    base = dict(DYNAMICS_VERSIONS[version])
+    if e_inh_mV is None:
+        return base
+    if version not in E_INH_VARIANT_VERSIONS:
+        raise ValueError('e_inh_mV variants are declared only for the conductance-based '
+                         f'dynamics {E_INH_VARIANT_VERSIONS}, not {version!r}')
+    e_inh = float(e_inh_mV)
+    if e_inh >= _engine.V_REST_MV:
+        raise ValueError('e_inh_mV must be below v_rest for the v3 calibration to be finite')
+    base['dynamics_version'] = f'{version}-einh{e_inh:g}'
+    base['base_dynamics_version'] = version
+    base['base_dynamics_pin'] = dynamics_pin(version)
+    base['e_inhibitory_mV'] = e_inh
+    base['membrane_bounds_mV'] = [e_inh, _engine.E_EXC_MV]
+    reversals = dict(base.get('reversal_potentials_mV') or {})
+    for key in list(reversals):
+        if reversals[key] == _engine.E_INH_MV:
+            reversals[key] = e_inh
+    base['reversal_potentials_mV'] = reversals
+    if version == 'v3':
+        g_inh = 1.0 / (_engine.V_REST_MV - e_inh)
+        base['g_unit_inhibitory_per_weight'] = g_inh
+        base['g_unit_ratio_inh_over_exc'] = g_inh / _engine.G_UNIT_EXC_V3
+    base['e_inh_variant'] = {
+        'declared_by': 'docs/EINH_SENSITIVITY.md',
+        'e_inhibitory_mV': e_inh,
+        'note': 'DECLARED SENSITIVITY VARIANT of ' + version + '. The base version, its pin '
+                'and every result published under it are unchanged. Under v3 the inhibitory '
+                'conductance quantum follows E_inh by the spec §6.2 calibration rule '
+                '(g_unit_inh = 1/(v_rest - e_inhibitory)); it is not tuned independently.',
+    }
+    return base
+
+
+def dynamics_variant_pin(version: str, e_inh_mV=None) -> str:
+    """sha256 of the declared variant dict: the re-pin for an ``E_inh`` arm."""
+    return sha256_json(dynamics_variant(version, e_inh_mV))
 
 
 def active_dynamics_version() -> str:

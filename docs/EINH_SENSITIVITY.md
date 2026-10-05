@@ -384,6 +384,16 @@ the existing `outputs/wp5/v3-verify-20260926/gate.py`. The `E_inh = −70 mV`
 A-primary and A-S1 rows **reproduce the 20 and 26 September runs exactly**, arm
 for arm and window for window, so the sweep is on the same measurement surface.
 
+*Reproducing (code ported to master 2026-10-05):* the sweep is
+`scripts/lif_dynamics_diagnosis.py --dynamics v3 --e-inh-sweep=-70,-66,-63,-60,-58,-56
+--sweep-arms excitatory,zero --out <dir>/probe_c_sweep.json` with
+`NEUROFLY_BRAIN_BACKEND=cpu`, and the gate is `scripts/einh_gate_sweep.py <dir>`
+(the run directory's `gate_sweep.py` with only its input location made an argument).
+Confirmatory runs use `scripts/wp5_optomotor.py --dynamics v3 --e-inh <value>`, and
+`scripts/einh_summarise_confirmatory.py` prints them side by side. A re-run of the
+−70 and −60 mV rows of both arms on master reproduced every gate field in
+`docs/receipts/einh_sensitivity.json` and every raw probe-C window exactly.
+
 | configuration | Q1 | R1 | R2 | DNa02 L−R, dir +1 / dir −1 |
 |---|---|---|---|---|
 | A-primary `E_inh` −70 | PASS | PASS | PASS | +8 / −3 Hz |
