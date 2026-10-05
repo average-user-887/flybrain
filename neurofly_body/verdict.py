@@ -473,6 +473,21 @@ def interpretation(
             "forward drive and the DNa02 counts set the turn, so the whole motor "
             "command derives from the spike counts in this table."
         )
+    if decoder_name == "dn-v2" and reversal:
+        totals: dict[str, int] = {}
+        for outcome in reversal:
+            for name, count in (outcome.summary.get("decoder_input_spikes") or {}).items():
+                totals[name] = totals.get(name, 0) + int(count)
+        p9 = totals.get("DNp09_L", 0) + totals.get("DNp09_R", 0)
+        mdn = totals.get("MDN_L", 0) + totals.get("MDN_R", 0)
+        flips = [e["dna02_asymmetry_reverses"] for e in judgement["per_seed"]]
+        lines.append(
+            f"Across the {len(reversal)} reversal conditions DNp09 fired {p9} times and "
+            f"MDN {mdn} times; the DNa02 L-R asymmetry reversed with the stimulus on "
+            f"{sum(flips)} of {len(flips)} seeds. Under dn-v2 DNa02 only shortens the "
+            "strides of an existing forward drive, so a DNa02 asymmetry turns the fly "
+            "only when DNp09 supplies that drive."
+        )
     baseline = next((o for o in outcomes.values() if o.condition.role == "baseline"), None)
     if baseline is not None:
         inputs = baseline.summary.get("decoder_input_spikes") or {}
