@@ -46,7 +46,7 @@ p.add_argument('--grating-settle-ms', type=float, default=500.0)
 p.add_argument('--window-ms', type=float, default=2000.0)
 p.add_argument('--step-ms', type=float, default=2.0)
 p.add_argument('--outdir', default='docs/receipts/v6a_raw')
-p.add_argument('--statedir', default='/tmp/v6a_state')
+p.add_argument('--statedir', default='outputs/v6a_state')  # repo-relative, gitignored
 args = p.parse_args()
 
 YAW = json.load(open('docs/receipts/v5_raw/yaw_axes.json'))
@@ -206,7 +206,7 @@ if args.phase in ('stage', 'all'):
     np.savez(state_path, t_gray_end=t_ms, **{k: v for k, v in snap.items()
                                               if isinstance(v, np.ndarray)},
              **{f'scalar__{k}': np.array(v) for k, v in snap.items() if not isinstance(v, np.ndarray)})
-    meta['gray_state_saved_to'] = state_path
+    meta['gray_state_saved_to'] = 'scratch, not committed: ' + os.path.basename(state_path)
     np.savez_compressed(npz_path, **npz)
     with open(meta_path, 'w') as fh:
         json.dump(meta, fh, indent=1)

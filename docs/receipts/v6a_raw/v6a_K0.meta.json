@@ -753,7 +753,7 @@
   "yaw_cw_wall_s": 93.99988242000109,
   "flicker_wall_s": 93.30405906299711
  },
- "gray_state_saved_to": "/tmp/v6a_state/v6a_K0.gray_state.npz",
+ "gray_state_saved_to": "scratch, not committed: v6a_K0.gray_state.npz",
  "conditions_done": [
   "yaw_ccw",
   "yaw_cw",

@@ -848,3 +848,184 @@ or the quantum.
   2. One post-lock post-processing fix: the D4 phase sign was mirrored by a
      storage convention. It was corrected before any v5 analysis was read; the
      D1/D2/D5 amplitudes were unaffected.
+
+
+---
+
+## 15. v6a — the measured first-synapse gain: the lamina recovers, T4/T5 do not
+
+*§1–§14 are unchanged. v1–v5 keep their pins and their published numbers.*
+
+**Headline: no, on the declared test.** Restoring the one graded-synapse gain
+that has been measured (photoreceptor → lamina, ≈ 6 in the blowfly) brings the
+lamina to a biological scale. It raises every downstream stage about fivefold.
+But T4/T5 stay **below half a millivolt**, so the declared stage gate fails in
+both arms, and the motion gate was not run. Downstream of the lamina, each
+graded hop still passes on only 0.1–0.4 of its input. No lamina → medulla
+transfer has ever been measured, so v6a, as declared, left those hops at
+v4/v5's release function.
+
+Spec: [`LIF_DYNAMICS_SPEC.md` §10](LIF_DYNAMICS_SPEC.md). Locked declaration:
+[`receipts/graded_gain_v6a_declaration.locked.md`](receipts/graded_gain_v6a_declaration.locked.md),
+sha256 `66f9c9eb63ac08040a5a50bcf2d218bcf3465b6f0e4d6ddfd9bdc04a8bb038b7`. It was
+committed (`632072b`) before any v6a run on the real graph. Receipt:
+[`receipts/lif_dynamics_v6a.json`](receipts/lif_dynamics_v6a.json). Raw data:
+[`receipts/v6a_raw/`](receipts/v6a_raw/). Every real-graph run used the
+**GeForce GTX 1660 Ti** (PCI 0000:07:00.0, `CUDA_DEVICE_ORDER=PCI_BUS_ID`,
+`CUDA_VISIBLE_DEVICES=1`), alongside the owner's observatory (408 MiB).
+
+### 15.1 Why the signal collapsed, checked in the code
+
+For one graded synapse at the engine's operating point, the small-signal gain
+is a product of five factors:
+
+1. the release slope;
+2. the summed connectome weight;
+3. the conductance quantum;
+4. the 5 ms charge-equivalent time constant;
+5. the driving force over the total conductance.
+
+For a photoreceptor-connected L1/L2 cell (mean R1–R6 weight 35.76), that
+product is **0.147**. Laughlin, Howard & Blakeslee (1987) measured about
+**6** in the blowfly ("the slope or gain is highest and equals approximately
+6"). The release slope is the only factor that is neither a connectome weight
+nor an already-declared constant.
+
+v6a keeps v4's release value at a declared anchor. It multiplies the slope
+there by G = 40.69 for presynaptic R1–R6 only, with the anchor at −42 mV, which
+is V_rest plus the encoder's mean drive. Release is clipped to v4's bounds.
+Every other graded cell keeps G = 1, a **declared default**. No lamina →
+medulla gain is published, and any other value would need a per-cell-type
+anchor. No *Drosophila* photoreceptor → LMC scalar gain exists either: the
+*Drosophila* data are frequency-dependent spectral ratios (Nikolaev *et al.*
+2009). So the 6 is a **cross-species transfer**, and it is declared as one.
+
+### 15.2 Unit level and identity: as declared
+
+* **Two-cell probe.** Small-signal gain is **−6.00** under v6a and −0.147 under
+  the v5 line, in both kinetics arms.
+* **At 1.5 Hz.** A 0.1 mV photoreceptor sinusoid gives 0.60 mV in the
+  reference LMC. The grating's 9.57 mV gives 9.27 mV, saturated between −52
+  and −66.8 mV.
+* **v6a with every G = 1 reproduces v5.**
+  * Synthetic graphs: bit for bit, on CPU and GPU.
+  * Real graph: identical spike counts. Max |ΔV| is 1.1e-5 mV, exactly v5's
+    own run-to-run difference.
+
+### 15.3 The per-stage trace (right eye, 90th percentile of per-cell F1, mV)
+
+| | R1–R6 | L1 | L2 | L3 | Mi1 | Tm3 | Mi9 | Tm1 | Tm2 | Tm9 | **T4** | **T5** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| v4 | 9.75 | 1.61 | 0.74 | 0.77 | 0.155 | 0.42 | 0.19 | 0.27 | 0.30 | 0.13 | 0.079 | 0.099 |
+| v5 primary | 9.75 | 1.62 | 0.72 | 0.74 | 0.172 | 0.44 | 0.18 | 0.26 | 0.30 | 0.14 | 0.091 | 0.096 |
+| **v6a primary** | 9.81 | **9.71** | **3.80** | 3.31 | 0.98 | 2.43 | 0.82 | 1.34 | 1.55 | 0.60 | **0.455** | **0.482** |
+| **v6a K0** | 9.81 | **9.69** | **3.90** | 3.44 | 0.90 | 2.33 | 0.87 | 1.39 | 1.58 | 0.63 | **0.442** | **0.504** |
+| declared band | | 2–25 | 2–25 | | | | | | | | 1–25 | 1–25 |
+
+The left eye shows the same profile: the lamina is within 4 % of the right eye, and medulla and T4/T5 are 10–30 % lower (see the receipt). The
+lamina clause passes. The T4/T5 clause fails by a factor of about 2. The
+declaration predicted exactly this (P3: T4/T5 p90 between 0.2 and 0.8 mV).
+
+### 15.4 The incomplete lamina, analysed separately (post-lock diagnostic)
+
+The MaleCNS scan does not cover the lamina. 967 of 1,776 L1, 965 of 1,779 L2
+and 990 of 1,772 L3 cells receive **no R1–R6 synapse at all**. Nern *et al.*
+2025 say so, and this worktree verified the counts. These are structural gaps
+in the data. They are reported, not repaired: no connection was added. The
+declared statistic, the 90th percentile, was chosen before measuring for
+exactly this reason.
+
+A labelled **post-lock diagnostic** splits every population by anatomy. The
+input-receiving chain is driven R1–R6 → L → medulla → T4/T5. The diagnostic
+was added on 2026-10-05 at 15:11, before any v6a real-graph result existed. It
+decides nothing. On the input-receiving cells, right eye, median / p90 in mV:
+
+| | L1 | L2 | Mi1 | Tm3 | Tm1 | Tm2 | T4 | T5 |
+|---|---|---|---|---|---|---|---|---|
+| v5 primary | 1.49 / 1.66 | 0.64 / 0.76 | 0.14 / 0.18 | 0.32 / 0.46 | 0.22 / 0.27 | 0.24 / 0.31 | 0.058 / 0.093 | 0.057 / 0.098 |
+| v6a primary | 8.66 / 10.07 | 3.21 / 4.06 | 0.77 / 1.04 | 1.69 / 2.53 | 1.08 / 1.41 | 1.16 / 1.62 | **0.29 / 0.46** | **0.27 / 0.50** |
+
+The input-less cells sit at ≤ 0.06 mV. **The verdict does not depend on the
+statistic.** On the cells the stimulus can reach, attenuation from R1–R6 to T4
+was about 165× under v5 and is about 33× under v6a. The ≈ 500× quoted in the
+brief mixed in the input-less columns. In the animal, these cells respond in
+the tens of millivolts.
+
+### 15.5 Network health
+
+| | brain mean (Hz) | graded at a bound | DNa02 gray L / R (Hz) | health |
+|---|---|---|---|---|
+| v6a primary | 10.42 (v5: 10.40) | 0 % | 20 / **0** | **FAIL**: DNa02_R silent |
+| v6a K0 | 1.20 (v4: 1.21) | 0 % | 14 / 4 | pass |
+
+The steeper photoreceptor release leaves the brain-wide operating point
+untouched. The gain at the anchor is the only change, and the baseline is
+preserved. One right DNa02 falls silent in the primary's gray window (v5: 10
+Hz). The other DNa02 is near-threshold and is moved by small shifts in a
+two-cell readout.
+
+The photoreceptor synapse behaves as a **switch** under the grating. Of R1–R6
+release, 47.6 % is clipped at zero and 46.5 % at r_max at any moment, against
+9.8 % and 5.6 % in gray. The calibrated 1.7 mV linear window is far narrower
+than the grating's ±9.6 mV photoreceptor swing. The animal does the same at
+full contrast, since Laughlin's curve also saturates.
+
+### 15.6 Input timing, for v6b (flicker, right eye, equivalent delay in ms)
+
+| | Mi1 | Tm3 | Tm1 | Tm2 | Mi9 | Tm4 | Tm9 |
+|---|---|---|---|---|---|---|---|
+| v5 primary | 35 | 40 | 36 | 36 | 42 | 42 | 56 |
+| v6a primary | 46 | 47 | 37 | 37 | 39 | 42 | 28 |
+| v6a K0 | 46 | 51 | 44 | 45 | 49 | 49 | 58 |
+
+The animal (Behnia *et al.* 2014): **Mi1 18 ms after Tm3, Tm1 13 ms after
+Tm2.** In every v6a run Mi1 still leads or ties Tm3 (by 1–5 ms), and Tm1 ties
+Tm2. Gain does not create the input-timing difference. The declaration
+predicted v5's delays within 10 ms (P7). That is partly falsified: under the
+primary, Mi1 moves +10 ms and Tm9 −28 ms. The cause is amplitude-dependent
+saturation and mixing of the lamina pathways, not a timing mechanism.
+Independent work places the fast/slow split in the lamina (the L1/L2 H-current,
+Borst 2025; L2-dependent recurrent feedback, Pang *et al.* 2025). That is
+v6b's question and is not acted on here.
+
+### 15.7 The declaration, scored
+
+| | outcome |
+|---|---|
+| P1 / F1: unit gain −6 ± 2 %; v5-linear reproduces v5 | **held** |
+| P2: lamina p90 3–15 mV | **held**: L1 9.71, L2 3.80 |
+| P3: T4/T5 p90 0.2–0.8 mV, stage gate fails on T4/T5 | **held**: 0.455 / 0.482 (primary), 0.442 / 0.504 (K0) |
+| P4: network health holds | **partly false.** Brain rate and bounds held; DNa02_R silent in the primary (F3 triggered). K0 healthy. |
+| P5: no direction selectivity | not reached (the motion gate was not run) |
+| P6 / F7: arms agree | **held.** Both fail the stage gate on the T4/T5 clause. |
+| P7: flicker delays within 10 ms of v5 | **partly falsified** (Mi1 +10 ms, Tm9 −28 ms in the primary). Mi1/Tm3 order still reversed vs the animal. |
+| F2: lamina misses its band despite the unit probe | not triggered |
+
+### 15.8 Verdict, and what is missing
+
+* **Does restoring measured synaptic gain let the signal reach T4/T5 at a
+  biological scale? No.**
+  * It reaches the lamina: L1 ≈ 9–10 mV, L2 ≈ 3–4 mV on stimulated cells.
+  * T4/T5 rise fivefold but stay at 0.3–0.5 mV, against ≥ 5 mV in every
+    *Drosophila* recording.
+  * The measured gain fixes the first synapse only. Each later graded hop
+    still multiplies by 0.1–0.4, and there are three of them.
+* **Does the connectome then compute direction?** Untested. The declared stop
+  rule kept the motion gate from running, and the gate was not relaxed to
+  find out.
+* **What would be needed, in order** (§10.11):
+  1. Measured transfer, *and* measured operating points, for the
+     lamina → medulla and medulla → T4/T5 graded synapses. A gain above 1 needs
+     an anchor, which needs a per-cell-type operating point from an independent
+     recording, or set-point adaptation as a mechanism.
+  2. A reckoning with the weight scale. To match a measured voltage gain on
+     this graph, the photoreceptor release had to be ≈ 2.4× steeper than the
+     animal's measured e-fold (0.69 vs 1.50–1.86 mV). The 0.275 mV per-synapse
+     PSP (Shiu *et al.* 2024) was calibrated for spiking central neurons, not
+     tonic graded synapses.
+  3. v6b's input-cell temporal filtering.
+  4. The incomplete lamina: about 55 % of columns receive no photoreceptor
+     input. This is a property of the scan, and it is not repaired.
+* **Nothing here licenses a retune.** G, the anchor, the default, the bands and
+  the gate are as locked. The default dynamics stays v3. v6a is selectable as
+  `Brain(..., dynamics='v6a')`.
