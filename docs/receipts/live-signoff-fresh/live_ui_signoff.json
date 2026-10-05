@@ -2001,39 +2001,39 @@
   },
   "screenshots": [
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/01-initial-load.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/01-initial-load.png",
       "bytes": 416268
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/02-assay-optomotor.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/02-assay-optomotor.png",
       "bytes": 389687
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/02-assay-labyrinth.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/02-assay-labyrinth.png",
       "bytes": 389615
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/03-identity-bar.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/03-identity-bar.png",
       "bytes": 467035
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/04-after-rapid.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/04-after-rapid.png",
       "bytes": 421146
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/05-tabA-follows-tabB.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/05-tabA-follows-tabB.png",
       "bytes": 385517
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/06-speed-100x.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/06-speed-100x.png",
       "bytes": 396559
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/07-paused.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/07-paused.png",
       "bytes": 391380
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/docs/receipts/live-signoff-fresh/08-restored-open-arena-1x.png",
+      "file": "<repo>/docs/receipts/live-signoff-fresh/08-restored-open-arena-1x.png",
       "bytes": 419057
     }
   ],

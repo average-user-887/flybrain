@@ -5,6 +5,7 @@ lattice plane, on the real MaleCNS graph under LIF v4.  Reports per-population
 membrane response (graded cells) and firing rate (spiking cells), the HS
 physiology comparison, and the direction-selectivity index per population.
 """
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import argparse
 import json
 import math
@@ -14,7 +15,7 @@ import time
 
 import numpy as np
 
-W = '<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded'
+W = str(REPO)
 sys.path.insert(0, W)
 from brainlab.brain import Brain
 from brainlab.graded_policy import POLICY_PRIMARY
@@ -30,12 +31,12 @@ p.add_argument('--step-ms', type=float, default=2.0)
 p.add_argument('--policy', default=POLICY_PRIMARY)
 p.add_argument('--dynamics', default='v4')
 p.add_argument('--backend', default=None)
-p.add_argument('--out', default='<redacted-path>/tmp/graded/measure_bc.json')
+p.add_argument('--out', default=str(SCRATCH / 'measure_bc.json'))
 args = p.parse_args()
 
 io = resolve_photoreceptor_io()
 enc = PhotoreceptorGratingEncoder(io)
-graph = os.path.join('<redacted-path>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1',
+graph = os.path.join(str(REPO / 'outputs/brainlab/malecns_v1'),
                      'graph.npz')
 t0 = time.perf_counter()
 kw = {}

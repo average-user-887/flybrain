@@ -3,20 +3,20 @@
   "generated_at": "2026-09-19T21:57:09+0200",
   "generator": "python -m brainlab.graph_identity (brainlab/graph_identity.py:verify_graph)",
   "resolution": {
-    "worktree_default_graph_dir": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/outputs/brainlab/malecns_v1",
+    "worktree_default_graph_dir": "<repo>/outputs/brainlab/malecns_v1",
     "worktree_default_exists": false,
-    "resolved_graph_dir": "<redacted-path>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1",
+    "resolved_graph_dir": "<repo>/outputs/brainlab/malecns_v1",
     "resolved_via": "env:NEUROFLY_GRAPH_DIR",
     "policy": "Graph is referenced read-only in the root checkout; not copied. Order: --graph-dir, NEUROFLY_GRAPH_DIR, <checkout>/outputs/brainlab/malecns_v1. No search of other checkouts. Missing or mismatching graph raises GraphUnavailable; synthetic only with an explicit test option.",
-    "neuron_map_dir": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/connectome_data/malecns_v1"
+    "neuron_map_dir": "<repo>/connectome_data/malecns_v1"
   },
   "identity": {
     "dataset": "malecns_v1",
     "synthetic": false,
-    "graph_path": "<redacted-path>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz",
+    "graph_path": "<repo>/outputs/brainlab/malecns_v1/graph.npz",
     "graph_path_source": "env:NEUROFLY_GRAPH_DIR",
     "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
-    "neuron_map_path": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/connectome_data/malecns_v1/normalized/neurons.feather",
+    "neuron_map_path": "<repo>/connectome_data/malecns_v1/normalized/neurons.feather",
     "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
     "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
     "neurons": 166700,

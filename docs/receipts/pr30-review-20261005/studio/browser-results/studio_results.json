@@ -1,0 +1,143 @@
+{
+ "phase": "results",
+ "base": "http://127.0.0.1:8796/",
+ "started": "2026-10-05T15:37:06+0200",
+ "browser": "firefox 157.0",
+ "checks": {
+  "curated_cards": [
+   "Review: the fly with its brain connected vs disconnected\nexploratory Intact fly\n0.5 s review run, seed 12: the connectome drives the legs.\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nWatch\nDownload\nCompare with pair",
+   "Review: the fly with its brain connected vs disconnected\nexploratory Control: brain disconnected from legs\nSame seed; the brain runs but never reaches the legs.\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nWatch\nDownload\nCompare with pair"
+  ],
+  "finished_cards": [
+   "Review intact vs disconnected\nexploratory Control: brain disconnected from legs\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nWatch\nDownload\nCompare with pair",
+   "Review intact vs disconnected\nexploratory Intact fly\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nWatch\nDownload\nCompare with pair",
+   "Review DNa02 silenced\nexploratory Control: nothing silenced\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nWatch\nDownload\nCompare with pair",
+   "Review DNa02 silenced\nexploratory Silenced: DNa02\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nWatch\nDownload\nCompare with pair"
+  ],
+  "curated_watch_links": 2,
+  "watch_replay": {
+   "frames": 25,
+   "verified": true,
+   "duration": 0.5
+  },
+  "download": {
+   "url": "http://127.0.0.1:8796/api/studio/export/queue/20261005-133231-review-intact-vs-disconnected-s12-control.zip",
+   "status": 200,
+   "type": "application/zip",
+   "disposition": "attachment; filename=\"20261005-133231-review-intact-vs-disconnected-s12-control.zip\"",
+   "bytes": 994562,
+   "zip_magic": true
+  },
+  "downloaded_files": [
+   "20261005-133231-review-intact-vs-disconnected-s12-control.zip"
+  ],
+  "silenced_card_found": true,
+  "compare_button_text": "Compare with pair",
+  "compare_left": "Review DNa02 silenced \u00b7 Control: nothing silenced \u00b7 seed 11",
+  "compare_right": "Review DNa02 silenced \u00b7 Silenced: DNa02 \u00b7 seed 11",
+  "metrics_table": [
+   "Review DNa02 silenced (Control: nothing silenced) Review DNa02 silenced (Silenced: DNa02)",
+   "World rotation (rad/s) 4.000 4.000",
+   "Mean turning speed of the fly (rad/s) 0.004 -0.005",
+   "Turning gain (fly \u00f7 world) 0.001 -0.001",
+   "Net heading change (degrees) 0.1 -0.2",
+   "Spikes in the whole brain 44947 44321",
+   "Simulated time (s) 0.50 0.50",
+   "Silenced cell types \u2013 DNa02",
+   "Silenced neurons \u2013 2",
+   "Spikes from silenced neurons \u2013 0",
+   "Silencing held (no silenced neuron spiked) \u2013 yes"
+  ],
+  "frames_loaded": [
+   {
+    "frame": 0,
+    "frames": 25,
+    "duration": 0.5
+   },
+   {
+    "frame": 0,
+    "frames": 25,
+    "duration": 0.5
+   }
+  ],
+  "play_label": "Pause both",
+  "while_playing": [
+   [
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    },
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    }
+   ],
+   [
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    },
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    }
+   ],
+   "0.500 / 0.500 s"
+  ],
+  "pause_label": "Pause both",
+  "paused_stays": false,
+  "after_seek_500": [
+   [
+    {
+     "frame": 11,
+     "frames": 25,
+     "duration": 0.5
+    },
+    {
+     "frame": 11,
+     "frames": 25,
+     "duration": 0.5
+    }
+   ],
+   "0.250 / 0.500 s"
+  ],
+  "after_play_to_end": [
+   [
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    },
+    {
+     "frame": 24,
+     "frames": 25,
+     "duration": 0.5
+    }
+   ],
+   "0.500 / 0.500 s"
+  ],
+  "curated_compare_with_pair": 2,
+  "curated_compare_pair": [
+   "Review: the fly with its brain connected vs disconnected \u00b7 Intact fly \u00b7 seed 12",
+   "Review: the fly with its brain connected vs disconnected \u00b7 Control: brain disconnected from legs \u00b7 seed 12"
+  ],
+  "curated_metrics_table": [
+   "Review: the fly with its brain connected vs disconnected (Intact fly) Review: the fly with its brain connected vs disconnected (Control: brain disconnected from legs)",
+   "World rotation (rad/s) 4.000 4.000",
+   "Mean turning speed of the fly (rad/s) -0.001 0.011",
+   "Turning gain (fly \u00f7 world) -0.000 0.003",
+   "Net heading change (degrees) -0.0 0.3",
+   "Spikes in the whole brain 45053 45308",
+   "Simulated time (s) 0.50 0.50"
+  ],
+  "phone_overflow_px": 0,
+  "global_error_visible": false,
+  "errors": []
+ },
+ "ok": true,
+ "finished": "2026-10-05T15:37:20+0200"
+}

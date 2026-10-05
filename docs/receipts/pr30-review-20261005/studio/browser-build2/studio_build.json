@@ -1,0 +1,92 @@
+{
+ "phase": "build",
+ "base": "http://127.0.0.1:8796/",
+ "started": "2026-10-05T15:32:46+0200",
+ "browser": "firefox 157.0",
+ "checks": {
+  "gallery_lead_text": "Watch finished runs of the simulated fly at its own speed: a 3D body whose legs are commanded by the whole MaleCNS connectome through engineered input and output stages. These are demonstrations of the simulator, not evidence that the connectome alone produces the behaviour.",
+  "paradigm_cards": 14,
+  "badges": [
+   "Mapped"
+  ],
+  "buildable": [
+   "optomotor"
+  ],
+  "builder_explanation": "The fly stands on a flat floor inside a patterned world that rotates around it. Real flies turn with the motion to keep their view steady (the optomotor response). Here an engineered encoder turns the rotation into input to the T4/T5 motion cells of the MaleCNS connectome, with the direction already built in: the connectome does not compute motion direction by itself. The whole graph is simulated, and an engineered decoder turns descending-neuron activity (DNa02, DNp09, MDN) into commands for the six-legged FlyGym body. It is not a biological nerve cord, and this paradigm has no passing validation yet.",
+  "silence_groups": [
+   "t4t5",
+   "hs",
+   "dna02",
+   "dnp09",
+   "mdn"
+  ],
+  "prereg_text": "Preregistered tests of this paradigm (read-only, never changed from here): optomotor-yaw-v3-1 declared 2026-09-24 sha256 acd09b370f37\u2026; optomotor-yaw-v3-2 declared 2026-09-24 sha256 7f47c56b9a6d\u2026; optomotor-yaw-v3-3 declared 2026-09-25 sha256 1b8f56d21b80\u2026",
+  "controls_default_unsilenced": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    true,
+    true
+   ],
+   "intact": [
+    false,
+    false
+   ]
+  },
+  "controls_after_silencing": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    false,
+    true
+   ],
+   "intact": [
+    true,
+    true
+   ]
+  },
+  "submit1": "skipped (queued by the first build pass)",
+  "controls_after_unsilencing": {
+   "": [
+    false,
+    true
+   ],
+   "output-disconnected": [
+    true,
+    true
+   ],
+   "intact": [
+    false,
+    false
+   ]
+  },
+  "submit2": "skipped (queued by the first build pass)",
+  "submit3": "Queued 4 runs. Follow them in the Queue tab.",
+  "submit_bad_contrast": "Not queued: contrast: between 0.0 and 1.0",
+  "queue_rows_before_cancel": [
+   "3 Review intact vs disconnected\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nIntact fly 12 pending added 3:32:31 PM Cancel",
+   "4 Review intact vs disconnected\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nControl: brain disconnected from legs 12 pending added 3:32:31 PM Cancel",
+   "5 Review cancel me\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 20\nSilenced: T4a:L, T4b:L, T5a:L, T5b:L 20 pending added 3:32:50 PM Cancel",
+   "6 Review cancel me\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 20\nControl: nothing silenced 20 pending added 3:32:50 PM Cancel",
+   "7 Review cancel me\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 21\nSilenced: T4a:L, T4b:L, T5a:L, T5b:L 21 pending added 3:32:50 PM Cancel",
+   "8 Review cancel me\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 21\nControl: nothing silenced 21 pending added 3:32:50 PM Cancel",
+   "2 Review DNa02 silenced\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nControl: nothing silenced 11 running since 3:32:47 PM",
+   "1 Review DNa02 silenced\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nSilenced: DNa02 11 done 0.3 min Watch"
+  ],
+  "cancel_buttons_for_cancel_me": 4,
+  "queue_rows_after_cancel": [
+   "3 Review intact vs disconnected\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nIntact fly 12 pending added 3:32:31 PM Cancel",
+   "4 Review intact vs disconnected\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 12\nControl: brain disconnected from legs 12 pending added 3:32:31 PM Cancel",
+   "2 Review DNa02 silenced\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nControl: nothing silenced 11 running since 3:32:47 PM",
+   "1 Review DNa02 silenced\nrotation 4 rad/s \u00b7 contrast 1 \u00b7 0.5 s \u00b7 seed 11\nSilenced: DNa02 11 done 0.3 min Watch"
+  ],
+  "worker_text": "queue worker: running \u00b7 1 running \u00b7 2 waiting",
+  "errors": []
+ },
+ "ok": true,
+ "finished": "2026-10-05T15:33:01+0200"
+}

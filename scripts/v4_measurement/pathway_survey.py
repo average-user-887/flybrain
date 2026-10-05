@@ -1,9 +1,10 @@
 """Survey the R1-R6 -> lamina -> medulla -> T4/T5 -> HS/H2 -> DNa02 pathway in the pinned graph."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import collections
 import numpy as np
 import pyarrow.feather as f
 
-ROOT = '<redacted-path>/Documents/ChatGPT/flybrain'
+ROOT = str(REPO)
 t = f.read_table(ROOT + '/connectome_data/malecns_v1/normalized/neurons.feather').to_pandas()
 ct = t.cell_type.fillna('').to_numpy()
 g = np.load(ROOT + '/outputs/brainlab/malecns_v1/graph.npz')

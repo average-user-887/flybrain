@@ -2016,39 +2016,39 @@
   },
   "screenshots": [
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/01-initial-load.png",
+      "file": "<scratch>/race/browser/master-run2/01-initial-load.png",
       "bytes": 428951
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/02-assay-optomotor.png",
+      "file": "<scratch>/race/browser/master-run2/02-assay-optomotor.png",
       "bytes": 427243
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/02-assay-labyrinth.png",
+      "file": "<scratch>/race/browser/master-run2/02-assay-labyrinth.png",
       "bytes": 412629
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/03-identity-bar.png",
+      "file": "<scratch>/race/browser/master-run2/03-identity-bar.png",
       "bytes": 479602
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/04-after-rapid.png",
+      "file": "<scratch>/race/browser/master-run2/04-after-rapid.png",
       "bytes": 438258
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/05-tabA-follows-tabB.png",
+      "file": "<scratch>/race/browser/master-run2/05-tabA-follows-tabB.png",
       "bytes": 438258
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/06-speed-100x.png",
+      "file": "<scratch>/race/browser/master-run2/06-speed-100x.png",
       "bytes": 439169
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/07-paused.png",
+      "file": "<scratch>/race/browser/master-run2/07-paused.png",
       "bytes": 438533
     },
     {
-      "file": "<redacted-path>/tmp/race/browser/master-run2/08-restored-t-maze-3x.png",
+      "file": "<scratch>/race/browser/master-run2/08-restored-t-maze-3x.png",
       "bytes": 435334
     }
   ],

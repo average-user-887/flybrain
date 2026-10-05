@@ -1,0 +1,7 @@
+SKIPPED [1] tests/test_browser_recovery.py:27: set NEUROFLY_BROWSER_PYTHON to an interpreter with selenium
+SKIPPED [1] tests/test_embodied_physics.py:7: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [4] tests/test_fast_controller.py:7: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [1] tests/test_fast_controller.py:62: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [2] tests/test_wall_progress_fixtures.py:256: set NEUROFLY_RETAINED_BRAINS to a COPY of retained checkpoints
+1 failed, 738 passed, 9 skipped in 205.51s (0:03:25)
+tests/test_timing_determinism.py rerun alone (machine no longer loaded): 1 passed in 4.99s

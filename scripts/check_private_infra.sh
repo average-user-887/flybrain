@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
+# Release-hygiene guard for Project NeuroFly: fails on personal or private-infrastructure
+# data (private IPs, home/share paths, agent scratch paths, e-mail addresses, machine
+# hostnames, known private tokens). Works in a git checkout and in an exported tree.
+# All logic lives in check_private_infra.py; arguments are passed through
+# (e.g. --root DIR, --no-git). Allow-list: scripts/private_infra_allowlist.txt.
 set -euo pipefail
-
-# Private infrastructure grep guard for Project NeuroFly
-echo "[audit] Checking tracked files for private infrastructure leaks..."
-
-ERRORS=0
-
-# Grep for RFC 1918 private IPs (excluding RELEASE_AUDIT.md and .git)
-if git grep -E -I -n "(192\.168\.[0-9]{1,3}\.[0-9]{1,3}|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3})" -- ":(exclude)docs/RELEASE_AUDIT.md" ":(exclude)scripts/check_private_infra.sh"; then
-    echo "[audit] ERROR: Found private IP addresses in tracked files above!"
-    ERRORS=$((ERRORS + 1))
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="${PYTHON:-}"
+if [ -z "$PY" ]; then
+    if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
 fi
-
-# Grep for UNC Windows share paths
-if git grep -E -I -n "(//[a-zA-Z0-9_-]+/Storage|[A-Z]:[/\\]neurofly)" -- ":(exclude)docs/RELEASE_AUDIT.md" ":(exclude)scripts/check_private_infra.sh"; then
-    echo "[audit] ERROR: Found UNC/Windows internal share paths in tracked files above!"
-    ERRORS=$((ERRORS + 1))
-fi
-
-if [ "$ERRORS" -gt 0 ]; then
-    echo "[audit] FAILED: Private infrastructure identifiers detected."
-    exit 1
-fi
-
-echo "[audit] PASSED: No private infrastructure leaks found in tracked files."
-exit 0
+exec "$PY" "$HERE/check_private_infra.py" "$@"

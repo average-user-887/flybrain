@@ -56,7 +56,7 @@ A clean `git clone` on a Linux machine with ≥32 GB RAM and Python 3.12+ can:
 ### Distribution
 
 - **Now**: Local development only. Git repository with no remote.
-  Backup via snapshot bundles to `/mnt/<redacted-host>-storage/neurofly/snapshots/`.
+  Backup via snapshot bundles to the project's archive share.
 - **Phase 5**: Public git hosting (GitHub). `pip install neurofly`.
   No paid compute. MIT license (already in place).
 
@@ -526,20 +526,20 @@ Complete the remaining items from [`docs/RELEASE_AUDIT.md`](RELEASE_AUDIT.md):
 - [ ] Scrub remaining private infra references (items 5–12)
 - [ ] `git remote add origin <url>` + first push
 
-### Step 5.4 — <redacted-host> Backup & Snapshot
+### Step 5.4 — Archive-share Backup & Snapshot
 
 **Role**: Operations engineer
 
 ```bash
 SHA=$(git rev-parse --short=7 HEAD)
-S=/mnt/<redacted-host>-storage/neurofly/snapshots/$SHA
+S=<archive-share>/neurofly/snapshots/$SHA
 mkdir -p $S
 git bundle create $S/neurofly-$SHA.bundle --all
 git archive --format=tar.gz -o $S/flybrain-$SHA.tar.gz HEAD
 sha256sum $S/*.bundle $S/*.tar.gz > $S/SHA256SUMS
 ```
 
-Update `/mnt/<redacted-host>-storage/neurofly/CURRENT_HANDOFF.md`.
+Update `<archive-share>/neurofly/CURRENT_HANDOFF.md`.
 
 ### Gate 5 — Owner Decision
 

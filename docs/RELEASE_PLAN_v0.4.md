@@ -1,6 +1,6 @@
 # Release plan — NeuroFly v0.4.0
 
-Owner of this plan: the Claude orchestrator (Ryzen), to whom the project owner handed
+Owner of this plan: the Claude orchestrator (on the reference NVIDIA host), to whom the project owner handed
 full responsibility on 5 October 2026 with the goal of a full public release.
 Status: **ACTIVE**. This file is the single source of truth for the release; it is
 updated in place as gates pass, with every change committed.
@@ -32,7 +32,7 @@ rather than wait for, or imply, a positive result.
 | item | state |
 |---|---|
 | Code on GitHub | master `5c54b03`, published 5 Oct; 29 previously unpublished commits now public |
-| Test suite (Ryzen, real graph, GPU) | **717 passed, 9 skipped, 0 failed** at `5c54b03` |
+| Test suite (reference NVIDIA host, real graph, GPU) | **717 passed, 9 skipped, 0 failed** at `5c54b03` |
 | Live dashboard sign-off | **7/7** in real Firefox after the switch-freeze fix (`docs/receipts/live-signoff-20261004-postmerge-run2/`) |
 | GitHub releases | **none** — only a bare tag `v0.3.0` (24 Sep) |
 | Version in `pyproject.toml` | 0.3.0 |
@@ -40,7 +40,7 @@ rather than wait for, or imply, a positive result.
 | Discussions | **off** |
 | External feedback | none yet: 0 stars, 0 forks, all issues/PRs from the owner's account |
 | Open PRs | #25 WP7 mushroom-body learning spec (docs); #30 Experiment studio (dashboard feature). Both merge cleanly into `5c54b03`. |
-| AMD / non-NVIDIA | Steam Deck agent (deck-d8) ready; CPU backend only; no AMD GPU engine exists |
+| AMD / non-NVIDIA | AMD test-host agent ready; CPU backend only; no AMD GPU engine exists |
 
 ---
 
@@ -78,34 +78,34 @@ Each gate has an owner, a check and a receipt. The release is cut only when ever
 | # | gate | level | owner | check |
 |---|---|---|---|---|
 | G1 | Clean-room install works on NVIDIA Linux | MUST | orchestrator | fresh clone from GitHub into a new directory, README followed verbatim |
-| G2 | Clean-room install works on AMD (CPU) | MUST | deck-d8 (T1) | same, on the Steam Deck |
+| G2 | Clean-room install works on AMD (CPU) | MUST | AMD test host (T1) | same, on the AMD test host |
 | G3 | Data path documented and working | MUST | orchestrator | `neurofly` download command fetches and verifies MaleCNS from Janelia; attribution shown |
-| G4 | Test suite green on NVIDIA and AMD | MUST | orchestrator, deck-d8 (T2) | 0 failures; every skip explained |
-| G5 | Real-browser dashboard sign-off on both | MUST | orchestrator, deck-d8 (T5) | `scripts/live_ui_signoff.py` 7/7, two runs back to back |
+| G4 | Test suite green on NVIDIA and AMD | MUST | orchestrator, AMD test host (T2) | 0 failures; every skip explained |
+| G5 | Real-browser dashboard sign-off on both | MUST | orchestrator, AMD test host (T5) | `scripts/live_ui_signoff.py` 7/7, two runs back to back |
 | G6 | README and capability matrix match the receipts | MUST | orchestrator | every claim in README traceable; stale items fixed (status date, 18-DOF vs measured 66 joint DOFs, GPU reproducibility wording, test count) |
 | G7 | Release notes and CHANGELOG | MUST | orchestrator | `CHANGELOG.md` covering 0.3.0 → 0.4.0; notes carry §3 verbatim in substance |
 | G8 | Citation and attribution | MUST | orchestrator | `CITATION.cff`; MaleCNS CC-BY 4.0 attribution in README and NOTICE |
-| G9 | No secrets or personal data in the published tree | MUST | orchestrator | scan of full history at the release commit (done for the 29 commits published 5 Oct: clean) |
-| G10 | Performance stated honestly | MUST | orchestrator, deck-d8 (T4) | measured sim-s/wall-s on GPU, Ryzen CPU and AMD CPU, with peak memory |
-| G11 | Cross-machine determinism stated | SHOULD | deck-d8 (T3) | same seed and commit on Ryzen and Deck; hashes compared |
+| G9 | No secrets or personal data in the published tree | MUST | orchestrator | **Not clean (corrected 5 Oct 2026).** The earlier entry here said the 29 commits published on 5 Oct were scanned clean; that was wrong. An external audit on 5 Oct 2026 found personal data in the tree and in commit metadata: the local username and home-directory paths (163 occurrences in 46 tracked files), agent scratch paths, the workstation hostname in 7 receipts, internal host and share names in docs, and a tracked `.claude/settings.json`. Branch `claude/sanitize-tree` removes these from the current tree (receipts redacted with placeholders, logged in `docs/receipts/REDACTIONS.md`; measurement scripts made repository-relative), untracks `.claude/settings.json`, and extends `scripts/check_private_infra.sh` (run in CI) so they cannot be reintroduced. **Accepted residual (owner decision, 5 Oct 2026, `docs/OWNER_DECISIONS.md`):** published history is not rewritten, because a rewrite would change every cited commit ID and could not truly erase anything. Older commits keep personal e-mail addresses in their author/committer metadata, private session links in some commit messages, and the removed strings in their trees; this is documented and accepted. GitHub e-mail privacy is on and the repository's commit identity is now a noreply address. G9 passes when the current tree is clean, the guard passes in CI, and no new commit carries personal data. |
+| G10 | Performance stated honestly | MUST | orchestrator, AMD test host (T4) | measured sim-s/wall-s on GPU, the reference host CPU and AMD CPU, with peak memory |
+| G11 | Cross-machine determinism stated | SHOULD | AMD test host (T3) | same seed and commit on the reference host and the AMD test host; hashes compared |
 | G12 | Discussions on, issue templates, CONTRIBUTING current | MUST | owner (toggle) + orchestrator | see §7 |
 | G13 | Open PRs #25 and #30 resolved | MUST | orchestrator | each reviewed: merged with sign-off, or closed/deferred with a stated reason |
-| G14 | Embodied extra installs and `verdict` runs | SHOULD | orchestrator, deck-d8 (T6) | stimulus-reversal PASS on a clean install |
+| G14 | Embodied extra installs and `verdict` runs | SHOULD | orchestrator, AMD test host (T6) | stimulus-reversal PASS on a clean install |
 
 ---
 
 ## 5. Work order
 
-1. **Now:** publish current master (done, `5c54b03`). Pin deck-d8 to it (done).
+1. **Now:** publish current master (done, `5c54b03`). Pin the AMD test host to it (done).
 2. **Docs pass (G6, G7, G8):** README status and claims, CHANGELOG, CITATION.cff,
    NOTICE check. Branch `claude/release-v0.4`.
 3. **PR review (G13):** #25 is documents only, so review it for honesty and merge. #30 changes
    the dashboard, so code review, full suite and the real-browser sign-off, then merge or defer.
-4. **Clean-room install on Ryzen (G1, G3)** in parallel with **deck-d8 T1–T5 (G2, G4,
+4. **Clean-room install on the reference NVIDIA host (G1, G3)** in parallel with **AMD test host T1–T5 (G2, G4,
    G5, G10, G11)**. Every install defect becomes a fix on a branch.
 5. **Version bump** to 0.4.0 in `pyproject.toml`; regenerate anything that embeds the
    version.
-6. **Release candidate:** tag `v0.4.0-rc1`, push, have deck-d8 repeat T1/T2 against
+6. **Release candidate:** tag `v0.4.0-rc1`, push, have the AMD test host repeat T1/T2 against
    the tag. Fix, re-tag rc2 … as needed.
 7. **Release:** tag `v0.4.0`, publish the GitHub Release with notes, announce in
    Discussions.
@@ -118,7 +118,7 @@ its receipt; one that lands after goes into 0.4.x or 0.5.
 
 ## 6. Explicitly out of scope for v0.4
 
-- An AMD GPU (ROCm/HIP/Vulkan) engine. Decide for 0.5 from deck-d8's CPU numbers.
+- An AMD GPU (ROCm/HIP/Vulkan) engine. Decide for 0.5 from the AMD test host's CPU numbers.
 - Any claim that the connectome computes behaviour on its own.
 - Real-time performance.
 
@@ -138,19 +138,19 @@ Kept to what cannot be done from this machine without credentials:
 ## 8. How integration works now
 
 The orchestrator's sessions are worktree-isolated and cannot move the `master` ref
-of the main checkout (`~/Documents/ChatGPT/flybrain`), which the live services run
+of the main checkout, which the live services run
 from. Therefore:
 
 - **GitHub `master` is the integration point.** The orchestrator lands work by pushing
   fast-forwards to `origin/master`, only after the full suite passes on the exact
   commit. Never a force-push.
-- The main checkout follows with `git pull --ff-only` in
-  `~/Documents/ChatGPT/flybrain`. Until it pulls, the running services keep the code
+- The main checkout follows with `git pull --ff-only` in the
+  main checkout. Until it pulls, the running services keep the code
   they started with, which is safe.
 - Branches stay on GitHub after merging, for provenance.
 
-## 9. Coordination with deck-d8
+## 9. Coordination with the AMD test host
 
-Through dated files on the <redacted-host> share `/mnt/<redacted-host>-storage/neurofly/`
+Through dated files on the project's archive share
 (`ORCHESTRATOR_TO_DECK_*` and `DECK_*`). The first test scope (T1–T6) was sent on
 5 October 2026 and pinned to `5c54b03`.
