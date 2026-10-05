@@ -33,6 +33,7 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 - **Deterministic run recordings** (`.nfrec`) with 1x replay in the dashboard (#8);
   recordings state whether the brain ran on the CPU or GPU (#13).
 - **`neurofly full-sim`**: a multi-task lifelong run across the 14 paradigms (#7).
+  Retired before release; see Removed.
 - `CITATION.cff`, this changelog, `docs/RELEASE_PLAN_v0.4.md`, `docs/OWNER_DECISIONS.md`,
   `docs/LITERATURE_BENCHMARKS.md` and `docs/LITERATURE_SCAN_2026-10-05.md`.
 
@@ -48,6 +49,19 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
   documents the full data pipeline (download, normalize, prepare, verify), uses an
   HTTPS clone URL, and states plainly what runs without an NVIDIA GPU.
 - `NOTICE` now lists the bundled three.js and gives full citations.
+
+### Removed
+
+- **Retired entry points** (`docs/RETIREMENT_INDEX.md`). Each now prints why and exits
+  2 without loading data or writing output; the source stays in git history.
+  `neurofly full-sim` and `experiments/full_connectome_simulation.py` were not a full
+  connectome simulation (empty sensory input; motor output overwritten by the modular
+  controller). `experiments/run_paradigm_battery.py` and
+  `experiments/whole_brain_scientific_battery.py` drove the surrogate bridge, and the
+  latter hardcoded significance claims. `sync_ecosystem.py` had a stale manifest, and
+  `scripts/test_srv.py` loaded the full graph on import (now inert).
+  `flybrain_scientific_instrument.html` is a notice pointing to the dashboard, and the
+  orphaned `web/research/app.js` and `style.css` moved to `docs/archive/`.
 
 ### Fixed
 

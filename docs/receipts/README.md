@@ -25,6 +25,8 @@ is suspect and must be re-run.
 and PR #4 does not fix it: it built `Brain(graph_path, dynamics="v3")` from the raw
 graph without applying the transmitter policy. PR #7 fixed this. Outputs from before
 PR #7 are v3 equations on v1 weights.
+`full-sim` was retired on 2026-10-05 for further defects (empty sensory input, motor
+output overwritten by the modular controller); see `docs/RETIREMENT_INDEX.md`.
 
 The paths that do apply the policy are `brainlab/cosim_server.py` (used by
 `neurofly_body` and the WP5 scripts), `scripts/gpu_parity.py`, and the `brain-malecns`
@@ -63,7 +65,7 @@ stage of `scripts/benchmark.py`.
 | Full daemon: 0.398x real time on GPU vs 0.0405x on CPU | PR #2 description | Measured before PR #4 with `NEUROFLY_LIF_DYNAMICS=v3`, so the daemon ran v3 equations on v1 weights. Superseded by `ryzen/bench-ryzen-1f4a58a.json` (0.43x / 0.043x on true v3). |
 | Brain on the laptop i5-1334U: 0.0085x | PR #2 description | No committed receipt. |
 | Body on the Ryzen: 0.648x | PR #3, `docs/ROADMAP.md` | No committed receipt; the committed body receipts are from a cloud Xeon. |
-| `experiment_data/ryzen_battery/` (12 paradigms, 3 trials each, 2026-09-18) | tracked data | No controller or dynamics identity is recorded. Every trial is identical (for example, optomotor gain 8.8 × 10⁻²³ and HS rate exactly 76.0 Hz in all three). Not evidence. |
+| `experiment_data/ryzen_battery/` (12 paradigms, 3 trials each, 2026-09-18) | tracked data | Surrogate `ConnectomeBridge` output from the retired `run_paradigm_battery.py`. No controller or dynamics identity is recorded. Every trial is identical (for example, optomotor gain 8.8 × 10⁻²³ and HS rate exactly 76.0 Hz in all three). Not evidence. |
 
 ## Re-run queue
 
@@ -97,6 +99,8 @@ commit its JSON here with `dynamics`, `transmitter_policy`, `graph_sha256`, back
    git, under `outputs/registry/` on the Ryzen). Discard them or re-run them; they
    are v3 equations on v1 weights.
 9. **`neurofly full-sim` outputs from before PR #7** (under `outputs/full_simulation/`).
-   They are v3 equations on v1 weights; re-run them on current master.
-10. **`experiment_data/ryzen_battery/`**: re-run with identity recorded, or move it out
-    of the tracked tree.
+   They are v3 equations on v1 weights. `full-sim` is retired (`docs/RETIREMENT_INDEX.md`),
+   so they cannot be re-run on master; treat them as unsupported.
+10. **`experiment_data/ryzen_battery/`**: surrogate smoke output from the now-retired
+    `run_paradigm_battery.py`; kept unchanged and labelled, never to be cited as evidence
+    (`docs/RETIREMENT_INDEX.md`).
