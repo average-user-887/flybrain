@@ -1,11 +1,12 @@
 """Predeclared measurement (a): unit-level, spec §7.10(a). CPU, synthetic graphs."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import os
 import sys
 
 import numpy as np
 
-sys.path.insert(0, '<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded')
+sys.path.insert(0, str(REPO))
 os.environ['NEUROFLY_BRAIN_BACKEND'] = 'cpu'
 from brainlab.brain import Brain
 from brainlab.engine import E_EXC_MV, E_INH_MV, R_MAX_HZ, V_REST_MV
@@ -155,5 +156,5 @@ out['a4_verdict'] = ('PASS: within 1%' if all(abs(r['rel_error']) < 0.01 for r i
                      else 'CHECK')
 
 print(json.dumps(out, indent=2))
-with open('<redacted-path>/tmp/graded/measure_a.json', 'w') as fh:
+with open(str(SCRATCH / 'measure_a.json'), 'w') as fh:
     json.dump(out, fh, indent=2)

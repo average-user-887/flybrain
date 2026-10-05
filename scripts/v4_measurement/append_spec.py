@@ -1,7 +1,8 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import hashlib
 import pathlib
 
-W = pathlib.Path('<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded')
+W = REPO
 locked = W / 'docs/receipts/graded_transmission_v4_declaration.locked.md'
 text = locked.read_text()
 digest = hashlib.sha256(locked.read_bytes()).hexdigest()

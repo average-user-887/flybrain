@@ -1,7 +1,8 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import pathlib
 
-W = pathlib.Path('<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded')
-T = pathlib.Path('<redacted-path>/tmp/graded')
+W = REPO
+T = SCRATCH
 
 # --- WP5 §13 --------------------------------------------------------------
 wp5 = W / 'docs/WP5_OPTOMOTOR.md'

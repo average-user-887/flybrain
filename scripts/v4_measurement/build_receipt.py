@@ -1,12 +1,13 @@
 """Assemble docs/receipts/lif_dynamics_v4.json from the predeclared measurements."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import hashlib
 import json
 import pathlib
 import subprocess
 import sys
 
-W = pathlib.Path('<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded')
-T = pathlib.Path('<redacted-path>/tmp/graded')
+W = REPO
+T = SCRATCH
 sys.path.insert(0, str(W))
 from brainlab.graph_identity import LIF_DYNAMICS_V4, dynamics_pin
 

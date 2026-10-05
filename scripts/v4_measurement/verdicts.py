@@ -1,7 +1,8 @@
 """Evaluate the predeclared falsification criteria F1-F7 and the gate on (d)."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 
-T = '<redacted-path>/tmp/graded/'
+T = str(SCRATCH) + '/'
 a = json.load(open(T + 'measure_a.json'))
 v4 = json.load(open(T + 'measure_bc.json'))
 

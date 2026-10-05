@@ -2,7 +2,7 @@
 import os, sys
 import neurofly_daemon as nd
 
-FLAG = "<redacted-path>/tmp/race/inject.flag"
+FLAG = "<scratch>/race/inject.flag"
 _orig = nd.GraphArenaController.__call__
 
 
