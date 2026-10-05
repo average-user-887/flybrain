@@ -615,3 +615,17 @@ The photoreceptor encoder, its pin
 `0931ec2f…943222`, the probe and the diagnostic stay in the tree and will be the
 measurement that a v4 engine is judged against — unchanged, so that the comparison
 is like for like.
+
+---
+
+## Correction (5 October 2026): `v3-einh-60` is a sensitivity point
+
+This document calls `v3-einh-60` "§13's literature-supported value" (header, §2.4). That
+label is withdrawn; the passages above are part of the locked declaration
+(`docs/receipts/photoreceptor_encoder_declaration.locked.md`) and are left unedited.
+`E_inh = −60 mV` was a sensitivity point. The chloride papers it was drawn from do not
+support a value or range for adult central `E_Cl`: "little chloride current at rest"
+constrains the resting chloride conductance, not the reversal, and a GABA-evoked
+voltage endpoint is not a reversal measurement. See `docs/EINH_SENSITIVITY.md` §7.
+No measured number here changes. The −60 mV rows (gate FAIL, 0.0 / 0.0 Hz) are
+results at one engine setting of an unconstrained parameter.

@@ -1697,3 +1697,27 @@ abstract only; NOT = could not be retrieved).
 * Borst, A. (2025). *J Comput Neurosci* 53:507–520. PMC12672718. FULL.
 * Schnell, B. *et al.* (2010) and Rayshubskiy, A. *et al.* (2020): as cited in
   §7.11 and §8.
+
+---
+
+## Correction (5 October 2026): the `E_inh` literature in §3.1 and §6.7
+
+Left unedited above because §3.1 and §6.7 are part of locked declarations. Retrieved
+against the primary papers on 5 October 2026 (details and quotations in
+`docs/EINH_SENSITIVITY.md` §7):
+
+* **Su & O'Dowd 2003** (−37 ± 3 mV against a theoretical −45 mV) recorded **cultured
+  neurons from late-stage pupal central brain** (Kenyon cells identified by GFP), in
+  whole-cell mode with a ≈ 24 mM Cl⁻ internal, not adult Kenyon cells in situ.
+* **Rohrbough & Broadie 2002**: larval ventral-nerve-cord neurons, primarily motor
+  neurons. The abstract says GABA and glutamate responses "reversed near normal
+  resting potential". The **−56 ± 3 mV value and the pipette chloride could not be
+  verified** (full text not retrievable), so "the measured *Drosophila* larval value"
+  in §3.1 and §6.7 (arm S2) is unverified. It is in any case a whole-cell reversal,
+  which the pipette sets.
+* No paper retrieved reports a **native** adult central `E_Cl`. `E_inh` is
+  unconstrained by the literature, so −70 mV (the assumption here), −60 mV and −56 mV
+  are all sensitivity points, and none is physiologically privileged.
+
+§3.1 already labels −70 mV an engineering assumption, and that stands. What is
+corrected is the standing of the comparison values.

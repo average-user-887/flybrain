@@ -55,7 +55,7 @@ These are the findings the release notes and README must state, each with its re
   the v3 graph routes the signal to a DNa02-mediated turn (PASS_PROVISIONAL,
   `docs/receipts/validation/optomotor-yaw-v3-2.md`). The magnitude depends on an
   assumed chloride reversal potential (`docs/EINH_SENSITIVITY.md`).
-- **The connectome does not compute direction selectivity** from photoreceptor input
+- **Our connectome model does not produce direction selectivity** from photoreceptor input
   under v3, v4 (graded transmission) or v5 (receptor kinetics)
   (`docs/WP5_OPTOMOTOR.md` §13–§14). Two diagnosed causes: the signal attenuates
   ~500× before T4/T5, and paired T4/T5 inputs arrive in the wrong order.
@@ -109,6 +109,11 @@ Each gate has an owner, a check and a receipt. The release is cut only when ever
    the tag. Fix, re-tag rc2 … as needed.
 7. **Release:** tag `v0.4.0`, publish the GitHub Release with notes, announce in
    Discussions.
+
+*Status correction, 5 October 2026:* v6a (branch `claude/gain-v6a`, `446a6af`; not on
+`master`) failed its declared amplitude (stage) gate on T4/T5, so its motion verdict
+was **not run**. The v3/v4/v5/v6a negatives are model-specific. They are never proof
+that the biological connectome cannot compute motion.
 
 Science work (v6a graded-synapse gain, the literature refresh) continues in parallel
 and **does not block** v0.4. A result that lands before the release is included with

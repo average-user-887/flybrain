@@ -27,8 +27,10 @@ brain, simulated as published, produce the fly's behaviour?**
   L3 55.9 %). Nern *et al.* 2025 note that the lamina is the one optic-lobe neuropil
   the dataset does not cover completely
   ([`docs/LITERATURE_SCAN_2026-10-05.md`](LITERATURE_SCAN_2026-10-05.md) §A1).
-- **On the real scan, the simulated visual system does not compute the direction of
-  motion.** That is the result of this release, and it is reported as it stands. By
+- **On the real scan, our simulated visual system does not compute the direction of
+  motion.** That is the result of this release for these model versions, and it is
+  reported as it stands. It is not evidence that the fly's real connectome cannot
+  compute motion. By
   owner ruling, no missing connection will be invented to make it work, not even as a
   labelled variant.
 
@@ -46,10 +48,12 @@ brain, simulated as published, produce the fly's behaviour?**
   the gating bounds were unverified, the HS check was relaxed after an earlier run
   failed on it, and the encoder does the computation the circuit should do. The size
   of the effect depends on an assumed chloride reversal potential: a third smaller at
-  −60 mV than at −70 mV, and unknown at the measured −56 mV
+  −60 mV than at −70 mV, and unknown at −56 mV. These are sensitivity points, not
+  measured adult values; no native adult central chloride reversal was found
+  (corrected 5 October 2026, `EINH_SENSITIVITY.md` §7)
   ([`EINH_SENSITIVITY.md`](EINH_SENSITIVITY.md)).
-- **The connectome does not compute direction selectivity from photoreceptor input**
-  under v3, v4 (graded transmission) or v5 (receptor-class synaptic kinetics)
+- **Our connectome model does not produce direction selectivity from photoreceptor
+  input** (a model-specific negative, not proof about the biological connectome) under v3, v4 (graded transmission) or v5 (receptor-class synaptic kinetics)
   ([`WP5_OPTOMOTOR.md`](WP5_OPTOMOTOR.md) §13-§14). Two diagnosed causes: the signal
   shrinks about 200-500x between the photoreceptors and T4/T5 (partly because of the
   lamina gap above), and the inputs to T4/T5 arrive in the wrong relative order.
