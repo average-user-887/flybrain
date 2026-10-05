@@ -393,3 +393,65 @@ def test_a_control_built_from_a_run_that_did_not_turn_is_uninformative():
     )
     (finding,) = V.control_findings(outcomes, V.YAW_PASS_THRESHOLD_RAD)
     assert finding["informative"] is False and "uninformative" in finding["reading"]
+
+
+class SeededGraph(FakeGraph):
+    """Fake graph whose spike stream restarts from ``optomotor_seed`` on reset."""
+
+    def __init__(self):
+        super().__init__()
+        self.optomotor_seed = 0
+        self.reset()
+
+    def reset(self):
+        super().reset()
+        import numpy as np
+
+        self.rng = np.random.default_rng(self.optomotor_seed)
+
+    def step(self, sensory, duration_ms=2.0):
+        reply = super().step(sensory, duration_ms)
+        reply["dna02_rate_l"] = float(self.rng.integers(0, 3)) * 500.0
+        reply["dna02_rate_r"] = float(self.rng.integers(0, 3)) * 500.0
+        return reply
+
+
+def _reuse_setup(tmp_path):
+    from neurofly_body import cli
+
+    args = cli._parser().parse_args(
+        ["verdict", "--output", str(tmp_path), "--decoder", "dna02-crossed-v1",
+         "--reuse-check-duration", "0.01"]
+    )
+    neural, body = SeededGraph(), FakeBody()
+    conditions = V.plan([0, 1], 4.0, full_controls=False)
+    for condition in conditions:          # ends on seed 1, like the default plan
+        V._set_seed(neural, condition.seed)
+        run_embodied(
+            V._config(args, condition, tmp_path / condition.name, 0.04),
+            neural, body, decoder=V.make_decoder(args), close_body=False,
+        )
+    return args, conditions[0], neural, body
+
+
+def test_reuse_check_repeats_the_first_condition_on_its_own_seed(tmp_path):
+    """The false alarm: a plan ending on seed 1 re-ran seed 0 on seed 1's stream."""
+    args, first, neural, body = _reuse_setup(tmp_path)
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["records_compared"] == 5
+
+
+def test_a_failed_reuse_check_invalidates_the_verdict(tmp_path, monkeypatch):
+    args, first, neural, body = _reuse_setup(tmp_path)
+    monkeypatch.setattr(V, "_set_seed", lambda neural, seed: None)   # the old bug
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is False and "DIVERGENT" in check["note"]
+
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, check)
+    assert judgement["verdict"] == "INVALID"
+    assert "INVALID" in V.VERDICTS
+    # A passing or skipped reuse check leaves the verdict to the turns.
+    ok = {"ran": True, "bit_identical": True, "note": "byte-identical"}
+    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, ok)["verdict"] == "PASS"
+    skipped = {"ran": False, "bit_identical": None, "note": "skipped"}
+    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, skipped)["verdict"] == "PASS"

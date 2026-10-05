@@ -59,7 +59,7 @@ YAW_PASS_THRESHOLD_RAD = 0.2
 # Fixed permutation seed, so the time-shuffled control is reproducible.
 SHUFFLE_SEED = 20260926
 
-VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE")
+VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "INVALID")
 
 # What the verdict's decoders are built from, for the receipt.
 DECODER_INPUTS = {
@@ -297,9 +297,17 @@ def _measure(condition: Condition, run_dir: Path, summary: dict[str, Any]) -> Ou
 
 
 def judge(
-    outcomes: dict[str, Outcome], seeds: Sequence[int], threshold: float
+    outcomes: dict[str, Outcome],
+    seeds: Sequence[int],
+    threshold: float,
+    reuse_check: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Pass only if the turn follows the stimulus sign in both directions, every seed."""
+    """Pass only if the turn follows the stimulus sign in both directions, every seed.
+
+    A reuse check that ran and found divergent telemetry makes the verdict
+    INVALID whatever the turns did: the conditions were then not run on
+    comparable reset states, so no comparison between them can stand.
+    """
     per_seed = []
     for seed in seeds:
         positive = outcomes[f"seed{seed}-positive-w"]
@@ -339,7 +347,13 @@ def judge(
     undersampled = sorted(
         {name for entry in per_seed for name in entry["undersampled_conditions"]}
     )
-    if undersampled:
+    if reuse_check is not None and reuse_check.get("ran") and not reuse_check.get("bit_identical"):
+        verdict = "INVALID"
+        reason = (
+            "the reuse check failed (" + str(reuse_check.get("note", "divergent telemetry"))
+            + "), so the conditions are not comparable and the turns are not judged"
+        )
+    elif undersampled:
         verdict = "INCONCLUSIVE"
         reason = (
             "at least one reversal condition produced fewer than "
@@ -782,7 +796,7 @@ def run_verdict(args: Any) -> int:
     finally:
         body.close()
 
-    judgement = judge(outcomes, seeds, YAW_PASS_THRESHOLD_RAD)
+    judgement = judge(outcomes, seeds, YAW_PASS_THRESHOLD_RAD, reuse_check)
     status = neural.get_status()
     receipt = {
         "schema": "neurofly-embodied-verdict-v2",
@@ -853,6 +867,13 @@ def _reuse_check(
     The first condition ran on a freshly built server and body.  Re-running its
     opening steps now, after every other condition, must reproduce the same
     telemetry bytes; if any state survived a reset it cannot.
+
+    A prefix comparison is valid because no telemetry record depends on the
+    run's duration or invocation: each record holds only that step's simulated
+    quantities.  It is only like-with-like if the repeat runs on the first
+    condition's optomotor seed, so that is set here.  Without it the repeat ran
+    on the LAST condition's noise stream and reported a false divergence (seen
+    at record 4 when the plan ended on seed 1).
     """
     if not args.reuse_check:
         return {
