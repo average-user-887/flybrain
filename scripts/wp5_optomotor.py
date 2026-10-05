@@ -46,10 +46,18 @@ sys.path.insert(0, str(ROOT))
 # manifest's dynamics block and controller version are resolved at import time.
 _pre = argparse.ArgumentParser(add_help=False)
 _pre.add_argument('--dynamics', default='v1')
-os.environ['NEUROFLY_LIF_DYNAMICS'] = _pre.parse_known_args()[0].dynamics
+_pre.add_argument('--e-inh', default=None)
+_pre_args = _pre.parse_known_args()[0]
+os.environ['NEUROFLY_LIF_DYNAMICS'] = _pre_args.dynamics
+if _pre_args.e_inh is not None:
+    # Declared E_inh sensitivity variant (docs/EINH_SENSITIVITY.md).  Set before
+    # the brainlab import for the same reason --dynamics is: the identity of the
+    # run is resolved at import time.  Unset leaves the declared v2/v3 value.
+    os.environ['NEUROFLY_LIF_E_INH_MV'] = str(float(_pre_args.e_inh))
 
 from brainlab.graph_identity import (DYNAMICS_VERSIONS, GraphIdentity,  # noqa: E402
-                                     active_dynamics_version, dynamics_pin, sha256_json)
+                                     active_dynamics_version, active_e_inh_mV, dynamics_pin,
+                                     dynamics_variant, dynamics_variant_pin, sha256_json)
 from brainlab.io_map import (DNa02YawDecoder, OptomotorEncoder, OptomotorLoop,  # noqa: E402
                              resolve_optomotor_io)
 from experiment_registry import ExperimentRegistry, SharedGraph  # noqa: E402
@@ -245,11 +253,18 @@ def main():
                         help='EXPLORATORY: direction-negated schedule, seeds 0-2, not part of the verdict')
     parser.add_argument('--dynamics', default='v1', choices=('v1', 'v2', 'v3'),
                         help='declared LIF dynamics version (docs/LIF_DYNAMICS_SPEC.md); default v1')
+    parser.add_argument('--e-inh', default=None,
+                        help='v2/v3 only: declared inhibitory-reversal variant in mV '
+                             '(docs/EINH_SENSITIVITY.md). Each value is a labelled variant with '
+                             'its own pin; the base version and its pin are unchanged. Under v3 '
+                             'the inhibitory conductance quantum follows it by the spec §6.2 rule.')
     parser.add_argument('--unclear-mode', default='excitatory',
                         choices=('excitatory', 'zero', 'exclude'),
                         help="v3 only: declared treatment of the 'unclear' neurons (spec §6.3.2)")
     args = parser.parse_args()
     assert args.dynamics == active_dynamics_version()   # set before the brainlab import
+    expected_e_inh = None if args.e_inh is None else float(args.e_inh)
+    assert expected_e_inh == active_e_inh_mV()         # set before the brainlab import
     raw = PREREG.read_bytes()
     prereg = json.loads(raw)
     prereg['_sha256'] = hashlib.sha256(raw).hexdigest()
@@ -276,6 +291,13 @@ def main():
                   lif_dynamics_version=active_dynamics_version(),
                   lif_dynamics_pin=dynamics_pin(active_dynamics_version()),
                   lif_dynamics=dict(DYNAMICS_VERSIONS[active_dynamics_version()]),
+                  lif_e_inh_mV=active_e_inh_mV(),
+                  lif_dynamics_variant=dynamics_variant(
+                      active_dynamics_version(), active_e_inh_mV())['dynamics_version'],
+                  lif_dynamics_variant_pin=dynamics_variant_pin(
+                      active_dynamics_version(), active_e_inh_mV()),
+                  lif_dynamics_variant_declared=dynamics_variant(
+                      active_dynamics_version(), active_e_inh_mV()),
                   transmitter_policy=policy_report)
 
     if args.pilot:

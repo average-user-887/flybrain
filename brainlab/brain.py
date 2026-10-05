@@ -37,7 +37,8 @@ import time
 import numpy as np
 from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
                      advance_v3, advance_v4, advance_v5)
-from .graph_identity import DYNAMICS_VERSIONS, active_dynamics_version
+from .graph_identity import (DYNAMICS_VERSIONS, E_INH_ENV, E_INH_VARIANT_VERSIONS,
+                             active_dynamics_version, active_e_inh_mV)
 
 
 MALECNS_NEURONS = 166_700
@@ -156,6 +157,16 @@ class Brain:
         if self.dynamics not in DYNAMICS_VERSIONS:
             raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
                              f'declared: {sorted(DYNAMICS_VERSIONS)}')
+        if e_inh_mV is None:
+            # Declared sensitivity sweep (docs/EINH_SENSITIVITY.md): a
+            # process-wide override, so a script that does not build the Brain
+            # itself can still select a declared E_inh variant.  Unset means
+            # the declared v2/v3 value, so nothing changes by default.
+            e_inh_mV = active_e_inh_mV()
+            if e_inh_mV is not None and self.dynamics not in E_INH_VARIANT_VERSIONS:
+                raise ValueError(f'{E_INH_ENV} selects a declared variant of '
+                                 f'{E_INH_VARIANT_VERSIONS} only; dynamics is '
+                                 f'{self.dynamics!r}')
         if e_inh_mV is not None and self.dynamics == 'v1':
             raise ValueError('e_inh_mV applies only to the conductance-based dynamics (v2, v3)')
         self.e_inh_mV = float(E_INH_MV if e_inh_mV is None else e_inh_mV)
