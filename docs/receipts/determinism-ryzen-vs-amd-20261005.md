@@ -79,3 +79,13 @@ both were BIT_IDENTICAL on that host.
 Statement for G11: *with the CPU brain backend and the same commit, seed, data and
 library versions, NeuroFly embodied runs are bit-identical across the two tested AMD
 x86-64 hosts.*
+
+## Note added with telemetry format 2
+
+The hashes above are telemetry **format 1** digests of commit `5c54b034`, and they
+stay valid for that commit. Telemetry format 2 (`neurofly_body/runner.py`,
+`TELEMETRY_FORMAT_VERSION`) moves the static neural identity block out of every
+record into `manifest.json`, so a format-2 run of the same arguments has a different
+`trajectory_sha256`. The physics, the spike counts and the `body.nfbody` frame
+digests do not change with the format. The cross-host comparison has to be repeated
+on a format-2 commit before its hashes can be quoted for that code.
