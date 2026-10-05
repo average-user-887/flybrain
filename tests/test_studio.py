@@ -423,7 +423,9 @@ def test_bundles_and_curated_runs_carry_no_local_paths_and_still_verify(tmp_path
     from neurofly_studio.redact import leaks
 
     studio, (run_dir, control_dir) = _finished_pair(tmp_path)
-    assert leaks((run_dir / "manifest.json").read_bytes()), "the raw manifest records local paths"
+    # Run writers now redact at write time (neurofly/privacy.py), so the raw
+    # manifest should already be clean; the bundle and curated copies must stay clean too.
+    assert not leaks((run_dir / "manifest.json").read_bytes()), "the raw manifest leaks local paths"
     archive = zipfile.ZipFile(io.BytesIO(studio.export("queue", run_dir.name)))
     for member in archive.namelist():
         if member.endswith((".json", ".jsonl", ".txt", ".nfbody")):
