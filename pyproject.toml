@@ -30,7 +30,7 @@ test = ["pytest", "brian2"]
 neurofly = "neurofly.cli:main"
 
 [tool.setuptools]
-packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "validation", "validation.paradigms"]
+packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms"]
 py-modules = [
     "arena",
     "assay_controls",
