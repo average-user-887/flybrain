@@ -6,13 +6,14 @@ response window minus the gray window) and the temporal modulation depth
 (standard deviation over the window), so a population whose grating response is
 phase-modulated -- which cancels in a population mean -- is still visible.
 """
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import argparse
 import json
 import sys
 
 import numpy as np
 
-W = '<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded'
+W = str(REPO)
 sys.path.insert(0, W)
 from brainlab.brain import Brain
 from brainlab.graded_policy import POLICY_PRIMARY
@@ -33,7 +34,7 @@ args = p.parse_args()
 io = resolve_photoreceptor_io()
 enc = PhotoreceptorGratingEncoder(io)
 kw = dict(graded_policy=args.policy) if args.dynamics == 'v4' else {}
-brain = Brain('<redacted-path>/Documents/ChatGPT/flybrain/outputs/brainlab/malecns_v1/graph.npz',
+brain = Brain(str(REPO / 'outputs/brainlab/malecns_v1/graph.npz'),
               dynamics=args.dynamics, **kw)
 pops = dict(io.trace)
 graded = brain.graded.astype(bool) if args.dynamics == 'v4' else np.zeros(brain.n, bool)

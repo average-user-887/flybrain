@@ -1,7 +1,8 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import numpy as np
 import pyarrow.feather as f
 
-ROOT = '<redacted-path>/Documents/ChatGPT/flybrain'
+ROOT = str(REPO)
 a = f.read_table(ROOT + '/connectome_data/malecns_v1/annotations.feather')
 print([c for c in a.column_names if 'Hex' in c or 'hex' in c])
 t = a.to_pandas().drop_duplicates('bodyId')

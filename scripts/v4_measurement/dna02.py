@@ -1,8 +1,9 @@
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import json
 import sys
 
 d = json.load(open(sys.argv[1] if len(sys.argv) > 1
-                   else '<redacted-path>/tmp/graded/measure_bc.json'))
+                   else str(SCRATCH / 'measure_bc.json')))
 print('theta  DNa02_L gray/grating   DNa02_R gray/grating   L-R(grating)')
 for t, dd in d['per_direction'].items():
     b, r = dd['baseline']['rate_hz'], dd['response']['rate_hz']

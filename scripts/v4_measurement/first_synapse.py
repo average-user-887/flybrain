@@ -1,16 +1,17 @@
 """Analytic check on the first visual synapse: what the tonic baseline delivers."""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import sys
 
 import numpy as np
 import pyarrow.feather as f
 
-W = '<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/.wt-graded'
+W = str(REPO)
 sys.path.insert(0, W)
 from brainlab.engine import (E_EXC_MV, E_INH_MV, G_UNIT_INH_V3, R_MAX_HZ,
                              TAU_SYN_MS, V_REST_MV)
 from brainlab.transmitter_policy import apply_policy, load_transmitters
 
-ROOT = '<redacted-path>/Documents/ChatGPT/flybrain'
+ROOT = str(REPO)
 n = f.read_table(ROOT + '/connectome_data/malecns_v1/normalized/neurons.feather').to_pandas()
 ct = n.cell_type.fillna('').to_numpy()
 g = np.load(ROOT + '/outputs/brainlab/malecns_v1/graph.npz')
