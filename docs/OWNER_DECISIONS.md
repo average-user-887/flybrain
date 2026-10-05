@@ -51,6 +51,30 @@ on GitHub, and existing clones keep their copies.
 
 Approved by the owner on 5 October 2026 ("no rewrite, email privacy is on").
 
+**Factual note (5 October 2026), added after the ruling; the ruling text above is
+unchanged.** The figure of 105 commit messages with session links was the count when
+the audit was taken, and commits published since then have added to it. Recounts with
+their exact scopes:
+
+- **`master` at `713ba82`** (its full ancestry): 244 commits; 145 of them carry a
+  session link in the commit message; 223 fail at least one commit-metadata rule
+  (message, author or committer) of the metadata guard under review.
+- **Range `5c54b03..713ba82`**: 61 commits, 44 with a session link in the message.
+- **All refs, from the independent Codex remote privacy audit of 5 October 2026**
+  (52 live branch heads, `master` at `713ba82`): 153 reachable commit bodies contain
+  a session link, and 17 of these are outside the ancestry of `69e52db`. There are
+  128 reachable commits with author/committer identity findings, all inside that
+  ancestry.
+
+The two sets of counts differ because they cover different scopes: `master` alone
+versus every commit reachable from any live branch. Neither supersedes the other.
+
+The ruling covers **not rewriting** history. It does not approve the links published
+on or after 5 October 2026, and it does not accept them after the fact. Those links
+remain an **unresolved exposure** under the no-rewrite constraint. A clean current
+tree and a commit-metadata guard prevent new exposure; they do not erase what has
+already been published.
+
 ---
 
 ## 2026-10-05 (later) — The scan stays the scan. **Supersedes Ruling 1 below.**
