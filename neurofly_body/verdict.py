@@ -33,7 +33,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
+import shlex
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -58,6 +60,23 @@ YAW_PASS_THRESHOLD_RAD = 0.2
 
 # Fixed permutation seed, so the time-shuffled control is reproducible.
 SHUFFLE_SEED = 20260926
+
+# Identities a reproduction must match, copied from the server status.
+REPRODUCE_DATA_IDS = (
+    "graph_sha256",
+    "graph_content_sha256",
+    "neuron_map_sha256",
+    "neuron_map_content_sha256",
+    "io_map_sha256",
+    "optomotor_io_map_sha256",
+    "locomotion_dn_map_sha256",
+    "num_neurons",
+)
+REPRODUCE_DYNAMICS_IDS = (
+    "lif_dynamics_version",
+    "transmitter_policy",
+    "engineered_assistance_enabled",
+)
 
 VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "INVALID")
 
@@ -611,26 +630,39 @@ def _markdown(receipt: dict[str, Any]) -> str:
             f"- wall time {receipt.get('wall_time_s', 0.0) / 60.0:.1f} min for "
             f"{len(receipt['conditions'])} conditions plus the reuse check",
         ]
-    invocation = receipt.get("invocation") or {}
-    if invocation:
+    reproduce = receipt.get("reproduce") or {}
+    if reproduce.get("command"):
+        backend_name = reproduce.get("brain_backend")
         lines += [
             "",
             "## Reproduce",
             "",
+            f"The brain backend is pinned to `{backend_name}`, the backend that produced "
+            "these numbers: CPU and CUDA agree statistically, not bit for bit, so an "
+            "unpinned (`auto`) backend may not reproduce them. Every parameter is given "
+            "explicitly, defaults included.",
+            "",
             "```bash",
-            "python -m neurofly_body verdict --output <fresh-dir> "
-            f"--duration {invocation.get('duration_s'):g} "
-            f"--seeds {' '.join(str(s) for s in invocation.get('seeds', []))} "
-            f"--decoder {decoder}"
-            + (" --full-controls" if invocation.get("full_controls") else "")
-            + " \\",
-            "  --graph-dir outputs/brainlab/malecns_v1 "
-            "--connectome-dir connectome_data/malecns_v1",
+            reproduce["command"],
             "```",
             "",
+            "It reproduces these numbers only against the same code, data and dynamics:",
+            "",
+        ]
+        code = reproduce.get("code") or {}
+        lines.append(
+            f"- code: commit `{code.get('commit')}`"
+            + (" (working tree had uncommitted changes)" if code.get("dirty") else "")
+            + f", neurofly_body {code.get('neurofly_body_version')}"
+        )
+        for group in ("data", "dynamics"):
+            for key, value in (reproduce.get(group) or {}).items():
+                lines.append(f"- {group}: `{key}` = `{value}`")
+        lines += [
+            "",
             "Each intact or output-disconnected condition directory can also be re-run "
-            "standalone with `python -m neurofly_body replay-check <condition dir> "
-            "--output <fresh-dir>`.",
+            f"standalone with `NEUROFLY_BRAIN_BACKEND={backend_name} python -m neurofly_body "
+            "replay-check <condition dir> --output <fresh-dir>`.",
         ]
     lines += [
         "",
@@ -662,6 +694,46 @@ def _markdown(receipt: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def reproduce_command(invocation: dict[str, Any], brain_backend: str) -> str:
+    """The complete command that reproduces a verdict, backend pinned.
+
+    Every parameter is written out, defaults included, so a later change of a
+    default cannot silently change what the command runs.  The backend is
+    the one that actually ran (``status["brain_backend"]``), never ``auto``:
+    CPU and CUDA diverge, so an unpinned backend cannot reproduce the numbers.
+    """
+    parts = [f"NEUROFLY_BRAIN_BACKEND={shlex.quote(str(brain_backend))}",
+             "python", "-m", "neurofly_body", "verdict", "--output", "<fresh-dir>"]
+
+    def option(name: str, value: Any) -> None:
+        parts.extend([f"--{name}", shlex.quote(f"{value:g}" if isinstance(value, float) else str(value))])
+
+    option("duration", float(invocation["duration_s"]))
+    parts.append("--seeds")
+    parts.extend(str(int(seed)) for seed in invocation["seeds"])
+    option("angular-velocity", float(invocation["angular_velocity_rad_s"]))
+    option("contrast", float(invocation["contrast"]))
+    option("neural-dt-ms", float(invocation["neural_dt_ms"]))
+    option("physics-dt-s", float(invocation["physics_dt_s"]))
+    option("warmup-s", float(invocation["warmup_s"]))
+    option("decoder", invocation["decoder"])
+    option("decoder-tau-ms", float(invocation["decoder_tau_ms"]))
+    option("max-cpg-drive", float(invocation["max_cpg_drive"]))
+    option("p9-gain-per-hz", float(invocation["p9_gain_per_hz"]))
+    option("dna02-stride-k-per-hz", float(invocation["dna02_stride_k_per_hz"]))
+    option("mdn-gain-per-hz", float(invocation["mdn_gain_per_hz"]))
+    option("cpg-gain-per-hz", float(invocation["cpg_gain_per_hz"]))
+    if invocation.get("full_controls"):
+        parts.append("--full-controls")
+    if invocation.get("reuse_check", True):
+        option("reuse-check-duration", float(invocation["reuse_check_duration_s"]))
+    else:
+        parts.append("--no-reuse-check")
+    option("graph-dir", invocation.get("graph_dir") or "outputs/brainlab/malecns_v1")
+    option("connectome-dir", invocation.get("connectome_dir") or "connectome_data/malecns_v1")
+    return " ".join(parts)
 
 
 def make_decoder(args: Any) -> DNCommandDecoder | DNa02CPGDecoder:
@@ -813,6 +885,43 @@ def run_verdict(args: Any) -> int:
 
     judgement = judge(outcomes, seeds, YAW_PASS_THRESHOLD_RAD, reuse_check)
     status = neural.get_status()
+    from neurofly.privacy import portable_path
+
+    invocation = {
+        "duration_s": float(args.duration),
+        "seeds": seeds,
+        "angular_velocity_rad_s": float(args.angular_velocity),
+        "full_controls": bool(args.full_controls),
+        "reuse_check": bool(args.reuse_check),
+        "reuse_check_duration_s": float(args.reuse_check_duration),
+        "decoder": args.decoder,
+        "contrast": args.contrast,
+        "neural_dt_ms": args.neural_dt_ms,
+        "physics_dt_s": args.physics_dt_s,
+        "warmup_s": args.warmup_s,
+        "decoder_tau_ms": args.decoder_tau_ms,
+        "max_cpg_drive": args.max_cpg_drive,
+        "p9_gain_per_hz": args.p9_gain_per_hz,
+        "dna02_stride_k_per_hz": args.dna02_stride_k_per_hz,
+        "mdn_gain_per_hz": args.mdn_gain_per_hz,
+        "cpg_gain_per_hz": args.cpg_gain_per_hz,
+        "graph_dir": portable_path(args.graph_dir),
+        "connectome_dir": portable_path(args.connectome_dir),
+    }
+    brain_backend = str(status.get("brain_backend"))
+    from provenance import source_revision
+
+    revision = source_revision()
+    reproduce = {
+        "brain_backend": brain_backend,
+        "brain_backend_requested": os.environ.get("NEUROFLY_BRAIN_BACKEND", "auto"),
+        "command": reproduce_command(invocation, brain_backend),
+        # What the command must run against to reproduce the numbers.
+        "code": {"commit": revision.get("commit"), "dirty": revision.get("dirty"),
+                 "neurofly_body_version": __version__},
+        "data": {key: status.get(key) for key in REPRODUCE_DATA_IDS},
+        "dynamics": {key: status.get(key) for key in REPRODUCE_DYNAMICS_IDS},
+    }
     receipt = {
         "schema": "neurofly-embodied-verdict-v2",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -820,23 +929,8 @@ def run_verdict(args: Any) -> int:
         "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
         "output_dir": str(output_root),
         "decoder": decoder_description,
-        "invocation": {
-            "duration_s": float(args.duration),
-            "seeds": seeds,
-            "angular_velocity_rad_s": float(args.angular_velocity),
-            "full_controls": bool(args.full_controls),
-            "decoder": args.decoder,
-            "contrast": args.contrast,
-            "neural_dt_ms": args.neural_dt_ms,
-            "physics_dt_s": args.physics_dt_s,
-            "warmup_s": args.warmup_s,
-            "decoder_tau_ms": args.decoder_tau_ms,
-            "max_cpg_drive": args.max_cpg_drive,
-            "p9_gain_per_hz": args.p9_gain_per_hz,
-            "dna02_stride_k_per_hz": args.dna02_stride_k_per_hz,
-            "mdn_gain_per_hz": args.mdn_gain_per_hz,
-            "cpg_gain_per_hz": args.cpg_gain_per_hz,
-        },
+        "invocation": invocation,
+        "reproduce": reproduce,
         "provenance": {"python": sys.version.split()[0], "platform": platform.machine()},
         "neural_backend": {
             key: value
@@ -870,6 +964,7 @@ def run_verdict(args: Any) -> int:
     )
     (output_root / "verdict.md").write_text(_markdown(receipt), encoding="utf-8")
     print(json.dumps(receipt["judgement"], indent=2, sort_keys=True))
+    print(f"\nreproduce (brain backend pinned):\n  {reproduce['command']}")
     print(f"\nreceipt: {output_root / 'verdict.md'}")
     return 0 if judgement["verdict"] == "PASS" else 1
 

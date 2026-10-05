@@ -455,3 +455,63 @@ def test_a_failed_reuse_check_invalidates_the_verdict(tmp_path, monkeypatch):
     assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, ok)["verdict"] == "PASS"
     skipped = {"ran": False, "bit_identical": None, "note": "skipped"}
     assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, skipped)["verdict"] == "PASS"
+
+
+def _invocation(**overrides):
+    invocation = {
+        "duration_s": 5.0, "seeds": [0, 1], "angular_velocity_rad_s": 2.5,
+        "full_controls": True, "reuse_check": True, "reuse_check_duration_s": 0.1,
+        "decoder": "dna02-crossed-v1", "contrast": 0.5, "neural_dt_ms": 1.0,
+        "physics_dt_s": 0.0002, "warmup_s": 0.05, "decoder_tau_ms": 50.0,
+        "max_cpg_drive": 1.2, "p9_gain_per_hz": 0.02, "dna02_stride_k_per_hz": 0.01,
+        "mdn_gain_per_hz": 0.02, "cpg_gain_per_hz": 0.07,
+        "graph_dir": None, "connectome_dir": None,
+    }
+    invocation.update(overrides)
+    return invocation
+
+
+def test_reproduce_command_pins_the_backend_and_every_parameter():
+    """CPU and CUDA diverge, so `auto` cannot reproduce a receipt."""
+    from neurofly_body import cli
+
+    command = V.reproduce_command(_invocation(), "cpu")
+    assert command.startswith("NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body verdict")
+    for flag in ("--angular-velocity 2.5", "--contrast 0.5", "--neural-dt-ms 1",
+                 "--physics-dt-s 0.0002", "--warmup-s 0.05", "--cpg-gain-per-hz 0.07",
+                 "--decoder dna02-crossed-v1", "--decoder-tau-ms 50", "--max-cpg-drive 1.2",
+                 "--p9-gain-per-hz 0.02", "--dna02-stride-k-per-hz 0.01",
+                 "--mdn-gain-per-hz 0.02", "--full-controls",
+                 "--reuse-check-duration 0.1", "--seeds 0 1"):
+        assert flag in command
+    # The command parses back to the same parameters.
+    argv = command.split()[1:]
+    assert argv[:3] == ["python", "-m", "neurofly_body"]
+    args = cli._parser().parse_args(argv[3:])
+    assert (args.angular_velocity, args.contrast, args.neural_dt_ms, args.physics_dt_s,
+            args.cpg_gain_per_hz, args.decoder) == (2.5, 0.5, 1.0, 0.0002, 0.07,
+                                                     "dna02-crossed-v1")
+    skipped = V.reproduce_command(_invocation(reuse_check=False), "cuda")
+    assert skipped.startswith("NEUROFLY_BRAIN_BACKEND=cuda ") and "--no-reuse-check" in skipped
+
+
+def test_markdown_reproduce_section_states_backend_code_data_and_dynamics():
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    command = V.reproduce_command(_invocation(), "cpu")
+    receipt = {
+        "judgement": judgement, "created_at": "2026-10-05T00:00:00+00:00",
+        "package_version": "0.1.0", "telemetry_format_version": 2,
+        "conditions": [o.row() for o in _reversal_outcomes().values()],
+        "controls": [], "reuse_check": {"note": "byte-identical"}, "interpretation": [],
+        "output_dir": "/tmp/x", "invocation": _invocation(),
+        "reproduce": {
+            "brain_backend": "cpu", "command": command,
+            "code": {"commit": "c" * 40, "dirty": False, "neurofly_body_version": "0.1.0"},
+            "data": {"graph_sha256": "g" * 64},
+            "dynamics": {"lif_dynamics_version": "v3"},
+        },
+    }
+    text = V._markdown(receipt)
+    assert command in text
+    assert "NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body replay-check" in text
+    assert "c" * 40 in text and "g" * 64 in text and "`lif_dynamics_version` = `v3`" in text
