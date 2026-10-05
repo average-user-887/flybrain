@@ -1,5 +1,7 @@
-"""Commit-metadata mode of the release-hygiene guard (scripts/check_private_infra.py --commits),
-the CI range helper (scripts/ci_commit_range.sh) and the pre-push hook (scripts/hooks/pre-push).
+"""Commit-metadata and pushed-tree modes of the release-hygiene guard
+(scripts/check_private_infra.py --commits / --tree-rev), the frozen historical exception
+manifest, the CI tip selector (scripts/ci_privacy_tip.sh) and the pre-push hook
+(scripts/hooks/pre-push).
 
 Commits are planted in throw-away repositories under tmp_path. Every planted private
 string is assembled from pieces so that this file itself passes the tree guard.
@@ -7,6 +9,7 @@ string is assembled from pieces so that this file itself passes the tree guard.
 import hashlib
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -27,7 +30,11 @@ PERSONAL_EMAIL = J(['alice.smith', '@', 'corp-mail.com'])
 LAN_HOST = J(['built on alice-', 'desktop', '.local overnight'])
 DENIED = J(['build', '-box-', '7'])
 NOREPLY = J(['someone', '@users.noreply.github.com'])
+SHARE_LEAK = J(['/m', 'nt/archive-share/x'])
 CLEAN_MSG = J(['docs: tidy the README\n\nCo-Authored-By: Claude Opus 5.5 <noreply', '@anthropic.com>\n'])
+# Text that must never appear in any diagnostic.
+SECRETS = (SESSION_URL, 'Zq7Zq7', J(['task_e_', 'abc']), PERSONAL_EMAIL, 'alice.smith',
+           J(['desktop', '.local']), DENIED, J(['corp', '-mail']))
 
 GIT_ENV = {
     'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
@@ -35,6 +42,9 @@ GIT_ENV = {
     'GIT_CONFIG_GLOBAL': os.devnull,
     'LC_ALL': 'C',
 }
+SCRIPTS = ('scripts/check_private_infra.py', 'scripts/check_private_infra.sh',
+           'scripts/private_infra_allowlist.txt', 'scripts/private_infra_commit_exceptions.txt',
+           'scripts/hooks/pre-push')
 
 
 def _git(repo, *args, env=None, input=None, check=True):
@@ -64,6 +74,11 @@ def _load_guard():
     return mod
 
 
+def _no_secrets(text):
+    for s in SECRETS:
+        assert s not in text, s
+
+
 @pytest.fixture
 def guard(monkeypatch):
     mod = _load_guard()
@@ -86,10 +101,13 @@ def planted(tmp_path):
     return repo, shas
 
 
-def _run(guard, repo, spec, capsys):
-    rc = guard.main(['--root', str(repo), '--commits', spec])
-    return rc, capsys.readouterr().out
+def _run(guard, repo, spec, capsys, *extra):
+    rc = guard.main(['--root', str(repo), '--commits', spec, *extra])
+    cap = capsys.readouterr()
+    return rc, cap.out + cap.err
 
+
+# --- metadata detection and redaction ---------------------------------------------------
 
 def test_each_leak_is_reported_by_sha_field_and_rule(guard, planted, capsys):
     repo, s = planted
@@ -107,40 +125,37 @@ def test_each_leak_is_reported_by_sha_field_and_rule(guard, planted, capsys):
         assert f'{sha[:12]} {where}: [{cls}] <redacted>' in out, (sha, where, cls, out)
     flagged = {line.split()[0] for line in out.splitlines() if not line.startswith('[audit]')}
     assert flagged == {s[k][:12] for k in ('trailer', 'codex', 'author-email', 'hostname', 'denied')}
-    assert 'metadata of 6 commit(s)' in out and 'in 5 commit(s)' in out
+    assert 'metadata of 6 object(s)' in out and 'in 5 commit(s)' in out
+    _no_secrets(out)
 
 
-def test_output_never_echoes_the_private_text(guard, planted, capsys):
-    repo, s = planted
-    _, out = _run(guard, repo, f"{s['base']}..HEAD", capsys)
-    for secret in (SESSION_URL, 'Zq7Zq7', J(['task_e_', 'abc']), PERSONAL_EMAIL, 'alice.smith',
-                   J(['desktop', '.local']), DENIED, J(['corp', '-mail'])):
-        assert secret not in out, secret
+@pytest.mark.parametrize('field', ['author', 'committer', 'body'])
+def test_bad_new_author_committer_or_body_is_rejected(guard, tmp_path, capsys, field):
+    repo = _init(tmp_path / 'r')
+    _commit(repo, CLEAN_MSG)
+    bad = ('Alice', PERSONAL_EMAIL)
+    if field == 'author':
+        _commit(repo, 'x', author=bad)
+    elif field == 'committer':
+        _commit(repo, 'x', committer=bad)
+    else:
+        _commit(repo, 'x\n\nhanded off from ' + SESSION_URL + '\n')
+    rc, out = _run(guard, repo, 'HEAD', capsys)
+    assert rc == 1, out
+    want = {'author': 'author-email: [identity-email]', 'committer': 'committer-email: [identity-email]',
+            'body': 'message:3: [agent-session]'}[field]
+    assert want in out
+    _no_secrets(out)
 
 
-def test_clean_range_passes(guard, planted, capsys):
+def test_clean_ranges_pass(guard, planted, capsys):
     repo, s = planted
     rc, out = _run(guard, repo, f"{s['denied']}..HEAD", capsys)
+    assert rc == 0 and 'metadata of 1 object(s)' in out and 'PASSED' in out, out
+    rc, out = _run(guard, repo, s['base'], capsys)          # a root commit, full ancestry
     assert rc == 0, out
-    assert 'metadata of 1 commit(s)' in out and 'PASSED' in out
-    rc, out = _run(guard, repo, s['base'], capsys)          # a root commit on its own
-    assert rc == 0, out
-
-
-def test_empty_range_passes_and_bad_range_is_a_usage_error(guard, planted, capsys):
-    repo, _ = planted
     rc, out = _run(guard, repo, 'HEAD..HEAD', capsys)
-    assert rc == 0 and 'metadata of 0 commit(s)' in out
-    assert guard.main(['--root', str(repo), '--commits', 'no-such-ref..HEAD']) == 2
-    assert guard.main(['--root', str(repo), '--commits', '  ']) == 2
-
-
-def test_multi_argument_range(guard, planted, capsys):
-    repo, s = planted
-    _git(repo, 'update-ref', 'refs/remotes/origin/master', s['hostname'])
-    rc, out = _run(guard, repo, 'HEAD --not --remotes=origin', capsys)
-    assert rc == 1 and 'metadata of 2 commit(s)' in out
-    assert f"{s['denied'][:12]} committer-name: [denied-token]" in out
+    assert rc == 0 and 'metadata of 0 object(s)' in out
 
 
 @pytest.mark.parametrize('email,ok', [
@@ -156,15 +171,25 @@ def test_identity_email_allow_list(guard, tmp_path, capsys, email, ok):
     _commit(repo, 'x', author=('A', email))
     rc, out = _run(guard, repo, 'HEAD', capsys)
     assert rc == (0 if ok else 1), out
-    if not ok:
-        assert 'author-email: [identity-email] <redacted>' in out
 
 
-def test_message_email_uses_the_strict_list(guard, tmp_path, capsys):
+def test_allowlist_file_never_exempts_metadata(guard, tmp_path, capsys):
     repo = _init(tmp_path / 'r')
-    _commit(repo, 'x\n\nreported by ' + J(['dev', '@example.com']))
-    rc, out = _run(guard, repo, 'HEAD', capsys)
-    assert rc == 1 and 'message:3: [email] <redacted>' in out
+    _commit(repo, 'x', author=('A', PERSONAL_EMAIL))
+    allow = tmp_path / 'allow.txt'
+    allow.write_text('* * .\nidentity-email * .\n')
+    rc, out = _run(guard, repo, 'HEAD', capsys, '--allowlist', str(allow))
+    assert rc == 1 and '[identity-email]' in out
+
+
+def test_annotated_tag_metadata_is_scanned(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    _commit(repo, CLEAN_MSG)
+    _git(repo, 'tag', '-a', 'v1', '-m', 'release\n\n' + SESSION_TRAILER,
+         env={'GIT_COMMITTER_NAME': 'T', 'GIT_COMMITTER_EMAIL': PERSONAL_EMAIL})
+    rc, out = _run(guard, repo, 'v1', capsys)
+    assert rc == 1 and 'tagger-email: [identity-email]' in out and '[session-trailer]' in out
+    _no_secrets(out)
 
 
 def test_tree_mode_catches_and_redacts_session_links(guard, tmp_path, capsys):
@@ -178,48 +203,147 @@ def test_tree_mode_catches_and_redacts_session_links(guard, tmp_path, capsys):
     assert 'Zq7Zq7' not in out
 
 
-def test_shell_wrapper_passes_commits_through(planted):
+# --- fail closed ----------------------------------------------------------------------------
+
+def test_invalid_missing_or_empty_ranges_fail_closed(guard, planted, capsys):
+    repo, _ = planted
+    for spec in ('no-such-ref..HEAD', '  ', 'f' * 40, '--bogus-option HEAD'):
+        rc, out = _run(guard, repo, spec, capsys)
+        assert rc == 2 and 'failing closed' in out, (spec, out)
+    rc = guard.main(['--root', str(repo), '--tree-rev', 'e' * 40])
+    assert rc == 2
+
+
+def test_missing_object_in_history_fails_closed(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    first = _commit(repo, CLEAN_MSG)
+    (repo / 'a.md').write_text('hello\n')
+    _git(repo, 'add', 'a.md')
+    tip = _commit(repo, CLEAN_MSG)
+    objects = repo / '.git' / 'objects'
+    (objects / first[:2] / first[2:]).unlink()                          # a missing ancestor commit
+    assert guard.main(['--root', str(repo), '--commits', tip]) == 2
+    blob = _git(repo, 'rev-parse', 'HEAD:a.md').stdout.strip()
+    (objects / blob[:2] / blob[2:]).unlink()                            # a missing file in the tree
+    assert guard.main(['--root', str(repo), '--tree-rev', tip]) == 2
+    assert 'failing closed' in capsys.readouterr().err
+
+
+def test_manifest_must_match_its_pinned_digest(tmp_path, planted):
+    repo, _ = planted
+    scripts = tmp_path / 'copy' / 'scripts'
+    scripts.mkdir(parents=True)
+    for rel in ('check_private_infra.py', 'private_infra_commit_exceptions.txt'):
+        shutil.copy2(REPO / 'scripts' / rel, scripts / rel)
+    ok = subprocess.run([sys.executable, str(scripts / 'check_private_infra.py'), '--root', str(repo),
+                         '--commits', 'HEAD~1..HEAD'], capture_output=True, text=True)
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    with open(scripts / 'private_infra_commit_exceptions.txt', 'a') as fh:
+        fh.write('a' * 40 + ' identity-email\n')
+    r = subprocess.run([sys.executable, str(scripts / 'check_private_infra.py'), '--root', str(repo),
+                        '--commits', 'HEAD~1..HEAD'], capture_output=True, text=True)
+    assert r.returncode == 2 and 'pinned' in r.stderr
+    (scripts / 'private_infra_commit_exceptions.txt').unlink()
+    r = subprocess.run([sys.executable, str(scripts / 'check_private_infra.py'), '--root', str(repo),
+                        '--commits', 'HEAD~1..HEAD'], capture_output=True, text=True)
+    assert r.returncode == 2
+
+
+@pytest.mark.parametrize('line', ['abc identity-email', 'a' * 40, 'a' * 40 + ' no-such-class',
+                                  'a' * 40 + ' identity-email extra'])
+def test_malformed_manifest_fails_closed(guard, planted, tmp_path, capsys, line):
+    repo, _ = planted
+    m = tmp_path / 'm.txt'
+    m.write_text('# header\n' + line + '\n')
+    rc, out = _run(guard, repo, 'HEAD', capsys, '--commit-exceptions', str(m))
+    assert rc == 2 and 'malformed' in out
+
+
+# --- frozen historical exceptions -----------------------------------------------------------
+
+def test_repository_manifest_is_sanitised_and_well_formed(guard):
+    path = REPO / guard.COMMIT_EXCEPTIONS_FILE
+    data = path.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == guard.COMMIT_EXCEPTIONS_SHA256
+    entries = guard.load_commit_exceptions(path, guard.COMMIT_EXCEPTIONS_SHA256)
+    assert len(entries) > 0
+    body = [ln for ln in data.decode().splitlines() if ln and not ln.startswith('#')]
+    assert all(re.fullmatch(r'[0-9a-f]{40} [a-z-]+(,[a-z-]+)*', ln) for ln in body)
+    assert '@' not in data.decode() and '://' not in data.decode()
+
+
+def test_exception_covers_only_listed_commit_and_classes(guard, planted, tmp_path, capsys):
     repo, s = planted
-    r = subprocess.run(['bash', str(REPO / 'scripts' / 'check_private_infra.sh'), '--root', str(repo),
-                        '--commits', f"{s['denied']}..HEAD"], capture_output=True, text=True,
-                       env=dict(GIT_ENV, PYTHON=sys.executable))
-    assert r.returncode == 0, r.stdout + r.stderr
-    r = subprocess.run(['bash', str(REPO / 'scripts' / 'check_private_infra.sh'), '--root', str(repo),
-                        '--commits', f"{s['base']}..{s['trailer']}"], capture_output=True, text=True,
-                       env=dict(GIT_ENV, PYTHON=sys.executable))
-    assert r.returncode == 1 and '[session-trailer]' in r.stdout
+    m = tmp_path / 'm.txt'
+    m.write_text(f"{s['trailer']} agent-session,session-trailer\n"
+                 f"{s['author-email']} hostname\n")       # wrong class: still fails
+    rc, out = _run(guard, repo, f"{s['base']}..{s['author-email']}", capsys, '--commit-exceptions', str(m))
+    assert rc == 1
+    assert s['trailer'][:12] + ' ' not in out and f"{s['author-email'][:12]} author-email" in out
+    assert 'not approval' in out
+    rc, out = _run(guard, repo, f"{s['base']}..{s['codex']}", capsys, '--commit-exceptions', str(m))
+    assert rc == 1 and s['codex'][:12] in out                   # unlisted commit: checked
 
 
-# --- CI range helper -------------------------------------------------------------------
-
-def _ci_range(repo, **env):
-    r = subprocess.run(['bash', str(REPO / 'scripts' / 'ci_commit_range.sh')], cwd=repo,
-                       capture_output=True, text=True, env=dict(GIT_ENV, HOME=str(repo), **env))
-    assert r.returncode == 0, r.stderr
-    return r.stdout.strip()
-
-
-def test_ci_range_rules(guard, planted, capsys):
+def test_clean_forward_update_over_frozen_history_passes(guard, planted, tmp_path, capsys):
     repo, s = planted
-    zeros = '0' * 40
-    assert _ci_range(repo, EVENT='pull_request', PR_BASE=s['base'], PR_HEAD=s['clean']) \
-        == f"{s['base']}..{s['clean']}"
-    assert _ci_range(repo, EVENT='push', BEFORE=s['denied'], AFTER=s['clean'], REF_NAME='master') \
-        == f"{s['denied']}..{s['clean']}"
-    assert _ci_range(repo, EVENT='workflow_dispatch') == ''
-    # First push of a branch: only commits no *other* remote branch has. The pushed
-    # branch's own remote-tracking ref (which already points at AFTER) is excluded.
-    _git(repo, 'update-ref', 'refs/remotes/origin/master', s['denied'])
-    _git(repo, 'update-ref', 'refs/remotes/origin/feature', s['clean'])
-    first = _ci_range(repo, EVENT='push', BEFORE=zeros, AFTER=s['clean'], REF_NAME='feature')
-    rc, out = _run(guard, repo, first, capsys)
-    assert rc == 0 and 'metadata of 1 commit(s)' in out, (first, out)
-    # Force push whose old tip is not in the clone behaves like a first push.
-    forced = _ci_range(repo, EVENT='push', BEFORE='1' * 40, AFTER=s['clean'], REF_NAME='feature')
-    assert forced == first
+    m = tmp_path / 'm.txt'
+    rc = guard.main(['--root', str(repo), '--commits', 'HEAD', '--no-commit-exceptions', '--emit-exceptions'])
+    m.write_text(capsys.readouterr().out)
+    assert rc == 0 and len(m.read_text().splitlines()) == 5
+    _no_secrets(m.read_text())
+    _commit(repo, CLEAN_MSG)
+    rc, out = _run(guard, repo, 'HEAD', capsys, '--commit-exceptions', str(m))        # full ancestry
+    assert rc == 0, out
+    rc, out = _run(guard, repo, f"{s['base']}..HEAD", capsys, '--commit-exceptions', str(m))
+    assert rc == 0, out
+    _commit(repo, 'oops\n\n' + SESSION_TRAILER)                                           # new leak
+    rc, out = _run(guard, repo, 'HEAD', capsys, '--commit-exceptions', str(m))
+    assert rc == 1 and 'in 1 commit(s)' in out
 
 
-# --- pre-push hook ------------------------------------------------------------------------
+def test_exceptions_never_exempt_a_tree(guard, tmp_path, capsys):
+    repo = _init(tmp_path / 'r')
+    (repo / 'leak.md').write_text(SHARE_LEAK + '\n')
+    _git(repo, 'add', 'leak.md')
+    tip = _commit(repo, 'x\n\n' + SESSION_TRAILER)
+    m = tmp_path / 'm.txt'
+    m.write_text(f'{tip} agent-session,session-trailer\n')
+    assert guard.main(['--root', str(repo), '--commits', tip, '--commit-exceptions', str(m)]) == 0
+    capsys.readouterr()
+    assert guard.main(['--root', str(repo), '--tree-rev', tip, '--commit-exceptions', str(m)]) == 1
+    assert 'leak.md:1: [share-path]' in capsys.readouterr().out
+
+
+# --- CI tip selector -------------------------------------------------------------------------
+
+def _ci_tip(repo, **env):
+    return subprocess.run(['bash', str(REPO / 'scripts' / 'ci_privacy_tip.sh')], cwd=repo,
+                          capture_output=True, text=True, env=dict(GIT_ENV, HOME=str(repo), **env))
+
+
+def test_ci_tip_selection_and_fail_closed(planted):
+    repo, s = planted
+    assert _ci_tip(repo, EVENT='pull_request', PR_HEAD=s['clean']).stdout.strip() == s['clean']
+    assert _ci_tip(repo, EVENT='push', AFTER=s['denied']).stdout.strip() == s['denied']
+    assert _ci_tip(repo, EVENT='workflow_dispatch', SHA=s['base']).stdout.strip() == s['base']
+    for env in ({'EVENT': 'push', 'AFTER': '0' * 40}, {'EVENT': 'push'}, {'EVENT': 'pull_request'},
+                {'EVENT': 'push', 'AFTER': 'HEAD'}, {'EVENT': 'push', 'AFTER': 'd' * 40}, {}):
+        r = _ci_tip(repo, **env)
+        assert r.returncode == 1 and r.stdout == '', env
+
+
+def test_ci_does_not_exempt_commits_other_remote_refs_have(guard, planted, capsys):
+    """Two new refs sharing a bad commit cannot hide it from each other."""
+    repo, s = planted
+    _git(repo, 'update-ref', 'refs/remotes/origin/a', s['clean'])
+    _git(repo, 'update-ref', 'refs/remotes/origin/b', s['clean'])
+    tip = _ci_tip(repo, EVENT='push', AFTER=s['clean']).stdout.strip()
+    rc, out = _run(guard, repo, tip, capsys)
+    assert rc == 1 and 'in 5 commit(s)' in out
+
+
+# --- pre-push hook --------------------------------------------------------------------------
 
 @pytest.fixture
 def hooked(tmp_path):
@@ -227,8 +351,7 @@ def hooked(tmp_path):
     remote = tmp_path / 'remote.git'
     _git(tmp_path, 'init', '-q', '--bare', '-b', 'master', str(remote))
     repo = _init(tmp_path / 'clone')
-    for rel in ('scripts/check_private_infra.py', 'scripts/check_private_infra.sh',
-                'scripts/private_infra_allowlist.txt', 'scripts/hooks/pre-push'):
+    for rel in SCRIPTS:
         (repo / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPO / rel, repo / rel)
     _git(repo, 'add', '-A')
@@ -238,35 +361,100 @@ def hooked(tmp_path):
     return repo
 
 
-def _push(repo, *refspec):
-    return _git(repo, 'push', '-q', 'origin', *refspec, env={'PYTHON': sys.executable}, check=False)
+def _push(repo, *args):
+    r = _git(repo, 'push', '-q', 'origin', *args, env={'PYTHON': sys.executable}, check=False)
+    _no_secrets(r.stdout + r.stderr)
+    return r
 
 
-def test_pre_push_hook_allows_clean_and_blocks_private_metadata(hooked):
+def _hook(repo, stdin):
+    r = subprocess.run(['bash', str(repo / 'scripts' / 'hooks' / 'pre-push'), 'origin', 'url'], cwd=repo,
+                       input=stdin, capture_output=True, text=True,
+                       env=dict(GIT_ENV, HOME=str(repo), PYTHON=sys.executable))
+    _no_secrets(r.stdout + r.stderr)
+    return r
+
+
+def test_hook_rejects_a_dirty_ref_that_is_not_checked_out(hooked):
     repo = hooked
-    r = _push(repo, 'master')                                   # first push of a new branch
-    assert r.returncode == 0, r.stdout + r.stderr
-    _commit(repo, 'feat: x\n\n' + SESSION_TRAILER + '\n')
-    r = _push(repo, 'master')                                   # update of an existing branch
-    assert r.returncode != 0
-    assert '[session-trailer]' in r.stdout + r.stderr and 'Zq7Zq7' not in r.stdout + r.stderr
-    _git(repo, 'reset', '-q', '--hard', 'HEAD~1')
+    assert _push(repo, 'master').returncode == 0
     _git(repo, 'checkout', '-q', '-b', 'topic')
-    _commit(repo, 'chore: y', author=('Alice', PERSONAL_EMAIL))
-    r = _push(repo, 'topic')                                    # new branch with a bad commit
-    assert r.returncode != 0 and '[identity-email]' in r.stdout + r.stderr
-    _git(repo, 'reset', '-q', '--hard', 'HEAD~1')
-    _commit(repo, CLEAN_MSG)
-    r = _push(repo, 'topic')
-    assert r.returncode == 0, r.stdout + r.stderr
-    r = _push(repo, ':topic')                                   # deletion sends no commits
-    assert r.returncode == 0, r.stdout + r.stderr
-
-
-def test_pre_push_hook_runs_the_tree_guard(hooked):
-    repo = hooked
-    (repo / 'leak.md').write_text(J(['/m', 'nt/archive-share/x']) + '\n')
+    (repo / 'leak.md').write_text(SHARE_LEAK + '\n')
     _git(repo, 'add', 'leak.md')
     _commit(repo, CLEAN_MSG)
-    r = _push(repo, 'master')
+    _git(repo, 'checkout', '-q', 'master')                     # clean checkout, dirty other ref
+    assert not (repo / 'leak.md').exists()
+    r = _push(repo, 'topic')
     assert r.returncode != 0 and 'leak.md:1: [share-path]' in r.stdout + r.stderr
+
+
+def test_hook_rejects_two_new_refs_sharing_a_bad_commit(hooked):
+    repo = hooked
+    assert _push(repo, 'master').returncode == 0
+    _git(repo, 'checkout', '-q', '-b', 'a')
+    _commit(repo, 'feat\n\n' + SESSION_TRAILER)
+    _git(repo, 'branch', 'b')
+    r = _push(repo, 'a', 'b')
+    assert r.returncode != 0 and (r.stdout + r.stderr).count('[session-trailer]') == 2
+    # Even if one of them reached the remote some other way, the other is still checked.
+    assert _push(repo, '--no-verify', 'a').returncode == 0
+    _git(repo, 'fetch', '-q', 'origin')
+    r = _push(repo, 'b')
+    assert r.returncode != 0 and '[session-trailer]' in r.stdout + r.stderr
+
+
+@pytest.mark.parametrize('field', ['author', 'committer', 'body'])
+def test_hook_rejects_bad_new_metadata(hooked, field):
+    repo = hooked
+    bad = ('Alice', PERSONAL_EMAIL)
+    if field == 'author':
+        _commit(repo, 'x', author=bad)
+    elif field == 'committer':
+        _commit(repo, 'x', committer=bad)
+    else:
+        _commit(repo, 'x\n\n' + CODEX_TASK)
+    r = _push(repo, 'master')
+    assert r.returncode != 0
+    assert ('[agent-session]' if field == 'body' else f'{field}-email: [identity-email]') in r.stdout + r.stderr
+
+
+def test_hook_accepts_clean_forward_update_over_frozen_history(hooked):
+    repo = hooked
+    hist = _commit(repo, 'old\n\n' + SESSION_TRAILER, author=('Alice', PERSONAL_EMAIL))
+    assert _push(repo, '--no-verify', 'master').returncode == 0          # published before the guard
+    manifest = repo / 'scripts' / 'private_infra_commit_exceptions.txt'
+    manifest.write_text('# test manifest\n' + f'{hist} agent-session,identity-email,session-trailer\n')
+    digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    guard_py = repo / 'scripts' / 'check_private_infra.py'
+    guard_py.write_text(re.sub(r"COMMIT_EXCEPTIONS_SHA256 = '[0-9a-f]{64}'",
+                               f"COMMIT_EXCEPTIONS_SHA256 = '{digest}'", guard_py.read_text()))
+    _git(repo, 'add', '-A')
+    _commit(repo, CLEAN_MSG)
+    r = _push(repo, 'master')
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert 'not approval' in r.stdout
+    _commit(repo, CLEAN_MSG)
+    assert _push(repo, 'master').returncode == 0
+    _git(repo, 'checkout', '-q', '-b', 'fresh')                          # new ref over history
+    _commit(repo, CLEAN_MSG)
+    assert _push(repo, 'fresh').returncode == 0
+    _commit(repo, 'new\n\n' + SESSION_TRAILER)
+    assert _push(repo, 'fresh').returncode != 0
+
+
+def test_hook_deletion_and_malformed_input(hooked):
+    repo = hooked
+    tip = _git(repo, 'rev-parse', 'HEAD').stdout.strip()
+    zero = '0' * 40
+    r = _hook(repo, f'(delete) {zero} refs/heads/gone {tip}\n')
+    assert r.returncode == 0 and 'deletion' in r.stdout and 'checking' not in r.stdout
+    r = _hook(repo, f'(delete) {zero} refs/heads/gone {"9" * 40}\n')    # unknown remote object: fine
+    assert r.returncode == 0
+    for bad in ('garbage\n', f'refs/heads/x {tip} refs/heads/x\n', f'refs/heads/x {tip[:12]} refs/heads/x {zero}\n',
+                f'refs/heads/x {tip} refs/heads/x {zero} extra\n', f'refs/heads/x {"a" * 40} refs/heads/x {zero}\n'):
+        r = _hook(repo, bad)
+        assert r.returncode != 0, bad
+    r = _hook(repo, '')                                                   # nothing pushed
+    assert r.returncode == 0
+    assert _push(repo, 'master:side').returncode == 0
+    assert _push(repo, ':side').returncode == 0                           # real deletion push

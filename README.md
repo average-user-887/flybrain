@@ -179,8 +179,9 @@ pytest -v tests/test_wp6_plasticity.py
 # Run private infrastructure leak audit
 ./scripts/check_private_infra.sh
 
-# Check the metadata (message, author, committer) of commits you are about to push
-./scripts/check_private_infra.sh --commits origin/master..HEAD
+# Check the metadata (message, author, committer) of your commits and the committed tree
+./scripts/check_private_infra.sh --commits HEAD
+./scripts/check_private_infra.sh --tree-rev HEAD
 ```
 
 **Expect 0 failures.** The number of skips depends on your hardware and setup, because tests that need a GPU, the real graph, the physics stack or a browser skip themselves. At commit `5c54b03` the suite has 726 tests and gave: reference NVIDIA host with GPU and real graph, 717 passed and 9 skipped ([`docs/RELEASE_PLAN_v0.4.md`](docs/RELEASE_PLAN_v0.4.md) §2); the same host with the GPU hidden, 706 passed and 20 skipped; AMD test host (Steam Deck, CPU only), 707 passed and 19 skipped. The extra skips on CPU-only machines are the CUDA/CuPy tests.

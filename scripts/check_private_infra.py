@@ -7,14 +7,23 @@ the same exclusions). Standard library only.
 
     python3 scripts/check_private_infra.py [--root DIR] [--no-git] [--allowlist FILE]
     scripts/check_private_infra.sh            # same, used by CI
-    scripts/check_private_infra.sh --commits origin/master..HEAD   # commit metadata
+    scripts/check_private_infra.sh --commits HEAD        # commit metadata, whole ancestry
+    scripts/check_private_infra.sh --tree-rev <sha>      # committed tree of a revision
 
-Tree mode (the default) scans file contents. Commit mode (--commits RANGE) scans the
-metadata of every commit in a git revision range instead: the full message, author
-name and e-mail, committer name and e-mail. RANGE is handed to `git rev-list` after
-shell-style splitting, so "A..B" and "B --not --remotes=origin" both work. Only the
-commits a push or pull request introduces are meant to be scanned: older published
-commits are an accepted residual (docs/OWNER_DECISIONS.md, 2026-10-05, "no rewrite").
+Tree mode (the default) scans the checkout. Revision mode (--tree-rev REV) scans the
+committed tree of REV, i.e. what a push of REV publishes; the pre-push hook and CI use
+it for every outgoing tip. Commit mode (--commits RANGE) scans the metadata of every
+commit in a git revision range (and of annotated tags named in it): the full message,
+author and committer (and tagger), plus other non-signature headers. RANGE is handed to
+`git rev-list` after shell-style splitting; a single revision means its whole ancestry.
+
+Commits that were already published when this guard was introduced are covered only by
+the frozen historical exception manifest scripts/private_infra_commit_exceptions.txt
+(owner ruling docs/OWNER_DECISIONS.md, 2026-10-05, "no rewrite"): an exact list of SHAs,
+each with the rule classes it fails, pinned by COMMIT_EXCEPTIONS_SHA256 below. It is an
+acknowledgement of immutable existing exposure, not an approval, and it never applies to
+a tree. The allow-list file never applies to commit metadata. Anything the guard cannot
+read or parse (bad range, missing object, malformed manifest) exits 2: fail closed.
 
 Classes of finding (each can be silenced for a specific path and match through
 the allow-list, see scripts/private_infra_allowlist.txt):
@@ -44,7 +53,7 @@ Findings in commit mode, and agent-session findings anywhere, are reported by
 location and class only; the matched text is never printed.
 
 Placeholders used by redacted receipts (<repo>/, <home>/, <scratch>/,
-<reference-host>) never match. Exit status: 0 clean, 1 findings, 2 usage error.
+<reference-host>) never match. Exit status: 0 clean, 1 findings, 2 error (fail closed).
 """
 from __future__ import annotations
 
@@ -211,57 +220,183 @@ def scan_text(rel, text, rules, extra, patterns=None, email_allow=None):
     return findings
 
 
-_FIELDS = ('author-name', 'author-email', 'committer-name', 'committer-email', 'message')
+class GuardError(RuntimeError):
+    """A condition under which the guard cannot vouch for anything: it fails closed (exit 2)."""
 
 
-def read_commits(root: Path, rev_args):
-    """Yield (sha, {field: value}) for every commit in the revision range, oldest first."""
-    fmt = '%x1e%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B'
-    r = subprocess.run(['git', '-C', str(root), '-c', 'log.showSignature=false', 'log', '--reverse',
-                        '--no-color', '--no-mailmap', f'--format={fmt}', *rev_args, '--'],
-                       capture_output=True)
+def _git(root: Path, *args, input: bytes | None = None) -> bytes:
+    try:
+        r = subprocess.run(['git', '-C', str(root), *args], capture_output=True, input=input)
+    except OSError as exc:
+        raise GuardError(f'cannot run git: {exc}') from exc
     if r.returncode != 0:
-        raise RuntimeError(r.stderr.decode('utf-8', 'replace').strip() or 'git log failed')
-    for rec in r.stdout.decode('utf-8', 'replace').split('\x1e')[1:]:
-        parts = rec.split('\x1f', 5)
-        if len(parts) != 6:
+        msg = r.stderr.decode('utf-8', 'replace').strip().splitlines()
+        raise GuardError(f'git {args[0]} failed: {msg[-1] if msg else "exit " + str(r.returncode)}')
+    return r.stdout
+
+
+def read_objects(root: Path, shas):
+    """Return {sha: (type, bytes)} for the given object ids; a missing object is an error."""
+    shas = list(dict.fromkeys(shas))
+    if not shas:
+        return {}
+    out = _git(root, 'cat-file', '--batch', input=('\n'.join(shas) + '\n').encode())
+    objs, pos = {}, 0
+    for sha in shas:
+        nl = out.index(b'\n', pos)
+        header = out[pos:nl].decode('utf-8', 'replace').split()
+        if len(header) != 3 or header[0] != sha:
+            raise GuardError(f'object {sha[:12]} is missing from the repository')
+        size = int(header[2])
+        objs[sha] = (header[1], out[nl + 1:nl + 1 + size])
+        pos = nl + 1 + size + 1
+    return objs
+
+
+# ---------------------------------------------------------------- commit metadata
+
+IDENT = re.compile(r'^(?P<name>.*) <(?P<email>[^<>]*)> -?\d+ [+-]\d{4}$')
+SKIP_HEADERS = {'tree', 'parent', 'object', 'type', 'encoding', 'gpgsig', 'gpgsig-sha256'}
+
+
+def parse_object(sha: str, otype: str, raw: bytes):
+    """Split a raw commit or tag object into named metadata fields.
+
+    Identity headers (author, committer, tagger) become <role>-name / <role>-email;
+    the message is 'message'; any other header text except signatures and object
+    links (e.g. a mergetag, which embeds a whole tag with its tagger) is 'header'.
+    Malformed objects are errors, never silently skipped."""
+    text = raw.decode('utf-8', 'replace')
+    head, _, message = text.partition('\n\n')
+    if not head.startswith('tree ' if otype == 'commit' else 'object '):
+        raise GuardError(f'{otype} {sha[:12]} cannot be parsed')
+    fields, extra_headers, current = {}, [], None
+    for line in head.split('\n'):
+        if line.startswith(' '):                         # continuation of the previous header
+            if current not in SKIP_HEADERS:
+                extra_headers.append(line[1:])
             continue
-        yield parts[0].strip(), dict(zip(_FIELDS, parts[1:]))
+        key, _, value = line.partition(' ')
+        current = key
+        if key in ('author', 'committer', 'tagger'):
+            m = IDENT.match(value)
+            if not m:
+                raise GuardError(f'{otype} {sha[:12]} has a malformed {key} line')
+            fields[f'{key}-name'] = m.group('name')
+            fields[f'{key}-email'] = m.group('email')
+        elif key not in SKIP_HEADERS:
+            extra_headers.append(line)
+    if otype == 'commit' and not ('author-email' in fields and 'committer-email' in fields):
+        raise GuardError(f'commit {sha[:12]} lacks an author or committer')
+    if extra_headers:
+        fields['header'] = '\n'.join(extra_headers)
+    fields['message'] = message
+    return fields
 
 
-def scan_commits(root: Path, rev_args, rules, extra):
-    """Scan commit metadata. Returns (number of commits, findings); every hit is redacted."""
-    findings, n = [], 0
-    for sha, fields in read_commits(root, rev_args):
-        n += 1
-        for field, value in fields.items():
-            rel = f'commit:{sha}:{field}'
-            if field.endswith('-email'):
-                v = value.strip()
-                if not any(a.match(v) for a in METADATA_EMAIL_ALLOW) and not allowed(rules, 'identity-email', rel, v):
-                    findings.append((sha, field, 0, 'identity-email'))
-                hits = scan_text(rel, v, rules, extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
-                hits = [h for h in hits if h[2] != 'email']       # covered by identity-email
+def scan_metadata(sha: str, fields: dict, extra):
+    """Findings (sha, field, line, class) for one object's metadata. No allow-list applies."""
+    findings = []
+    for field, value in fields.items():
+        rel = f'commit:{sha}:{field}'
+        if field.endswith('-email'):
+            v = value.strip()
+            if not any(a.match(v) for a in METADATA_EMAIL_ALLOW):
+                findings.append((sha, field, 0, 'identity-email'))
+            hits = [h for h in scan_text(rel, v, [], extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
+                    if h[2] != 'email']                   # covered by identity-email
+        else:
+            hits = scan_text(rel, value, [], extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
+        findings += [(sha, field, lineno, cls) for _, lineno, cls, _ in hits]
+    return findings
+
+
+# Frozen historical exception manifest. It names, by full SHA, the commits that were
+# already published when this guard was introduced and that fail a metadata rule, with
+# the rule classes each one fails. Owner ruling 2026-10-05 ("no rewrite"): this is
+# acknowledged, immutable existing exposure, NOT approval. It exempts only the listed
+# classes of the listed commits' metadata; it never exempts any tree. The file is pinned
+# by this digest, so changing it means changing this line too, in review.
+COMMIT_EXCEPTIONS_FILE = 'scripts/private_infra_commit_exceptions.txt'
+COMMIT_EXCEPTIONS_SHA256 = '668fffd0c16e6c32ac20a259402f1d80ad3469f62c82709a3230b8b0f13d47d2'
+_SHA_RX = re.compile(r'^[0-9a-f]{40}(?:[0-9a-f]{24})?$')
+_CLASSES = {c for c, _ in METADATA_PATTERNS} | {'identity-email', 'denied-token'}
+
+
+def load_commit_exceptions(path: Path, expected_sha256: str | None):
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        raise GuardError(f'commit exception manifest unreadable: {path.name}: {exc.strerror}') from exc
+    if expected_sha256 is not None and hashlib.sha256(data).hexdigest() != expected_sha256:
+        raise GuardError(f'commit exception manifest {path.name} does not match the digest pinned '
+                         f'in check_private_infra.py; it is frozen and changes need owner review')
+    out = {}
+    for n, line in enumerate(data.decode('utf-8').splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        bits = line.split()
+        classes = set(bits[1].split(',')) if len(bits) == 2 else set()
+        if len(bits) != 2 or not _SHA_RX.match(bits[0]) or not classes or not classes <= _CLASSES \
+                or bits[0] in out:
+            raise GuardError(f'{path.name}:{n}: malformed entry (expected "<full sha> <class>[,<class>]")')
+        out[bits[0]] = classes
+    return out
+
+
+def _tag_objects(root: Path, rev_args):
+    """Annotated tags named directly among the revision arguments (their own metadata is scanned)."""
+    tags = []
+    for tok in rev_args:
+        if tok.startswith('-') or '..' in tok or tok.startswith('^'):
+            continue
+        sha = _git(root, 'rev-parse', '--verify', '--end-of-options', tok).decode().strip()
+        if _git(root, 'cat-file', '-t', sha).decode().strip() == 'tag':
+            tags.append(sha)
+    return tags
+
+
+def scan_commits(root: Path, rev_args, extra, exceptions):
+    """Scan metadata of every commit in the range (and of named annotated tags).
+
+    Returns (n_objects, findings, acknowledged) where acknowledged counts findings
+    matched by the frozen historical exception manifest."""
+    shas = _git(root, 'rev-list', *rev_args, '--').decode().split()
+    tags = _tag_objects(root, rev_args)
+    objs = read_objects(root, shas + tags)
+    findings, acknowledged = [], 0
+    for sha in shas + tags:
+        otype, raw = objs[sha]
+        if otype not in ('commit', 'tag'):
+            raise GuardError(f'object {sha[:12]} is a {otype}, not a commit or tag')
+        for f in scan_metadata(sha, parse_object(sha, otype, raw), extra):
+            if f[3] in exceptions.get(sha, ()):
+                acknowledged += 1
             else:
-                hits = scan_text(rel, value, rules, extra, METADATA_PATTERNS, METADATA_EMAIL_ALLOW)
-            findings += [(sha, field, lineno, cls) for _, lineno, cls, _ in hits]
-    return n, findings
+                findings.append(f)
+    return len(shas) + len(tags), findings, acknowledged
 
 
-def main_commits(root: Path, spec: str, rules, extra):
+def main_commits(root: Path, spec: str, extra, exceptions, emit_exceptions=False):
     rev_args = shlex.split(spec)
     if not rev_args:
-        print('[audit] --commits needs a revision range, e.g. origin/master..HEAD', file=sys.stderr)
-        return 2
-    try:
-        n, findings = scan_commits(root, rev_args, rules, extra)
-    except (OSError, RuntimeError) as exc:
-        print(f'[audit] cannot list commits for {spec!r}: {exc}', file=sys.stderr)
-        return 2
-    print(f'[audit] scanning metadata of {n} commit(s) in {spec!r}')
+        raise GuardError('--commits needs a revision or range, e.g. HEAD or origin/master..HEAD')
+    n, findings, acknowledged = scan_commits(root, rev_args, extra, exceptions)
+    if emit_exceptions:                                   # manifest body for a reviewed rebuild
+        by_sha = {}
+        for sha, _, _, cls in findings:
+            by_sha.setdefault(sha, set()).add(cls)
+        for sha in sorted(by_sha):
+            print(f'{sha} {",".join(sorted(by_sha[sha]))}')
+        return 0
+    print(f'[audit] scanning metadata of {n} object(s) in {spec!r}')
     for sha, field, lineno, cls in findings:
-        where = f'{field}:{lineno}' if field == 'message' else field
+        where = f'{field}:{lineno}' if field in ('message', 'header') else field
         print(f'{sha[:12]} {where}: [{cls}] <redacted>')
+    if acknowledged:
+        print(f'[audit] {acknowledged} finding(s) belong to commits in the frozen historical exception '
+              f'manifest ({COMMIT_EXCEPTIONS_FILE}): acknowledged published exposure, not approval.')
     if findings:
         bad = len({f[0] for f in findings})
         print(f'[audit] FAILED: {len(findings)} private-data finding(s) in {bad} commit(s). Reword the '
@@ -272,24 +407,107 @@ def main_commits(root: Path, spec: str, rules, extra):
     return 0
 
 
+# ---------------------------------------------------------------- tree of a revision
+
+def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra):
+    """Scan the files of a committed tree (what a push publishes), not the checkout."""
+    commit = _git(root, 'rev-parse', '--verify', '--end-of-options', f'{rev}^{{commit}}').decode().strip()
+    listing = _git(root, 'ls-tree', '-r', '-z', '--full-tree', commit).decode('utf-8', 'surrogateescape')
+    entries, allow_blob = [], None
+    for rec in listing.split('\0'):
+        if not rec:
+            continue
+        meta, _, path = rec.partition('\t')
+        mode, otype, sha = meta.split()
+        if path == 'scripts/private_infra_allowlist.txt' and otype == 'blob':
+            allow_blob = sha
+        if otype == 'blob' and mode != '120000' and path not in SELF_FILES:
+            entries.append((path, sha))
+    objs = read_objects(root, [sha for _, sha in entries] + ([allow_blob] if allow_blob else []))
+    if rules_path:
+        rules = load_allowlist(Path(rules_path))
+    elif allow_blob:          # the allow-list committed in that same revision, as CI would see it
+        rules = _rules_from_text(objs[allow_blob][1].decode('utf-8'), 'private_infra_allowlist.txt')
+    else:
+        rules = []
+    findings = []
+    for path, sha in entries:
+        data = objs[sha][1]
+        if b'\0' in data[:8192]:
+            continue
+        findings += scan_text(path, data.decode('utf-8', 'replace'), rules, extra)
+    return commit, len(entries), findings
+
+
+def _rules_from_text(text: str, name: str):
+    rules = []
+    for n, line in enumerate(text.splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        bits = line.split(None, 2)
+        if len(bits) != 3:
+            raise GuardError(f'{name}:{n}: expected "<class> <path-glob> <regex>"')
+        cls, glob, rx = bits
+        rules.append((cls, glob, re.compile(rx), f'{name}:{n}'))
+    return rules
+
+
+def _report_tree(findings, label):
+    for rel, lineno, cls, hit in findings:
+        print(f'{rel}:{lineno}: [{cls}] {hit}')
+    if findings:
+        print(f'[audit] FAILED: {len(findings)} private-data finding(s) in {label}. Redact them, or add a '
+              f'narrow entry to scripts/private_infra_allowlist.txt if the match is a genuine exception.')
+        return 1
+    print('[audit] PASSED: no personal or private-infrastructure data found.')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--root', default=None, help='tree to scan (default: repository root)')
+    ap.add_argument('--root', default=None, help='tree or repository to scan (default: repository root)')
     ap.add_argument('--no-git', action='store_true', help='walk the directory even inside a git checkout')
     ap.add_argument('--allowlist', default=None, help='allow-list file (default: scripts/private_infra_allowlist.txt under the root)')
     ap.add_argument('--commits', metavar='RANGE', default=None,
-                    help='scan commit metadata (message, author, committer) of a git revision range '
-                         'instead of the tree, e.g. origin/master..HEAD')
+                    help='scan commit metadata (message, author, committer) of a revision or range '
+                         'instead of the tree, e.g. HEAD (full ancestry) or origin/master..HEAD')
+    ap.add_argument('--tree-rev', metavar='REV', default=None,
+                    help='scan the committed tree of REV (what a push publishes) instead of the checkout')
+    ap.add_argument('--commit-exceptions', metavar='FILE', default=None,
+                    help=f'frozen historical exception manifest (default: {COMMIT_EXCEPTIONS_FILE} next to '
+                         f'this script, digest-pinned)')
+    ap.add_argument('--no-commit-exceptions', action='store_true',
+                    help='apply no historical exceptions (used to rebuild the manifest for review)')
+    ap.add_argument('--emit-exceptions', action='store_true',
+                    help='with --commits and --no-commit-exceptions: print manifest lines (sha classes)')
     args = ap.parse_args(argv)
     root = Path(args.root).resolve() if args.root else Path(__file__).resolve().parents[1]
     if not root.is_dir():
         print(f'[audit] no such directory: {root}', file=sys.stderr)
         return 2
+    extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
+    try:
+        if args.commits is not None:
+            if args.emit_exceptions and not args.no_commit_exceptions:
+                raise GuardError('--emit-exceptions requires --no-commit-exceptions')
+            if args.no_commit_exceptions:
+                exceptions = {}
+            elif args.commit_exceptions:
+                exceptions = load_commit_exceptions(Path(args.commit_exceptions), None)
+            else:
+                exceptions = load_commit_exceptions(Path(__file__).resolve().parents[1] / COMMIT_EXCEPTIONS_FILE,
+                                                    COMMIT_EXCEPTIONS_SHA256)
+            return main_commits(root, args.commits, extra, exceptions, args.emit_exceptions)
+        if args.tree_rev is not None:
+            commit, n, findings = scan_revision_tree(root, args.tree_rev, args.allowlist, extra)
+            print(f'[audit] scanning {n} files in the committed tree of {commit[:12]} (revision mode)')
+            return _report_tree(findings, f'the tree of {commit[:12]}')
+    except (GuardError, ValueError, OSError, UnicodeDecodeError) as exc:
+        print(f'[audit] ERROR (failing closed): {exc}', file=sys.stderr)
+        return 2
     allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
     rules = load_allowlist(allow_path)
-    extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
-    if args.commits is not None:
-        return main_commits(root, args.commits, rules, extra)
     files, mode = list_files(root, not args.no_git)
     print(f'[audit] scanning {len(files)} files under {root.name}/ ({mode} mode)')
     findings = []
@@ -303,15 +521,12 @@ def main(argv=None):
         if b'\0' in data[:8192]:
             continue                                   # binary
         findings += scan_text(rel, data.decode('utf-8', 'replace'), rules, extra)
-    for rel, lineno, cls, hit in findings:
-        print(f'{rel}:{lineno}: [{cls}] {hit}')
-    if findings:
-        print(f'[audit] FAILED: {len(findings)} private-data finding(s). Redact them, or add a narrow '
-              f'entry to scripts/private_infra_allowlist.txt if the match is a genuine exception.')
-        return 1
-    print('[audit] PASSED: no personal or private-infrastructure data found.')
-    return 0
+    return _report_tree(findings, 'the tree')
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as exc:                            # any scanner failure fails closed
+        print(f'[audit] ERROR (failing closed): {type(exc).__name__}', file=sys.stderr)
+        sys.exit(2)

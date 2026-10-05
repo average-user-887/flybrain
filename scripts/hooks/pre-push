@@ -1,39 +1,49 @@
 #!/usr/bin/env bash
 # NeuroFly pre-push guard: refuses a push that would publish personal or private data.
 #
-#   1. the tree guard on the working tree (scripts/check_private_infra.sh), and
-#   2. the commit-metadata guard on exactly the commits this push sends: message,
-#      author and committer (scripts/check_private_infra.sh --commits RANGE).
+# For every ref being pushed (whether or not it is the checked-out branch):
+#   1. the committed tree of the outgoing tip   (check_private_infra.sh --tree-rev SHA)
+#   2. the metadata of the tip's whole ancestry (check_private_infra.sh --commits SHA):
+#      message, author, committer. Commits that were already published before this guard
+#      existed are recognised only through the frozen, digest-pinned manifest
+#      scripts/private_infra_commit_exceptions.txt -- never because some remote has them.
+# Deletions send no objects and are only validated. Anything malformed, missing or
+# erroring refuses the push (fail closed).
 #
 # Install once per clone (a repository-relative hooks path, nothing is copied):
 #
 #   git config core.hooksPath scripts/hooks
 #
 # Bypass for a genuine emergency only: git push --no-verify (CI runs the same checks).
-set -euo pipefail
+set -uo pipefail
 
-remote="${1:-origin}"
-top="$(git rev-parse --show-toplevel)"
+top="$(git rev-parse --show-toplevel)" || { echo "[pre-push] not in a git work tree" >&2; exit 1; }
 guard="$top/scripts/check_private_infra.sh"
+[ -f "$guard" ] || { echo "[pre-push] guard missing: scripts/check_private_infra.sh" >&2; exit 1; }
 status=0
-
-bash "$guard" || status=1
+is_oid() { [[ "$1" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]; }
+is_zero() { [ -z "${1//0/}" ]; }
 
 # stdin: <local ref> <local sha> <remote ref> <remote sha>, one line per pushed ref.
-while read -r local_ref local_sha remote_ref remote_sha; do
-    [ -n "${local_sha:-}" ] || continue
-    if [ -z "${local_sha//0/}" ]; then
-        continue                                           # branch deletion: nothing sent
+while IFS= read -r line || [ -n "$line" ]; do
+    read -r local_ref local_sha remote_ref remote_sha extra <<<"$line"
+    if [ -n "${extra:-}" ] || [ -z "${remote_sha:-}" ] || ! is_oid "$local_sha" || ! is_oid "$remote_sha"; then
+        echo "[pre-push] malformed hook input line; refusing the push" >&2
+        status=1
+        continue
     fi
-    if [ -n "${remote_sha//0/}" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
-        range="${remote_sha}..${local_sha}"                # update of an existing branch
-    else
-        # New branch, or a remote tip this clone has not fetched: every commit that no
-        # remote-tracking branch of this remote already contains.
-        range="${local_sha} --not --remotes=${remote}"
+    if is_zero "$local_sha"; then
+        echo "[pre-push] ${remote_ref}: deletion, nothing is sent"
+        continue
     fi
-    echo "[pre-push] ${local_ref} -> ${remote_ref}: checking commit metadata"
-    bash "$guard" --commits "$range" || status=1
+    if ! git cat-file -e "${local_sha}^{commit}" 2>/dev/null; then
+        echo "[pre-push] ${local_ref}: outgoing object is missing or not a commit; refusing" >&2
+        status=1
+        continue
+    fi
+    echo "[pre-push] ${local_ref} -> ${remote_ref}: checking the outgoing tree and commit metadata"
+    bash "$guard" --tree-rev "$local_sha" || status=1
+    bash "$guard" --commits "$local_sha" || status=1
 done
 
 if [ "$status" -ne 0 ]; then

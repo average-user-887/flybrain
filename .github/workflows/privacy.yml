@@ -1,0 +1,58 @@
+name: privacy
+
+# Personal / private data guard for everything that gets published: every pushed branch
+# and tag, and every pull request. Separate from tests.yml so that it runs on all refs
+# and is never cancelled by a newer push (each pushed tip is checked on its own).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    name: privacy guard (tree + commit metadata)
+    # A branch deletion publishes nothing and has no tip to check out.
+    if: github.event_name != 'push' || github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the metadata guard scans the tip's whole ancestry.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Select the published tip
+        id: tip
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          AFTER: ${{ github.event.after }}
+          SHA: ${{ github.sha }}
+        # Fails closed on a missing, malformed or absent object id.
+        run: |
+          set -euo pipefail
+          tip="$(bash scripts/ci_privacy_tip.sh)"
+          echo "published tip: $tip"
+          echo "tip=$tip" >> "$GITHUB_OUTPUT"
+
+      - name: Tree guard on the checkout
+        run: bash scripts/check_private_infra.sh
+
+      - name: Tree guard on the published tip's committed tree
+        # For a pull request the checkout is GitHub's test merge; this scans the PR head itself.
+        run: bash scripts/check_private_infra.sh --tree-rev "${{ steps.tip.outputs.tip }}"
+
+      - name: Commit metadata guard on the tip's whole ancestry
+        # Messages, author, committer (and annotated tag metadata): agent session links and
+        # trailers, non-noreply e-mail, hostnames, private tokens. Commits published before
+        # this guard (owner ruling 2026-10-05, "no rewrite") are recognised only through
+        # the frozen, digest-pinned manifest scripts/private_infra_commit_exceptions.txt.
+        # Locally: scripts/check_private_infra.sh --commits HEAD
+        run: bash scripts/check_private_infra.sh --commits "${{ steps.tip.outputs.tip }}"

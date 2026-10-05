@@ -20,10 +20,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Full history and all branches: the commit-metadata guard below needs the
-          # pushed range (before..after) or the pull request's base and head commits.
-          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -47,28 +43,3 @@ jobs:
         # machine hostnames and known private tokens. Allow-list:
         # scripts/private_infra_allowlist.txt. Its own test: tests/test_private_infra_guard.py.
         run: bash scripts/check_private_infra.sh
-
-      - name: Commit metadata guard (only the commits this push or pull request adds)
-        # Messages, author and committer of new commits: agent session links and
-        # trailers, non-noreply e-mail, hostnames, private tokens. Published history
-        # before this guard is an accepted residual (docs/OWNER_DECISIONS.md,
-        # 2026-10-05 "no rewrite"), so only the new range is scanned. Range rules
-        # (PR base..head; push before..after; first push of a branch: commits no other
-        # branch has; manual runs: skipped) live in scripts/ci_commit_range.sh.
-        # Locally, before pushing: scripts/check_private_infra.sh --commits origin/master..HEAD
-        env:
-          EVENT: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.sha }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          range="$(bash scripts/ci_commit_range.sh)"
-          if [ -z "$range" ]; then
-            echo "event $EVENT introduces no commits; metadata guard skipped"
-            exit 0
-          fi
-          echo "commit range: $range"
-          bash scripts/check_private_infra.sh --commits "$range"

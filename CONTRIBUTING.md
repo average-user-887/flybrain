@@ -33,9 +33,13 @@ the in-process behavioural models. Expect it to finish in under a minute.
    session or task links or session trailers, and author and committer
    e-mail must be a `@users.noreply.github.com` address (or
    `noreply@anthropic.com` / `noreply@github.com`). Before pushing, run
-   `scripts/check_private_infra.sh --commits origin/master..HEAD`, or install
-   the pre-push hook once per clone with `git config core.hooksPath scripts/hooks`.
-   CI checks the commits each push or pull request adds.
+   `scripts/check_private_infra.sh --commits HEAD` and
+   `scripts/check_private_infra.sh --tree-rev HEAD`, or install the pre-push
+   hook once per clone with `git config core.hooksPath scripts/hooks`; it checks
+   every ref you push. CI (`.github/workflows/privacy.yml`) checks every pushed
+   branch, tag and pull request. Commits published before the guard existed are
+   covered only by the frozen manifest
+   `scripts/private_infra_commit_exceptions.txt`, which is not to be extended.
 4. **No secrets.** The admin token for public mode is read from
    `NEUROFLY_ADMIN_TOKEN`; never add a `--token` style CLI flag (it would
    leak through process listings and shell history) and never commit `.env`
