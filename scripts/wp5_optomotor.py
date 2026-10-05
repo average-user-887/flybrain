@@ -31,7 +31,6 @@ import hashlib
 import json
 import math
 import os
-import platform
 import resource
 import sys
 import time
@@ -53,6 +52,7 @@ from brainlab.graph_identity import (DYNAMICS_VERSIONS, GraphIdentity,  # noqa: 
 from brainlab.io_map import (DNa02YawDecoder, OptomotorEncoder, OptomotorLoop,  # noqa: E402
                              resolve_optomotor_io)
 from experiment_registry import ExperimentRegistry, SharedGraph  # noqa: E402
+from neurofly.privacy import host_description, portable_path, redact_local  # noqa: E402
 
 PREREG = ROOT / 'docs/wp5_optomotor_prereg.json'
 GRAPH_CONDITIONS = ('intact', 'dna02_silenced', 'sham_no_input', 'shuffled_graph')
@@ -124,7 +124,7 @@ def run_graph_condition(shared, io, condition, seed, prereg, root, blocks=None, 
     ckpt = registry.checkpoint(world_state=dict(condition=condition, seed=seed, t_ms=loop.t_ms, last_yaw=yaw))
     instance.manifest.write(registry.instance_dir(instance.instance_id) / 'manifest.json')
     run = dict(condition=condition, seed=seed, instance_id=instance.instance_id, run_id=instance.manifest.run_id,
-               checkpoint=str(ckpt), wall_s=wall, sim_ms=sim_ms, rss_mib=rss_mib(),
+               checkpoint=portable_path(ckpt), wall_s=wall, sim_ms=sim_ms, rss_mib=rss_mib(),
                manifest_identity=instance.manifest.identity())
     instance.release()
     registry.active = None
@@ -270,7 +270,7 @@ def main():
             {k: policy_report[k] for k in ('policy', 'unclear_mode', 'edges_zeroed',
                                            'neurons_modulatory', 'graph_sha256')}), flush=True)
     io = resolve_optomotor_io()
-    header = dict(started_at=started, host=platform.node(), prereg_sha256=prereg['_sha256'],
+    header = dict(started_at=started, host=host_description(), prereg_sha256=prereg['_sha256'],
                   graph=shared.identity.to_dict(), io_map=io.describe(), graph_load_s=load_s,
                   rss_mib_after_load=rss_mib(),
                   lif_dynamics_version=active_dynamics_version(),
@@ -288,7 +288,7 @@ def main():
                      sim_s_per_wall_s=run['sim_ms'] / 1000 / run['wall_s'], encoder_rates_hz=enc,
                      projected_confirmatory_wall_min=(len(timeline(stim)) * stim['step_ms'] / run['sim_ms'])
                      * run['wall_s'] * len(prereg['seeds']) * len(GRAPH_CONDITIONS) / 60)
-        (args.out / 'pilot.json').write_text(json.dumps(pilot, indent=2) + '\n')
+        (args.out / 'pilot.json').write_text(json.dumps(redact_local(pilot), indent=2) + '\n')
         print(json.dumps({k: pilot[k] for k in ('run', 'sim_s_per_wall_s', 'encoder_rates_hz',
                                                   'projected_confirmatory_wall_min')}, indent=1))
         return
@@ -309,9 +309,9 @@ def main():
                             wall_s=run['wall_s']))
             print(f'mirror seed {seed}: TI {out[-1]["metrics"]["TI"]:+.3f}', flush=True)
         summary = {k: bootstrap([s['metrics'][k] for s in out]) for k in ('TI', 'A_DNa02', 'dV_DNa02')}
-        (args.out / 'exploratory_mirror.json').write_text(json.dumps(dict(
+        (args.out / 'exploratory_mirror.json').write_text(json.dumps(redact_local(dict(
             header, label='EXPLORATORY - declared after confirmatory results; not part of the verdict',
-            blocks=blocks, summary=summary, seeds=out), indent=2) + '\n')
+            blocks=blocks, summary=summary, seeds=out)), indent=2) + '\n')
         print(json.dumps(summary, indent=1))
         return
 
@@ -324,7 +324,7 @@ def main():
                                                   args.out / f'registry/closed-{mode}/seed-{seed}', closed_loop=mode)
                 m = arrays['block'] >= 0
                 results.append(dict(seed=seed, closed_loop=mode, mean_abs_slip=float(np.abs(arrays['slip'][m]).mean())))
-        (args.out / 'closed_loop.json').write_text(json.dumps(dict(header, results=results), indent=2) + '\n')
+        (args.out / 'closed_loop.json').write_text(json.dumps(redact_local(dict(header, results=results)), indent=2) + '\n')
         print(json.dumps(results, indent=1))
         return
 
@@ -401,7 +401,7 @@ def main():
     result = dict(header, finished_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), verdict=verdict,
                   summary=summary, paired=paired, motor_dependence=dependence, modular_baseline=modular_baseline(prereg),
                   compute=compute, runs=runs, per_condition=per_condition)
-    (args.out / 'results.json').write_text(json.dumps(result, indent=2) + '\n')
+    (args.out / 'results.json').write_text(json.dumps(redact_local(result), indent=2) + '\n')
     print('VERDICT', verdict)
     print(json.dumps(dict(intact_TI=summary['intact']['TI'], paired_TI={k: v['TI'] for k, v in paired.items()},
                           A_DNa02=summary['intact']['A_DNa02'], dV=summary['intact']['dV_DNa02'],

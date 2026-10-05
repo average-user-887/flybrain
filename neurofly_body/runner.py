@@ -19,6 +19,8 @@ from typing import Any
 
 import numpy as np
 
+from neurofly.privacy import host_description, redact_local
+
 from . import __version__
 from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .interfaces import BodyBackend, NeuralBackend
@@ -138,7 +140,7 @@ def _assert_finite(value: Any, path: str = "record") -> None:
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(
-        json.dumps(_to_builtin(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        json.dumps(redact_local(_to_builtin(payload)), indent=2, sort_keys=True, allow_nan=False) + "\n",
         encoding="utf-8",
     )
     os.replace(temp, path)
@@ -306,7 +308,8 @@ def run_embodied(
             "provenance": {
                 "python": sys.version,
                 "platform": platform.platform(),
-                "argv": list(sys.argv),
+                "host": host_description(),
+                "argv": list(sys.argv),          # absolute paths redacted by _write_json
                 "pid": os.getpid(),
             },
             "limitations": [
@@ -324,7 +327,7 @@ def run_embodied(
 
             recorder = BodyRecorder(output.output_dir / "body.nfbody", fps=config.record_fps,
                                     neural_dt_ms=config.neural_dt_ms)
-            recorder.header(skeleton=body.skeleton(), provenance={
+            recorder.header(skeleton=body.skeleton(), provenance=redact_local({
                 "config": manifest["config"], "invocation": manifest["invocation"],
                 "package_version": __version__, "command_mode": config.mode,
                 "neural_backend": {key: status.get(key) for key in (
@@ -333,7 +336,7 @@ def run_embodied(
                 "decoder": manifest["decoder"],
                 "sensory": manifest["sensory_feedback"],
                 **({"silenced": status["silence"]} if status.get("silence") else {}),
-            })
+            }))
 
         delay = config.motor_delay_steps
         pending = deque([(0.0, 0.0)] * delay)   # applied commands waiting for the body

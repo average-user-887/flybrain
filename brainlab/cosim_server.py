@@ -513,11 +513,13 @@ class ConnectomeServer:
         return reply
 
     def get_status(self) -> Dict[str, Any]:
+        from neurofly.privacy import portable_path
         return {
             "status": "online",
             **self.identity_fields(),
-            "graph_path": self.identity.graph_path,
-            "graph_path_source": self.identity.graph_path_source,
+            # Status is copied into run manifests: no absolute local path (neurofly.privacy).
+            "graph_path": portable_path(self.identity.graph_path),
+            "graph_path_source": portable_path(self.identity.graph_path_source),
             "unmapped_channels": self.unmapped_channels,
             "mapping_warnings": MAPPING_WARNINGS,
             "engineered_assistance": ENGINEERED_ASSISTANCE,

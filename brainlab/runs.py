@@ -8,6 +8,8 @@ import os
 import platform
 import uuid
 import numpy as np
+from neurofly.privacy import portable_path, redact_local
+
 from .connectome import ROOT, file_digest
 
 
@@ -17,7 +19,7 @@ def now():
 
 def atomic_json(path, value):
     temporary = path.with_suffix('.partial')
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False)+'\n')
+    temporary.write_text(json.dumps(redact_local(value), indent=2, allow_nan=False)+'\n')
     temporary.replace(path)
 
 
@@ -44,7 +46,7 @@ class Run:
                 data = source.read_bytes()
                 (source_dir/source.name).write_bytes(data)
                 hashes[source.name] = hashlib.sha256(data).hexdigest()
-            self.metadata.update(graph_path=str(Path(graph).resolve()), graph_sha256=file_digest(Path(graph)),
+            self.metadata.update(graph_path=portable_path(Path(graph).resolve()), graph_sha256=file_digest(Path(graph)),
                 source_sha256=hashes, python=platform.python_version(), platform=platform.platform(),
                 dependencies={name:version(name) for name in ['numpy','numba','pandas','pyarrow']},
                 status='running')
