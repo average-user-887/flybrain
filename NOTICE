@@ -5,8 +5,14 @@ The MIT license in LICENSE covers the original NeuroFly code, tests and
 documentation. It does not relicense the datasets, papers or upstream code
 listed here; each keeps its own terms.
 
-Code
-----
+Code bundled in this repository
+-------------------------------
+
+* three.js r128 (https://github.com/mrdoob/three.js), MIT, copyright
+  2010-2021 three.js authors. Bundled as web/vendor/three.min.js (licence
+  header retained in the file) and web/vendor/OrbitControls.js (from the
+  three.js examples, same licence). Full text:
+  licenses/upstream/three.js-MIT.txt.
 
 Optional embodied-runtime dependencies
 --------------------------------------
@@ -15,11 +21,19 @@ Optional embodied-runtime dependencies
   License 2.0. The `body` extra installs FlyGym from its package distribution;
   NeuroFly links to its public API and does not include FlyGym source code.
   Upstream license: https://github.com/NeLy-EPFL/flygym/blob/v2.1.0/LICENSE.
+  NeuroFly also imports `flygym_demo`, which ships inside the same FlyGym
+  distribution. Cite: Wang-Chen S, Stimpfling VA, Lam TKC, Özdil PG,
+  Genoud L, Hurtak F, Ramdya P (2024). NeuroMechFly v2: simulating embodied
+  sensorimotor control in adult Drosophila. Nature Methods 21:2353-2362.
+  https://doi.org/10.1038/s41592-024-02497-y
 
 * MuJoCo 3.9.0 (https://github.com/google-deepmind/mujoco/tree/3.9.0), Apache
   License 2.0. The `body` extra installs MuJoCo from its package distribution;
   NeuroFly does not include MuJoCo source code. Upstream license:
   https://github.com/google-deepmind/mujoco/blob/3.9.0/LICENSE.
+
+Code adapted into NeuroFly
+--------------------------
 
 * DOOMFLY (https://github.com/nftechie/doomfly, commit 71ecf53d78eaffaf1a57ed7b0ccf5d458abc9f33)
   MIT, copyright (c) 2026 nftechie and DOOMFLY contributors.
@@ -36,7 +50,10 @@ Optional embodied-runtime dependencies
   (https://github.com/philshiu/Drosophila_brain_model), MIT, copyright 2023
   Philip Shiu and Nico Spiller. The LIF constants in brainlab/engine.py
   follow this model; the upstream checkout is not bundled.
-  Notice: licenses/upstream/Shiu-model-MIT.txt.
+  Notice: licenses/upstream/Shiu-model-MIT.txt. Paper: Shiu PK, Sterne GR,
+  Spiller N, et al. (2024). A Drosophila computational brain model reveals
+  sensorimotor processing. Nature 634:210-219.
+  https://doi.org/10.1038/s41586-024-07763-9
 
 * neuprint-python (https://github.com/connectome-neuprint/neuprint-python),
   BSD-3-Clause, copyright 2019 HHMI. A reference checkout lives under
@@ -49,8 +66,10 @@ Data
 * MaleCNS v1.0 connectome (FlyEM / HHMI Janelia, University of Cambridge,
   MRC LMB, Google Research). Creative Commons Attribution 4.0 International
   (https://creativecommons.org/licenses/by/4.0/), as linked by
-  https://male-cns.janelia.org/download/. Paper:
-  https://doi.org/10.1016/j.cell.2026.08.015.
+  https://male-cns.janelia.org/download/. Cite: Berg S, Beckett IR,
+  Costa M, Schlegel P, Januszewski M, et al. (2026). Sexual dimorphism in
+  the complete Drosophila male central nervous system connectome. Cell
+  189(18):5504-5526.e15. https://doi.org/10.1016/j.cell.2026.08.015
   Bundled derivatives: data/12781.swc and data/556329.swc (two DNge104
   skeletons, sha256 in data/manifest.json), the normalized inclusion report
   in data-provenance/malecns_v1/, and the neuron-count figures quoted in the

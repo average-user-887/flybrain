@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from neurofly_body.decoder import DNa02CPGDecoder
 from neurofly_body.runner import EmbodiedConfig, run_embodied, validate_real_v3_status
 
 
@@ -85,7 +86,7 @@ def _config(path: Path, mode="intact"):
 
 def test_fake_graph_body_lockstep_and_artifacts(tmp_path):
     graph, body = FakeGraph(), FakeBody()
-    summary = run_embodied(_config(tmp_path / "run"), graph, body)
+    summary = run_embodied(_config(tmp_path / "run"), graph, body, decoder=DNa02CPGDecoder())
     assert summary["records"] == 3
     assert body.closed
     assert body.commands[0][1] > 0.0
@@ -98,7 +99,8 @@ def test_fake_graph_body_lockstep_and_artifacts(tmp_path):
 
 def test_output_disconnected_logs_but_never_applies_decoder(tmp_path):
     body = FakeBody()
-    run_embodied(_config(tmp_path / "control", "output-disconnected"), FakeGraph(), body)
+    run_embodied(_config(tmp_path / "control", "output-disconnected"), FakeGraph(), body,
+                 decoder=DNa02CPGDecoder())
     assert body.commands == [(0.0, 0.0)] * 3
     first = json.loads((tmp_path / "control/telemetry.jsonl").read_text().splitlines()[0])
     assert first["motor"]["decoded_cpg_drive"][1] > 0.0

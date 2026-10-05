@@ -8,7 +8,8 @@ Verifies:
 4. Rigorous schema validation for CSV columns, JSON keys, and NPZ shapes.
 5. Cohort statistical aggregation (mean, std, SEM, t-stat, p-value, Cohen's d)
    and Markdown report (PARADIGM_REPORT.md) generation.
-6. run_paradigm_battery.py execution both as an importable module and CLI script.
+6. run_paradigm_battery.run_battery as an importable module (format checks only;
+   its CLI is retired, see docs/RETIREMENT_INDEX.md).
 7. 100% backward compatibility with ScientificDataLogger and LearningAssay.
 """
 
@@ -466,26 +467,23 @@ class TestRunParadigmBattery:
 
         assert "BATTERY" in results["summary_table"] or "Paradigm" in results["summary_table"]
 
-    def test_run_battery_cli_execution(self, tmp_path):
-        out_dir = str(tmp_path / "battery_cli")
+    def test_run_battery_cli_is_retired_and_writes_nothing(self, tmp_path):
+        """The CLI is retired (docs/RETIREMENT_INDEX.md): it explains why and runs nothing."""
+        out_dir = tmp_path / "battery_cli"
         cmd = [
             sys.executable,
             "-m", "experiments.run_paradigm_battery",
             "--paradigms", "optomotor",
             "--trials", "2",
             "--steps", "10",
-            "--output-dir", out_dir,
+            "--output-dir", str(out_dir),
         ]
 
         proc = subprocess.run(cmd, cwd=SIM_DIR, capture_output=True, text=True)
-        assert proc.returncode == 0
-        assert "PARADIGM BATTERY" in proc.stdout
-        assert "optomotor" in proc.stdout
-
-        p_dir = os.path.join(out_dir, "optomotor")
-        assert os.path.exists(os.path.join(p_dir, "optomotor_trial_001_telemetry.csv"))
-        assert os.path.exists(os.path.join(p_dir, "optomotor_trial_002_summary.json"))
-        assert os.path.exists(os.path.join(p_dir, "PARADIGM_REPORT.md"))
+        assert proc.returncode == 2
+        assert "RETIRED" in proc.stderr and "surrogate" in proc.stderr
+        assert "PARADIGM BATTERY" not in proc.stdout
+        assert not out_dir.exists()
 
 
 # =============================================================================

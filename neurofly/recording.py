@@ -33,6 +33,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
+from neurofly.privacy import host_description, redact_local
+
 FORMAT = "neurofly-run-recording"
 VERSION = 1
 SUFFIX = ".nfrec"
@@ -246,9 +248,9 @@ class RunRecorder:
         self._partial = self.path.with_name(f".{self.path.name}.partial")
         self._raw = open(self._partial, "wb")
         self._gz = gzip.GzipFile(filename="", mode="wb", fileobj=self._raw, mtime=0, compresslevel=6)
-        self.header = self._header(runner, label, raster_labels, inputs or [])
+        self.header = redact_local(self._header(runner, label, raster_labels, inputs or []))
         self._gz.write(_line(self.header))
-        self._sidecar = dict(created_at=time.time(), host=platform.node(), pid=os.getpid(),
+        self._sidecar = dict(created_at=time.time(), host=host_description(), pid=os.getpid(),
                              daemon_run_id=getattr(runner, "run_id", None),
                              manifest_run_ids=[], label=label)
         self._note_manifest(runner)
@@ -384,7 +386,7 @@ class RunRecorder:
                             backend=self.header["provenance"]["backend"],
                             synthetic=self.header["provenance"]["synthetic"])
         sidecar = dict(self._sidecar, closed_at=time.time(), recording=self.summary)
-        self.path.with_name(self.path.name + ".json").write_text(json.dumps(sidecar, indent=2) + "\n")
+        self.path.with_name(self.path.name + ".json").write_text(json.dumps(redact_local(sidecar), indent=2) + "\n")
         return self.summary
 
 

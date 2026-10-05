@@ -20,7 +20,7 @@ Stages (each is skipped, with the reason recorded, when its inputs are missing):
 
 The headline number of every stage is ``sim_s_per_wall_s`` (1.0 = real time).
 
-    python scripts/benchmark.py --out runs/bench-$(hostname).json
+    python scripts/benchmark.py --out runs/bench-<label>.json
     python scripts/benchmark.py --quick          # smaller workloads, smoke test
 """
 from __future__ import annotations
@@ -39,6 +39,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from neurofly.privacy import host_description, redact_local  # noqa: E402
 
 MALECNS_NEURONS = 166_700
 MALECNS_EDGES = 25_582_938
@@ -71,20 +72,20 @@ def _windows_ram_gib():
 
 
 def host_facts() -> dict:
+    """Hardware and software facts for the receipt. No hostname or account name:
+    the machine is described by neurofly.privacy.host_description(), which every
+    NeuroFly writer shares. (Receipts before October 2026 had a 'hostname' key;
+    nothing reads it, and it is no longer written.)"""
+    description = host_description()
     facts = {
-        'hostname': platform.node(),
+        'description': description,
         'platform': platform.platform(),
         'python': sys.version.split()[0],
         'cpu_count': os.cpu_count(),
         'git_sha': _run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD']),
         'git_dirty': bool(_run(['git', '-C', str(ROOT), 'status', '--porcelain'])),
+        'cpu_model': description['cpu'],
     }
-    lscpu = _run(['lscpu']) or ''
-    for line in lscpu.splitlines():
-        if line.startswith('Model name:'):
-            facts['cpu_model'] = line.split(':', 1)[1].strip()
-    if not facts.get('cpu_model'):
-        facts['cpu_model'] = platform.processor() or None
     try:
         with open('/proc/meminfo') as fh:
             facts['ram_gib'] = round(int(fh.readline().split()[1]) / 2**20, 1)
@@ -298,7 +299,7 @@ def main(argv=None) -> int:
         print(f'[bench] {name}: {headline}', flush=True)
     receipt['finished_at'] = time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
-    text = json.dumps(receipt, indent=2)
+    text = json.dumps(redact_local(receipt), indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text + '\n')

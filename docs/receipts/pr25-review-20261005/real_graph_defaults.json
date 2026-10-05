@@ -1,0 +1,59 @@
+{
+ "base_graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+ "neurons": 166700,
+ "edges": 25582938,
+ "default": {
+  "master_graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+  "pr_graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+  "identity_equal": true,
+  "weights_byte_identical": true,
+  "report_equal": true,
+  "describe_equal": true,
+  "dataset": "malecns_v1+v3-modulatory-only(excitatory)"
+ },
+ "dpm_released_labels": [
+  "dopamine"
+ ],
+ "variants": {
+  "V2_primary": {
+   "graph_sha256": "4796076fb6403aa8aa5f54b0601432a266bc1255dca17223c282a849e610ebd4",
+   "dataset": "malecns_v1+v3-modulatory-only(excitatory)+mb(kc_kc=modulatory-only,dpm=gaba)",
+   "ptr_post_unchanged": true,
+   "kc_neurons": 4064,
+   "kc_kc_edges": 642933,
+   "kc_kc_edges_zeroed": 642933,
+   "dpm_neurons": 2,
+   "dpm_released_labels": [
+    "dopamine"
+   ],
+   "dpm_out_edges_relabelled": 4934,
+   "edges_zeroed": 1073540
+  },
+  "V1_kc0_dpm_silent": {
+   "graph_sha256": "b8e539d7ba77ce1c822088d3e22fee1ed819f813dec49ad2708d2391894538d1",
+   "dataset": "malecns_v1+v3-modulatory-only(excitatory)+mb(kc_kc=modulatory-only,dpm=released)",
+   "ptr_post_unchanged": true,
+   "kc_neurons": 4064,
+   "kc_kc_edges": 642933,
+   "kc_kc_edges_zeroed": 642933,
+   "edges_zeroed": 1078474
+  },
+  "V3_kckc_released_dpm_gaba": {
+   "graph_sha256": "c25478ecc94c555dde7f018067909984a894c9dc84b08ec58aa15d358a1e61c4",
+   "dataset": "malecns_v1+v3-modulatory-only(excitatory)+mb(kc_kc=released,dpm=gaba)",
+   "ptr_post_unchanged": true,
+   "dpm_neurons": 2,
+   "dpm_released_labels": [
+    "dopamine"
+   ],
+   "dpm_out_edges_relabelled": 4934,
+   "edges_zeroed": 430607
+  }
+ },
+ "spec_expectations": {
+  "kc_neurons": 4064,
+  "kc_kc_edges": 642933,
+  "dpm_neurons": 2
+ },
+ "wall_s": 5.6
+}

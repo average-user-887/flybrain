@@ -1,5 +1,8 @@
 # NeuroFly rethink: what we have, what failed, and what is worth building
 
+> **Superseded as a plan** by [`ROADMAP.md`](ROADMAP.md) v2.0 (2026-09-24); kept as audit evidence.
+> See [`SUPERSEDED_PLANS.md`](SUPERSEDED_PLANS.md).
+
 19 September 2026 · implementation audited at `355f50e`.
 
 This is the audit evidence report. Following the interview, the user accepted the
@@ -272,7 +275,7 @@ The particular plasticity rule needs a sourced model specification and evaluatio
 it is not supplied by the connectivity release. A physical robot choice is deferred
 until the simulation interface and compute budget have been validated.
 
-The implementation handoff is [CLAUDE_IMMEDIATE_PLAN.md](CLAUDE_IMMEDIATE_PLAN.md).
+The implementation handoff is [CLAUDE_IMMEDIATE_PLAN.md](archive/CLAUDE_IMMEDIATE_PLAN.md).
 It records the accepted direction, eight ordered work packages, measurable gates
 and the first implementation session. Preparing this plan does not resume services
 or change the current controllers.

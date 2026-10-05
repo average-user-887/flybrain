@@ -1,7 +1,11 @@
 # Learning observatory — 2026-09-19
 
-The current development branch is `worktree-neurofly-openready`, under
-`<redacted-path> The main checkout is an earlier snapshot.
+*(2026-09-24: this paragraph is historical. The repository is now
+`github.com/average-user-887/flybrain`, `master` is authoritative, and the
+`worktree-neurofly-openready` worktree is no longer the development branch.)*
+
+Originally: the current development branch is `worktree-neurofly-openready`, in a separate
+local worktree of the repository. The main checkout is an earlier snapshot.
 No Git remote is configured; commits are local.
 
 ## Run the lab

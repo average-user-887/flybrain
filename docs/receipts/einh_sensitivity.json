@@ -1,0 +1,895 @@
+{
+  "declaration_lock": {
+    "document": "docs/EINH_SENSITIVITY.md",
+    "locked_copy": "docs/receipts/einh_sensitivity_declaration.locked.md",
+    "sha256": "4decfdd9f73b000f1310b4d1a7e315d113a7454e7ffbfdcf762403cbac1f6f97",
+    "locked_at": "2026-09-26T18:11:04+02:00",
+    "scope": "Sections 0-4 (literature, sweep, criteria, predictions, DECISION RULE) were written and hashed BEFORE any measurement in this program. Sections 5-6 are filled in afterwards and do not alter 0-4; the locked copy is the proof.",
+    "forbidden": "no change to E_inh values, calibration, transmitter policy, metric, seeds, docs/wp5_optomotor_prereg.json or the Q1/R1/R2 gate to obtain a better reading"
+  },
+  "base_pins": {
+    "v1_dynamics_pin": "1b17bfc6cf8c4f54dbda73d715fec53971c369d0495a60d938cd56fa8320f146",
+    "v2_dynamics_pin": "1ea33ba1d05d815cf8f83c0e3a783d3ff8dec101c44703eaad4c667f8cfbeb56",
+    "v3_dynamics_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41"
+  },
+  "variant_pins": {
+    "v3-einh-70": "2428912286eb5e107b736d50a18e59a67b6e6a5407006873c47649da5972b92d",
+    "v3-einh-66": "63de4547d95f629891f1285c4fafb85e796564ffc5fa8e3a9bb9f36d4ef59afb",
+    "v3-einh-63": "b2a888a873a96b6ed21150c4f27167c47c3d13eeabec0dc2d11cd55f7ea45d5c",
+    "v3-einh-60": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0",
+    "v3-einh-58": "24c38ba72defbed928d0ca29700310c1f610626c3053b295e112a79456d4c209",
+    "v3-einh-56": "2b20eed48dbd4d274f0726266b405f8d53e788a49c11d2e0411b26facf174c33"
+  },
+  "status": "complete: probe gate at 6 E_inh values x 2 arms, plus 2 confirmatory 24-run sets",
+  "literature": {
+    "conclusion": "The adult Drosophila central chloride reversal potential is NOT well constrained. Every direct measurement is a readout of the pipette Cl-, it varies by cell type, and within one cell type it varies with time of day. The two pipette-independent adult constraints put the operative E_Cl at or just below rest, about -65 to -55 mV. No retrieved paper supports -70 mV for adult Drosophila; -70 mV is a mammalian textbook convention.",
+    "sources": [
+      {
+        "cite": "Grolleau et al. 2000, Br J Pharmacol 130:1833-1842",
+        "doi": "10.1038/sj.bjp.0703507",
+        "prep": "RDL homomer, Drosophila S2 line",
+        "value": "E_GABA = -1.4 mV, near the calculated Cl- equilibrium for symmetrical Cl-"
+      },
+      {
+        "cite": "Lee, Su & O'Dowd 2003, J Neurosci 23:4625-4634",
+        "prep": "cultured EMBRYONIC Drosophila neurons",
+        "value": "x-intercepts -44.5 mV and 0 mV in two internal-Cl conditions, each near the theoretical Cl- equilibrium for that internal"
+      },
+      {
+        "cite": "Rohrbough & Broadie 2002, J Neurophysiol 88:847-860",
+        "doi": "10.1152/jn.2002.88.2.847",
+        "prep": "LARVAL central neurons",
+        "value": "-56 +/- 3 mV in 6 of 9 neurons",
+        "note": "full text paywalled (HTTP 403); value from the retrievable quotation and matches the value docs/LIF_DYNAMICS_SPEC.md 3.1 already cites"
+      },
+      {
+        "cite": "Su & O'Dowd 2003, J Neurosci 23:9246-9253",
+        "prep": "ADULT Kenyon cells in situ",
+        "value": "-37 +/- 3 mV against a theoretical -45 mV for their internal"
+      },
+      {
+        "cite": "Wilson & Laurent 2005, J Neurosci 25:9069-9079",
+        "prep": "ADULT antennal lobe, in vivo whole cell",
+        "internal": "140 K-aspartate, 10 HEPES, 1 KCl, 4 MgATP, 0.5 Na3GTP, 1 EGTA; external 103 mM NaCl (Nernst E_Cl for that internal is roughly -120 mV)",
+        "value": "GABA pulse from threshold (-39 +/- 1 mV) hyperpolarised local-neuron somata to -56 +/- 2 mV",
+        "why_it_matters": "the operative endpoint of GABAergic hyperpolarisation in an intact adult central neuron is near -56 mV even under a pipette that should have imposed -120 mV"
+      },
+      {
+        "cite": "Gouwens & Wilson 2009, J Neurosci 29:6239-6249",
+        "pmc": "PMC2709801",
+        "prep": "ADULT antennal lobe PNs",
+        "value": "\"Lowering [Cl-]e did not significantly change the resting membrane potential, so we conclude that there is little chloride current flowing at rest in PNs\"; true resting potential -55 to -60 mV with ORN input, about -65 mV without",
+        "why_it_matters": "pipette-independent: little Cl- current at rest implies E_Cl ~ V_rest"
+      },
+      {
+        "cite": "Schellinger et al. 2021/2022, bioRxiv 10.1101/2021.07.16.452737; published as Chloride oscillation in pacemaker neurons regulates circadian rhythms through a chloride-sensing WNK kinase signalling cascade, PMID 35303418",
+        "prep": "ADULT sLNv pacemaker neurons, ClopHensor",
+        "value": "intracellular Cl- rises and falls across the day, Ncc69-dependently",
+        "why_it_matters": "E_Cl in an adult Drosophila neuron is a function of time of day"
+      },
+      {
+        "cite": "Chloride-dependent mechanisms of multimodal sensory discrimination and nociceptive sensitization in Drosophila, eLife 2022, elifesciences.org/articles/76863",
+        "value": "kcc down- and ncc69 up-regulated in class III neurons, suggesting relatively high intracellular Cl-",
+        "why_it_matters": "E_Cl is also a function of cell type"
+      }
+    ],
+    "glucl": "No separate GluCl reversal potential is reported, and none could be: a Cl--selective channel reverses at E_Cl. Cully et al. 1996 J Biol Chem 271:20187-20191 (PMID 8702744) and Kane et al. 2000 PNAS 97:13949-13954 (doi 10.1073/pnas.240464697) establish GluCl-alpha as a glutamate-gated chloride channel; Liu & Wilson 2013 PNAS 110:10294-10299 shows glutamate is inhibitory in the adult olfactory system. GluCl-alpha supplies NO independent support for -70 mV. Correction of record: the project docs do not cite -70 mV for GluCl-alpha; LIF_DYNAMICS_SPEC 6.3 cites Liu & Wilson only for \"glutamate is inhibitory via a chloride conductance\", and 3.1 already labels -70 mV an engineering assumption.",
+    "structural_consequence": "This engine V_rest = -52 mV (Shiu et al. 2024) is ABOVE every measured adult Drosophila resting potential, and the v3 rule g_unit_inh = 1/(V_rest - E_inh) diverges as E_inh approaches V_rest and is undefined for E_inh >= -52 mV. The literature-supported range therefore sits where the declared calibration is most extreme (1/8 at -60 mV, 1/4 at -56 mV vs 1/18 at -70 mV). Declared in advance as a confound, not discovered afterwards."
+  },
+  "gate": {
+    "A-primary E_inh=-70": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 8.0,
+        "-1": -3.0
+      },
+      "membrane_min_mV": {
+        "1": -69.786,
+        "-1": -69.776
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-70",
+        "-1": "v3-einh-70"
+      },
+      "dynamics_variant_pin": {
+        "1": "2428912286eb5e107b736d50a18e59a67b6e6a5407006873c47649da5972b92d",
+        "-1": "2428912286eb5e107b736d50a18e59a67b6e6a5407006873c47649da5972b92d"
+      }
+    },
+    "A-primary E_inh=-66": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 10.0,
+        "-1": -4.0
+      },
+      "membrane_min_mV": {
+        "1": -65.854,
+        "-1": -65.851
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-66",
+        "-1": "v3-einh-66"
+      },
+      "dynamics_variant_pin": {
+        "1": "63de4547d95f629891f1285c4fafb85e796564ffc5fa8e3a9bb9f36d4ef59afb",
+        "-1": "63de4547d95f629891f1285c4fafb85e796564ffc5fa8e3a9bb9f36d4ef59afb"
+      }
+    },
+    "A-primary E_inh=-63": {
+      "Q1": true,
+      "R1": false,
+      "R2": true,
+      "R1_sign_both_directions": false,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 5.0,
+        "-1": 0.0
+      },
+      "membrane_min_mV": {
+        "1": -62.912,
+        "-1": -62.893
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-63",
+        "-1": "v3-einh-63"
+      },
+      "dynamics_variant_pin": {
+        "1": "b2a888a873a96b6ed21150c4f27167c47c3d13eeabec0dc2d11cd55f7ea45d5c",
+        "-1": "b2a888a873a96b6ed21150c4f27167c47c3d13eeabec0dc2d11cd55f7ea45d5c"
+      }
+    },
+    "A-primary E_inh=-60": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 8.0,
+        "-1": -2.0
+      },
+      "membrane_min_mV": {
+        "1": -59.951,
+        "-1": -59.939
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-60",
+        "-1": "v3-einh-60"
+      },
+      "dynamics_variant_pin": {
+        "1": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0",
+        "-1": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0"
+      }
+    },
+    "A-primary E_inh=-58": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 3.0,
+        "-1": -4.0
+      },
+      "membrane_min_mV": {
+        "1": -57.969,
+        "-1": -57.961
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-58",
+        "-1": "v3-einh-58"
+      },
+      "dynamics_variant_pin": {
+        "1": "24c38ba72defbed928d0ca29700310c1f610626c3053b295e112a79456d4c209",
+        "-1": "24c38ba72defbed928d0ca29700310c1f610626c3053b295e112a79456d4c209"
+      }
+    },
+    "A-primary E_inh=-56": {
+      "Q1": true,
+      "R1": false,
+      "R2": true,
+      "R1_sign_both_directions": false,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 11.0,
+        "-1": 2.0
+      },
+      "membrane_min_mV": {
+        "1": -55.983,
+        "-1": -55.981
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-56",
+        "-1": "v3-einh-56"
+      },
+      "dynamics_variant_pin": {
+        "1": "2b20eed48dbd4d274f0726266b405f8d53e788a49c11d2e0411b26facf174c33",
+        "-1": "2b20eed48dbd4d274f0726266b405f8d53e788a49c11d2e0411b26facf174c33"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-70": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 18.0,
+        "-1": -18.0
+      },
+      "membrane_min_mV": {
+        "1": -69.785,
+        "-1": -69.781
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-70",
+        "-1": "v3-einh-70"
+      },
+      "dynamics_variant_pin": {
+        "1": "2428912286eb5e107b736d50a18e59a67b6e6a5407006873c47649da5972b92d",
+        "-1": "2428912286eb5e107b736d50a18e59a67b6e6a5407006873c47649da5972b92d"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-66": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 18.0,
+        "-1": -12.0
+      },
+      "membrane_min_mV": {
+        "1": -65.864,
+        "-1": -65.866
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-66",
+        "-1": "v3-einh-66"
+      },
+      "dynamics_variant_pin": {
+        "1": "63de4547d95f629891f1285c4fafb85e796564ffc5fa8e3a9bb9f36d4ef59afb",
+        "-1": "63de4547d95f629891f1285c4fafb85e796564ffc5fa8e3a9bb9f36d4ef59afb"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-63": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 13.0,
+        "-1": -16.0
+      },
+      "membrane_min_mV": {
+        "1": -62.906,
+        "-1": -62.907
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-63",
+        "-1": "v3-einh-63"
+      },
+      "dynamics_variant_pin": {
+        "1": "b2a888a873a96b6ed21150c4f27167c47c3d13eeabec0dc2d11cd55f7ea45d5c",
+        "-1": "b2a888a873a96b6ed21150c4f27167c47c3d13eeabec0dc2d11cd55f7ea45d5c"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-60": {
+      "Q1": true,
+      "R1": true,
+      "R2": true,
+      "R1_sign_both_directions": true,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 6.0,
+        "-1": -3.0
+      },
+      "membrane_min_mV": {
+        "1": -59.95,
+        "-1": -59.952
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-60",
+        "-1": "v3-einh-60"
+      },
+      "dynamics_variant_pin": {
+        "1": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0",
+        "-1": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-58": {
+      "Q1": true,
+      "R1": false,
+      "R2": true,
+      "R1_sign_both_directions": false,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 11.0,
+        "-1": 0.0
+      },
+      "membrane_min_mV": {
+        "1": -57.968,
+        "-1": -57.966
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-58",
+        "-1": "v3-einh-58"
+      },
+      "dynamics_variant_pin": {
+        "1": "24c38ba72defbed928d0ca29700310c1f610626c3053b295e112a79456d4c209",
+        "-1": "24c38ba72defbed928d0ca29700310c1f610626c3053b295e112a79456d4c209"
+      }
+    },
+    "A-S1(unclear=zero) E_inh=-56": {
+      "Q1": true,
+      "R1": false,
+      "R2": true,
+      "R1_sign_both_directions": false,
+      "R1_magnitude": true,
+      "dna02_LminusR_per_direction": {
+        "1": 3.0,
+        "-1": 1.0
+      },
+      "membrane_min_mV": {
+        "1": -55.983,
+        "-1": -55.982
+      },
+      "dynamics_variant": {
+        "1": "v3-einh-56",
+        "-1": "v3-einh-56"
+      },
+      "dynamics_variant_pin": {
+        "1": "2b20eed48dbd4d274f0726266b405f8d53e788a49c11d2e0411b26facf174c33",
+        "-1": "2b20eed48dbd4d274f0726266b405f8d53e788a49c11d2e0411b26facf174c33"
+      }
+    }
+  },
+  "gate_source": {
+    "probe_c": "outputs/wp5/einh-sweep-20260926/probe_c_sweep.json",
+    "gate": "outputs/wp5/einh-sweep-20260926/gate_sweep.json",
+    "criteria": "copied verbatim from outputs/wp5/v3-verify-20260926/gate.py (docs/LIF_DYNAMICS_SPEC.md 6.7); unchanged",
+    "note": "the E_inh=-70 rows reproduce the 20 and 26 September probe C runs exactly, arm for arm and window for window"
+  },
+  "fixed_point_einh_sweep": {
+    "v3-primary": {
+      "-70": {
+        "e_inh_mV": -70.0,
+        "g_unit_inh": 0.05555555555555555,
+        "g_unit_ratio_inh_over_exc": 2.8888888888888884,
+        "conductance_ratio_g_inh_over_g_exc": 1.8148090731238533,
+        "high_conductance_fixed_point_mV": -45.13152822037961,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.13152822037960732
+      },
+      "-66": {
+        "e_inh_mV": -66.0,
+        "g_unit_inh": 0.07142857142857142,
+        "g_unit_ratio_inh_over_exc": 3.714285714285714,
+        "conductance_ratio_g_inh_over_g_exc": 2.33332595115924,
+        "high_conductance_fixed_point_mV": -46.199956149788775,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 1.1999561497887754
+      },
+      "-63": {
+        "e_inh_mV": -63.0,
+        "g_unit_inh": 0.09090909090909091,
+        "g_unit_ratio_inh_over_exc": 4.7272727272727275,
+        "conductance_ratio_g_inh_over_g_exc": 2.9696875742026694,
+        "high_conductance_fixed_point_mV": -47.12973343055748,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 2.1297334305574793
+      },
+      "-60": {
+        "e_inh_mV": -60.0,
+        "g_unit_inh": 0.125,
+        "g_unit_ratio_inh_over_exc": 6.5,
+        "conductance_ratio_g_inh_over_g_exc": 4.083320414528671,
+        "high_conductance_fixed_point_mV": -48.19669131449719,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 3.196691314497187
+      },
+      "-58": {
+        "e_inh_mV": -58.0,
+        "g_unit_inh": 0.16666666666666666,
+        "g_unit_ratio_inh_over_exc": 8.666666666666666,
+        "conductance_ratio_g_inh_over_g_exc": 5.44442721937156,
+        "high_conductance_fixed_point_mV": -48.999975944230464,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 3.9999759442304637
+      },
+      "-56": {
+        "e_inh_mV": -56.0,
+        "g_unit_inh": 0.25,
+        "g_unit_ratio_inh_over_exc": 13.0,
+        "conductance_ratio_g_inh_over_g_exc": 8.166640829057341,
+        "high_conductance_fixed_point_mV": -49.89089187148191,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 4.890891871481912
+      }
+    },
+    "v3-unclear-zero": {
+      "-70": {
+        "e_inh_mV": -70.0,
+        "g_unit_inh": 0.05555555555555555,
+        "g_unit_ratio_inh_over_exc": 2.8888888888888884,
+        "conductance_ratio_g_inh_over_g_exc": 1.8653938584930718,
+        "high_conductance_fixed_point_mV": -45.570548602762265,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 0.5705486027622655
+      },
+      "-66": {
+        "e_inh_mV": -66.0,
+        "g_unit_inh": 0.07142857142857142,
+        "g_unit_ratio_inh_over_exc": 3.714285714285714,
+        "conductance_ratio_g_inh_over_g_exc": 2.3983635323482355,
+        "high_conductance_fixed_point_mV": -46.57888764054779,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 1.5788876405477907
+      },
+      "-63": {
+        "e_inh_mV": -63.0,
+        "g_unit_inh": 0.09090909090909091,
+        "g_unit_ratio_inh_over_exc": 4.7272727272727275,
+        "conductance_ratio_g_inh_over_g_exc": 3.052462677534118,
+        "high_conductance_fixed_point_mV": -47.453897540066954,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 2.4538975400669543
+      },
+      "-60": {
+        "e_inh_mV": -60.0,
+        "g_unit_inh": 0.125,
+        "g_unit_ratio_inh_over_exc": 6.5,
+        "conductance_ratio_g_inh_over_g_exc": 4.197136181609412,
+        "high_conductance_fixed_point_mV": -48.45518033329279,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 3.4551803332927875
+      },
+      "-58": {
+        "e_inh_mV": -58.0,
+        "g_unit_inh": 0.16666666666666666,
+        "g_unit_ratio_inh_over_exc": 8.666666666666666,
+        "conductance_ratio_g_inh_over_g_exc": 5.596181575479216,
+        "high_conductance_fixed_point_mV": -49.20703404897003,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 4.20703404897003
+      },
+      "-56": {
+        "e_inh_mV": -56.0,
+        "g_unit_inh": 0.25,
+        "g_unit_ratio_inh_over_exc": 13.0,
+        "conductance_ratio_g_inh_over_g_exc": 8.394272363218825,
+        "high_conductance_fixed_point_mV": -50.03892096856213,
+        "subthreshold": true,
+        "margin_below_threshold_mV": 5.038920968562131
+      }
+    }
+  },
+  "confirmatory": {
+    "A-S1(unclear=zero) E_inh=-70": {
+      "path": "outputs/wp5/einh-sweep-20260926/confirm-S1-einh70/results.json",
+      "verdict": "POSITIVE",
+      "lif_dynamics_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+      "lif_dynamics_variant": "v3",
+      "lif_dynamics_variant_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+      "lif_e_inh_mV": null,
+      "unclear_mode": "zero",
+      "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+      "graph_sha256": "5de2ac24df5bf58ae27f7116cb501ad08f86b900accd51099c0741ea2ec75b67",
+      "summary_TI": {
+        "intact": {
+          "mean": 0.1632075243226873,
+          "sd": 0.0341370777064546,
+          "ci95": [
+            0.13727103918905467,
+            0.18737023635446995
+          ],
+          "n": 6,
+          "dz": 4.780945976867499,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "dna02_silenced": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "sham_no_input": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "shuffled_graph": {
+          "mean": -0.015145719838315164,
+          "sd": 0.013837125640796118,
+          "ci95": [
+            -0.0252707866349046,
+            -0.005360565527029067
+          ],
+          "n": 6,
+          "dz": -1.0945712448878042,
+          "n_positive": 0,
+          "n_negative": 4,
+          "n_zero": 2
+        }
+      },
+      "paired_TI": {
+        "intact-dna02_silenced": {
+          "mean": 0.1632075243226873,
+          "sd": 0.0341370777064546,
+          "ci95": [
+            0.13727103918905467,
+            0.18737023635446995
+          ],
+          "n": 6,
+          "dz": 4.780945976867499,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-sham_no_input": {
+          "mean": 0.1632075243226873,
+          "sd": 0.0341370777064546,
+          "ci95": [
+            0.13727103918905467,
+            0.18737023635446995
+          ],
+          "n": 6,
+          "dz": 4.780945976867499,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-shuffled_graph": {
+          "mean": 0.17835324416100243,
+          "sd": 0.043511474948905095,
+          "ci95": [
+            0.14575243012571415,
+            0.2092326801863701
+          ],
+          "n": 6,
+          "dz": 4.098993297065661,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        }
+      },
+      "A_DNa02": {
+        "mean": 8.645833333333334,
+        "sd": 1.8931070140556414,
+        "ci95": [
+          7.1875,
+          10.0
+        ],
+        "n": 6,
+        "dz": 4.5670071840319215,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "dV_DNa02": {
+        "mean": 4.805641550064087,
+        "sd": 0.2002945829283896,
+        "ci95": [
+          4.663887587070466,
+          4.961741589637596
+        ],
+        "n": 6,
+        "dz": 23.992868303294184,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      }
+    },
+    "A-primary E_inh=-60": {
+      "path": "outputs/wp5/einh-sweep-20260926/confirm-primary-einh60/results.json",
+      "verdict": "POSITIVE",
+      "lif_dynamics_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+      "lif_dynamics_variant": "v3-einh-60",
+      "lif_dynamics_variant_pin": "7a13b489db63d6f8f36f259acad5c2003cd3385eae15c9ae86b329a3104d31e0",
+      "lif_e_inh_mV": -60.0,
+      "unclear_mode": "excitatory",
+      "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+      "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+      "summary_TI": {
+        "intact": {
+          "mean": 0.04519170934202119,
+          "sd": 0.030763134354807646,
+          "ci95": [
+            0.02370134403808161,
+            0.06887667504120325
+          ],
+          "n": 6,
+          "dz": 1.4690216159641307,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "dna02_silenced": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "sham_no_input": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "shuffled_graph": {
+          "mean": -0.014624437390374187,
+          "sd": 0.013530316818019339,
+          "ci95": [
+            -0.02482287803280502,
+            -0.004915600420276348
+          ],
+          "n": 6,
+          "dz": -1.0808643719929547,
+          "n_positive": 0,
+          "n_negative": 4,
+          "n_zero": 2
+        }
+      },
+      "paired_TI": {
+        "intact-dna02_silenced": {
+          "mean": 0.04519170934202119,
+          "sd": 0.030763134354807646,
+          "ci95": [
+            0.02370134403808161,
+            0.06887667504120325
+          ],
+          "n": 6,
+          "dz": 1.4690216159641307,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-sham_no_input": {
+          "mean": 0.04519170934202119,
+          "sd": 0.030763134354807646,
+          "ci95": [
+            0.02370134403808161,
+            0.06887667504120325
+          ],
+          "n": 6,
+          "dz": 1.4690216159641307,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-shuffled_graph": {
+          "mean": 0.05981614673239538,
+          "sd": 0.035756499526710575,
+          "ci95": [
+            0.03480098873866598,
+            0.08710655783003556
+          ],
+          "n": 6,
+          "dz": 1.6728747926712437,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        }
+      },
+      "A_DNa02": {
+        "mean": 2.5,
+        "sd": 1.5329709716755893,
+        "ci95": [
+          1.4583333333333333,
+          3.6666666666666665
+        ],
+        "n": 6,
+        "dz": 1.6308201826336053,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "dV_DNa02": {
+        "mean": 2.3030825486183164,
+        "sd": 0.261535391983076,
+        "ci95": [
+          2.10487390947342,
+          2.48918597571055
+        ],
+        "n": 6,
+        "dz": 8.806007214378653,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      }
+    },
+    "A-primary E_inh=-70 (published v3, for reference)": {
+      "path": "outputs/wp5/v3-20260920/results.json",
+      "verdict": "POSITIVE",
+      "lif_dynamics_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+      "lif_dynamics_variant": null,
+      "lif_dynamics_variant_pin": null,
+      "lif_e_inh_mV": null,
+      "unclear_mode": "excitatory",
+      "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+      "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+      "summary_TI": {
+        "intact": {
+          "mean": 0.06711749014818837,
+          "sd": 0.02109977347053046,
+          "ci95": [
+            0.05242310531499348,
+            0.08288298180817164
+          ],
+          "n": 6,
+          "dz": 3.1809578544494674,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "dna02_silenced": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "sham_no_input": {
+          "mean": 0.0,
+          "sd": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 6,
+          "dz": null,
+          "n_positive": 0,
+          "n_negative": 0,
+          "n_zero": 6
+        },
+        "shuffled_graph": {
+          "mean": -0.015094141907991227,
+          "sd": 0.013793656696276569,
+          "ci95": [
+            -0.02526135661742587,
+            -0.005349989805975623
+          ],
+          "n": 6,
+          "dz": -1.0942813961772522,
+          "n_positive": 0,
+          "n_negative": 4,
+          "n_zero": 2
+        }
+      },
+      "paired_TI": {
+        "intact-dna02_silenced": {
+          "mean": 0.06711749014818837,
+          "sd": 0.02109977347053046,
+          "ci95": [
+            0.05242310531499348,
+            0.08288298180817164
+          ],
+          "n": 6,
+          "dz": 3.1809578544494674,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-sham_no_input": {
+          "mean": 0.06711749014818837,
+          "sd": 0.02109977347053046,
+          "ci95": [
+            0.05242310531499348,
+            0.08288298180817164
+          ],
+          "n": 6,
+          "dz": 3.1809578544494674,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        },
+        "intact-shuffled_graph": {
+          "mean": 0.0822116320561796,
+          "sd": 0.026127373166987912,
+          "ci95": [
+            0.06373026768516611,
+            0.10108947431703402
+          ],
+          "n": 6,
+          "dz": 3.1465708982965985,
+          "n_positive": 6,
+          "n_negative": 0,
+          "n_zero": 0
+        }
+      },
+      "A_DNa02": {
+        "mean": 3.5,
+        "sd": 1.1067971810589328,
+        "ci95": [
+          2.7291666666666665,
+          4.3125
+        ],
+        "n": 6,
+        "dz": 3.1622776601683795,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      },
+      "dV_DNa02": {
+        "mean": 5.2863637477556855,
+        "sd": 0.3823271550690521,
+        "ci95": [
+          5.0387691221237185,
+          5.5868400635719295
+        ],
+        "n": 6,
+        "dz": 13.826806905203778,
+        "n_positive": 6,
+        "n_negative": 0,
+        "n_zero": 0
+      }
+    }
+  },
+  "applied_decision_rule": {
+    "reading": "R-ROBUST",
+    "ruled_out": {
+      "R-ARTEFACT": "requires a gate-passing configuration whose verdict is NULL or NEGATIVE; every configuration measured confirmatorily is POSITIVE",
+      "R-ARM-CONTINGENT (F5)": "V(-70, A-S1) = POSITIVE = V(-70, A-primary); same verdict class, so falsifier F5 is NOT triggered",
+      "R-CONTINGENT": "requires no POSITIVE in the literature-supported range [-65,-55]; E_inh = -60 mV is in that range, passed the gate and is POSITIVE",
+      "R-PARTIAL": "strictly weaker; requires no POSITIVE gate-passing value in the literature range, and -60 mV is one",
+      "R-REGIME-LIMITED": "8 of 12 configurations passed the gate, not one"
+    },
+    "coverage_caveat": "8 configurations passed the gate; section 2.1 capped confirmatory sets at 3 and named which, so \"every gate-passing configuration\" can only be read over the configurations 2.1 selected. Coverage is 3 of 8. Recorded as the residual risk.",
+    "robust": "verdict class and causal structure: POSITIVE at -70 and -60 mV and under both unclear-neuron treatments; DNa02 silencing abolishes yaw identically (0.0000) in all three; shuffled graph negative in all three",
+    "not_robust": "effect size varies 3.6x across gate-passing configurations (TI +0.0452 at -60 mV, +0.0671 at -70 mV, +0.1632 in arm S1 at -70 mV) and dz falls from 4.78 to 1.47. The TI MAGNITUDE published in WP5 section 12 is contingent on E_inh = -70 mV even though the verdict is not. TI_c05 CI includes zero in both new sets where the published primary excluded it.",
+    "unmeasured_gap": "E_inh = -56 mV, the single measured Drosophila value, FAILED R1 at probe level in both arms and was therefore never run confirmatorily, per the binding budget rule. The verdict at -56 mV is UNKNOWN. The gate pattern is non-monotone (-63 fails, -60 and -58 pass, -56 fails), which is what a 1-spike detection-floor artefact looks like rather than a physical threshold; the data do not separate the two readings. Resolving it needs a confirmatory run at -56 mV, which the declared gate forbids. Not fixed here by relaxing the gate.",
+    "confidence": "Per the fixed clause in section 4: under R-ROBUST the result deserves the confidence WP5 section 12 claims for it, with section 12.4 engine-contingency qualifier and no new one. The POSITIVE verdict stands and gains standing, having survived a pre-registered attempt to break it on its most obvious dependency, subject to the three quantitative qualifiers above. The engine-level reservations (one compartment, coarse transmitter proxy, encoder-imposed direction selectivity) are unchanged and remain the larger limitation."
+  },
+  "unchanged": {
+    "v3_pin_before_and_after": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+    "prereg_sha256": "9af619d48f3a884441d4123d40040f369b109a2061785675be4974555c15e168",
+    "note": "no change to the gate thresholds, calibration rule, transmitter policy, preregistration file, metric, seeds or bootstrap. v1, v2 and v3 keep every number, pin and checkpoint they had."
+  }
+}

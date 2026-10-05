@@ -17,8 +17,8 @@ the in-process behavioural models. Expect it to finish in under a minute.
 
 ## Ground rules
 
-1. **Do not overstate what the simulation does.** The README's "What this
-   simulates today" section is the reference. If your change adds a model,
+1. **Do not overstate what the simulation does.** The README's "Current
+   status" section and `docs/CAPABILITY_MATRIX.md` are the reference. If your change adds a model,
    describe it at the same level: what is computed, what parameters were
    chosen and why, and what is *not* modelled. Claims about neuron or synapse
    counts must point at code that actually loads them.
@@ -29,6 +29,20 @@ the in-process behavioural models. Expect it to finish in under a minute.
    paths must not be committed. Use environment variables (`NEUROFLY_*`) or
    CLI flags with neutral defaults. `docs/RELEASE_AUDIT.md` lists the
    patterns the release audit greps for.
+   The same applies to **commit metadata**: messages must not carry agent
+   session or task links or session trailers, and author and committer
+   e-mail must be a `@users.noreply.github.com` address (or
+   `noreply@anthropic.com` / `noreply@github.com`). Before pushing, run
+   `scripts/check_private_infra.sh --commits HEAD` and
+   `scripts/check_private_infra.sh --tree-rev HEAD`, or install the pre-push
+   hook once per clone with `git config core.hooksPath scripts/hooks`; it checks
+   every ref you push. CI (`.github/workflows/privacy.yml`) checks every pushed
+   branch, tag and pull request. Commits published before the guard existed are
+   covered only by the frozen manifest
+   `scripts/private_infra_commit_exceptions.txt` (metadata) and the frozen
+   publication boundary `scripts/private_infra_published_boundary.txt` (trees);
+   neither is to be extended. Every new commit's tree must be clean, not just
+   the tip: a value added and removed again before pushing is still caught.
 4. **No secrets.** The admin token for public mode is read from
    `NEUROFLY_ADMIN_TOKEN`; never add a `--token` style CLI flag (it would
    leak through process listings and shell history) and never commit `.env`

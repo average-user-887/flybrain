@@ -108,7 +108,7 @@ class ConnectomeClient:
         # server's engineered assistance is gated on, and which optomotor IO map
         # (brainlab/io_map.py) it resolved.  ``None`` means the server has none.
         self.server_identity = {k: data.get(k) for k in
-                                ("backend", "graph_sha256", "neuron_map_sha256", "io_map_sha256",
+                                ("backend", "graph_sha256", "neuron_map_sha256", "neuron_map_content_sha256", "io_map_sha256",
                                  "sensory_map_sha256", "synthetic", "label",
                                  "engineered_assistance_enabled", "optomotor_io_map_sha256")}
         self.is_connected = True

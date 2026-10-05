@@ -6,6 +6,13 @@
 > **Status on 2026-09-24:** "implemented" means the software exists and runs. No embodied connectome
 > run has a committed receipt, and no paradigm has been tested on v3. See `docs/CAPABILITY_MATRIX.md`
 > and `docs/receipts/README.md`.
+>
+> **Also stale below:** the reference host is a Ryzen 5 5600X (12 threads, 31 GiB) with a
+> GTX 1660 Ti, not a Ryzen 3900X / 128 GB (`docs/receipts/ryzen/bench-ryzen-1f4a58a.json`).
+> In-browser WebGPU (Option B) is cut by `docs/ROADMAP.md`. Measured speeds are in the README.
+> The verification section's test descriptions overstate them: `test_connectome_stability.py`
+> runs a 10-neuron ring, not the 166.7k graph, and `test_biomechanics_closed_loop.py` has no DNa02
+> differential check.
 
 ---
 
@@ -67,7 +74,7 @@ To transition Project NeuroFly from its current **compact modular controller** t
 ├────────────────────────────────┼───────────────────────────────────────────────────────┤
 │ 1. Sensory Ingress             │ 72-Ray Visual Ingress + Johnston's Organ Antennae      │
 │                                │   ──► 6,098 Sensory Nodes in MaleCNS v1.0             │
-│ 2. Whole-Brain Spiking Graph   │ MaleCNS v1.0 (166,700 Neurons / 25.58M Synapses)      │
+│ 2. Whole-Brain Spiking Graph   │ MaleCNS v1.0 (166,700 Neurons / 25.58M directed edges)│
 │                                │   ──► Numba / C++ LIF Spiking Kernel on Ryzen         │
 │ 3. Descending Premotor Bridge  │ 1,314 Descending Neurons (DNa02, DNp09, MDN, GF)      │
 │                                │   ──► Firing Rate Differential Decoders               │
@@ -129,7 +136,7 @@ Upgrade the web dashboard to visually expose the running full connectome and art
 - Add an interactive **3D Articulated Walking Viewport** (using Three.js) in the center stage or as a toggleable overlay next to the 2D arena.
 - Add a **Connectome Premotor Deck**: Real-time spike activity indicators and rate bars for `DNa02_L/R`, `DNp09`, `MDN`, and `GF`.
 - Update the Identity Bar to reflect:
-  `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.5M synapses)`
+  `Controller: connectome (MaleCNS v1.0 — 166,700 neurons, 25.58M directed edges)`
 
 #### [MODIFY] [`web/app.js`](../web/app.js)
 - Parse the 18-joint telemetry angles from the daemon SSE stream and animate the 3D articulated fly skeleton.

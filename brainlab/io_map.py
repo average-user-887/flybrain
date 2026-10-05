@@ -252,10 +252,14 @@ class DNa02YawDecoder:
 # current-based dynamics this drags the membrane to about -200 mV, which no
 # neuron can do; under the v2 conductance-based dynamics the same value pins the
 # membrane at the inhibitory (chloride) reversal, -70 mV, which is what a Kir2.1
-# experiment approximates.  The silencing *effect* is identical in both — the
-# clamped neuron is far below threshold and emits no spike — so the WP5
-# silencing control means the same thing under either version.
-# See docs/LIF_DYNAMICS_SPEC.md §3.3.
+# experiment approximates.  Caveat (audit 2026-09-24): under v2/v3 the drive is
+# divided by the total conductance, so the clamp holds only while
+# (V_rest + g_e*E_exc + g_i*E_inh + drive) / (1 + g_e + g_i) stays below
+# threshold, i.e. roughly g_e < 4.6 with no inhibition.  Under v2 it did not:
+# the "silenced" DNa02 fired about 240 Hz (docs/receipts/lif_dynamics_v2.json,
+# optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz).  The validation
+# harness checks it on every run: gate O7 requires the silenced yaw to be exactly
+# zero, which in practice means no DNa02 spikes.  See docs/LIF_DYNAMICS_SPEC.md §3.3.
 SILENCE_DRIVE = -200.0
 
 
@@ -381,3 +385,248 @@ def resolve_visual_heading_io(connectome_dir: Optional[Path] = None, graph_dir: 
         plastic_edges=edges_arr,
         sha256=digest,
     )
+
+
+# ---------------------------------------------------------------------------
+# Locomotion descending neurons (P2 embodied decoder)
+# ---------------------------------------------------------------------------
+# Command-like DNs read by neurofly_body's DN decoder, split by annotated soma
+# side.  Types follow brainlab.graph_identity.DN_EXPECTED_TYPES.
+LOCOMOTION_DN_TYPES = {'DNp09': 'DNp09', 'MDN': 'MDN', 'GF': 'DNp01', 'DNa02': 'DNa02'}
+
+
+@dataclass
+class LocomotionDNMap:
+    populations: Dict[str, np.ndarray]   # 'DNp09_L' -> node indices
+    source_ids: Dict[str, List[int]]
+    sha256: str = ''
+
+    def describe(self) -> dict:
+        return dict(sha256=self.sha256, rule='cell type + annotated somaSide, sorted by source_id',
+                    source_ids=self.source_ids)
+
+
+def locomotion_dn_map_from_nodes(nodes) -> LocomotionDNMap:
+    """Resolve DNp09, MDN, GF and DNa02 per side from a node table with
+    ``node_index, source_id, cell_type, type, somaSide`` columns.
+
+    Fails closed: every population must be non-empty, prepared and annotated
+    types must agree, and no selected neuron may lack a soma side.
+    """
+    ctype = nodes.cell_type.fillna('')
+    side = nodes.somaSide.fillna('?')
+    populations, source_ids = {}, {}
+    for name, cell_type in LOCOMOTION_DN_TYPES.items():
+        rows = nodes[ctype.eq(cell_type)]
+        if rows.type.notna().any() and (rows.type.dropna() != cell_type).any():
+            raise GraphUnavailable(f'{cell_type}: prepared cell_type disagrees with annotation type')
+        unsided = rows[~side.loc[rows.index].isin(EYES)]
+        if len(unsided):
+            raise GraphUnavailable(f'{cell_type}: {len(unsided)} neurons without a L/R soma side')
+        for s in EYES:
+            chosen = rows[side.loc[rows.index].eq(s)].sort_values('source_id')
+            if not len(chosen):
+                raise GraphUnavailable(f'{name}_{s} resolved empty')
+            populations[f'{name}_{s}'] = chosen.node_index.to_numpy(dtype=np.int64)
+            source_ids[f'{name}_{s}'] = [int(v) for v in chosen.source_id]
+    digest = sha256_json(dict(source_ids=source_ids, rule='locomotion DNs by cell type + somaSide'))
+    return LocomotionDNMap(populations=populations, source_ids=source_ids, sha256=digest)
+
+
+def resolve_locomotion_dns(connectome_dir: Optional[Path] = None) -> LocomotionDNMap:
+    """Resolve the locomotion DN map from the released MaleCNS tables."""
+    return locomotion_dn_map_from_nodes(_load_tables(connectome_dir))
+
+
+# ---------------------------------------------------------------------------
+# Silencing named cell types (embodied runs; same clamp as the validation gate)
+# ---------------------------------------------------------------------------
+@dataclass
+class SilenceMap:
+    """Neurons clamped with :data:`SILENCE_DRIVE`, by requested target.
+
+    A target is a cell type (``DNa02``, both sides) or a cell type and one
+    annotated soma side (``DNa02:L``).  ``nodes`` is the sorted union.
+    """
+    targets: List[str]
+    populations: Dict[str, np.ndarray]
+    source_ids: Dict[str, List[int]]
+    nodes: np.ndarray
+    sha256: str = ''
+
+    def summary(self) -> dict:
+        """Compact identity, small enough to repeat in every telemetry record."""
+        return dict(targets=list(self.targets), map_sha256=self.sha256, drive=SILENCE_DRIVE,
+                    neurons={t: int(len(self.populations[t])) for t in self.targets},
+                    total_neurons=int(len(self.nodes)))
+
+    def describe(self) -> dict:
+        return dict(self.summary(), source_ids=self.source_ids,
+                    rule='cell type (+ annotated somaSide when given as TYPE:L or TYPE:R), sorted by source_id',
+                    semantics='input current of each silenced neuron is replaced by SILENCE_DRIVE every step, '
+                              'after all sensory drive; as in the validation harness (gate O7), '
+                              'the clamp can leak under v3 conductance dynamics, so silenced spikes are counted')
+
+
+def parse_silence_target(target: str) -> tuple:
+    """``'DNa02'`` -> ``('DNa02', None)``; ``'DNa02:L'`` -> ``('DNa02', 'L')``."""
+    text = str(target).strip()
+    cell_type, sep, side = text.partition(':')
+    if not cell_type or (sep and side not in EYES):
+        raise ValueError(f'silence target {target!r} must be CELL_TYPE or CELL_TYPE:L / CELL_TYPE:R')
+    return cell_type, (side if sep else None)
+
+
+def silence_map_from_nodes(nodes, targets) -> SilenceMap:
+    """Resolve silence targets from a node table (``node_index, source_id, cell_type, somaSide``).
+
+    Fails closed: an empty or repeated target, a cell type absent from the
+    graph, or a side with no annotated neurons is an error.
+    """
+    targets = [str(t).strip() for t in targets]
+    if not targets:
+        raise ValueError('no silence targets given')
+    if len(set(targets)) != len(targets):
+        raise ValueError(f'repeated silence target in {targets}')
+    ctype = nodes.cell_type.fillna('')
+    side = nodes.somaSide.fillna('?')
+    populations, source_ids = {}, {}
+    for target in targets:
+        cell_type, want_side = parse_silence_target(target)
+        mask = ctype.eq(cell_type)
+        if want_side is not None:
+            mask &= side.eq(want_side)
+        rows = nodes[mask].sort_values('source_id')
+        if not len(rows):
+            raise GraphUnavailable(f'silence target {target!r} resolved to no neurons')
+        populations[target] = rows.node_index.to_numpy(dtype=np.int64)
+        source_ids[target] = [int(v) for v in rows.source_id]
+    union = np.unique(np.concatenate(list(populations.values())))
+    digest = sha256_json(dict(targets=targets, source_ids=source_ids, rule='silence by cell type + somaSide'))
+    return SilenceMap(targets=targets, populations=populations, source_ids=source_ids, nodes=union, sha256=digest)
+
+
+def resolve_silence(targets, connectome_dir: Optional[Path] = None) -> SilenceMap:
+    """Resolve silence targets from the released MaleCNS tables."""
+    return silence_map_from_nodes(_load_tables(connectome_dir), targets)
+
+
+# ---------------------------------------------------------------------------
+# Leg-load feedback (P2 embodied loop): leg campaniform sensilla afferents
+# ---------------------------------------------------------------------------
+# FlyGym's leg order; the MaleCNS v1.0 annotation gives the leg by entry nerve
+# (ProLN/MesoLN/MetaLN = front/middle/hind) and the side by rootSide.  In v1.0
+# only SNpp53 carries subclass "campaniform sensilla" with a leg nerve (2 per
+# leg); most leg CS are untyped (subclass "leg"), so they get no drive rather
+# than a guessed identity.
+LEG_ORDER = ('lf', 'lm', 'lh', 'rf', 'rm', 'rh')
+LEG_NERVES = {'f': 'ProLN', 'm': 'MesoLN', 'h': 'MetaLN'}
+LEG_LOAD_SUBCLASS = 'campaniform sensilla'
+
+
+@dataclass
+class LegLoadAfferentMap:
+    populations: Dict[str, np.ndarray]   # FlyGym leg name -> node indices
+    source_ids: Dict[str, List[int]]
+    sha256: str = ''
+
+    def describe(self) -> dict:
+        return dict(sha256=self.sha256, source_ids=self.source_ids,
+                    rule=f'subclass == {LEG_LOAD_SUBCLASS!r}, leg from entryNerve '
+                         f'{LEG_NERVES}, side from rootSide, sorted by source_id')
+
+
+def leg_load_afferent_map_from_nodes(nodes) -> LegLoadAfferentMap:
+    """Resolve the leg CS afferents per FlyGym leg from a node table with
+    ``node_index, source_id, subclass, entryNerve, rootSide`` columns.
+
+    Fails closed: every leg must have at least one annotated afferent, and
+    none of the selected neurons may lack a root side.
+    """
+    subclass = nodes.subclass.fillna('')
+    nerve = nodes.entryNerve.fillna('')
+    rows = nodes[subclass.eq(LEG_LOAD_SUBCLASS) & nerve.isin(list(LEG_NERVES.values()))]
+    side = rows.rootSide.fillna('?')
+    if (~side.isin(EYES)).any():
+        raise GraphUnavailable(f'{int((~side.isin(EYES)).sum())} leg CS afferents without a L/R root side')
+    populations, source_ids = {}, {}
+    for leg in LEG_ORDER:
+        chosen = rows[side.eq(leg[0].upper()) & rows.entryNerve.eq(LEG_NERVES[leg[1]])].sort_values('source_id')
+        if not len(chosen):
+            raise GraphUnavailable(f'leg CS afferents for {leg} resolved empty')
+        populations[leg] = chosen.node_index.to_numpy(dtype=np.int64)
+        source_ids[leg] = [int(v) for v in chosen.source_id]
+    digest = sha256_json(dict(source_ids=source_ids, rule='leg CS by subclass + entryNerve + rootSide'))
+    return LegLoadAfferentMap(populations=populations, source_ids=source_ids, sha256=digest)
+
+
+def resolve_leg_load_afferents(connectome_dir: Optional[Path] = None) -> LegLoadAfferentMap:
+    """Resolve the leg-load afferent map from the released MaleCNS tables."""
+    import pyarrow.feather as feather
+    cdir, _ = resolve_connectome_dir(connectome_dir)
+    nodes_path = cdir / 'normalized/neurons.feather'
+    ann_path = cdir / 'annotations.feather'
+    for path in (nodes_path, ann_path):
+        if not path.is_file():
+            raise GraphUnavailable(f'{path} not found; set NEUROFLY_CONNECTOME_DIR')
+    nodes = feather.read_table(nodes_path, columns=['node_index', 'source_id']).to_pandas()
+    ann = feather.read_table(ann_path, columns=['bodyId', 'subclass', 'entryNerve', 'rootSide']).to_pandas()
+    ann = ann.drop_duplicates('bodyId').set_index('bodyId')
+    return leg_load_afferent_map_from_nodes(nodes.join(ann, on='source_id'))
+
+
+class LegLoadEncoder:
+    """Leg load (uN) -> drive on each leg's campaniform sensilla afferents.
+
+    Rate model (ASSUMPTIONS, declared before any run and never fitted): a
+    phasic-tonic, rectified, saturating response to loading,
+
+        x = ([F - F0]+ + tau_phasic * [dF/dt]+) / F_sat,   r = r_max * tanh(x)
+
+    where dF/dt is low-pass filtered (``tau_deriv_ms``) because contact forces
+    are noisy.  Tonic-to-force and phasic-to-loading-rate responses with
+    saturation follow insect CS recordings (Ridgel et al. 2000, J Comp Physiol A
+    186:359; Zill et al. 2012, J Neurophysiol 108:1453).  No Drosophila leg CS
+    rate curves are published, so r_max, F0 and F_sat are assumptions scaled to
+    a 10 uN fly (about 3 uN per stance leg).  Not modelled: adaptation, the
+    unloading-selective groups, noise.  Drive per neuron = i_max * r / r_max,
+    with i_max equal to the WP5 optomotor encoder amplitude.  Deterministic.
+    """
+
+    def __init__(self, amap: LegLoadAfferentMap, *, f0_uN: float = 0.5, f_sat_uN: float = 10.0,
+                 tau_phasic_ms: float = 20.0, tau_deriv_ms: float = 10.0, r_max_hz: float = 200.0,
+                 i_max: float = 20.0):
+        self.map = amap
+        self.f0 = float(f0_uN)
+        self.f_sat = float(f_sat_uN)
+        self.tau_phasic_s = float(tau_phasic_ms) / 1000.0
+        self.tau_deriv_ms = float(tau_deriv_ms)
+        self.r_max = float(r_max_hz)
+        self.i_max = float(i_max)
+        self.reset()
+
+    def reset(self) -> None:
+        self._previous = None
+        self._dfdt = np.zeros(len(LEG_ORDER))
+
+    def describe(self) -> dict:
+        return dict(model='r = r_max*tanh(([F-F0]+ + tau_phasic*[dF/dt]+)/F_sat); drive = i_max*r/r_max',
+                    f0_uN=self.f0, f_sat_uN=self.f_sat, tau_phasic_ms=self.tau_phasic_s * 1000.0,
+                    tau_deriv_ms=self.tau_deriv_ms, r_max_hz=self.r_max, i_max=self.i_max,
+                    leg_order=list(LEG_ORDER), load='FlyGym per-leg normal contact force minus adhesion, uN',
+                    first_step_derivative=0.0, not_modelled=['adaptation', 'unloading-selective CS', 'noise'],
+                    classification='ASSUMPTION: declared parameters, not fitted', afferent_map=self.map.sha256)
+
+    def encode(self, currents: np.ndarray, load_uN, dt_ms: float) -> dict:
+        """Add drive into ``currents`` in place; return per-leg model rates (Hz)."""
+        load = np.asarray(load_uN, dtype=np.float64)
+        if load.shape != (len(LEG_ORDER),) or not np.isfinite(load).all():
+            raise ValueError('leg_load_uN must be six finite values in FlyGym leg order')
+        raw = np.zeros_like(load) if self._previous is None else (load - self._previous) / (dt_ms / 1000.0)
+        self._previous = load
+        self._dfdt += (1.0 - math.exp(-dt_ms / self.tau_deriv_ms)) * (raw - self._dfdt)
+        x = (np.maximum(load - self.f0, 0.0) + self.tau_phasic_s * np.maximum(self._dfdt, 0.0)) / self.f_sat
+        rate = self.r_max * np.tanh(x)
+        for k, leg in enumerate(LEG_ORDER):
+            currents[self.map.populations[leg]] += np.float32(self.i_max * rate[k] / self.r_max)
+        return dict(zip(LEG_ORDER, (float(r) for r in rate)))

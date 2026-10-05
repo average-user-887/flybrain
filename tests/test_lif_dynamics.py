@@ -65,11 +65,11 @@ def test_the_spec_document_exists_and_names_both_versions():
 
 
 def test_dynamics_pins_differ_and_are_stable():
-    pins = {v: dynamics_pin(v) for v in ('v1', 'v2', 'v3')}
-    assert len(set(pins.values())) == 3
+    pins = {v: dynamics_pin(v) for v in ('v1', 'v2', 'v3', 'v4')}
+    assert len(set(pins.values())) == 4
     assert dynamics_pin('v2') == pins['v2']
     with pytest.raises(ValueError):
-        dynamics_pin('v4')
+        dynamics_pin('v6')  # v5 is now declared (spec §9); v6 is not
 
 
 def test_default_is_v3_and_v1_stays_selectable(monkeypatch):
@@ -377,3 +377,107 @@ def test_policy_reports_the_fixed_point_both_ways():
     assert report['v2_quanta']['conductance_ratio_g_inh_over_g_exc'] == pytest.approx(2.0)
     assert report['v3_quanta']['conductance_ratio_g_inh_over_g_exc'] == pytest.approx(2.0 * 52 / 18)
     assert report['v3_quanta']['subthreshold'] is True
+
+
+# ---------------------------------------------------------------------------
+# Declared E_inh sensitivity variants (docs/EINH_SENSITIVITY.md)
+# ---------------------------------------------------------------------------
+
+def test_einh_variant_of_none_is_byte_identical_to_the_base_declaration():
+    """A variant must never silently redefine v2 or v3."""
+    from brainlab.graph_identity import (dynamics_pin, dynamics_variant,
+                                         dynamics_variant_pin)
+    for version in DYNAMICS_VERSIONS:
+        assert dynamics_variant(version, None) == DYNAMICS_VERSIONS[version]
+        assert dynamics_variant_pin(version, None) == dynamics_pin(version)
+
+
+def test_einh_variant_is_labelled_and_repinned():
+    from brainlab.graph_identity import (dynamics_pin, dynamics_variant,
+                                         dynamics_variant_pin)
+    pins = {dynamics_variant_pin('v3', e) for e in (-70.0, -66.0, -63.0, -60.0, -58.0, -56.0)}
+    assert len(pins) == 6, 'every swept E_inh must carry its own pin'
+    assert dynamics_pin('v3') not in pins, 'the v3 pin must stay unclaimed by any variant'
+    declared = dynamics_variant('v3', -63.0)
+    assert declared['dynamics_version'] == 'v3-einh-63'
+    assert declared['base_dynamics_version'] == 'v3'
+    assert declared['base_dynamics_pin'] == dynamics_pin('v3')
+    assert declared['e_inhibitory_mV'] == -63.0
+    assert declared['membrane_bounds_mV'] == [-63.0, engine.E_EXC_MV]
+
+
+def test_einh_variant_follows_the_declared_v3_calibration_rule():
+    """g_unit_inh = 1/(v_rest - e_inh): derived, never an independent knob."""
+    from brainlab.graph_identity import dynamics_variant
+    for e in (-70.0, -63.0, -56.0):
+        declared = dynamics_variant('v3', e)
+        assert declared['g_unit_inhibitory_per_weight'] == pytest.approx(
+            1.0 / (engine.V_REST_MV - e))
+        assert declared['g_unit_excitatory_per_weight'] == pytest.approx(engine.G_UNIT_EXC_V3)
+
+
+def test_einh_variant_refuses_values_at_or_above_v_rest_and_refuses_v1():
+    from brainlab.graph_identity import dynamics_variant
+    with pytest.raises(ValueError):
+        dynamics_variant('v3', engine.V_REST_MV)
+    with pytest.raises(ValueError):
+        dynamics_variant('v3', -40.0)
+    with pytest.raises(ValueError):
+        dynamics_variant('v1', -56.0)
+
+
+def test_einh_env_override_selects_the_variant_without_changing_the_default(monkeypatch):
+    from brainlab.graph_identity import E_INH_ENV, active_e_inh_mV
+    monkeypatch.delenv(E_INH_ENV, raising=False)
+    assert active_e_inh_mV() is None
+    assert Brain(arrays=graph([-1.0]), dynamics='v3').e_inh_mV == engine.E_INH_MV
+    monkeypatch.setenv(E_INH_ENV, '-63')
+    assert active_e_inh_mV() == -63.0
+    brain = Brain(arrays=graph([-1.0]), dynamics='v3')
+    assert brain.e_inh_mV == -63.0
+    assert brain.g_unit_inh == pytest.approx(1.0 / 11.0)
+    # An explicit argument still wins over the environment.
+    assert Brain(arrays=graph([-1.0]), dynamics='v3', e_inh_mV=-60.0).e_inh_mV == -60.0
+
+
+def test_einh_sensitivity_declaration_is_locked_and_unmodified():
+    """docs/EINH_SENSITIVITY.md sections 0-4 were hashed before anything was measured."""
+    import hashlib
+    root = Path(__file__).resolve().parents[1]
+    receipt = json.loads((root / 'docs/receipts/einh_sensitivity.json').read_text())
+    lock = receipt['declaration_lock']
+    locked = root / lock['locked_copy']
+    assert hashlib.sha256(locked.read_bytes()).hexdigest() == lock['sha256']
+
+
+def test_einh_variant_refuses_the_graded_dynamics_it_was_never_declared_for(monkeypatch):
+    """v4/v5 derive graded release from e_inhibitory; no E_inh variant of them exists."""
+    from brainlab.graph_identity import E_INH_ENV, dynamics_variant
+    for version in ('v4', 'v5'):
+        with pytest.raises(ValueError):
+            dynamics_variant(version, -60.0)
+    monkeypatch.setenv(E_INH_ENV, '-60')
+    for version in ('v1', 'v4'):
+        with pytest.raises(ValueError):
+            Brain(arrays=graph([-1.0]), dynamics=version)
+
+
+def test_einh_variant_pins_match_the_published_receipt():
+    """docs/receipts/einh_sensitivity.json was produced under these exact pins."""
+    from brainlab.graph_identity import dynamics_pin, dynamics_variant_pin
+    root = Path(__file__).resolve().parents[1]
+    receipt = json.loads((root / 'docs/receipts/einh_sensitivity.json').read_text())
+    for key, pin in receipt['base_pins'].items():
+        assert dynamics_pin(key.split('_')[0]) == pin
+    for name, pin in receipt['variant_pins'].items():
+        assert dynamics_variant_pin('v3', float(name.split('einh')[1])) == pin
+
+
+@pytest.mark.parametrize('script', ['wp5_photoreceptor_probe.py', 'wp5_optomotor.py',
+                                    'lif_dynamics_diagnosis.py', 'einh_gate_sweep.py'])
+def test_einh_scripts_import_and_show_help(script):
+    """These scripts resolve the E_inh variant API at import; --help must not fail."""
+    root = Path(__file__).resolve().parents[1]
+    done = subprocess.run([sys.executable, str(root / 'scripts' / script), '--help'],
+                          cwd=root, capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, done.stderr

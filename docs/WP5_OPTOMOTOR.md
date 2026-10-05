@@ -2,9 +2,28 @@
 
 > **Status on 2026-09-24:** there is **no valid optomotor result on the current
 > engine.** v1 was POSITIVE, but as an engine artefact (§1–§10). v2 was NULL (§11).
-> The preregistered v3 confirmatory set has **not** been run; its only v3 data so far
-> is one exploratory run per direction (`receipts/lif_dynamics_v3.json`, probe C).
-> Running it is the ROADMAP P1 gate. See `receipts/README.md`.
+> The first preregistered v3 confirmatory run, through the validation harness
+> (`validation/specs/optomotor_v3.json`), **FAILED** on 2026-09-24: behaviour passed
+> 7/7 gates, physiology failed the HS spike ceiling (`receipts/validation/optomotor-yaw-v3-1.md`).
+> A rerun under `optomotor_v3_2.json` is pending; it is the ROADMAP P1 gate.
+>
+> **Update 2026-09-27 — §13 is a different experiment, and it changes how to read
+> the HS failure above.** LIF **v4** adds declared graded (non-spiking) transmission
+> (`docs/LIF_DYNAMICS_SPEC.md` §7). HS is a graded cell, so under v4 it emits no
+> spikes at all and the v3-1 HS check becomes *not applicable* rather than passing.
+> §13 also removes the `io_map.py` encoder's direction-selectivity assumption by
+> driving R1-R6 only. Result, in one line: under v4 the signal crosses the whole
+> graph to DNa02 for the first time, and it carries **no direction selectivity** —
+> the predicted outcome, because one global `tau_syn = 5 ms` cannot build a delay
+> line. The preregistered optomotor protocol was **not** run under v4, by the
+> declared stop rule. Everything in §1–§12 stands as written.
+>
+> **Caveat on §11 (2026-09-24, not a change to the recorded result):** under v2 the
+> −200 silencing drive is shunted by the synaptic conductance, and the "silenced"
+> DNa02 still fired about 240 Hz (`receipts/lif_dynamics_v2.json`,
+> `optomotor_rerun.v2.summary.dna02_silenced.side_rates_mean_hz`). §11.4's reading that
+> the remaining yaw "is not DNa02-mediated" therefore does not follow; the silencing
+> manipulation failed. The v3 harness checks silencing on every run (gate O7).
 
 Run of 19 September 2026 on the pinned MaleCNS v1.0 graph
 (`graph_sha256 4b2f87cc…091d01`, 166,700 neurons, 25,582,938 edges), backend
@@ -443,3 +462,389 @@ condition alone, about 2 h for the set.
 replace it with a real one. Neither version supports a graph-mediated optomotor
 claim: v1's was an engine artefact, and v2 has no causal effect to claim. The
 blocking problem is the synaptic-gain calibration (§11.1), not the wiring.
+
+## 13. v4 — graded transmission, and the first photoreceptor-driven test
+
+*§12 is reserved for the v3 confirmatory verdict, which lives in
+[`receipts/validation/optomotor-yaw-v3-1.md`](receipts/validation/optomotor-yaw-v3-1.md)
+(FAIL) and [`-v3-2.md`](receipts/validation/optomotor-yaw-v3-2.md)
+(PASS_PROVISIONAL). Everything in §1–§11 is unchanged; v1, v2 and v3 keep their
+pins and their published numbers.*
+
+**This is a different experiment, not a re-run.** §1–§11 all use the
+`brainlab/io_map.py` encoder, which supplies direction selectivity by choosing
+T4/T5 subtypes and bypasses the medulla entirely — its own docstring says so.
+§13 removes that assumption: the stimulus goes to **R1-R6 only**, and every
+stage from the lamina onward is left to the graph. It is only a meaningful
+experiment under an engine that can transmit a subthreshold signal, which is
+what LIF **v4** adds ([`LIF_DYNAMICS_SPEC.md` §7](LIF_DYNAMICS_SPEC.md); locked
+declaration
+[`receipts/graded_transmission_v4_declaration.locked.md`](receipts/graded_transmission_v4_declaration.locked.md),
+sha256 `2634c824476c9b799bd2c0c656040255360cd10f8837e2d874a97af5f939872e`,
+written and committed before any v4 measurement). Receipt:
+[`receipts/lif_dynamics_v4.json`](receipts/lif_dynamics_v4.json).
+
+Stimulus: a drifting sinusoidal grating (30° period, 1.5 Hz, contrast 1,
+`i_max = 20.0` unchanged from the WP5 encoder, no noise) delivered to the 3,335
+R1-R6 that resolve a cartridge, in eight directions in the retinotopic lattice
+plane. Retinotopy is taken from the graph's own wiring: R1-R6 carry no hex
+annotation, so each photoreceptor's cartridge is the
+`(assignedOlHex1, assignedOlHex2)` of the L1-L5 cells it synapses onto. Which
+lattice direction is front-to-back is **not** assumed — the T4/T5 preferred
+directions were the measurement.
+
+### 13.1 Headline: the signal now crosses the graph, and it is still not a motion signal
+
+| | v3 (same encoder, same protocol, same graph) | v4 (primary graded declaration) |
+|---|---|---|
+| R1-R6, left / right eye | **38.9 / 38.9 Hz** spiking, +3.44 / +1.89 mV | −41.7 mV mean, +0.36 … +0.84 mV response, **0 spikes** (graded) |
+| L1/L2/L3 maximum membrane potential | **exactly −52.0000 mV** in every window | −46.7 / −56.3 / −51.3 mV; resting **below** rest at −53.8 / −62.8 / −59.9 mV |
+| medulla, T4/T5, HS/H2/VS, DNa02 mean V | **exactly −52.000 mV, never moves** | every population responds (−0.10 … −0.26 mV) |
+| HS | −52.000 mV, 0 spikes | −30.5 … −48.1 mV, response 0.08–0.22 mV, **0 spikes** |
+| DNa02 L / R firing rate, driven | **0.0 / 0.0 Hz** | **10–24 / 0–4 Hz** |
+| brain mean rate, no stimulus / driven | 0.760 / 0.779 Hz | 1.216 / 1.204–1.251 Hz |
+| graded cells at a membrane bound | n/a | **0.000** at the floor, **0.000** at the ceiling |
+| speed | 0.362 simulated s per wall s | 0.0129 simulated s per wall s |
+
+The v3 column is an independent reproduction, on this branch with this encoder,
+of the null a separate session reported: the signal dies at the first synapse,
+because every R1-R6 out-edge is inhibitory (all 14,785 of them; R1-R6 are
+histaminergic) and v3 has exactly zero spontaneous activity, so there is
+nothing for an inhibitory synapse to release. **Under v4 there is**: the
+declared release function is anchored at the chloride reversal rather than at
+rest, so a graded cell at rest releases at 116.883 s⁻¹, and the photoreceptors'
+tonic histamine holds L1 and L2 about 8–11 mV below rest — 35.2 and 36.4 units
+of summed inhibitory weight per cell, a tonic inhibitory conductance of 1.15
+and 1.19 leak units, which predicts −60.6 mV from that term alone. That is the
+set point a light decrement can release.
+
+### 13.2 What arrives at T4/T5 is common-mode, not direction-selective
+
+The declared DSI is **undefined for every T4 and T5 subtype**: the response is
+*hyperpolarising in every direction*, so the declared rectification at zero
+leaves both the preferred and the anti-preferred term at zero. The tuning
+curves are what matters, and they are nearly flat:
+
+| population (left eye) | response range over the eight directions | spread |
+|---|---|---|
+| T4a | −0.150 … −0.176 mV | 0.026 mV |
+| T4b | −0.166 … −0.185 mV | 0.019 mV |
+| T4c | −0.170 … −0.190 mV | 0.020 mV |
+| T4d | −0.171 … −0.190 mV | 0.019 mV |
+| T5a | −0.188 … −0.208 mV | 0.020 mV |
+| T5b | −0.202 … −0.205 mV | 0.003 mV |
+| HS | −0.144 … −0.182 mV | 0.038 mV |
+
+T4b, T4c and T4d all peak at the **same** direction (135°) and T4a at 0°, so
+the subtypes are not anti-parallel pairs; Maisak *et al.* 2013's a/b and c/d
+opposition is absent. The reported animal DSI is 0.7–0.9. **This is the outcome
+§7.7 P4 predicted and §7.8 F6 named as a falsifier of sufficiency, and it is
+reported as the result.**
+
+Two measurement caveats that cut against over-reading the small differences,
+both of them ours and neither of them the connectome's:
+
+* The 500 ms response window covers 0.75 cycles of a 1.5 Hz grating, so the
+  temporal average does not cancel the stimulus's own modulation cleanly. The
+  residual is of the same order as the 0.02–0.04 mV direction-to-direction
+  spread above, so **the spread cannot be read as tuning**.
+* A population-mean DSI is not trustworthy on a retinotopic population at all,
+  and this run proves it: the declared statistic assigns **DSI 0.505 to
+  R1-R6_L**, and a photoreceptor cannot be direction selective. That number is
+  the incompletely-sampled hex lattice failing to average a grating to zero.
+  Only 824 cartridges carry photoreceptors (300 left, 524 right) out of roughly
+  800 per eye, so about half of each eye is unlit.
+
+### 13.3 Why — and it is the engine, not the wiring
+
+The declaration named this before the run (§7.1.1 item 3, §7.7 P4): the engine
+has **one** synaptic time constant, `tau_syn = 5 ms`, and **one** transmission
+delay, 1.8 ms, for the entire brain. Every input to T4 — Mi1 (cholinergic),
+Mi4 (GABA) and Mi9 (glutamate) — therefore arrives with identical kinetics. The
+mechanism Gruntman, Romani & Reiser 2018 identify in T4, fast excitation plus
+*offset, delayed* inhibition, is a statement about time constants that differ
+by 20–50 ms. v4 cannot express it. The anatomy is all present and correctly
+signed in the graph; the timing is not representable.
+
+The surviving signal is consistent with that reading. R1-R6 show a small
+*positive* DC response (+0.36 … +0.84 mV) to a grating whose **mean drive is
+identical to the gray window's** — the membrane's shunting nonlinearity
+rectifying the modulation — and that contrast-energy DC then propagates through
+the tonic inhibitory first synapse as a uniform hyperpolarisation everywhere
+downstream. What the graph transmits is *"there is contrast somewhere in the
+eye"*, not *"it is moving this way"*.
+
+### 13.4 DNa02: it fires, and its asymmetry does not follow the stimulus
+
+| θ | DNa02_L gray → driven | DNa02_R gray → driven | L − R, driven |
+|---|---|---|---|
+| 0° | 10 → 20 Hz | 2 → 0 Hz | +20 Hz |
+| 45° | 10 → 20 | 2 → 0 | +20 |
+| 90° | 10 → 10 | 2 → 0 | +10 |
+| 135° | 8 → 16 | 6 → 4 | +12 |
+| 180° | 10 → 24 | 2 → 0 | +24 |
+| 225° | 8 → 24 | 6 → 0 | +24 |
+| 270° | 10 → 20 | 2 → 2 | +18 |
+| 315° | 8 → 10 | 6 → 0 | +10 |
+
+Under v3 both DNa02 sat at exactly −52.000 mV and fired nothing at all, so this
+is the first time a photoreceptor stimulus has reached a descending neuron in
+this project. But `L − R` is positive for **every** direction and never
+reverses, including between 0° and 180° and between 90° and 270°. It is a
+standing left-bias that the stimulus amplifies, not a steering command. The
+decoder of `io_map.py` would turn it into a constant leftward yaw whatever the
+stimulus did.
+
+### 13.5 HS physiology — the check the v3-1 FAIL was reaching for
+
+HS is a declared graded class, so it emits **exactly zero spikes** in every
+window of every direction. The v3-1 physiology failure (HS_L 60 Hz, HS_R 53 Hz
+against a 0–50 Hz ceiling) is therefore **not applicable** under v4 rather than
+passing, which is the honest resolution of the amendment `optomotor_v3_2.json`
+recorded: the quantity was wrong, not its bound.
+
+The comparable quantity is the membrane response. Measured: HS rests at −30.5
+to −48.1 mV (tonically depolarised 4–21 mV above rest by the maintained
+baseline) and responds to the grating with **0.083 to 0.215 mV** of
+hyperpolarisation. The figure this project has been given for a wide-field HS
+response in the animal is about **5 mV**. So v4's HS response is inside the
+predeclared 0.1–20 mV window (§7.7 P3) only at its very bottom edge, about
+25× too small, and it **hyperpolarises to every direction**, where Schnell
+*et al.* 2010 report depolarisation to front-to-back and hyperpolarisation to
+back-to-front. The sign clause of falsifier F5 is met: there is no
+direction-dependent sign at all.
+
+### 13.6 The declared gate on the expensive protocol: NOT passed, so it was not run
+
+§7.10's gate required a T4/T5 subtype with DSI ≥ 0.2 at a response magnitude
+≥ 0.5 mV **and** a DNa02 asymmetry ≥ 1 Hz whose sign follows the stimulus in
+both directions. The first fails (no subtype has a defined DSI, and every
+magnitude is ≤ 0.26 mV); the second fails on the sign, though not on the
+magnitude. **The preregistered optomotor protocol under v4 was therefore not
+run**, exactly as the declaration said it would not be, and the diagnostic
+trace above is the deliverable instead.
+
+### 13.7 Verdict, and what it costs to do better
+
+* **v4 fixes what it claimed to fix.** Subthreshold transmission works, graded
+  and spiking populations interoperate in both directions, the network is
+  neither saturated nor dead (1.2 Hz mean, no graded cell at either membrane
+  bound in any window), and with no class declared graded v4 is bit-identical
+  to v3.
+* **The connectome is now carrying the signal, and is still not computing the
+  motion.** v4 removes the encoder as the *source* of direction selectivity;
+  it does not replace it with a graph-computed one. Direction selectivity is
+  now **absent** rather than imposed. That is a more honest state than §1–§11's
+  and it is not yet a positive result.
+* **The named blocker is cell-type-specific synaptic kinetics.** A fair test of
+  whether this connectome computes direction selectivity needs per-connection
+  time constants of the right order — which is a new declared dynamics version
+  with its own sources, not a parameter change to v4 — and, for the lamina and
+  CT1, gap junctions, which no version of this engine has.
+* **Nothing here licenses a retune.** `r_max`, the graded class list and every
+  other v4 parameter are as declared. The default dynamics stays v3.
+
+## 14. v5 — per-receptor-class synaptic kinetics: the named blocker was the wrong one
+
+*§1–§13 are unchanged. v1–v4 keep their pins and their published numbers.*
+
+**Headline: no. Giving every synapse its published receptor-class kinetics does
+not make the connectome compute direction selectivity.** The declared gate
+fails for v5 exactly as it failed for v4, so the expensive optomotor protocol
+(d) was not run. The declaration predicted this before any measurement, and the
+reason is in the literature, not in the wiring. *Drosophila* receptor kinetics
+are a few milliseconds. The tens-to-hundreds of milliseconds that a T4/T5 motion
+detector needs live in the **input cells' own temporal filtering**, which no
+version of this engine represents.
+
+Spec: [`LIF_DYNAMICS_SPEC.md` §9](LIF_DYNAMICS_SPEC.md). Locked declaration:
+[`receipts/receptor_kinetics_v5_declaration.locked.md`](receipts/receptor_kinetics_v5_declaration.locked.md),
+sha256 `3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b`. It was
+committed (`b93275d`) before any measurement. Receipt:
+[`receipts/lif_dynamics_v5.json`](receipts/lif_dynamics_v5.json). Raw data for
+every run is in [`receipts/v5_raw/`](receipts/v5_raw/).
+
+### 14.1 What the literature says, and what v5 therefore is
+
+Every synapse takes the receptor class of its **presynaptic** neuron's
+transmitter and that class's single-exponential decay:
+
+| class | τ, primary | source | τ, arm S2 (upper) |
+|---|---|---|---|
+| nicotinic | 1.4 ms | Su & O'Dowd 2003, Kenyon-cell mEPSC | 5.23 ms (Gu & O'Dowd 2006, adult *in situ*) |
+| GABA_A / Rdl | 3.7 ms | Su & O'Dowd 2003, same preparation | 13.8 ms (declared extrapolation) |
+| GluCl | 3.7 ms | **declared assumption** (no *Drosophila* value exists) | 13.8 ms |
+| HisCl (ort) | 1.0 ms | Pantazis 2008, channel noise, not a PSC | 6.1 ms (HCLB) |
+
+A charge-preserving quantum keeps each class's time-averaged conductance per
+release rate equal to v4's, so only the time course changes.
+
+The retrieved T4/T5 modelling literature puts the needed timing elsewhere:
+Gruntman 2018/2019, Borst 2018, Zavatone-Veth 2020, Groschner 2022, Kohn 2021,
+Lappalainen 2024 and Borst 2025. Their 50–300 ms "slow inhibition" or "delayed
+arm" is an **input-cell filter** (or a pathway-lumped fit), with instantaneous
+or millisecond synapses. Per-receptor-class granularity was still chosen
+(§9.2). It is the coarsest granularity, it is applied brain-wide, and no cell
+type is singled out. Per-cell-type filters for the T4/T5 inputs would be the
+hand-built adapter the project's constraint excludes.
+
+### 14.2 The protocol, corrected (and why v4's numbers move)
+
+The v4 photoreceptor protocol was reused, with the same encoder, grating, pins
+and eight lattice directions. Four declared changes were applied identically to
+the re-measured v4 reference, the v5 primary and S2:
+* a settled gray baseline (v4 measured its baseline inside the settling
+  transient after reset);
+* a 2,000 ms response window = exactly 3 cycles (v4: 0.75 cycles);
+* two **yaw** conditions;
+* a full-field flicker condition.
+
+The yaw conditions were added because the anatomy shows that v4's eight
+directions contain no rotation. Front-to-back is 123° on **both** eyes in the
+encoder's lattice frame. So v4's 135° and 315° were near-bilateral
+front-to-back and back-to-front, and the DNa02 "sign follows the stimulus"
+clause had never been tested on a yaw stimulus.
+
+**The corrected protocol changes the v4 result itself.** Under v4, the T4/T5
+"hyperpolarisation in every direction" of §13.2 (−0.15 … −0.19 mV) shrinks to
+**1–15 µV**, and HS's 0.08–0.22 mV shrinks to 2–23 µV. Most of §13.2's response
+was the baseline being measured during settling. The qualitative §13 verdict
+stands: there is still no selectivity.
+
+### 14.3 The direction-selectivity trace, v4 vs v5 vs S2
+
+T4/T5, right eye (824 lit cartridges overall; the right eye's 524 make it the
+better-sampled eye). Each cell: D1 response magnitude | D2 median per-cell F1
+DSI | D2 |d|-weighted mean preferred direction.
+
+| subtype | v4 (re-measured) | v5 primary | v5 S2 |
+|---|---|---|---|
+| T4a | 13 µV · 0.31 · 133° | 110 µV · 0.59 · 349° | 11 µV · 0.12 · 141° |
+| T4b | 6 µV · 0.12 · 341° | 119 µV · 0.56 · 356° | 6 µV · 0.08 · 172° |
+| T4c | 6 µV · 0.11 · 348° | 92 µV · 0.50 · 349° | 5 µV · 0.08 · 114° |
+| T4d | 6 µV · 0.11 · 303° | 108 µV · 0.55 · 359° | 19 µV · 0.12 · 193° |
+| T5a | 15 µV · 0.22 · 145° | 22 µV · 0.25 · 60° | 5 µV · 0.07 · 242° |
+| T5b–d | 3 µV · 0.04 | 21–27 µV · 0.22–0.24 | 3–11 µV · 0.04–0.07 |
+
+* **The gate statistic (D1).** No T4/T5 subtype comes within a factor of 4 of
+  the 0.5 mV magnitude clause in any run. Under the v5 primary, every right-eye
+  T4/T5 subtype hyperpolarises in all eight directions, so D1 DSI is undefined,
+  as it was under v4.
+* **Per-cell F1 selectivity (D2) is present, but it is not direction
+  selectivity.** It is not subtype-specific: under the v5 primary all four T4
+  subtypes prefer the same direction (349–359°). The cells that are not
+  direction-selective in the animal show the same asymmetry at the same
+  strength, with the same preferred direction (Mi4_R median 0.50 at 352°, Tm9_R
+  0.52 at 359°). The instrument passes its photoreceptor null control (R1-R6
+  median 1e-4 in every run). So what D2 detects is a common-mode space–time
+  asymmetry of the lattice and its multi-hop paths, not a motion computation.
+  No anti-parallel T4a/T4b or T4c/T4d pair appears under D2 in the v5 primary.
+  The one D1 "anti-parallel" pair (T4a/T4b left, 225°/45°) sits at 8–12 µV and
+  was already present in v4.
+* **Left eye.** Only 300 of its cartridges are lit, so most left-eye cells see
+  almost nothing. Their per-cell F1 ratios are noise (L1_L median 0.37–0.42,
+  against L1_R 0.002–0.004). Left-eye D2 is not interpreted.
+
+### 14.4 Input timing: the thing that would matter, and it is not there
+
+Full-field flicker gives each population's response delay at 1.5 Hz (right
+eye; v4 / v5 primary / S2):
+
+| | Mi1 | Tm3 | Mi4 | Mi9 | Tm1 | Tm2 | Tm4 | Tm9 |
+|---|---|---|---|---|---|---|---|---|
+| ms | 35 / 35 / 58 | 46 / 40 / 60 | 36 / (amp. 11 µV) / 58 | 49 / 42 / 53 | 42 / 36 / 45 | 43 / 36 / 45 | 48 / 42 / 53 | 61 / 56 / 61 |
+
+Compare the animal, whole-cell (Behnia *et al.* 2014): **Mi1 peaks 18 ms after
+Tm3** and **Tm1 13 ms after Tm2**. Arenz 2017 adds, qualitatively, that Mi4 and
+Mi9 are slow and sustained while Mi1 and Tm3 are fast and transient.
+
+The model gets the Mi1/Tm3 order backwards in all three runs, and puts Tm1 and
+Tm2 within 1 ms of each other. Its delays are set by how many 20 ms membranes a
+signal crosses, and receptor kinetics move them by a few ms. Tm9 being the
+slowest T5 input is the one qualitative match, and it is present already in v4.
+
+### 14.5 HS and DNa02
+
+* **HS** (D5, yaw CCW/CW, against about 5 mV and Schnell 2010's sign):
+  * v4: hyperpolarises 2–23 µV in both directions;
+  * v5 primary: hyperpolarises 44–67 µV in both directions;
+  * S2: depolarises 5–97 µV in both directions.
+
+  In no run does the sign depend on direction. HS stays two orders of magnitude
+  below the animal.
+* **DNa02**, L − R for yaw CCW / CW, against a required ≥ +1 / ≤ −1 Hz:
+  * v4: +11.0 / +8.5 Hz;
+  * v5 primary: +12.5 / +6.5 Hz;
+  * S2: 0 / 0 Hz, because DNa02 is silent in every S2 condition.
+
+  The DNa02 asymmetry never reverses. Under the v5 primary, L − R swings
+  between −5 and +15 Hz across conditions, including flicker, which has no
+  motion at all. With two cells and a 2 s window, the 1 Hz clause sits below
+  the readout's own condition-to-condition variability.
+
+### 14.6 The declaration, scored
+
+| | outcome |
+|---|---|
+| P1 / F2: kinetics as declared | **held**. Fitted decay = declared τ to 1e-6; PSP area within 0.6 % of v4 |
+| S0 / F1: v4-equivalent table reproduces v4 | **bit-identical on CPU and GPU on synthetic graphs. On the real graph F1 fired as literally declared:** max \|ΔV\| 1.1e-5 mV, identical spike counts. A second v4 run differs from the first by the same amount, so v4 is itself not bit-reproducible run to run on the real graph on this GPU, and the S0 difference is v4's own float noise. |
+| P2 / F3: no T4/T5 subtype passes | **held**, primary and S2 |
+| P3 / F4: v5 ≈ v4 | **FALSIFIED**. See below. |
+| P4: no anti-parallel pairs | held under D2. Scored false only by the 8–12 µV D1 pair, which was already in v4 |
+| P5: HS sub-mV, no direction-dependent sign | held |
+| P6: DNa02 clause fails | held |
+| P7: v5 no slower than v4 | held. 0.0082 vs 0.0045 simulated s/wall s on the same GPU, because v5's per-channel matrices drop v4's explicit zeros. S2 ran at 0.024 on the GTX 1660 Ti. |
+| F5: instrument null control | fired only for the v4 run (R1-R6_L D1 "DSI 1.0" at 0.25 µV). D1 DSIs at µV magnitudes are not findings. |
+| F6: saturation/collapse | not triggered (0 % of graded cells at a bound) |
+| F7: arm changes the verdict | not triggered: primary and S2 both fail |
+
+**The surprise is P3.** The v5 primary's no-stimulus brain rate is **10.4 Hz
+against v4's 1.2 Hz**, and S2's is 7.9 Hz. It changes the right-eye T4 DC
+response tenfold and silences DNa02 under S2.
+
+The declaration held charge constant, not peak. A 1.4 ms nicotinic event
+therefore has a 1.30× larger unitary EPSP peak than v4's 5 ms event, and
+near-threshold spiking cells with convergent cholinergic input are recruited. A
+labelled **post-hoc** diagnostic (`receipts/v5_raw/posthoc_rate_locus.json`)
+locates the excess mainly in the central brain: Kenyon cells, cb_intrinsic
+3.2 → 43 Hz, active spiking neurons 5,763 → 14,848. That is a real consequence
+of the declared model and is reported as one. It does not license changing τ
+or the quantum.
+
+### 14.7 Verdict, and the next blocker
+
+* **Does the connectome now compute direction selectivity itself? No.**
+  * Not under v4.
+  * Not under v5 with published receptor kinetics.
+  * Not under v5 with the slowest defensible receptor kinetics.
+
+  The graph carries a photoreceptor signal to every stage, and the anatomy is
+  present and correctly signed. But no T4/T5 subtype acquires a preferred
+  direction of its own, HS has no direction-dependent sign, and DNa02 does not
+  steer.
+* **The v4 diagnosis was half right.** Timing is the missing ingredient, but
+  the timing that matters is not synaptic. Receptor kinetics differ by about
+  2 ms between excitation and inhibition (≈ 1° of phase at 1.5 Hz). The input
+  cells differ by 13–18 ms in the animal and by 50–300 ms in every working T4/T5
+  model.
+* **The next blocker, in order** (§9.11):
+  1. **cell-type-specific intrinsic dynamics** of the T4/T5 inputs (e.g. the
+     L1/L2 H-current Borst 2025 finds necessary for transient/sustained
+     diversity), each with its own published source. Fitting per-type time
+     constants to motion responses, as Lappalainen *et al.* 2024 do, would make
+     it a trained model rather than a test of the connectome;
+  2. lamina and CT1 gap junctions;
+  3. T4/T5 and CT1 dendritic compartments;
+  4. the half-lit retinotopic lattice.
+* **Nothing here licenses a retune.** Every τ, the quantum, the class map and
+  the gate are as locked. The default dynamics stays v3; v5 is selectable as
+  `Brain(..., dynamics='v5')`.
+* **Housekeeping, reported because it is ours:**
+  1. The v4 reference, the v5 primary, the S0 check and the cost probe ran on
+     the Quadro P620. `CUDA_VISIBLE_DEVICES=1` selects it under CUDA's default
+     fastest-first ordering. S2 and the post-hoc diagnostic ran on the GTX
+     1660 Ti. The arithmetic is identical; only speed and float rounding
+     differ.
+  2. One post-lock post-processing fix: the D4 phase sign was mirrored by a
+     storage convention. It was corrected before any v5 analysis was read; the
+     D1/D2/D5 amplitudes were unaffected.
