@@ -433,6 +433,13 @@ class ConnectomeServer:
         # DNa02 fine yaw steering
         spk_dna02_l = sum(spike_counts[i] for i in self.dn_indices["dna02_l"] if i < self.n_neurons)
         spk_dna02_r = sum(spike_counts[i] for i in self.dn_indices["dna02_r"] if i < self.n_neurons)
+        # These are ONE neuron's spike count per side divided by the bin, so a
+        # 2 ms bin quantizes them to multiples of 500 Hz.  They are not
+        # comparable with the WP5 DNa02 acceptance band (< 20 Hz); only a filter
+        # across bins is.  See "dn_rate_convention" in get_status().  The
+        # integer counts and the explicitly named bin rate are published
+        # alongside; dna02_rate_l/r stay for the daemon, the bridge and the
+        # existing tests that read them.
         dna02_rate_l = spk_dna02_l / sec
         dna02_rate_r = spk_dna02_r / sec
         # Steering convention shared with the daemon and neurofly_body: DNa02 drives
@@ -474,6 +481,11 @@ class ConnectomeServer:
             "sim_ms": self.brain.sim_ms,
             "total_step_spikes": int(spike_counts.sum()),
             "dna02_diff": dna02_diff,
+            "dna02_spikes_l": int(spk_dna02_l),
+            "dna02_spikes_r": int(spk_dna02_r),
+            "dna02_bin_rate_l_hz": float(dna02_rate_l),
+            "dna02_bin_rate_r_hz": float(dna02_rate_r),
+            # Kept for backward compatibility: identical to dna02_bin_rate_*_hz.
             "dna02_rate_l": dna02_rate_l,
             "dna02_rate_r": dna02_rate_r,
             "dnp09_rate": dnp09_rate,
@@ -518,6 +530,7 @@ class ConnectomeServer:
             **self.identity_fields(),
             "graph_path": self.identity.graph_path,
             "graph_path_source": self.identity.graph_path_source,
+            "dn_rate_convention": DN_RATE_CONVENTION,
             "unmapped_channels": self.unmapped_channels,
             "mapping_warnings": MAPPING_WARNINGS,
             "engineered_assistance": ENGINEERED_ASSISTANCE,
@@ -533,6 +546,30 @@ class ConnectomeServer:
             **({"leg_load_encoder": self.leg_load.describe(),
                 "leg_load_afferent_map": self.leg_load.map.describe()} if self.leg_load else {}),
         }
+
+
+DN_RATE_CONVENTION = {
+    "dna02_spikes_l": "integer spikes of the single left DNa02 neuron in this bin",
+    "dna02_spikes_r": "integer spikes of the single right DNa02 neuron in this bin",
+    "dna02_bin_rate_l_hz": (
+        "dna02_spikes_l divided by the bin duration; a 2 ms bin quantizes it to "
+        "multiples of 500 Hz, so it is NOT comparable with the WP5 DNa02 acceptance "
+        "band (< 20 Hz)"
+    ),
+    "dna02_bin_rate_r_hz": "as dna02_bin_rate_l_hz, right side",
+    "dna02_rate_l": "legacy name for dna02_bin_rate_l_hz; same value",
+    "dna02_rate_r": "legacy name for dna02_bin_rate_r_hz; same value",
+    "locomotion_dn": (
+        "<population>_spikes is the integer spike count of that population in this bin; "
+        "<population>_rate_hz is that count per neuron divided by the bin duration, "
+        "quantized the same way as dna02_bin_rate_*_hz"
+    ),
+    "wp5_comparable": (
+        "only a rate filtered across bins is comparable with the WP5 DNa02 bands; "
+        "neurofly_body's decoders publish it as filtered_rates_hz (dn-v2) or "
+        "filtered_rate_l_hz / filtered_rate_r_hz (dna02-crossed-v1)"
+    ),
+}
 
 
 class CoSimHTTPHandler(BaseHTTPRequestHandler):
