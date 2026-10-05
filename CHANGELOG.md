@@ -71,14 +71,20 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
   report-only after seeing the failure. The encoder supplies the direction selectivity,
   so this is not evidence that the connectome computes the response.
 - **`E_inh` sensitivity**: the v3 optomotor verdict holds at −70 and −60 mV, with a
-  third less effect at −60 mV; the verdict at the measured −56 mV is unknown because
-  the gate failed there (`docs/EINH_SENSITIVITY.md`).
-- **Negative: the connectome does not compute direction selectivity from
-  photoreceptor input** under v3 (the signal dies at the first synapse), v4 (the signal
+  third less effect at −60 mV; the verdict at −56 mV is unknown because the gate
+  failed there (`docs/EINH_SENSITIVITY.md`). *Corrected 5 October 2026:* none of these
+  is a measured adult value. No native adult central chloride reversal was found, so
+  −60 and −56 mV are sensitivity points (`docs/EINH_SENSITIVITY.md` §7).
+- **Negative, model-specific: our connectome model does not produce direction
+  selectivity from photoreceptor input** under v3 (the signal dies at the first synapse), v4 (the signal
   crosses the graph but carries no direction) or v5 (receptor kinetics do not help)
   (`docs/WP5_OPTOMOTOR.md` §13-§14, `docs/receipts/lif_dynamics_v4.json`,
   `docs/receipts/lif_dynamics_v5.json`). Diagnosed causes: a 200-500x signal loss from
   photoreceptors to T4/T5, and T4/T5 inputs whose relative timing is wrong.
+  These negatives belong to these model versions. They are not evidence that the
+  biological connectome cannot compute motion. A later variant, v6a (branch
+  `claude/gain-v6a`, not on `master`), failed its amplitude (stage) gate, so its
+  motion test was never run (corrected 5 October 2026).
 - **The scan is incomplete in the lamina**: about 55 % of L1-L3 cells receive no
   photoreceptor input in MaleCNS. By owner ruling this is reported as a result and is
   not filled in (`docs/OWNER_DECISIONS.md`, `docs/LITERATURE_SCAN_2026-10-05.md`).

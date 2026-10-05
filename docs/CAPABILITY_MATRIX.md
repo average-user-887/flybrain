@@ -58,7 +58,7 @@ What the engines are, briefly (full spec in [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMIC
 ## 14-paradigm matrix
 
 "Modular" is the hand-built controller (researcher baseline). "Connectome" is the
-MaleCNS v1.0 graph (166,700 neurons, 25,582,938 synapses).
+MaleCNS v1.0 graph (166,700 neurons, 25,582,938 retained edge rows: directed neuron-pair edges weighted by synapse count, standing for 124,177,617 retained synaptic contacts).
 
 | # | Paradigm | Sensory ingress (declared) | Motor readout (declared) | Modular controller | Connectome IO | Connectome status | Connectome plasticity | Receipts |
 |---|---|---|---|---|---|---|---|---|

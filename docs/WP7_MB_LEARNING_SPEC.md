@@ -17,6 +17,27 @@ preregistration drafts:
 > including failures, **without retuning**. The one value left open is
 > η_γ1pedc, and the procedure that sets it (§6.2.3) is frozen too.
 
+> **Scope and interpretation note, 5 October 2026** (added after the independent
+> audit; the frozen spec JSONs, their content hashes and every gate above are
+> unchanged).
+>
+> - **E1 is calibration robustness, not independent biological validation.** η_γ1pedc
+>   is fitted to Hige 2015's 80 % CS+ depression (§6.2.3), and E1 then measures that
+>   same depression on fresh seeds. A pass would show that the fitted rule reproduces
+>   its own calibration target across seeds and survives the null controls. It would
+>   not be independent evidence that MB-R1 or the MaleCNS mushroom body learns as the
+>   fly does. The D(CS−) specificity comparison is the only out-of-sample quantity in
+>   E1, and it is reported, not gated. Results must be described in these terms.
+> - **Fitting permission.** The owner's standing permission (`docs/OWNER_DECISIONS.md`,
+>   5 October 2026, Ruling 2) covers fitting the properties of **non-motion input
+>   cells** to physiological recordings, with the tested behaviour held out. Fitting a
+>   plasticity rate (η_γ1pedc) at the KC→MBON synapse to a depression target is not
+>   obviously inside that wording. Before any calibration run, the owner gate (§1, item 2)
+>   must decide explicitly whether this fit is permitted. This note does not grant
+>   that permission, and the WP7 plan does not silently extend it. Any fitting beyond
+>   Ruling 2, including fitting against T-maze (E2) behaviour, is outside current
+>   permission and needs its own scope decision.
+
 What this spec does not claim:
 
 - It does not claim that the model learns. It says how learning will be
