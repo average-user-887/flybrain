@@ -1,5 +1,10 @@
 # NeuroFly — Open-Source Readiness Plan
 
+> **Superseded as a plan** by [`ROADMAP.md`](ROADMAP.md) v2.0 (2026-09-24); the phases below are the
+> old plan's. The branch named here no longer exists; `master` on GitHub is authoritative.
+> The "about 0.1 simulated seconds per wall second" figure below is a v1-engine number; true-v3
+> speeds are in `docs/receipts/ryzen/`. See [`SUPERSEDED_PLANS.md`](SUPERSEDED_PLANS.md).
+
 Branch: `worktree-neurofly-openready` (Ryzen worktree). Started 2026-09-19.
 
 ## Phase 0 — Baseline (done)
@@ -46,7 +51,7 @@ wall. It is clamped against the boundary by the containment failsafe instead of 
 
 ## 2026-09-19 evening — remediation work packages 1-5
 
-Executed against `docs/CLAUDE_IMMEDIATE_PLAN.md` (Astra's accepted plan). Each work
+Executed against `docs/archive/CLAUDE_IMMEDIATE_PLAN.md` (Astra's accepted plan). Each work
 package ran in its own agent with disjoint file ownership; no running service was
 touched, and no checkpoint or evidence bundle was deleted.
 
@@ -102,6 +107,8 @@ network with a suprathreshold fixed point measures the engine, not the connectom
 3. WP6 target: ER->EPG heading learning, or the olfactory neural-level replication?
 4. Release decisions left open: renaming the `*_ryzen.sh` scripts, the stale root-level
    duplicates of `app.js`/`index.html`, and the tracked `experiment_data/ryzen_battery/`.
+   *(2026-09-24: the scripts are now `start_daemon.sh`/`stop_daemon.sh` and the root
+   duplicates are in `docs/archive/root_duplicates_20260924/`; `ryzen_battery` is still open.)*
 5. **The live-UI sign-off still requires restarting the observatory service**, which
    this session is not permitted to do.
 

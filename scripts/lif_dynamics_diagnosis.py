@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import platform
 import sys
 import time
 from pathlib import Path
@@ -33,6 +32,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from neurofly.privacy import host_description, redact_local  # noqa: E402
 
 
 def make_brain(arrays, dynamics):
@@ -226,13 +226,20 @@ def main():
     parser.add_argument('--no-graph', action='store_true', help='probes A and B only')
     parser.add_argument('--e-inh-sensitivity', action='store_true',
                         help='also run probe C at the predeclared E_inh = -56 mV arm (S2)')
+    parser.add_argument('--e-inh-sweep', default=None,
+                        help='comma-separated E_inh values in mV for the declared sweep of '
+                             'docs/EINH_SENSITIVITY.md (v3 only; each is a labelled variant '
+                             'with its own pin, never a redefinition of v3)')
+    parser.add_argument('--sweep-arms', default='excitatory,zero',
+                        help='comma-separated unclear_mode arms to sweep (default both: the '
+                             'primary policy and declared arm S1)')
     parser.add_argument('--unclear-sensitivity', action='store_true',
                         help='also run probe C with the predeclared unclear_mode=zero arm (S1)')
     args = parser.parse_args()
     versions = [v.strip() for v in args.dynamics.split(',') if v.strip()]
 
     from brainlab.graph_identity import DYNAMICS_VERSIONS, dynamics_pin
-    result = dict(generated_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=platform.node(),
+    result = dict(generated_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), host=host_description(),
                   dynamics_declared={v: DYNAMICS_VERSIONS[v] for v in versions},
                   dynamics_pins={v: dynamics_pin(v) for v in versions},
                   probe_a=[probe_a(v) for v in versions],
@@ -272,6 +279,30 @@ def main():
         print(json.dumps({k: {kk: v[kk] for kk in ('edges_zeroed', 'v2_quanta', 'v3_quanta')}
                           for k, v in fixed_points.items()}, indent=1), flush=True)
 
+        if args.e_inh_sweep:
+            # Declared static arithmetic at every swept E_inh, computed from the
+            # same total weights _balance already reports.  No simulation.
+            from brainlab.engine import E_EXC_MV, V_REST_MV, V_THRESHOLD_MV
+            g_exc = 1.0 / (E_EXC_MV - V_REST_MV)
+            sweep_fp = {}
+            for name in ('v3-primary', 'v3-unclear-zero'):
+                rep = fixed_points[name]
+                w_exc, w_inh = rep['total_excitatory_weight'], rep['total_inhibitory_weight']
+                rows_fp = {}
+                for value in [float(x) for x in args.e_inh_sweep.split(',') if x.strip()]:
+                    g_inh = 1.0 / (V_REST_MV - value)
+                    r = (w_inh * g_inh) / (w_exc * g_exc)
+                    fp = value * r / (1.0 + r)
+                    rows_fp[f'{value:g}'] = dict(
+                        e_inh_mV=value, g_unit_inh=g_inh, g_unit_ratio_inh_over_exc=g_inh / g_exc,
+                        conductance_ratio_g_inh_over_g_exc=r,
+                        high_conductance_fixed_point_mV=fp,
+                        subthreshold=bool(fp <= V_THRESHOLD_MV),
+                        margin_below_threshold_mV=float(V_THRESHOLD_MV - fp))
+                sweep_fp[name] = rows_fp
+            result['fixed_point_einh_sweep'] = sweep_fp
+            print(json.dumps(sweep_fp, indent=1), flush=True)
+
         arms = [(v, None, 'excitatory') for v in versions]
         if 'v2' in versions and args.e_inh_sensitivity:
             # Predeclared sensitivity arm (docs/LIF_DYNAMICS_SPEC.md §3.1): the
@@ -281,6 +312,16 @@ def main():
             arms.append(('v3', -56.0, 'excitatory'))        # declared arm S2
         if 'v3' in versions and args.unclear_sensitivity:
             arms.append(('v3', None, 'zero'))               # declared arm S1
+        if args.e_inh_sweep:
+            # Declared E_inh sweep (docs/EINH_SENSITIVITY.md), v3 only.  Written
+            # before any of it was measured; the values, the arms, the gate and
+            # the decision rule are all fixed in that document.
+            sweep = [float(x) for x in args.e_inh_sweep.split(',') if x.strip()]
+            modes = [m.strip() for m in args.sweep_arms.split(',') if m.strip()]
+            arms = [a for a in arms if a[0] != 'v3']
+            for mode in modes:
+                for value in sweep:
+                    arms.append(('v3', value, mode))
         result['probe_c'] = []
         result['probe_c_policies'] = {}
         for v, e_inh, mode in arms:
@@ -297,12 +338,17 @@ def main():
                 row['transmitter_policy'] = tp.describe(
                     tp.POLICY_V3 if v == 'v3' else tp.POLICY_LEGACY, mode)
                 row['graph_sha256'] = graph.identity.graph_sha256
+                if v != 'v1':
+                    from brainlab.graph_identity import dynamics_variant, dynamics_variant_pin
+                    row['dynamics_variant'] = dynamics_variant(v, e_inh)['dynamics_version']
+                    row['dynamics_variant_pin'] = dynamics_variant_pin(v, e_inh)
+                    row['dynamics_variant_declared'] = dynamics_variant(v, e_inh)
                 result['probe_c'].append(row)
                 print(json.dumps({k: row[k] for k in ('dynamics', 'e_inh_mV', 'direction', 'wall_s',
                                                       'stimulus', 'gray_after_stimulus')}, indent=1),
                       flush=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2) + '\n')
+    args.out.write_text(json.dumps(redact_local(result), indent=2) + '\n')
     print('wrote', args.out)
 
 

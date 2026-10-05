@@ -696,8 +696,8 @@
     }
   },
   "note": "Headless real Firefox via geckodriver against an isolated daemon; not the final live-UI sign-off required by AGENTS.md.",
-  "daemon_script": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/neurofly_daemon.py",
-  "web_root": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/web",
+  "daemon_script": "<repo>/neurofly_daemon.py",
+  "web_root": "<repo>/web",
   "browser": {
     "name": "firefox",
     "version": "156.0",

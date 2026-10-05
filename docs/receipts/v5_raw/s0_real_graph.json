@@ -1,0 +1,52 @@
+{
+ "spec": "docs/LIF_DYNAMICS_SPEC.md#9.9 a3",
+ "simulated_ms": 200.0,
+ "v4_vs_v5_S0": {
+  "v": {
+   "bit_identical": false,
+   "max_abs_diff": 1.1444091796875e-05
+  },
+  "g": {
+   "bit_identical": false,
+   "max_abs_diff": 2.288818359375e-05
+  },
+  "refractory": {
+   "bit_identical": true,
+   "max_abs_diff": 0.0
+  },
+  "rel_ring": {
+   "bit_identical": false,
+   "max_abs_diff": 7.450580596923828e-09
+  }
+ },
+ "v4_vs_v4_repeat": {
+  "v": {
+   "bit_identical": false,
+   "max_abs_diff": 1.1444091796875e-05
+  },
+  "g": {
+   "bit_identical": false,
+   "max_abs_diff": 1.52587890625e-05
+  },
+  "refractory": {
+   "bit_identical": true,
+   "max_abs_diff": 0.0
+  },
+  "rel_ring": {
+   "bit_identical": false,
+   "max_abs_diff": 7.450580596923828e-09
+  }
+ },
+ "spikes": {
+  "v4": 41004,
+  "v5_S0": 41004,
+  "v4_repeat": 41004
+ },
+ "wall_s": {
+  "v4": 44.676437536999856,
+  "v5_S0": 44.59660252499998,
+  "v4_repeat": 44.563279217999934
+ },
+ "F1_triggered": true,
+ "note": "v4_vs_v4_repeat establishes whether v4 itself is bit-reproducible run to run on the real graph on this GPU; F1 as declared requires bit identity regardless"
+}

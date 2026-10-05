@@ -1,0 +1,445 @@
+{
+ "open-arena": {
+  "injected_max_current": {
+   "orn_food": 35.0,
+   "orn_danger": 30.72483253479004,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "orn_food": 71524,
+   "orn_danger": 44122,
+   "thermo_receptors": 21254,
+   "er_ring": 3618,
+   "el_modulator": 6319,
+   "epg": 19814,
+   "DN_dna02_l": 102,
+   "DN_dna02_r": 15,
+   "DN_dnb01": 8,
+   "DN_mdn": 2
+  },
+  "neurons_ever_active": 9093,
+  "total_spikes": 3451785,
+  "top_types": {
+   "lLN1_bc": 96807,
+   "lLN2P_b": 34561,
+   "lLN2X12": 31616,
+   "lLN2P_c": 27979,
+   "NaN": 23799,
+   "lLN2P_a": 21718,
+   "M_lPNm11D": 19928,
+   "CB3417": 19409,
+   "lLN2T_a": 16340,
+   "lLN2R_a": 14010,
+   "lLN2X04": 12861,
+   "lLN2F_b": 12767
+  },
+  "stim_max": {
+   "odor_a": 1.0,
+   "odor_b": 0.7681
+  }
+ },
+ "t-maze": {
+  "injected_max_current": {
+   "orn_food": 1.5544573068618774,
+   "orn_danger": 1.7765226364135742,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "odor_a": 0.0444,
+   "odor_b": 0.0444,
+   "odor_cs_plus": 0.0439,
+   "odor_cs_minus": 0.0439,
+   "temperature": 24.0,
+   "temperature_left": 24.0,
+   "temperature_right": 24.0
+  }
+ },
+ "y-maze": {
+  "injected_max_current": {
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "temperature": 24.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0,
+   "temperature_left": 24.0,
+   "temperature_right": 24.0
+  }
+ },
+ "heat-maze": {
+  "injected_max_current": {
+   "thermo_receptors": 29.611108779907227,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "thermo_receptors": 33686,
+   "er_ring": 3791,
+   "el_modulator": 6295,
+   "epg": 20135,
+   "DN_dna02_l": 65,
+   "DN_dna02_r": 23,
+   "DN_dna01": 2,
+   "DN_dnb01": 8,
+   "DN_mdn": 15
+  },
+  "neurons_ever_active": 8832,
+  "total_spikes": 3250262,
+  "top_types": {
+   "lLN1_bc": 96692,
+   "lLN2P_b": 34351,
+   "lLN2X12": 31508,
+   "lLN2P_c": 27691,
+   "NaN": 23738,
+   "lLN2P_a": 21520,
+   "M_lPNm11D": 20095,
+   "CB3417": 19457,
+   "lLN2T_a": 16330,
+   "lLN2R_a": 14058,
+   "VP3+_l2PN": 12958,
+   "lLN2X04": 12816
+  },
+  "stim_max": {
+   "temperature": 35.8444,
+   "r_warm_thermosensory": 78.7555,
+   "r_cold_thermosensory": 0.0,
+   "temperature_left": 35.3375,
+   "temperature_right": 35.8184,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "buridan": {
+  "injected_max_current": {
+   "er_ring": 20.0,
+   "el_modulator": 18.0,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "er_ring": 62042,
+   "el_modulator": 18,
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 87,
+  "total_spikes": 63074,
+  "top_types": {
+   "ER4d": 24076,
+   "ER2_c": 18520,
+   "ER2_a": 11112,
+   "ER2_d": 4630,
+   "ER2_b": 3704,
+   "DNb01": 1014,
+   "EL": 18
+  },
+  "stim_max": {
+   "stripe_contrast": 1.0,
+   "nearest_bearing": 0.0,
+   "stripe_fixation": 1.0,
+   "distance_to_center": 48.5,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "visual-operant": {
+  "injected_max_current": {
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "drum_angle_deg": 0.0,
+   "quadrant": 0.0,
+   "temperature": 24.0,
+   "temperature_left": 24.0,
+   "temperature_right": 24.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "wind-tunnel": {
+  "injected_max_current": {
+   "orn_food": 17.29257583618164,
+   "jon_wind": 3.75,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "orn_food": 6304,
+   "thermo_receptors": 21071,
+   "er_ring": 3692,
+   "el_modulator": 6343,
+   "epg": 20308,
+   "DN_dna02_l": 62,
+   "DN_dna02_r": 23,
+   "DN_dna01": 1,
+   "DN_dnb01": 8,
+   "DN_mdn": 55
+  },
+  "neurons_ever_active": 9031,
+  "total_spikes": 3197676,
+  "top_types": {
+   "lLN1_bc": 96536,
+   "lLN2P_b": 34308,
+   "lLN2X12": 31417,
+   "lLN2P_c": 27637,
+   "NaN": 23612,
+   "lLN2P_a": 21487,
+   "M_lPNm11D": 19982,
+   "CB3417": 19351,
+   "lLN2T_a": 16301,
+   "lLN2R_a": 13960,
+   "lLN2X04": 12771,
+   "lLN2X05": 12676
+  },
+  "stim_max": {
+   "odor_conc": 0.5344,
+   "wind_speed": 25.0,
+   "wind_direction_rad": 3.1416,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.4941,
+   "odor_b": 0.0
+  }
+ },
+ "looming-escape": {
+  "injected_max_current": {
+   "DN_dnb01": 12.0,
+   "visual_looming": 55.0
+  },
+  "channel_spikes": {
+   "visual_looming": 665977,
+   "er_ring": 3533,
+   "el_modulator": 5971,
+   "epg": 18992,
+   "DN_dnp01": 6139,
+   "DN_dna01": 4,
+   "DN_dnb01": 2095
+  },
+  "neurons_ever_active": 6540,
+  "total_spikes": 2564647,
+  "top_types": {
+   "LPLC2": 400341,
+   "LC4": 265636,
+   "PVLP111": 20767,
+   "AMMC-A1": 14765,
+   "NaN": 13129,
+   "PVLP151": 9497,
+   "AVLP479": 9315,
+   "PVLP071": 8183,
+   "PVLP021": 8052,
+   "PVLP024": 7697,
+   "DNp04": 6353,
+   "PVLP022": 6343
+  },
+  "stim_max": {
+   "theta_rad": 3.0417,
+   "theta_deg": 174.2752,
+   "expansion_rate_rad_s": 99.7506,
+   "gf_membrane_potential_mv": 30.0,
+   "time_to_collision_s": 0.38,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "optomotor": {
+  "injected_max_current": {},
+  "channel_spikes": {
+   "er_ring": 3712,
+   "el_modulator": 6178,
+   "epg": 20049,
+   "DN_dnp01": 67,
+   "DN_dna02_l": 63,
+   "DN_dna02_r": 9,
+   "DN_dna01": 27,
+   "DN_dnb01": 2,
+   "DN_mdn": 12
+  },
+  "neurons_ever_active": 9943,
+  "total_spikes": 873717,
+  "top_types": {
+   "PEN_a(PEN1)": 29007,
+   "FR1": 26202,
+   "PEN_b(PEN2)": 25127,
+   "EPG": 14283,
+   "AN09A005": 13935,
+   "DLMn c-f": 8461,
+   "IN09A005": 7408,
+   "GLNO": 7031,
+   "VS": 6324,
+   "AN27X013": 6266,
+   "FB4Y": 5836,
+   "DVMn 1a-c": 5294
+  },
+  "stim_max": {
+   "drum_velocity_deg_s": 30.0,
+   "spatial_wavelength_deg": 30.0,
+   "contrast": 0.9,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "gap-crossing": {
+  "injected_max_current": {
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "gap_width_mm": 3.5,
+   "dist_to_gap_mm": 25.0,
+   "p_cross": 1.0,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0,
+   "probing_duration_ms": 220.0
+  }
+ },
+ "circadian-dam": {
+  "injected_max_current": {
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "minute_of_day": 0.1667,
+   "hour_of_day": 0.0028,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "courtship": {
+  "injected_max_current": {
+   "courtship_cva": 18.791444778442383,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "courtship_cva": 1520,
+   "thermo_receptors": 21162,
+   "er_ring": 3554,
+   "el_modulator": 6135,
+   "epg": 19612,
+   "DN_dna02_l": 60,
+   "DN_dna02_r": 26,
+   "DN_dnb01": 6,
+   "DN_mdn": 25
+  },
+  "neurons_ever_active": 9343,
+  "total_spikes": 3195636,
+  "top_types": {
+   "lLN1_bc": 96592,
+   "lLN2P_b": 34288,
+   "lLN2X12": 31379,
+   "lLN2P_c": 27500,
+   "NaN": 23591,
+   "lLN2P_a": 21425,
+   "M_lPNm11D": 19995,
+   "CB3417": 19341,
+   "lLN2T_a": 16315,
+   "lLN2R_a": 13953,
+   "lLN2X04": 12772,
+   "lLN2X05": 12645
+  },
+  "stim_max": {
+   "inter_fly_distance_mm": 7.7556,
+   "social_bearing_rad": 2.9511,
+   "cva_concentration": 0.6264,
+   "aphrodisiac_concentration": 0.0,
+   "temperature_left": 25.0,
+   "temperature_right": 25.0,
+   "odor_a": 0.0,
+   "odor_b": 0.0
+  }
+ },
+ "labyrinth": {
+  "injected_max_current": {
+   "orn_food": 0.9491854310035706,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "odor_conc": 0.0262,
+   "temperature": 24.0,
+   "goal_distance_mm": 134.6291,
+   "temperature_left": 24.0,
+   "temperature_right": 24.0,
+   "odor_a": 0.0271,
+   "odor_b": 0.0
+  }
+ },
+ "multisensory-sandbox": {
+  "injected_max_current": {
+   "orn_food": 2.8128128051757812,
+   "orn_danger": 0.21759574115276337,
+   "courtship_cva": 1.054421305656433,
+   "DN_dnb01": 12.0
+  },
+  "channel_spikes": {
+   "DN_dnb01": 1014
+  },
+  "neurons_ever_active": 2,
+  "total_spikes": 1014,
+  "top_types": {
+   "DNb01": 1014
+  },
+  "stim_max": {
+   "odor_a": 0.0804,
+   "odor_b": 0.0054,
+   "odor_cva": 0.0351,
+   "cva_concentration": 0.0351,
+   "temperature": 24.1039,
+   "wind_magnitude": 15.0,
+   "egocentric_wind": 0.0,
+   "jo_antenna_deflect_un": 1.8,
+   "temperature_left": 24.1033,
+   "temperature_right": 24.0728
+  }
+ }
+}

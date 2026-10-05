@@ -32,7 +32,7 @@ The codebase is synchronized across four distinct execution environments:
 │ 1. Local Workspace (Windows) │ .\flybrain                  │ Primary development root. │
 │ 2. Docker Sandbox            │ <container-id>:/workspace     │ Local Linux test runner.  │
 │ 3. AMD Ryzen 3900X Cluster   │ <user>@<workstation-host>     │ 24/7 continuous daemon &  │
-│                              │ ~/Documents/ChatGPT/flybrain│ full 180-test benchmark.  │
+│                              │ <repo>                      │ full 180-test benchmark.  │
 │ 4. HP Storage Server         │ <archive-share>/neurofly                 │ Network SMB backup & cold │
 │                              │ //<file-server>/Storage/...  │ weight checkpoint archive.│
 │ 5. Shipping Distribution     │ .\neurofly_v1_shipping      │ Clean deployment package. │

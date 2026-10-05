@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 """
+RETIRED (2026-10-05): this tool no longer runs. See docs/RETIREMENT_INDEX.md.
+Its SYNC_MANIFEST below omits current product and provenance modules (neurofly/,
+neurofly_body/, neurofly_studio/, validation/, provenance.py, experiment_registry.py,
+pyproject.toml, ...), so a synced target could not even import the daemon. Use git.
+The original description is kept for the record:
+
 Project NeuroFly — maintainer tool: push the working tree to test/compute targets
 ================================================================================
 Copies the files in SYNC_MANIFEST to any of three optional targets and, unless
@@ -200,46 +206,26 @@ def run_remote_tests(host: Optional[str], remote_dir: Optional[str], ssh_key: Op
             print(f"  [ERROR] Remote test execution error: {err}", flush=True)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Project NeuroFly maintainer sync & verification tool")
-    parser.add_argument("--remote-host", default=os.environ.get("NEUROFLY_REMOTE_HOST"),
-                        help="user@host for SSH/SCP (env: NEUROFLY_REMOTE_HOST)")
-    parser.add_argument("--remote-dir", default=os.environ.get("NEUROFLY_REMOTE_DIR"),
-                        help="Checkout directory on the remote host (env: NEUROFLY_REMOTE_DIR)")
-    parser.add_argument("--ssh-key", default=None, help="Identity file (env: NEUROFLY_SSH_KEY)")
-    parser.add_argument("--archive-dir", default=None,
-                        help="Mounted archive directory (env: NEUROFLY_ARCHIVE_DIR)")
-    parser.add_argument("--docker-target", default=os.environ.get("NEUROFLY_DOCKER_TARGET"),
-                        help="<container>:<path> for docker cp (env: NEUROFLY_DOCKER_TARGET)")
-    parser.add_argument("--skip-tests", action="store_true")
-    args = parser.parse_args()
+RETIRED_NOTICE = """\
+sync_ecosystem.py is RETIRED and does not run. Its file manifest (SYNC_MANIFEST)
+omits current product and provenance modules: neurofly/, neurofly_body/,
+neurofly_studio/, validation/, provenance.py, experiment_registry.py,
+experiment_brains.py, assay_controls.py, assay_response.py, online_metrics.py and
+pyproject.toml. A target synced with it cannot import the daemon.
 
-    ssh_key = resolve_ssh_key(args.ssh_key)
-    archive_dir = resolve_archive_dir(args.archive_dir)
+Use instead: git (clone, fetch or push a branch) on the target host.
 
-    print(f"[Sync] Project Root: {PACKAGE_ROOT}")
-    print(f"[Sync] Remote host: {args.remote_host or 'not configured'}")
-    print(f"[Sync] SSH key: {ssh_key or 'agent / default identity'}")
-    print(f"[Sync] Docker target: {args.docker_target or 'not configured'}")
-    print(f"[Sync] Archive dir: {archive_dir or 'not configured'}")
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
 
-    if not any((args.remote_host, args.docker_target, archive_dir)):
-        print("[Sync] Nothing to do: configure at least one target (see --help).")
-        sys.exit(2)
 
-    if args.docker_target:
-        sync_docker(args.docker_target)
-    if args.remote_host:
-        if not args.remote_dir:
-            print("[Sync] --remote-dir / NEUROFLY_REMOTE_DIR is required with a remote host.")
-            sys.exit(2)
-        sync_remote(args.remote_host, args.remote_dir, ssh_key)
-    if archive_dir:
-        sync_archive(archive_dir)
-
-    if not args.skip_tests:
-        run_remote_tests(args.remote_host, args.remote_dir, ssh_key, args.docker_target)
+def main(argv: Optional[List[str]] = None) -> int:
+    """Retired: print why (``--help`` shows it too) and copy nothing."""
+    argparse.ArgumentParser(prog="sync_ecosystem.py", description=RETIRED_NOTICE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(argv)
+    print(RETIRED_NOTICE, file=sys.stderr, end="")
+    return 2
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

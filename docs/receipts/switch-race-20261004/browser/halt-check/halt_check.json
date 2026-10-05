@@ -1,0 +1,60 @@
+{
+ "before": {
+  "pill": "\u25cf LIVE DAEMON",
+  "status": "online",
+  "steps": 202
+ },
+ "halted": {
+  "pill": "\u25cf SIMULATION HALTED \u00b7 ERROR",
+  "pill_title": "The daemon is connected but the simulation is halted and not advancing: injected test fault (one-shot) (assay t-maze, step 203). The simulation is halted by this error and does not advance. Select an assay (selecting the same one retries it) or switch the controller backend to rebuild the controller and resume. Pausing, resuming or changing speed does not lift it.",
+  "run_state": "SIMULATION ERROR: injected test fault (one-shot)",
+  "status": "error",
+  "halted": true,
+  "paused": false,
+  "error": "injected test fault (one-shot)",
+  "steps_3s_apart": [
+   203,
+   203
+  ]
+ },
+ "recovered": {
+  "pill": "\u25cf LIVE DAEMON",
+  "run_state": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+  "status": "online",
+  "halted": false,
+  "assay": "y-maze",
+  "steps_3s_apart": [
+   213,
+   346
+  ],
+  "cleared_errors": [
+   {
+    "message": "injected test fault (one-shot)",
+    "type": "RuntimeError",
+    "step": 203,
+    "sim_time_s": 4.06,
+    "paradigm": "t-maze",
+    "backend": "connectome-fixed",
+    "instance_id": "32d23ef61cc94b28838f4def5c4b12cc",
+    "at": 1791130509.628,
+    "cleared_by": "switch_paradigm",
+    "cleared_at": 1791130515.863,
+    "cleared_step": 203,
+    "resumed_paradigm": "y-maze",
+    "resumed_backend": "connectome-fixed"
+   }
+  ]
+ },
+ "console_errors": null,
+ "checks": {
+  "pill_live_before": true,
+  "pill_halted": true,
+  "status_error": true,
+  "frozen_while_halted": true,
+  "pill_live_after_switch": true,
+  "status_online_after": true,
+  "advancing_after": true,
+  "cleared_recorded": true
+ },
+ "pass": true
+}

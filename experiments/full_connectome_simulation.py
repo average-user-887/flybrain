@@ -1,4 +1,16 @@
-"""Unified Full-Connectome Simulation & 14-Task Life-Long Learning Experiment.
+"""RETIRED (2026-10-05): this is NOT a full connectome simulation. See docs/RETIREMENT_INDEX.md.
+
+Running this file, ``python -m experiments.full_connectome_simulation`` or
+``neurofly full-sim`` prints the reason and exits non-zero without loading any data.
+The source stays importable only because tests reuse ``UnifiedConnectomeBrain``.
+Why it was retired: ``Arena.get_sensory_inputs`` does not exist, so the loop in
+``run_paradigm`` fed the brain empty sensory input on every step, and
+``arena.step`` then overwrote the brain's motor output with the modular controller.
+The claims in the original description below were therefore never true of a run.
+
+Original description, kept for the record:
+
+Unified Full-Connectome Simulation & 14-Task Life-Long Learning Experiment.
 
 Runs a single, continuous, unified MaleCNS v1.0 whole-brain connectome (166,700 neurons,
 25,582,938 directed synapses) across all 14 canonical Drosophila neuroethology paradigms.
@@ -30,6 +42,32 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+RETIRED_NOTICE = """\
+experiments/full_connectome_simulation.py (neurofly full-sim) is RETIRED and does
+not run. It was not a full connectome simulation: the brain received empty sensory
+input (Arena.get_sensory_inputs does not exist, so every step fed it {}), and its
+motor output was overwritten by the modular controller inside arena.step.
+
+Use instead:
+  neurofly run --backend connectome-fixed --paradigm optomotor   dashboard on :8769
+  neurofly record --backend connectome-fixed --paradigm optomotor --seconds 30 --out run
+  neurofly validate run <spec> --out <new dir>    preregistered validation specs
+
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
+
+
+def _retired(argv: Optional[Sequence[str]] = None) -> int:
+    """Print the retirement notice (``--help`` shows it too) and refuse to run."""
+    argparse.ArgumentParser(prog="full_connectome_simulation", description=RETIRED_NOTICE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(argv)
+    print(RETIRED_NOTICE, file=sys.stderr, end="")
+    return 2
+
+
+if __name__ == "__main__":  # stop before numpy, the arena or the graph are imported
+    sys.exit(_retired())
 
 import numpy as np
 
@@ -232,25 +270,33 @@ class UnifiedConnectomeBrain:
             for idx in self.sensory_map.get("jon_wind", []):
                 if idx < self.total_neurons: currents[idx] += i_wind
 
-        # 2. Advance authentic conductance LIF v3 simulation kernel
-        spikes, elapsed_wall_s = self.brain.step(currents, duration_ms=duration_ms)
-
-        # 3. Apply WP6 Synaptic Plasticity update (if active)
+        # 2 + 3. Advance the LIF kernel and apply the WP6 plasticity update.  The
+        # rule is declared per ``rule.dt`` of simulated time (2 ms), so a longer
+        # step is split into rule-sized brain steps, each followed by one update.
         wp6_metrics = {"mean_delta": 0.0, "max_delta": 0.0}
-        if self.plasticity_rule is not None and self.plasticity_delta is not None and self.plastic_edge_pre is not None:
-            pre_counts = spikes[self.plastic_edge_pre]
-            post_counts = spikes[self.plastic_edge_post]
-            self.plasticity_rule.update(
-                self.plasticity_delta,
-                pre_counts=pre_counts,
-                post_counts=post_counts,
-                full_counts=spikes,
-            )
-            if hasattr(self.brain, "weight"):
-                self.brain.set_edge_weights(
-                    self.plasticity_rule.edges,
-                    self.plasticity_rule.initial_weights + self.plasticity_delta,
+        plastic = (self.plasticity_rule is not None and self.plasticity_delta is not None
+                   and self.plastic_edge_pre is not None)
+        n_sub = self.plasticity_rule.substeps(duration_ms) if plastic else 1
+        spikes = None
+        elapsed_wall_s = 0.0
+        for _ in range(n_sub):
+            sub_spikes, sub_wall_s = self.brain.step(currents, duration_ms=duration_ms / n_sub)
+            sub_spikes = np.array(sub_spikes, copy=True)
+            spikes = sub_spikes if spikes is None else spikes + sub_spikes
+            elapsed_wall_s += sub_wall_s
+            if plastic:
+                self.plasticity_rule.update(
+                    self.plasticity_delta,
+                    pre_counts=sub_spikes[self.plastic_edge_pre],
+                    post_counts=sub_spikes[self.plastic_edge_post],
+                    full_counts=sub_spikes,
                 )
+                if hasattr(self.brain, "weight"):
+                    self.brain.set_edge_weights(
+                        self.plasticity_rule.edges,
+                        self.plasticity_rule.initial_weights + self.plasticity_delta,
+                    )
+        if plastic:
             wp6_metrics["mean_delta"] = float(np.mean(self.plasticity_delta))
             wp6_metrics["max_delta"] = float(np.max(self.plasticity_delta))
 
@@ -480,26 +526,6 @@ class FullConnectomeSimulation:
         path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Unified Full-Connectome 14-Task Simulation")
-    parser.add_argument("--steps-per-task", type=int, default=200, help="Simulation steps per paradigm (default: 200)")
-    parser.add_argument("--tasks", type=str, default="all", help="Comma-separated paradigm list or 'all'")
-    parser.add_argument("--output-dir", type=str, default="outputs/full_simulation", help="Output directory")
-    parser.add_argument("--no-plasticity", action="store_true", help="Disable online synaptic plasticity")
-    parser.add_argument("--seed", type=int, default=42, help="RNG seed")
-
-    args = parser.parse_args()
-
-    tasks = None if args.tasks == "all" else [t.strip() for t in args.tasks.split(",") if t.strip()]
-    sim = FullConnectomeSimulation(
-        output_dir=args.output_dir,
-        steps_per_task=args.steps_per_task,
-        enable_plasticity=not args.no_plasticity,
-        seed=args.seed,
-    )
-    sim.run_all(tasks)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Retired entry point: prints why and returns 2. Nothing is simulated or written."""
+    return _retired(argv)

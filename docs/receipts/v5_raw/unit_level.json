@@ -1,0 +1,266 @@
+{
+ "spec": "docs/LIF_DYNAMICS_SPEC.md#9.9",
+ "tables": {
+  "v5-receptor-class": {
+   "nicotinic": 1.4,
+   "gaba_a": 3.7,
+   "glucl": 3.7,
+   "hiscl": 1.0
+  },
+  "v5-receptor-class-upper": {
+   "nicotinic": 5.23,
+   "gaba_a": 13.8,
+   "glucl": 13.8,
+   "hiscl": 6.1
+  },
+  "v4-equivalent": {
+   "nicotinic": 5.0,
+   "gaba_a": 5.0,
+   "glucl": 5.0,
+   "hiscl": 5.0
+  }
+ },
+ "a1": {
+  "v5-receptor-class": {
+   "nicotinic": {
+    "psp_peak_mV": 0.8195152282714844,
+    "psp_time_to_peak_ms": 4.6000000000000005,
+    "psp_area_mV_ms": 20.065692138671878,
+    "conductance_peak": 0.267803430557251,
+    "conductance_decay_tau_fit_ms": 1.4000001551001147,
+    "conductance_area": 0.38847441178186637
+   },
+   "gaba_a": {
+    "psp_peak_mV": -0.6730003356933594,
+    "psp_time_to_peak_ms": 8.200000000000001,
+    "psp_area_mV_ms": -19.776634597778322,
+    "conductance_peak": 0.29925116896629333,
+    "conductance_decay_tau_fit_ms": 3.7000001760760375,
+    "conductance_area": 1.1222593604823836
+   },
+   "glucl": {
+    "psp_peak_mV": -0.6730003356933594,
+    "psp_time_to_peak_ms": 8.200000000000001,
+    "psp_area_mV_ms": -19.776634597778322,
+    "conductance_peak": 0.29925116896629333,
+    "conductance_decay_tau_fit_ms": 3.7000001760760375,
+    "conductance_area": 1.1222593604823836
+   },
+   "hiscl": {
+    "psp_peak_mV": -0.8404312133789062,
+    "psp_time_to_peak_ms": 3.7,
+    "psp_area_mV_ms": -19.71921043395996,
+    "conductance_peak": 1.067970871925354,
+    "conductance_decay_tau_fit_ms": 1.0000000434857237,
+    "conductance_area": 1.1222592679037493
+   }
+  },
+  "v5-receptor-class-upper": {
+   "nicotinic": {
+    "psp_peak_mV": 0.6234512329101562,
+    "psp_time_to_peak_ms": 10.100000000000001,
+    "psp_area_mV_ms": 20.091091537475588,
+    "conductance_peak": 0.07357247173786163,
+    "conductance_decay_tau_fit_ms": 5.229999211496958,
+    "conductance_area": 0.3884743491924777
+   },
+   "gaba_a": {
+    "psp_peak_mV": -0.43483734130859375,
+    "psp_time_to_peak_ms": 17.0,
+    "psp_area_mV_ms": -19.90886573791504,
+    "conductance_peak": 0.08102919906377792,
+    "conductance_decay_tau_fit_ms": 13.799997380120933,
+    "conductance_area": 1.1222590118753704
+   },
+   "glucl": {
+    "psp_peak_mV": -0.43483734130859375,
+    "psp_time_to_peak_ms": 17.0,
+    "psp_area_mV_ms": -19.90886573791504,
+    "conductance_peak": 0.08102919906377792,
+    "conductance_decay_tau_fit_ms": 13.799997380120933,
+    "conductance_area": 1.1222590118753704
+   },
+   "hiscl": {
+    "psp_peak_mV": -0.5873451232910156,
+    "psp_time_to_peak_ms": 10.9,
+    "psp_area_mV_ms": -19.81893882751465,
+    "conductance_peak": 0.18247713148593903,
+    "conductance_decay_tau_fit_ms": 6.099999973987946,
+    "conductance_area": 1.122259349903923
+   }
+  },
+  "v4-equivalent": {
+   "nicotinic": {
+    "psp_peak_mV": 0.6314811706542969,
+    "psp_time_to_peak_ms": 9.8,
+    "psp_area_mV_ms": 20.09107818603516,
+    "conductance_peak": 0.07692307978868484,
+    "conductance_decay_tau_fit_ms": 5.000000183596994,
+    "conductance_area": 0.3884743491996603
+   },
+   "gaba_a": {
+    "psp_peak_mV": -0.6225318908691406,
+    "psp_time_to_peak_ms": 9.8,
+    "psp_area_mV_ms": -19.801082992553713,
+    "conductance_peak": 0.2222222238779068,
+    "conductance_decay_tau_fit_ms": 5.0000002829281165,
+    "conductance_area": 1.1222593561056433
+   },
+   "glucl": {
+    "psp_peak_mV": -0.6225318908691406,
+    "psp_time_to_peak_ms": 9.8,
+    "psp_area_mV_ms": -19.801082992553713,
+    "conductance_peak": 0.2222222238779068,
+    "conductance_decay_tau_fit_ms": 5.0000002829281165,
+    "conductance_area": 1.1222593561056433
+   },
+   "hiscl": {
+    "psp_peak_mV": -0.6225318908691406,
+    "psp_time_to_peak_ms": 9.8,
+    "psp_area_mV_ms": -19.801082992553713,
+    "conductance_peak": 0.2222222238779068,
+    "conductance_decay_tau_fit_ms": 5.0000002829281165,
+    "conductance_area": 1.1222593561056433
+   }
+  }
+ },
+ "a2": {
+  "v5-receptor-class": {
+   "nicotinic": {
+    "baseline_conductance": 0.04540609195828438,
+    "step_on_10_90_ms": 31.800000000000004,
+    "step_on_final": 0.009118128567934036,
+    "step_off_time_to_1_over_e_ms": 23.5
+   },
+   "gaba_a": {
+    "baseline_conductance": 0.13117265701293945,
+    "step_on_10_90_ms": 31.900000000000002,
+    "step_on_final": 0.025945603847503662,
+    "step_off_time_to_1_over_e_ms": 26.400000000000002
+   },
+   "glucl": {
+    "baseline_conductance": 0.13117265701293945,
+    "step_on_10_90_ms": 31.900000000000002,
+    "step_on_final": 0.025945603847503662,
+    "step_off_time_to_1_over_e_ms": 26.400000000000002
+   },
+   "hiscl": {
+    "baseline_conductance": 0.1311730593442917,
+    "step_on_10_90_ms": 31.9,
+    "step_on_final": 0.026400431990623474,
+    "step_off_time_to_1_over_e_ms": 23.0
+   }
+  },
+  "v5-receptor-class-upper": {
+   "nicotinic": {
+    "baseline_conductance": 0.045406028628349304,
+    "step_on_10_90_ms": 32.1,
+    "step_on_final": 0.008866507560014725,
+    "step_off_time_to_1_over_e_ms": 28.5
+   },
+   "gaba_a": {
+    "baseline_conductance": 0.13117124140262604,
+    "step_on_10_90_ms": 33.5,
+    "step_on_final": 0.022693350911140442,
+    "step_off_time_to_1_over_e_ms": 41.2
+   },
+   "glucl": {
+    "baseline_conductance": 0.13117124140262604,
+    "step_on_10_90_ms": 33.5,
+    "step_on_final": 0.022693350911140442,
+    "step_off_time_to_1_over_e_ms": 41.2
+   },
+   "hiscl": {
+    "baseline_conductance": 0.13117261230945587,
+    "step_on_10_90_ms": 32.3,
+    "step_on_final": 0.025397107005119324,
+    "step_off_time_to_1_over_e_ms": 29.700000000000003
+   }
+  },
+  "v4-equivalent": {
+   "nicotinic": {
+    "baseline_conductance": 0.04540608450770378,
+    "step_on_10_90_ms": 32.10000000000001,
+    "step_on_final": 0.008885093033313751,
+    "step_off_time_to_1_over_e_ms": 28.200000000000003
+   },
+   "gaba_a": {
+    "baseline_conductance": 0.13117298483848572,
+    "step_on_10_90_ms": 32.10000000000001,
+    "step_on_final": 0.025668218731880188,
+    "step_off_time_to_1_over_e_ms": 28.200000000000003
+   },
+   "glucl": {
+    "baseline_conductance": 0.13117298483848572,
+    "step_on_10_90_ms": 32.10000000000001,
+    "step_on_final": 0.025668218731880188,
+    "step_off_time_to_1_over_e_ms": 28.200000000000003
+   },
+   "hiscl": {
+    "baseline_conductance": 0.13117298483848572,
+    "step_on_10_90_ms": 32.10000000000001,
+    "step_on_final": 0.025668218731880188,
+    "step_off_time_to_1_over_e_ms": 28.200000000000003
+   }
+  }
+ },
+ "F2_check": {
+  "v5-receptor-class/nicotinic": {
+   "declared_tau_ms": 1.4,
+   "fitted_tau_ms": 1.4000001551001147,
+   "psp_area_ratio_to_v4": 0.9987364517161191,
+   "conductance_area_ratio_to_v4": 1.000000161097396,
+   "psp_peak_ratio_to_v4": 1.29776668942062
+  },
+  "v5-receptor-class/gaba_a": {
+   "declared_tau_ms": 3.7,
+   "fitted_tau_ms": 3.7000001760760375,
+   "psp_area_ratio_to_v4": 0.998765300120979,
+   "conductance_area_ratio_to_v4": 1.0000000038999366,
+   "psp_peak_ratio_to_v4": 1.0810696537228925
+  },
+  "v5-receptor-class/glucl": {
+   "declared_tau_ms": 3.7,
+   "fitted_tau_ms": 3.7000001760760375,
+   "psp_area_ratio_to_v4": 0.998765300120979,
+   "conductance_area_ratio_to_v4": 1.0000000038999366,
+   "psp_peak_ratio_to_v4": 1.0810696537228925
+  },
+  "v5-receptor-class/hiscl": {
+   "declared_tau_ms": 1.0,
+   "fitted_tau_ms": 1.0000000434857237,
+   "psp_area_ratio_to_v4": 0.9958652484500702,
+   "conductance_area_ratio_to_v4": 0.9999999214068535,
+   "psp_peak_ratio_to_v4": 1.3500211406126488
+  },
+  "v5-receptor-class-upper/nicotinic": {
+   "declared_tau_ms": 5.23,
+   "fitted_tau_ms": 5.229999211496958,
+   "psp_area_ratio_to_v4": 1.0000006645457404,
+   "conductance_area_ratio_to_v4": 0.9999999999815108,
+   "psp_peak_ratio_to_v4": 0.9872839632956584
+  },
+  "v5-receptor-class-upper/gaba_a": {
+   "declared_tau_ms": 13.8,
+   "fitted_tau_ms": 13.799997380120933,
+   "psp_area_ratio_to_v4": 1.0054432752694313,
+   "conductance_area_ratio_to_v4": 0.9999996932703024,
+   "psp_peak_ratio_to_v4": 0.6984980973448616
+  },
+  "v5-receptor-class-upper/glucl": {
+   "declared_tau_ms": 13.8,
+   "fitted_tau_ms": 13.799997380120933,
+   "psp_area_ratio_to_v4": 1.0054432752694313,
+   "conductance_area_ratio_to_v4": 0.9999996932703024,
+   "psp_peak_ratio_to_v4": 0.6984980973448616
+  },
+  "v5-receptor-class-upper/hiscl": {
+   "declared_tau_ms": 6.1,
+   "fitted_tau_ms": 6.099999973987946,
+   "psp_area_ratio_to_v4": 1.000901760523283,
+   "conductance_area_ratio_to_v4": 0.9999999944738975,
+   "psp_peak_ratio_to_v4": 0.9434779678049916
+  }
+ },
+ "F2_triggered": false
+}

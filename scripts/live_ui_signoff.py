@@ -9,11 +9,19 @@ restarts the daemon and never writes under outputs/.
     <venv>/bin/python scripts/live_ui_signoff.py \
         --web http://127.0.0.1:8780/ --daemon http://127.0.0.1:8781 \
         --out docs/receipts/live-signoff
+
+Needs the browser-test extra (selenium) plus Firefox and geckodriver from the system.
+geckodriver is taken from PATH unless --geckodriver is given. A Flatpak Firefox cannot
+be driven by geckodriver (sandboxed binary and profile); use the Mozilla tarball, the
+distro package or the Ubuntu snap. With the snap geckodriver the profile must live under
+~/snap/firefox/common, so that is the default there; otherwise a temporary directory.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import shutil
+import tempfile
 import json
 import time
 import urllib.request
@@ -134,7 +142,11 @@ def main():
     ap.add_argument("--web", default="http://127.0.0.1:8780/")
     ap.add_argument("--daemon", default="http://127.0.0.1:8781")
     ap.add_argument("--out", default="docs/receipts/live-signoff")
-    ap.add_argument("--geckodriver", default="/snap/bin/geckodriver")
+    ap.add_argument("--geckodriver", default=None,
+                    help="geckodriver executable (default: the one on PATH)")
+    ap.add_argument("--profile-root", default=None,
+                    help="where Firefox profiles are created (default: a temporary directory; "
+                         "~/snap/firefox/common/neurofly-signoff for the snap geckodriver)")
     ap.add_argument("--restore-assay", default="open-arena")
     ap.add_argument("--restore-speed", default="1")
     args = ap.parse_args()
@@ -144,7 +156,17 @@ def main():
     R = {"kind": "live-ui-signoff", "started_at": now(), "web_url": args.web, "daemon_url": args.daemon,
          "automated_real_firefox": True, "scenarios": {}, "screenshots": []}
 
-    profile_root = Path.home() / "snap" / "firefox" / "common" / "neurofly-signoff"
+    args.geckodriver = args.geckodriver or shutil.which("geckodriver")
+    if not args.geckodriver:
+        raise SystemExit("geckodriver not found on PATH; install it or pass --geckodriver "
+                         "(a Flatpak Firefox cannot be driven by geckodriver)")
+    if args.profile_root:
+        profile_root = Path(args.profile_root)
+    elif Path(args.geckodriver).resolve().as_posix().startswith("/snap/") or "/snap/" in args.geckodriver:
+        # The snap Firefox only sees its own home area, not the host's /tmp.
+        profile_root = Path.home() / "snap" / "firefox" / "common" / "neurofly-signoff"
+    else:
+        profile_root = Path(tempfile.mkdtemp(prefix="neurofly-signoff-"))
     profile_root.mkdir(parents=True, exist_ok=True)
     opts = Options()
     opts.add_argument("-headless")
@@ -185,7 +207,11 @@ def main():
                 "assay_matches_daemon": s2["arena"]["packetAssay"] == st["active_paradigm"],
                 "clock_advanced": s2["simTime"] != s1["simTime"],
                 "steps_advanced": bool(s2["lastStep"] and s1["lastStep"] and s2["lastStep"] > s1["lastStep"]),
-                "identity_backend_modular": s2["ident"]["backend"] == "modular",
+                # The identity bar must report the backend the daemon is actually
+                # running, whichever it is. (This used to hard-code "modular", which
+                # was true only while the observatory ran the hand-built controller.)
+                "identity_backend_matches_daemon": bool(s2["ident"]["backend"])
+                                                   and s2["ident"]["backend"] == st.get("backend"),
                 "identity_label_present": bool(s2["ident"]["label"]),
                 "achieved_live": bool(s2["achieved"]) and s2["achieved"] != "--",
                 "data_age_live": s2["dataAgeMs"] is not None and s2["dataAgeMs"] < 3000,
@@ -345,8 +371,16 @@ def main():
         time.sleep(2.0)
         pre = c.ui()
         driver.find_element(By.ID, "btnPauseToggle").click()
-        p1, okp = c.wait_for(lambda u: "PAUSED" in (u["runState"] or "").upper()
-                             or "RESUME" in (u["pauseLabel"] or "").upper(), 15)
+        _, okp = c.wait_for(lambda u: "PAUSED" in (u["runState"] or "").upper()
+                            or "RESUME" in (u["pauseLabel"] or "").upper(), 15)
+        # The PAUSED label can appear one frame before the last in-flight frame is
+        # painted (seen on slow connectome frames: server paused at step 10353, UI
+        # still showing 10352).  Take the first frozen sample only once the page
+        # shows the server's paused step (bounded wait); a clock that keeps moving
+        # after that is still caught by p1 != p2 below.
+        server_paused_step = c.status().get("total_steps")
+        p1, settled = c.wait_for(lambda u: u["lastStep"] is not None and server_paused_step is not None
+                                 and u["lastStep"] >= server_paused_step, 10)
         time.sleep(4.0)
         p2 = c.ui()
         paused_status = c.status()
@@ -358,11 +392,16 @@ def main():
             "before": pre, "paused_first": p1, "paused_after_4s": p2, "resumed": r1,
             "server_paused": paused_status["paused"], "server_resumed_paused": resumed_status["paused"],
             "server_steps_paused": paused_status["total_steps"],
+            "server_step_when_paused": server_paused_step, "ui_settled_on_server_step": settled,
             "checks": {"ui_shows_paused": okp,
                        "server_paused": paused_status["paused"] is True,
                        "steps_frozen": p1["lastStep"] == p2["lastStep"],
+                       "ui_reached_server_paused_step": settled,
+                       "server_steps_frozen": paused_status["total_steps"] == server_paused_step,
                        "clock_frozen": p1["simTime"] == p2["simTime"],
-                       "metrics_retained": bool(p2["ident"]["backend"] == "modular" and p2["step"] not in (None, "")),
+                       "metrics_retained": bool(p2["ident"]["backend"]
+                                                and p2["ident"]["backend"] == paused_status.get("backend")
+                                                and p2["step"] not in (None, "")),
                        "not_disconnected_flag": "DISCONNECTED" not in (p2["pill"] or ""),
                        "resumed": okr, "server_running_again": resumed_status["paused"] is False,
                        "no_errors": not r1["errors"] and not r1["consoleErrors"]}}
@@ -376,7 +415,7 @@ def main():
         time.sleep(4.0)
         final_ui = c.ui()
         final_status = c.status()
-        R["screenshots"].append(c.shot(out, "08-restored-open-arena-1x.png"))
+        R["screenshots"].append(c.shot(out, f"08-restored-{args.restore_assay}-{args.restore_speed}x.png"))
         R["scenarios"]["restore"] = {
             "target": {"assay": args.restore_assay, "sim_speed": float(args.restore_speed), "paused": False},
             "ui": final_ui,

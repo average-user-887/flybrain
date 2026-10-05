@@ -58,9 +58,9 @@ curl -X POST "$URL/api/command" \
   abusive clients. Bind the daemon to `--host 127.0.0.1` and let the proxy
   forward to it.
 - **The viewer still POSTs.** `web/app.js` (`DaemonBridgeClient`) sends
-  commands without a token and hard-codes a LAN address in its candidate
-  URL list; a public viewer build must drop the LAN address and handle `403`
-  gracefully (see `docs/RELEASE_AUDIT.md`).
+  commands without a token. Its candidate URL list is now only the page origin,
+  the page host and localhost (the LAN address was removed); a public viewer
+  build must still handle `403` gracefully (see `docs/RELEASE_AUDIT.md`).
 - **Telemetry is not redacted.** The stream contains only simulation state
   (fly position, sensory values, weights summary), never file paths or
   host details, so nothing needs redaction today. Keep it that way when

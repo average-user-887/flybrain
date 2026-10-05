@@ -37,10 +37,12 @@ def main():
     from experiment_registry import ExperimentRegistry, SharedGraph
     import pyarrow.feather as feather
 
-    report = dict(host=platform.node(), platform=platform.platform(), python=platform.python_version(),
+    from neurofly.privacy import host_description, portable_path, redact_local
+
+    report = dict(host=host_description(), platform=platform.platform(), python=platform.python_version(),
                   started_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), rss_mib_start=rss_mib())
     clock = time.perf_counter()
-    shared = SharedGraph.load()
+    shared = SharedGraph.load_for_dynamics()
     report['graph_verify_and_load_s'] = time.perf_counter() - clock
     report['rss_mib_after_graph_load'] = rss_mib()
     report['identity'] = shared.identity.to_dict()
@@ -75,7 +77,7 @@ def main():
         path = registry.checkpoint(world_state={'note': 'measurement; no arena attached'})
         entry['checkpoint_write_s'] = time.perf_counter() - clock
         entry['checkpoint_bytes'] = path.stat().st_size
-        entry['checkpoint_path'] = str(path)
+        entry['checkpoint_path'] = portable_path(path)
         clock = time.perf_counter()
         registry.activate('buridan', backend)
         entry['switch_to_fresh_other_s'] = time.perf_counter() - clock
@@ -102,6 +104,7 @@ def main():
     report['rss_mib_end'] = rss_mib()
     report['ru_maxrss_mib'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    report = redact_local(report)
     args.out.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

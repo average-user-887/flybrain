@@ -184,9 +184,12 @@ class Predator:
         cruise_speed: float = 0.9,
         sprint_speed: float = 2.4,
         strike_radius: float = 8.0,
-        vision_radius: float = 35.0
+        vision_radius: float = 35.0,
+        rng: Optional[random.Random] = None
     ):
         self.id = predator_id
+        # Own generator: the module-level ``random`` made seeded runs irreproducible.
+        self.rng = rng if rng is not None else random.Random(predator_id)
         self.pos = Position(x, y)
         self.heading = float(heading)
         self.cruise_speed = cruise_speed
@@ -278,7 +281,7 @@ class Predator:
             self.stalk_timer = 0.0
             self.target_fly_id = None
             self.speed = self.cruise_speed * 0.7
-            self.heading = (self.heading + random.uniform(-0.15, 0.15)) % (2.0 * math.pi)
+            self.heading = (self.heading + self.rng.uniform(-0.15, 0.15)) % (2.0 * math.pi)
 
         # Update position
         self.pos.x += self.speed * math.cos(self.heading) * dt
@@ -786,7 +789,11 @@ class Arena:
         for p_idx in range(self.num_predators):
             px = self.rng.uniform(15.0, self.width - 15.0)
             py = self.rng.uniform(15.0, self.height - 15.0)
-            self.predators.append(Predator(px, py, heading=self.rng.uniform(0, 2 * math.pi), predator_id=p_idx))
+            # Seeded from (seed, index) without drawing from self.rng, so fly-side
+            # random streams are unchanged by this generator.
+            p_rng = random.Random(None if seed is None else f"predator|{seed}|{p_idx}")
+            self.predators.append(Predator(px, py, heading=self.rng.uniform(0, 2 * math.pi), predator_id=p_idx,
+                                           rng=p_rng))
 
         # Backward compatibility alias for single-fly callers
         self.fly: FlyState = self.flies[0]
@@ -1256,6 +1263,18 @@ class Arena:
         # Tethered: speed 0, reported, never the modular walking drive (WP5 section 8).
         return float(block.get('yaw_rad_s', 0.0)), 0.0, 'OPTOMOTOR-TETHERED'
 
+    def _gf_source(self, fly) -> str:
+        """Where a Giant Fiber escape comes from: 'connectome' (a DNp01 spike in a
+        graph, local or rpc) or 'geometric' (the modular/surrogate baseline, whose
+        paradigm fires the GF at a fixed looming size)."""
+        if self.graph_controller is not None:
+            return 'connectome'
+        bridge = getattr(fly, 'connectome_bridge', None)
+        if (getattr(fly, 'brain_type', 'modular') == 'connectome' and bridge is not None
+                and getattr(bridge, 'mode', None) == 'rpc'):
+            return 'connectome'
+        return 'geometric'
+
     def compute_steering(
         self,
         sensory: Dict[str, float],
@@ -1576,6 +1595,9 @@ class Arena:
                     fly.speed = math.copysign(math.hypot(new_vx, new_vy), fly.speed)
 
                 # 2. Query paradigm step
+                gf_source = self._gf_source(fly)
+                if hasattr(self.paradigm, 'gf_source'):
+                    self.paradigm.gf_source = gf_source
                 paradigm_res = self.paradigm.step(fly, dt)
 
                 # 3. Sample multi-modal stimuli (temperature, wind, odor, landmarks, laser, grating)
@@ -1669,10 +1691,20 @@ class Arena:
 
                 # The assay's expanding disk is an actual visual input, not merely
                 # a metric counter. A GF event triggers a bounded motor escape.
-                if paradigm_res.get('gf_spike') and not fly.ablate_lc4:
+                # With a connectome controller the GF event is a DNp01 spike in the
+                # graph (controller state ESCAPE); the paradigm's geometric size
+                # threshold is the modular baseline's GF model only.
+                if gf_source == 'connectome':
+                    gf_event = state == 'ESCAPE'
+                    if gf_event and hasattr(self.paradigm, 'record_gf_spike'):
+                        self.paradigm.record_gf_spike()
+                else:
+                    gf_event = bool(paradigm_res.get('gf_spike'))
+                if gf_event and not fly.ablate_lc4:
+                    if getattr(fly, 'assay_escape_remaining', 0.0) <= 0:
+                        fly.escapes_performed += 1
+                        self.total_escapes += 1
                     fly.assay_escape_remaining = 0.2
-                    fly.escapes_performed += 1
-                    self.total_escapes += 1
                 halted = bool(getattr(fly, 'motor_halted', False))
                 if getattr(fly, 'assay_escape_remaining', 0.0) > 0:
                     fly.assay_escape_remaining = max(0.0, fly.assay_escape_remaining - dt)

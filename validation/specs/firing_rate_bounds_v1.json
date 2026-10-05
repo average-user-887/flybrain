@@ -1,0 +1,228 @@
+{
+ "schema": "flybrain.firing-rate-bounds.v1",
+ "id": "firing-rate-bounds-v1",
+ "declared_at": "2026-09-24",
+ "meaning": "Plausible in-vivo adult Drosophila spike-rate ranges (Hz, population mean per cell over the window). spontaneous_hz applies to baseline windows, driven_hz to stimulus windows. A bound is a sanity range, not a target.",
+ "bounds": {
+  "ORN": {
+   "cell_types": "ORN_*",
+   "spontaneous_hz": [
+    0.5,
+    50.0
+   ],
+   "driven_hz": [
+    0.0,
+    300.0
+   ],
+   "verified": false,
+   "basis": "spontaneous: Hallem 2006 empty-neuron SFR 1-47 Hz for 24 Ors, read from DoOR.data (verified); driven ceiling: Hallem 2004 value 245 spikes/s for Or85b to OCT via DoOR.data (unverified provenance)",
+   "sources": [
+    "hallem2006",
+    "munch2016"
+   ]
+  },
+  "PN": {
+   "cell_types": "uniglomerular projection neurons",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    250.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. Wilson et al. 2004; Bhandawat et al. 2007 (doi 10.1038/nn1976).",
+   "sources": []
+  },
+  "KC": {
+   "cell_types": "Kenyon cells",
+   "spontaneous_hz": [
+    0.0,
+    1.0
+   ],
+   "driven_hz": [
+    0.0,
+    20.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. Near-silent at rest, a few spikes per odour: Turner, Bazhenov & Laurent 2008 (doi 10.1152/jn.01283.2007).",
+   "sources": []
+  },
+  "MBON": {
+   "cell_types": "MBONs",
+   "spontaneous_hz": [
+    0.0,
+    30.0
+   ],
+   "driven_hz": [
+    0.0,
+    150.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. Hige et al. 2015.",
+   "sources": []
+  },
+  "DNa02": {
+   "cell_types": "DNa02",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    100.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. Rayshubskiy et al. 2025 (rates in figures only).",
+   "sources": [
+    "rayshubskiy2025"
+   ]
+  },
+  "GF": {
+   "cell_types": "DNp01",
+   "spontaneous_hz": [
+    0.0,
+    1.0
+   ],
+   "driven_hz": [
+    0.0,
+    50.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. The GF is silent at rest and fires about one spike per escape (von Reyn 2014, abstract-level).",
+   "sources": [
+    "vonreyn2014"
+   ]
+  },
+  "LC_looming": {
+   "cell_types": "LC4, LPLC2",
+   "spontaneous_hz": [
+    0.0,
+    10.0
+   ],
+   "driven_hz": [
+    0.0,
+    150.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. von Reyn 2017; Ache 2019.",
+   "sources": [
+    "vonreyn2017",
+    "ache2019"
+   ]
+  },
+  "LPTC": {
+   "cell_types": "HS, H2 (lobula plate tangential cells)",
+   "spontaneous_hz": [
+    0.0,
+    20.0
+   ],
+   "driven_hz": [
+    0.0,
+    50.0
+   ],
+   "verified": false,
+   "basis": "UNVERIFIED: recalled or secondary; not read from the source. Wide soft bound until a library check. HS/VS respond with graded potentials and few spikes (Schnell et al. 2010; Joesch et al. 2008); the LIF proxy can only spike, so this bound tests that it does not spike at high rates.",
+   "sources": []
+  },
+  "brain_mean": {
+   "cell_types": "all neurons",
+   "spontaneous_hz": [
+    0.0,
+    5.0
+   ],
+   "driven_hz": [
+    0.0,
+    5.0
+   ],
+   "verified": false,
+   "basis": "DESIGN CHOICE, not a literature value: excludes the v1 runaway (~6 Hz mean, 1e6 spikes/s). Shiu 2024 used 0 Hz baselines and warns absolute rates are unreliable.",
+   "sources": [
+    "shiu2024"
+   ]
+  },
+  "brain_max_single_neuron": {
+   "cell_types": "any neuron",
+   "spontaneous_hz": [
+    0.0,
+    300.0
+   ],
+   "driven_hz": [
+    0.0,
+    300.0
+   ],
+   "verified": false,
+   "basis": "DESIGN CHOICE: no neuron sustained above 300 Hz over a window, well below the 1/t_ref ~ 450 Hz refractory ceiling where LIF output saturates.",
+   "sources": []
+  }
+ },
+ "citations": {
+  "hallem2006": {
+   "citation": "Hallem EA, Carlson JR (2006) Coding of odors by a receptor repertoire. Cell 125:143-160",
+   "doi": "10.1016/j.cell.2006.01.050",
+   "doi_status": "matches DoOR.data records; not resolved online",
+   "read": "data via DoOR.data (column Hallem.2006.EN)",
+   "values_read": [
+    "spontaneous firing of 24 Ors in the empty-neuron system, 1-47 Hz (SFR row)",
+    "OCT and MCH were NOT in the 110-odour set"
+   ]
+  },
+  "munch2016": {
+   "citation": "Münch D, Galizia CG (2016) DoOR 2.0 - Comprehensive mapping of Drosophila melanogaster odorant responses. Sci Rep 6:21841",
+   "doi": "10.1038/srep21841",
+   "doi_status": "not resolved online (matches DoOR.data records)",
+   "read": "data: github.com/ropensci/DoOR.data commit db323a496577c4b4a72b5c2fcd1859e07521ffb5, package 2.0.1.9001",
+   "values_read": [
+    "consensus responses (0-1 per receptor, spontaneous-subtracted as reset_sfr does) for 3-octanol and 4-methylcyclohexanol; receptor -> glomerulus mapping (sources/door2_orn_responses_oct_mch_bza.json)"
+   ]
+  },
+  "rayshubskiy2025": {
+   "citation": "Rayshubskiy A, et al., Wilson RI (2025) eLife 13:RP102230 (preprint bioRxiv 2020.04.04.024703)",
+   "doi": "10.7554/eLife.102230",
+   "doi_status": "resolved",
+   "read": "text; no absolute DNa02 firing rates in the text (figures only)",
+   "values_read": [
+    "DNa02 activity predicts and unilateral activation evokes ipsilateral turning (decoder convention, inherited from WP5)"
+   ]
+  },
+  "vonreyn2014": {
+   "citation": "von Reyn CR, et al., Card GM (2014) A spike-timing mechanism for action selection. Nat Neurosci 17:962-970",
+   "doi": "10.1038/nn.3741",
+   "doi_status": "resolved",
+   "read": "abstract and Fig. 1 caption only",
+   "values_read": [
+    "short/long takeoff split at 6.87 ms wing-raise+jump duration; pooled r/v 14, 40, 70 ms: 95 short vs 355 long (n = 450)",
+    "short-mode fraction declines linearly with log(r/v): slope -19.27 (units as printed), R^2 = 0.903; n = 108, 115, 202, 133, 102 flies at r/v 8, 14, 40, 70, 140 ms",
+    "a GF spike forces a short-mode takeoff; the GF has a higher activation threshold than the parallel pathways (abstract)"
+   ]
+  },
+  "vonreyn2017": {
+   "citation": "von Reyn CR, et al., Card GM (2017) Feature integration drives probabilistic behavior in the Drosophila escape response. Neuron 94:1190-1204",
+   "doi": "10.1016/j.neuron.2017.05.036",
+   "doi_status": "resolved",
+   "read": "abstract only",
+   "values_read": [
+    "LC4 conveys angular velocity, LPLC2 angular size; the GF integrates them (qualitative; encoder assumption)"
+   ]
+  },
+  "ache2019": {
+   "citation": "Ache JM, et al., Card GM (2019) Neural basis for looming size and velocity encoding in the Drosophila giant fiber escape pathway. Curr Biol 29:1073-1081",
+   "doi": "10.1016/j.cub.2019.01.079",
+   "doi_status": "resolved",
+   "read": "abstract only",
+   "values_read": [
+    "LC4 (velocity) and LPLC2 (size) inputs to the GF, summed approximately linearly (qualitative; encoder assumption)"
+   ]
+  },
+  "shiu2024": {
+   "citation": "Shiu PK, et al. (2024) A Drosophila computational brain model reveals sensorimotor processing. Nature 634:210-219",
+   "doi": "10.1038/s41586-024-07763-9",
+   "doi_status": "resolved",
+   "read": "Nature page and bioRxiv full text",
+   "values_read": [
+    "whole-brain LIF with 0 Hz baseline for every neuron; authors state absolute firing-rate predictions are unlikely to be accurate"
+   ]
+  }
+ }
+}

@@ -10,6 +10,9 @@ the active one and releases its mutable state; inactive instances never step.
 Checkpoints are NumPy ``.npz`` files without pickle, written to a temporary
 file, fsynced and renamed, then published through ``CURRENT.json``.  An
 interrupted write leaves ``CURRENT.json`` pointing at the last valid version.
+After each published checkpoint only the newest ``keep_checkpoints`` versions of
+that instance stay on disk (default 20, env ``NEUROFLY_KEEP_CHECKPOINTS``; 0
+keeps all).  The version ``CURRENT.json`` names is never removed.
 
 Modular experiment-brain checkpoints (``experiment_brains`` JSON) are a
 different format and are refused, never reinterpreted as graph weights.
@@ -31,7 +34,7 @@ from brainlab.brain import Brain, STATE_ARRAYS
 from brainlab.graph_identity import (GraphIdentity, GraphUnavailable, active_dynamics,
                                      active_dynamics_version, synthetic_test_graph, verify_graph)
 from provenance import (BACKENDS, GRAPH_BACKENDS, BackendError, RunManifest, atomic_write_bytes,
-                        restore_rng, rng_state, source_revision)
+                        resolve_keep_checkpoints, restore_rng, rng_state, source_revision)
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_REGISTRY_ROOT = ROOT / 'outputs/registry'
@@ -168,6 +171,11 @@ class GraphInstance:
         self.manifest = manifest
         self.rng = np.random.default_rng(seed)
         self.brain = Brain(arrays=self.shared.arrays, validate=False)
+        identity = self.shared.identity
+        if (self.brain.dynamics == 'v3' and not identity.synthetic
+                and 'v3-modulatory-only' not in identity.dataset):
+            raise BackendError('v3 brains need the v3 transmitter-policy weights; load the graph with '
+                               'SharedGraph.load_for_dynamics() (or select v1 explicitly)')
         self.step_index = 0
         self.world_state: dict = {}
         self.checkpoint_version = 0
@@ -208,16 +216,28 @@ class GraphInstance:
     def step(self, currents, duration_ms: float, *, target: Optional[int] = None) -> StepResult:
         if self.brain is None or self.registry.active is not self:
             raise RuntimeError(f'Instance {self.instance_id} is not active; inactive instances never step')
-        counts, _ = self.brain.step(currents, duration_ms)
-        result = StepResult(step=self.step_index, counts=counts)
         if self.rule is not None and self.registry.learning_enabled:
-            try:
-                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post], full_counts=counts)
-            except TypeError:
-                self.rule.update(self.plastic_delta, counts[self._pre], counts[self._post])
-            self._working_weight[self.plastic_edges] = (
-                self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
-            self.brain.update_weights(self.plastic_edges)
+            # The rule is declared per ``rule.dt`` of simulated time, so a longer
+            # control step is split into rule-sized brain steps, each followed by
+            # one rule update and a weight refresh.
+            n_sub = self.rule.substeps(duration_ms) if hasattr(self.rule, 'substeps') else 1
+            sub_ms = duration_ms / n_sub
+            counts = None
+            for _ in range(n_sub):
+                sub_counts, _ = self.brain.step(currents, sub_ms)
+                sub_counts = np.array(sub_counts, copy=True)
+                counts = sub_counts if counts is None else counts + sub_counts
+                try:
+                    self.rule.update(self.plastic_delta, sub_counts[self._pre], sub_counts[self._post],
+                                     full_counts=sub_counts)
+                except TypeError:
+                    self.rule.update(self.plastic_delta, sub_counts[self._pre], sub_counts[self._post])
+                self._working_weight[self.plastic_edges] = (
+                    self.shared.arrays['weight'][self.plastic_edges] + self.plastic_delta)
+                self.brain.update_weights(self.plastic_edges)
+        else:
+            counts, _ = self.brain.step(currents, duration_ms)
+        result = StepResult(step=self.step_index, counts=counts)
         if self.readout is not None:
             from brainlab.learning import features_from_counts
             features = features_from_counts(counts, 0.0, slice(None))
@@ -275,7 +295,8 @@ class GraphInstance:
 # ---------------------------------------------------------------------------
 class ExperimentRegistry:
     def __init__(self, shared: SharedGraph, root: Path = DEFAULT_REGISTRY_ROOT, *, test_mode: bool = False,
-                 plasticity_rule=None, learning_enabled: bool = True):
+                 plasticity_rule=None, learning_enabled: bool = True,
+                 keep_checkpoints: Optional[int] = None):
         if shared.identity.synthetic and not test_mode:
             raise BackendError('A synthetic graph can only back a registry in explicit test mode')
         if plasticity_rule is not None and getattr(plasticity_rule, 'test_only', False) and not test_mode:
@@ -285,6 +306,7 @@ class ExperimentRegistry:
         self.test_mode = test_mode
         self.plasticity_rule = plasticity_rule
         self.learning_enabled = learning_enabled
+        self.keep_checkpoints = resolve_keep_checkpoints(keep_checkpoints)
         self.active: Optional[GraphInstance] = None
         self.root.mkdir(parents=True, exist_ok=True)
         self.index = self._read_index()
@@ -412,7 +434,40 @@ class ExperimentRegistry:
         atomic_write_bytes(directory.parent / 'CURRENT.json', (json.dumps(pointer, indent=2) + '\n').encode())
         instance.checkpoint_version = version
         self._event(instance, 'checkpoint', version=version, step=instance.step_index, sha256=pointer['sha256'])
+        self.prune_checkpoints(instance.instance_id)
         return path
+
+    def prune_checkpoints(self, instance_id: str) -> list:
+        """Delete all but the newest ``keep_checkpoints`` versions of one instance.
+
+        Runs only after ``CURRENT.json`` is published, and never deletes the
+        version it names, so resume behaviour is unchanged.  Returns the removed paths.
+        """
+        if not self.keep_checkpoints:
+            return []
+        pointer = self.current_pointer(instance_id)
+        if pointer is None:
+            return []
+        directory = self.instance_dir(instance_id) / 'checkpoints'
+        versions = []
+        for path in directory.glob('ckpt-*.npz'):
+            try:
+                versions.append((int(path.stem[len('ckpt-'):]), path))
+            except ValueError:
+                continue
+        # Only versions up to the published one: a higher number is an unpublished
+        # write that the next checkpoint overwrites.
+        published = sorted((v for v in versions if v[0] <= pointer['version']), reverse=True)
+        removed = []
+        for version, path in published[self.keep_checkpoints:]:
+            if version == pointer['version']:
+                continue
+            try:
+                path.unlink()
+                removed.append(path)
+            except FileNotFoundError:
+                pass
+        return removed
 
     def read_checkpoint(self, instance_id: str, version: Optional[int] = None):
         entry = self.index['instances'][instance_id]
