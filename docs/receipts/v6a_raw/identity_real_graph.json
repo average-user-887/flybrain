@@ -1,0 +1,84 @@
+{
+ "spec": "docs/LIF_DYNAMICS_SPEC.md#10.9 a3",
+ "simulated_ms": 200.0,
+ "gpu": {
+  "cuda_device_name": "NVIDIA GeForce GTX 1660 Ti",
+  "cuda_pci_bus_id": "0000:07:00.0",
+  "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+  "CUDA_VISIBLE_DEVICES": "1",
+  "pid": 1211423,
+  "nvidia_smi_gpus": "0, Quadro P620, 00000000:04:00.0, 1121 MiB, 2048 MiB\n1, NVIDIA GeForce GTX 1660 Ti, 00000000:07:00.0, 721 MiB, 6144 MiB",
+  "nvidia_smi_compute_apps": "183975, 408 MiB, 00000000:07:00.0\n1211423, 308 MiB, 00000000:07:00.0"
+ },
+ "v5_primary_vs_v6a_v5linear": {
+  "v": {
+   "bit_identical": false,
+   "max_abs_diff": 1.1444091796875e-05
+  },
+  "g": {
+   "bit_identical": false,
+   "max_abs_diff": 1.52587890625e-05
+  },
+  "refractory": {
+   "bit_identical": true,
+   "max_abs_diff": 0.0
+  },
+  "rel_ring": {
+   "bit_identical": false,
+   "max_abs_diff": 7.450580596923828e-09
+  }
+ },
+ "v5_primary_vs_v5_repeat": {
+  "v": {
+   "bit_identical": false,
+   "max_abs_diff": 1.1444091796875e-05
+  },
+  "g": {
+   "bit_identical": false,
+   "max_abs_diff": 1.52587890625e-05
+  },
+  "refractory": {
+   "bit_identical": true,
+   "max_abs_diff": 0.0
+  },
+  "rel_ring": {
+   "bit_identical": false,
+   "max_abs_diff": 7.450580596923828e-09
+  }
+ },
+ "v5_S0_vs_v6a_v5linear_S0": {
+  "v": {
+   "bit_identical": false,
+   "max_abs_diff": 1.1444091796875e-05
+  },
+  "g": {
+   "bit_identical": false,
+   "max_abs_diff": 1.52587890625e-05
+  },
+  "refractory": {
+   "bit_identical": true,
+   "max_abs_diff": 0.0
+  },
+  "rel_ring": {
+   "bit_identical": false,
+   "max_abs_diff": 7.450580596923828e-09
+  }
+ },
+ "spikes": {
+  "v5_primary": 230099,
+  "v6a_v5linear_primary": 230099,
+  "v5_primary_repeat": 230099,
+  "v5_S0": 41004,
+  "v6a_v5linear_S0": 41004
+ },
+ "wall_s": {
+  "v5_primary": 8.019268326999736,
+  "v6a_v5linear_primary": 7.983379523997428,
+  "v5_primary_repeat": 7.8479607939952984,
+  "v5_S0": 13.416900218013325,
+  "v6a_v5linear_S0": 13.205681006991654
+ },
+ "criterion": "v6a with the v5-linear table reproduces v5: identical spike counts and max |dV| no larger than max(v5 run-to-run difference, 1e-4 mV)",
+ "tolerance_mV": 0.0001,
+ "passed": true
+}
