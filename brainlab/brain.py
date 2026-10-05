@@ -58,6 +58,51 @@ STATE_SCALARS = ('cursor', 'total_spikes', 'sim_ms')
 GRADED_VERSIONS = ('v4', 'v5')
 
 
+def resolve_backend(dynamics: str, backend=None) -> str:
+    """Where a Brain with these dynamics runs: 'cuda' or 'cpu' (or an explicit request).
+
+    ``backend`` (else ``NEUROFLY_BRAIN_BACKEND``, else ``'auto'``).  ``'auto'``
+    uses the GPU when a usable CUDA build exists for the dynamics: CuPy for the
+    graded versions v4/v5, numba.cuda or CuPy for v3; v1/v2 always run on the CPU.
+    """
+    requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
+    if requested == 'auto':
+        if dynamics in GRADED_VERSIONS:
+            from .cupy_v4 import cupy_available
+            requested = 'cuda' if cupy_available() else 'cpu'
+        else:
+            from .cuda_engine import cuda_available
+            requested = 'cuda' if dynamics == 'v3' and cuda_available() else 'cpu'
+    return requested
+
+
+_GPU_NAME = None
+
+
+def gpu_name():
+    """Name of the CUDA device a 'cuda' Brain uses (device 0 of the visible set), or None.
+
+    Queries device properties only; it does not allocate on the device.  Cached.
+    """
+    global _GPU_NAME
+    if _GPU_NAME is None:
+        name = None
+        try:
+            import cupy
+            name = cupy.cuda.runtime.getDeviceProperties(0)['name']
+        except Exception:
+            try:
+                from numba import cuda
+                devices = cuda.list_devices()
+                name = devices[0].name if len(devices) else None
+            except Exception:
+                name = None
+        if isinstance(name, bytes):
+            name = name.decode('utf-8', 'replace')
+        _GPU_NAME = name or ''
+    return _GPU_NAME or None
+
+
 def _v3_policy_weight(arrays: dict) -> np.ndarray:
     """The v3 fast weights for a graph loaded from a path.
 
@@ -191,17 +236,25 @@ class Brain:
             self.graded_idx = np.ascontiguousarray(np.flatnonzero(self.graded), dtype=np.int64)
             self.rel_ring = np.zeros(self.queue.shape, dtype=np.float32)
         requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
-        if requested == 'auto':
-            if self.dynamics in GRADED_VERSIONS:
-                from .cupy_v4 import cupy_available
-                requested = 'cuda' if cupy_available() else 'cpu'
-            else:
-                from .cuda_engine import cuda_available
-                requested = 'cuda' if self.dynamics == 'v3' and cuda_available() else 'cpu'
-        self.backend = requested
+        self.backend = resolve_backend(self.dynamics, backend)
+        self.backend_note = 'requested' if requested != 'auto' else 'auto'
+        try:
+            self._setup_device()
+        except Exception as exc:
+            if requested != 'auto' or self.backend != 'cuda':
+                raise
+            # 'auto' picked a GPU that passed the probe but failed on the real
+            # graph: run on the CPU and say why, never crash or half-initialise.
+            reason = f'{type(exc).__name__}: {exc}'.splitlines()[0][:300]
+            log.warning('brainlab: GPU set-up failed, LIF %s falls back to the CPU (%s)', self.dynamics, reason)
+            self._gpu = None
+            self.backend = 'cpu'
+            self.backend_note = f'auto; GPU set-up failed ({reason})'
         if self.backend not in _announced:
             _announced.add(self.backend)
             log.info('brainlab: LIF %s running on the %s backend', self.dynamics, self.backend.upper())
+
+    def _setup_device(self):
         if self.backend == 'cuda' and self.dynamics == 'v5':
             from .cupy_v5 import CupyV5State
             self._gpu = CupyV5State(self.ptr, self.post, self.weight, n=self.n,
