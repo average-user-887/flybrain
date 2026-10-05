@@ -1029,3 +1029,23 @@ v6b's question and is not acted on here.
 * **Nothing here licenses a retune.** G, the anchor, the default, the bands and
   the gate are as locked. The default dynamics stays v3. v6a is selectable as
   `Brain(..., dynamics='v6a')`.
+
+### 15.9 Interpretation note (added 5 October 2026, at the reviewer's request)
+
+This note changes no number, parameter, gate or the locked declaration. It
+fixes how §13–§15 may be read.
+
+* **v6a's motion verdict was NOT run.** The declared stop rule ends the protocol
+  when the amplitude (stage) gate fails, and it failed in both arms (primary
+  and K0). v6a therefore has *no* motion result, positive or negative. "No
+  direction selectivity" is not a v6a finding; the v6a finding is that T4/T5
+  stay at 0.3–0.5 mV in this model.
+* **The v3, v4, v5 and v6a negatives are model-specific.** Each is a statement
+  about one declared LIF proxy (its membrane constants, the 0.275 mV
+  per-synapse weight scale, its graded-release function, its kinetics and its
+  gains) driven through the incomplete lamina of this connectome release. None
+  is evidence that the biological fly connectome cannot compute motion. They
+  locate where *this model* loses the signal, and they say which measured
+  parameters are missing (§15.8). They do not test the connectome itself.
+* v6a stays a non-default, declared version (`dynamics='v6a'`, its own pin). The
+  default dynamics stays v3, and v1–v5 are unchanged.
