@@ -7,6 +7,35 @@ never edited.
 
 ---
 
+## 2026-10-05 (latest) — Personal data in git history: no rewrite
+
+**Context.** An external audit on 5 October 2026 found personal data in the public
+repository. The orchestrator verified it.
+- **In the current tree:** a local username, absolute home paths, a hostname and
+  internal share names. These are being removed going forward, with a CI guard to
+  stop them coming back.
+- **In git history, which cannot be cleaned without a rewrite:**
+  - the owner's personal email on 27 commits, all merges made in GitHub's web
+    interface;
+  - a local machine email on 194 commits;
+  - private Claude session links in 105 commit messages.
+
+**Ruling.** The published history is **not rewritten**.
+
+Rewriting would change every commit ID the project's receipts, pins and test reports
+cite. It also could not truly erase anything: old pull-request commits stay reachable
+on GitHub, and existing clones keep their copies.
+
+**Instead:**
+- the owner turned on GitHub email privacy, so web merges no longer expose the
+  personal address;
+- the repository's commit identity is now the GitHub noreply address;
+- the current tree is sanitised, and a guard blocks reintroduction.
+
+Approved by the owner on 5 October 2026 ("no rewrite, email privacy is on").
+
+---
+
 ## 2026-10-05 (later) — The scan stays the scan. **Supersedes Ruling 1 below.**
 
 > "We just need to make sure we're not contaminating the brain scan with our made up
