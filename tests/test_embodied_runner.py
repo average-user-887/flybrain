@@ -141,3 +141,53 @@ def test_cli_refuses_a_taken_output_directory_before_any_import(tmp_path):
     fresh = tmp_path / "fresh"
     assert cli._check_output_dir(fresh) == fresh
     assert not fresh.exists()
+
+
+class IdentifiedGraph(FakeGraph):
+    """Fake graph that also sends the static identity block the real server sends."""
+
+    IDENTITY = {
+        "brain_backend": "cpu",
+        "graph_sha256": "a" * 64,
+        "synthetic": False,
+        "transmitter_policy": "v3-modulatory-only",
+        "transmitter_policy_report": {"note": "x" * 400},
+    }
+
+    def step(self, sensory, duration_ms=2.0):
+        return {**super().step(sensory, duration_ms), **self.IDENTITY}
+
+
+def test_identity_block_is_hoisted_into_the_manifest(tmp_path):
+    """D7: telemetry format 2 writes identity_sha256, not the whole block."""
+    run = tmp_path / "run"
+    summary = run_embodied(_config(run), IdentifiedGraph(), FakeBody(), decoder=DNa02CPGDecoder())
+    assert summary["telemetry_format_version"] == 2
+    assert summary["schema"] == "neurofly-embodied-summary-v2"
+
+    manifest = json.loads((run / "manifest.json").read_text())
+    assert manifest["telemetry_format_version"] == 2
+    identity = manifest["telemetry_identity"]
+    assert identity["values"] == IdentifiedGraph.IDENTITY
+    assert len(identity["identity_sha256"]) == 64
+
+    text = (run / "telemetry.jsonl").read_text()
+    assert "transmitter_policy_report" not in text
+    rows = [json.loads(line) for line in text.splitlines()]
+    assert rows and all(row["schema"] == "neurofly-embodied-step-v2" for row in rows)
+    for row in rows:
+        assert row["neural"]["identity_sha256"] == identity["identity_sha256"]
+        for key in IdentifiedGraph.IDENTITY:
+            assert key not in row["neural"]
+
+
+def test_identity_that_changes_mid_run_fails_the_run(tmp_path):
+    class Drifting(IdentifiedGraph):
+        def step(self, sensory, duration_ms=2.0):
+            reply = super().step(sensory, duration_ms)
+            if len(self.inputs) > 1:
+                reply["graph_sha256"] = "b" * 64
+            return reply
+
+    with pytest.raises(RuntimeError, match="identity changed mid-run"):
+        run_embodied(_config(tmp_path / "drift"), Drifting(), FakeBody(), decoder=DNa02CPGDecoder())

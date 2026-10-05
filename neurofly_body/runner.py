@@ -30,6 +30,55 @@ from .interfaces import BodyBackend, NeuralBackend
 # timing.jsonl so telemetry.jsonl depends only on the seed, config and code.
 WALL_CLOCK_FIELDS = ("elapsed_ms",)
 
+# Telemetry format 2 (D7).  Format 1 re-serialised the whole static neural
+# identity block into every 2 ms record: about 2.1 kB of the 8.1 kB record, or
+# 1.0 MB of every 4.0 MB simulated second, repeating 500 times per second what
+# the manifest already states once.  Format 2 keeps that block in
+# manifest.json under ``telemetry_identity.values`` and writes a single
+# ``identity_sha256`` per record instead.
+#
+# This is a deliberate, documented format break: a format-2 run has a
+# different ``trajectory_sha256`` from the format-1 run of the same seed and
+# arguments.  Replay is unaffected, because ``replay-check`` compares two runs
+# made by the same code.  Format-1 hashes recorded in older receipts are not
+# comparable with format-2 hashes.
+TELEMETRY_FORMAT_VERSION = 2
+
+# The static identity fields of ``ConnectomeServer.identity_fields()``.  A
+# backend that does not report one simply has it absent from both blocks.
+NEURAL_IDENTITY_FIELDS = (
+    "backend",
+    "brain_backend",
+    "controller_version",
+    "engineered_assistance_enabled",
+    "graph_sha256",
+    "io_map_sha256",
+    "label",
+    "lif_dynamics_pin",
+    "lif_dynamics_version",
+    "neuron_map_sha256",
+    "optomotor_io_map_sha256",
+    "sensory_map_sha256",
+    "synthetic",
+    "transmitter_policy",
+    "transmitter_policy_report",
+    "locomotion_dn_map_sha256",
+    "silence",
+    "leg_load_afferent_map_sha256",
+)
+
+
+def _identity_digest(identity: dict[str, Any]) -> str:
+    """SHA-256 of the canonical JSON of the hoisted identity block."""
+    return hashlib.sha256(
+        json.dumps(_to_builtin(identity), sort_keys=True, allow_nan=False).encode("utf-8")
+    ).hexdigest()
+
+
+def _split_identity(reply: dict[str, Any]) -> dict[str, Any]:
+    """Remove the static identity fields from ``reply`` and return them."""
+    return {name: reply.pop(name) for name in NEURAL_IDENTITY_FIELDS if name in reply}
+
 
 @dataclass(frozen=True)
 class EmbodiedConfig:
@@ -242,6 +291,8 @@ def run_embodied(
     driven_steps = 0
     decoded_steps = 0
     events: list[dict[str, Any]] = []
+    neural_identity: dict[str, Any] | None = None
+    identity_sha256 = ""
     last_record: dict[str, Any] | None = None
     recorder = None
     executor = None
@@ -267,7 +318,8 @@ def run_embodied(
         decoder.reset()
 
         manifest = {
-            "schema": "neurofly-embodied-run-v1",
+            "schema": "neurofly-embodied-run-v2",
+            "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
             "status": "running",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "package_version": __version__,
@@ -303,6 +355,25 @@ def run_embodied(
                 "trajectory_sha256": "SHA-256 of telemetry.jsonl; set when the run completes",
                 "excluded_wall_clock_fields": list(WALL_CLOCK_FIELDS),
                 "replay_requires": "same code, config, seed, graph and brain_backend",
+                "format_break": (
+                    "telemetry format 2 hoists the static neural identity block out of "
+                    "every record (see telemetry_identity), so trajectory_sha256 differs "
+                    "from a format-1 run of the same seed and arguments; format-1 hashes "
+                    "in older receipts are not comparable"
+                ),
+            },
+            "telemetry_identity": {
+                "hoisted_fields": list(NEURAL_IDENTITY_FIELDS),
+                "per_record_field": "identity_sha256",
+                "digest": "sha256 of the canonical JSON of telemetry_identity.values",
+                "note": (
+                    "these neural-reply fields are constant for the whole run, so they "
+                    "are recorded here once instead of in all "
+                    f"{n_steps} telemetry records; the runner fails the run if the "
+                    "backend's identity changes mid-run"
+                ),
+                "identity_sha256": None,
+                "values": None,
             },
             "invocation": _to_builtin(invocation or {}),
             "provenance": {
@@ -376,6 +447,20 @@ def run_embodied(
                 )
             previous_neural_ms = neural_ms
 
+            step_identity = _split_identity(reply)
+            if neural_identity is None:
+                neural_identity = step_identity
+                identity_sha256 = _identity_digest(step_identity)
+                manifest["telemetry_identity"]["identity_sha256"] = identity_sha256
+                manifest["telemetry_identity"]["values"] = _to_builtin(step_identity)
+                output.set_manifest(manifest)
+            elif step_identity != neural_identity:
+                raise RuntimeError(
+                    "neural backend identity changed mid-run; the hoisted "
+                    "telemetry_identity block would no longer describe every record"
+                )
+            reply["identity_sha256"] = identity_sha256
+
             decoded = decoder.decode_reply(reply, config.neural_dt_ms)
             decoded_command = (
                 float(decoded["left_cpg_drive"]),
@@ -415,7 +500,7 @@ def run_embodied(
             if "silenced" in reply:
                 silenced_spikes += int(reply["silenced"]["spikes"])
             last_record = {
-                "schema": "neurofly-embodied-step-v1",
+                "schema": "neurofly-embodied-step-v2",
                 "step": step_index + 1,
                 "run_time_s": (step_index + 1) * config.neural_dt_ms / 1000.0,
                 "sensory": {
@@ -445,7 +530,8 @@ def run_embodied(
         if hasattr(body, "save_video"):
             body.save_video()  # type: ignore[attr-defined]
         summary = {
-            "schema": "neurofly-embodied-summary-v1",
+            "schema": "neurofly-embodied-summary-v2",
+            "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
             "status": "complete",
             "mode": config.mode,
             "records": n_steps,
@@ -481,7 +567,7 @@ def run_embodied(
     except BaseException as error:
         if not output.manifest:
             output.manifest = {
-                "schema": "neurofly-embodied-run-v1",
+                "schema": "neurofly-embodied-run-v2",
                 "status": "running",
                 "config": _to_builtin(asdict(config)),
                 "traceback": traceback.format_exc(),
