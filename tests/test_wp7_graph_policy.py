@@ -272,6 +272,17 @@ def test_wp7_specs_load_and_declare_only_valid_graph_variants(name):
         harness.paradigm_module(spec['paradigm'])
 
 
+@pytest.mark.parametrize('version', ['v1', 'v2', 'v4', 'v5'])
+def test_wp7_graph_options_are_refused_outside_v3_dynamics(version):
+    """v4/v5 take receptor and graded classes from the RELEASED transmitter table, so a
+    DPM relabelled GABA in the weights would stay dopaminergic there; refuse, never mix."""
+    from validation import harness
+    spec = harness.load_spec(SPECS / WP7_SPECS[0])
+    spec = dict(spec, dynamics={**spec['dynamics'], 'version': version})
+    with pytest.raises(harness.SpecError, match='v3 only'):
+        harness.load_graph(spec, synthetic=True)
+
+
 def test_wp7_seed_sets_are_disjoint():
     e0 = json.loads((SPECS / WP7_SPECS[0]).read_text())
     e1 = json.loads((SPECS / WP7_SPECS[1]).read_text())

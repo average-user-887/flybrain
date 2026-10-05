@@ -338,6 +338,13 @@ def load_graph(spec: dict, *, synthetic: bool, graph_dir=None, connectome_dir=No
     """Return ``(shared, cells, transmitter_report)`` for the spec's dynamics."""
     from .cells import CellTable
     dyn = spec['dynamics']
+    wp7_options = {k: dyn[k] for k in ('kc_kc', 'dpm', 'kc_kc_calyx_file') if k in dyn}
+    if wp7_options and dyn.get('version') != 'v3':
+        # v4/v5 resolve graded and receptor-kinetics classes from the RELEASED
+        # transmitter table, so a DPM relabelled GABA in the weights would still
+        # be a dopamine cell to them.  The WP7 options are declared for v3 only.
+        raise SpecError(f"kc_kc / dpm graph options are declared for dynamics v3 only "
+                        f"(docs/WP7_MB_LEARNING_SPEC.md §2.1), not {dyn.get('version')!r}")
     if synthetic:
         from .synthetic import typed_synthetic_graph
         shared, cells = typed_synthetic_graph(seed=dyn.get('synthetic_seed', 0))
