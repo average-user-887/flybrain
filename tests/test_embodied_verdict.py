@@ -122,14 +122,14 @@ def test_time_shuffled_control_preserves_each_channel_mean_exactly():
 
 
 def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "PASS"
     assert all(e["turn_follows_stimulus_sign"] for e in judgement["per_seed"])
     assert all(e["dna02_asymmetry_reverses"] for e in judgement["per_seed"])
 
     # A seed that turns the same way under both signs is a failure, however large.
     judgement = V.judge(
-        _reversal_outcomes(yaw_negative=+1.2), [0, 1], V.YAW_PASS_THRESHOLD_RAD
+        _reversal_outcomes(yaw_negative=+1.2), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK
     )
     assert judgement["verdict"] == "FAIL"
 
@@ -138,6 +138,7 @@ def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
         _reversal_outcomes(yaw_positive=0.01, yaw_negative=-0.01),
         [0, 1],
         V.YAW_PASS_THRESHOLD_RAD,
+        _FULL_CHECK,
     )
     assert judgement["verdict"] == "FAIL"
 
@@ -145,7 +146,7 @@ def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
 def test_too_few_spikes_is_inconclusive_not_a_pass():
     outcomes = _reversal_outcomes()
     outcomes["seed1-negative-w"] = _outcome("seed1-negative-w", 1, -4.0, 1, 2, -1.017)
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "INCONCLUSIVE"
     assert "seed1-negative-w" in judgement["reason"]
 
@@ -188,7 +189,7 @@ def test_cumulative_yaw_unwraps_a_turn_past_half_a_revolution(tmp_path):
     outcomes["seed1-positive-w"] = _outcome(
         "seed1-positive-w", 1, 4.0, 31, 0, -3.116, cumulative=+3.168
     )
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "PASS"
     entry = judgement["per_seed"][1]
     assert entry["cumulative_yaw_positive_w_rad"] == pytest.approx(3.168)
@@ -196,7 +197,7 @@ def test_cumulative_yaw_unwraps_a_turn_past_half_a_revolution(tmp_path):
 
 
 def test_markdown_receipt_states_the_verdict_and_the_limits():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     receipt = {
         "judgement": judgement,
         "created_at": "2026-09-26T00:00:00+00:00",
@@ -352,7 +353,7 @@ def test_control_findings_and_interpretation_come_from_the_numbers():
     assert findings["seed0-drive-time-shuffled"]["turn_survived"] is False
     assert "does not survive" in findings["seed0-drive-time-shuffled"]["reading"]
 
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     lines = V.interpretation("dn-v2", judgement, outcomes, 5.0)
     assert any("DNp09" in line for line in lines)
     assert not any("two neurons wide" in line for line in lines)
@@ -397,7 +398,7 @@ def test_interpretation_states_the_imposed_t4_t5_input_and_scopes_a_pass():
 
 
 def test_receipt_never_prints_an_absolute_output_path():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     receipt = {
         "judgement": judgement,
         "created_at": "2026-10-05T00:00:00+00:00",
@@ -458,12 +459,12 @@ class SeededGraph(FakeGraph):
         return reply
 
 
-def _reuse_setup(tmp_path):
+def _reuse_setup(tmp_path, reuse_duration="0.01"):
     from neurofly_body import cli
 
     args = cli._parser().parse_args(
         ["verdict", "--output", str(tmp_path), "--decoder", "dna02-crossed-v1",
-         "--reuse-check-duration", "0.01"]
+         "--reuse-check-duration", reuse_duration]
     )
     neural, body = SeededGraph(), FakeBody()
     conditions = V.plan([0, 1], 4.0, full_controls=False)
@@ -492,11 +493,80 @@ def test_a_failed_reuse_check_invalidates_the_verdict(tmp_path, monkeypatch):
     judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, check)
     assert judgement["verdict"] == "INVALID"
     assert "INVALID" in V.VERDICTS
-    # A passing or skipped reuse check leaves the verdict to the turns.
-    ok = {"ran": True, "bit_identical": True, "note": "byte-identical"}
-    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, ok)["verdict"] == "PASS"
-    skipped = {"ran": False, "bit_identical": None, "note": "skipped"}
-    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, skipped)["verdict"] == "PASS"
+    assert judgement["turn_outcome"] == "PASS"     # kept, but not the verdict
+    # Only a full-duration passing check leaves the verdict to the turns.
+    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD,
+                   _FULL_CHECK)["verdict"] == "PASS"
+
+
+def _judge(outcomes, check):
+    return V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, check)
+
+
+_FAILING = dict(yaw_negative=+1.2)          # seed turns the same way under both signs
+_SHORT_CHECK = {"ran": True, "bit_identical": True, "covers_full_condition": False,
+                "records_compared": 50, "condition_records": 2500, "note": "smoke"}
+_SKIPPED = {"ran": False, "bit_identical": None, "note": "skipped (--no-reuse-check)"}
+_DIVERGED = {"ran": True, "bit_identical": False, "covers_full_condition": True,
+             "note": "DIVERGENT telemetry at record 4"}
+
+
+@pytest.mark.parametrize("check", [_SKIPPED, _SHORT_CHECK, None],
+                         ids=["no-reuse-check", "smoke-window", "no-check-supplied"])
+def test_an_omitted_comparability_control_never_passes(check):
+    """--no-reuse-check, the 0.1 s default window, or no check: UNVERIFIED, not PASS."""
+    judgement = _judge(_reversal_outcomes(), check)
+    assert judgement["verdict"] == "UNVERIFIED"
+    assert judgement["turn_outcome"] == "PASS"
+    assert "unverified" in judgement["reason"]
+    # A FAIL without the control is also UNVERIFIED, with the turns' FAIL kept.
+    failing = _judge(_reversal_outcomes(**_FAILING), check)
+    assert failing["verdict"] == "UNVERIFIED" and failing["turn_outcome"] == "FAIL"
+
+
+def test_every_status_is_distinct():
+    """PASS, a valid FAIL, INCONCLUSIVE, UNVERIFIED and INVALID never collapse."""
+    undersampled = _reversal_outcomes()
+    undersampled["seed1-negative-w"] = _outcome("seed1-negative-w", 1, -4.0, 1, 2, -1.017)
+    statuses = {
+        "PASS": _judge(_reversal_outcomes(), _FULL_CHECK),
+        "FAIL": _judge(_reversal_outcomes(**_FAILING), _FULL_CHECK),
+        "INCONCLUSIVE": _judge(undersampled, _FULL_CHECK),
+        "UNVERIFIED": _judge(_reversal_outcomes(**_FAILING), _SKIPPED),
+        "INVALID": _judge(_reversal_outcomes(**_FAILING), _DIVERGED),
+    }
+    for expected, judgement in statuses.items():
+        assert judgement["verdict"] == expected
+    assert set(statuses) == set(V.VERDICTS)
+    # A valid FAIL is the turns' own result, with nothing qualifying it.
+    assert statuses["FAIL"]["turn_outcome"] == "FAIL"
+    assert statuses["FAIL"]["reason"] == "at least one seed did not turn with the stimulus sign"
+
+
+def test_a_full_duration_reuse_check_covers_the_condition(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.04")
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is True
+    assert check["records_compared"] == check["condition_records"] == 20
+    assert "full-duration" in check["note"]
+    assert _judge(_reversal_outcomes(), check)["verdict"] == "PASS"
+
+
+def test_a_short_reuse_check_is_scoped_to_its_window(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path)
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is False
+    assert check["records_compared"] == 5 and check["condition_records"] == 20
+    assert "smoke comparison, not proof of a complete reset" in check["note"]
+    assert "resets are complete" not in check["note"]
+    assert _judge(_reversal_outcomes(), check)["verdict"] == "UNVERIFIED"
+
+
+def test_a_reuse_check_longer_than_the_condition_compares_the_condition(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.06")
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is True
+    assert check["records_compared"] == 20
 
 
 def _invocation(**overrides):
@@ -538,7 +608,7 @@ def test_reproduce_command_pins_the_backend_and_every_parameter():
 
 
 def test_markdown_reproduce_section_states_backend_code_data_and_dynamics():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     command = V.reproduce_command(_invocation(), "cpu")
     receipt = {
         "judgement": judgement, "created_at": "2026-10-05T00:00:00+00:00",

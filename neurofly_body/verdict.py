@@ -11,8 +11,11 @@ This module runs that experiment as a single subcommand, with the same decoder
 choice as ``run`` (``dn-v2`` by default, ``dna02-crossed-v1`` for the legacy
 mapping).  The graph and the body are loaded once and reset between
 conditions, because the graph load costs tens of seconds; a reuse check at the
-end proves the reset is complete by re-running the first condition from the
-reused state and requiring the same telemetry bytes.  Every intact and
+end re-runs the first condition from the reused state and requires the same
+telemetry bytes as its fresh run.  Only a reuse check over the whole condition
+(``--reuse-check-duration`` equal to ``--duration``) counts as the comparability
+control; the default 0.1 s window is a smoke comparison and leaves the verdict
+UNVERIFIED.  Every intact and
 output-disconnected condition also records a ``run``-compatible invocation, so
 ``python -m neurofly_body replay-check <condition dir>`` re-runs it standalone
 on a freshly loaded server.
@@ -85,7 +88,12 @@ REPRODUCE_DYNAMICS_IDS = (
     "engineered_assistance_enabled",
 )
 
-VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "INVALID")
+# PASS and FAIL are the only validated outcomes.  INCONCLUSIVE: too few DNa02
+# spikes to judge.  UNVERIFIED: the comparability control (a reuse check over a
+# whole condition) was skipped or ran over only part of a condition, so the
+# turns may be read but not relied on.  INVALID: the reuse check found
+# divergent telemetry, so the conditions are not comparable at all.
+VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "UNVERIFIED", "INVALID")
 
 # What the verdict's decoders are built from, for the receipt.
 DECODER_INPUTS = {
@@ -334,6 +342,11 @@ def judge(
     A reuse check that ran and found divergent telemetry makes the verdict
     INVALID whatever the turns did: the conditions were then not run on
     comparable reset states, so no comparison between them can stand.
+
+    Comparability is a required control.  If the reuse check is missing, was
+    skipped, or covered only part of a condition (the default 0.1 s window is a
+    smoke comparison), the verdict is UNVERIFIED, never PASS or FAIL; what the
+    turns alone gave is kept in ``turn_outcome``.
     """
     per_seed = []
     for seed in seeds:
@@ -374,31 +387,53 @@ def judge(
     undersampled = sorted(
         {name for entry in per_seed for name in entry["undersampled_conditions"]}
     )
-    if reuse_check is not None and reuse_check.get("ran") and not reuse_check.get("bit_identical"):
-        verdict = "INVALID"
-        reason = (
-            "the reuse check failed (" + str(reuse_check.get("note", "divergent telemetry"))
-            + "), so the conditions are not comparable and the turns are not judged"
-        )
-    elif undersampled:
-        verdict = "INCONCLUSIVE"
-        reason = (
+    if undersampled:
+        turn_outcome = "INCONCLUSIVE"
+        turn_reason = (
             "at least one reversal condition produced fewer than "
             f"{MIN_USEFUL_DNA02_SPIKES} DNa02 spikes ({', '.join(undersampled)}); "
             "raise --duration"
         )
     elif all_follow:
-        verdict = "PASS"
-        reason = (
+        turn_outcome = "PASS"
+        turn_reason = (
             "turn direction followed the stimulus sign in both directions on all "
             f"{len(per_seed)} seeds, with |cumulative yaw| > {threshold} rad"
         )
     else:
-        verdict = "FAIL"
-        reason = "at least one seed did not turn with the stimulus sign"
+        turn_outcome = "FAIL"
+        turn_reason = "at least one seed did not turn with the stimulus sign"
+
+    check = reuse_check or {}
+    if check.get("ran") and not check.get("bit_identical"):
+        verdict = "INVALID"
+        reason = (
+            "the reuse check failed (" + str(check.get("note", "divergent telemetry"))
+            + "), so the conditions are not comparable and the turns are not judged"
+        )
+    elif not check.get("ran"):
+        verdict = "UNVERIFIED"
+        reason = (
+            "the reuse check did not run ("
+            + str(check.get("note", "no comparability check supplied"))
+            + "), so comparability of the conditions is unverified; the turns alone "
+            f"give {turn_outcome}: {turn_reason}"
+        )
+    elif not check.get("covers_full_condition"):
+        verdict = "UNVERIFIED"
+        reason = (
+            f"the reuse check compared only {check.get('records_compared')} of "
+            f"{check.get('condition_records')} records of a condition, a smoke "
+            "comparison rather than a full-duration fresh-versus-reused check, so "
+            f"comparability is unverified; the turns alone give {turn_outcome}: "
+            f"{turn_reason} (rerun with --reuse-check-duration equal to --duration)"
+        )
+    else:
+        verdict, reason = turn_outcome, turn_reason
     return {
         "verdict": verdict,
         "reason": reason,
+        "turn_outcome": turn_outcome,
         "yaw_pass_threshold_rad": threshold,
         "min_useful_dna02_spikes": MIN_USEFUL_DNA02_SPIKES,
         "per_seed": per_seed,
@@ -579,6 +614,13 @@ def _markdown(receipt: dict[str, Any]) -> str:
         f"Verdict: **{receipt['judgement']['verdict']}** - "
         f"{receipt['judgement']['reason']}",
         "",
+        *(
+            [f"Turns alone: {receipt['judgement']['turn_outcome']} (not a validated "
+             "verdict, because comparability was not established).", ""]
+            if receipt["judgement"].get("turn_outcome")
+            not in (None, receipt["judgement"]["verdict"])
+            else []
+        ),
         f"Generated {receipt['created_at']} by `python -m neurofly_body verdict` "
         f"(neurofly_body {receipt['package_version']}, telemetry format "
         f"{receipt['telemetry_format_version']}, decoder `{decoder}`).",
@@ -994,11 +1036,13 @@ def run_verdict(args: Any) -> int:
 def _reuse_check(
     args: Any, first: Condition, output_root: Path, neural: Any, body: Any
 ) -> dict[str, Any]:
-    """Prove the reused graph and body reset completely between conditions.
+    """Compare a fresh run with the same run on the reused graph and body.
 
-    The first condition ran on a freshly built server and body.  Re-running its
-    opening steps now, after every other condition, must reproduce the same
-    telemetry bytes; if any state survived a reset it cannot.
+    The first condition ran on a freshly built server and body.  Re-running it
+    now, after every other condition, must reproduce the same telemetry bytes.
+    The claim is scoped to the window compared: only a full-duration repeat
+    (``covers_full_condition``) is the comparability control the verdict
+    requires; a shorter window is a smoke comparison.
 
     A prefix comparison is valid because no telemetry record depends on the
     run's duration or invocation: each record holds only that step's simulated
@@ -1024,11 +1068,16 @@ def _reuse_check(
         invocation={"verdict_condition": "_reuse-check"},
         close_body=False,
     )
-    records = int(summary["records"])
-    original = (output_root / first.name / "telemetry.jsonl").read_text(
+    original_all = (output_root / first.name / "telemetry.jsonl").read_text(
         encoding="utf-8"
-    ).splitlines()[:records]
-    repeat = (run_dir / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    ).splitlines()
+    repeat_all = (run_dir / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    condition_records = len(original_all)
+    # A repeat longer than the condition is compared over the condition only.
+    records = min(int(summary["records"]), condition_records)
+    original = original_all[:records]
+    repeat = repeat_all[:records]
+    covers_full_condition = records >= condition_records
     identical = original == repeat
     first_difference = next(
         (
@@ -1038,14 +1087,25 @@ def _reuse_check(
         ),
         None,
     )
-    preamble = (
-        f"re-ran the opening {records} records of `{first.name}` from the reused "
-        "graph and body after every other condition and got "
+    window = (
+        f"all {records} records ({duration:g} s, the whole condition)"
+        if covers_full_condition
+        else f"the opening {records} of {condition_records} records ({duration:g} s)"
     )
-    if identical:
+    preamble = (
+        f"re-ran {window} of `{first.name}` from the reused graph and body after "
+        "every other condition and got "
+    )
+    if identical and covers_full_condition:
         note = preamble + (
-            "byte-identical telemetry, so the resets are complete and the "
-            "conditions are comparable"
+            "byte-identical telemetry to the fresh run: over this full-duration "
+            "comparison no state survived the resets, so the conditions are comparable"
+        )
+    elif identical:
+        note = preamble + (
+            "byte-identical telemetry over that window only. This is a smoke "
+            "comparison, not proof of a complete reset: state that shows up later "
+            "in a run would not be seen, so comparability is UNVERIFIED"
         )
     else:
         note = preamble + (
@@ -1056,6 +1116,9 @@ def _reuse_check(
         "ran": True,
         "bit_identical": identical,
         "records_compared": records,
+        "condition_records": condition_records,
+        "covers_full_condition": covers_full_condition,
+        "duration_s": duration,
         "repeated_condition": first.name,
         "first_differing_record": first_difference,
         "note": note,

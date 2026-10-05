@@ -13,8 +13,8 @@ same decoder would produce the same gap. What distinguishes the neural signal is
 the **stimulus-sign reversal**, and the command that runs it is built in:
 
 ```bash
-python -m neurofly_body verdict --output runs/embodied-verdict \
-  --duration 5 --seeds 0 1 --full-controls \
+NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body verdict --output runs/embodied-verdict \
+  --duration 5 --seeds 0 1 --full-controls --reuse-check-duration 5 \
   --graph-dir outputs/brainlab/malecns_v1 --connectome-dir connectome_data/malecns_v1
 ```
 
@@ -23,9 +23,13 @@ and body, plus a zero-stimulus baseline, the output-disconnected control and two
 rate-matched drive controls. It exits 0 only on PASS: the turn follows the stimulus
 sign in both directions on every seed, with at least 10 DNa02 spikes per reversal
 condition, and the reuse check (the first condition re-run after all the others)
-reproduces the same telemetry bytes. A failed reuse check makes the verdict
-INVALID. It writes `verdict.json` and `verdict.md`. Eight 5 s conditions take
-about 22 minutes on a CPU brain backend.
+reproduces the same telemetry bytes over the whole condition. A failed reuse
+check makes the verdict INVALID. A skipped one (`--no-reuse-check`) or one shorter
+than a condition (the default 0.1 s window is a smoke comparison) makes it
+UNVERIFIED, never PASS or FAIL. Pin the brain backend: CPU and CUDA agree
+statistically, not bit for bit. It writes `verdict.json` and `verdict.md`. Eight
+5 s conditions plus a 5 s reuse check take about 25 minutes on a CPU brain
+backend.
 
 Measured on the CPU backend, with both decoders:
 

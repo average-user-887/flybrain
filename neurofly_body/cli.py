@@ -107,7 +107,9 @@ def _parser() -> argparse.ArgumentParser:
         ),
         description=(
             "Run the stimulus-sign reversal on one loaded graph and body and write "
-            "verdict.json and verdict.md. Exits 0 only on PASS. The default plan is "
+            "verdict.json and verdict.md. Exits 0 only on PASS, which needs a "
+            "full-duration reuse check (--reuse-check-duration equal to --duration); "
+            "otherwise the verdict is UNVERIFIED. The default plan is "
             "two seeds by two stimulus signs (four 5 s conditions); --full-controls "
             "adds the zero-stimulus baseline, the output-disconnected control and "
             "two rate-matched drive controls (eight conditions). A 5 s condition "
@@ -130,9 +132,13 @@ def _parser() -> argparse.ArgumentParser:
     verdict.add_argument("--no-reuse-check", dest="reuse_check", action="store_false",
                         help="skip the check that reusing the loaded graph and body "
                              "between conditions reproduces the first condition's "
-                             "telemetry bytes")
+                             "telemetry bytes; the verdict is then UNVERIFIED")
     verdict.add_argument("--reuse-check-duration", type=float, default=0.1,
-                        metavar="SECONDS")
+                        metavar="SECONDS",
+                        help="how much of the first condition to repeat on the reused "
+                             "graph and body. Only a value equal to --duration is the "
+                             "full comparability control; the default 0.1 s is a smoke "
+                             "comparison and leaves the verdict UNVERIFIED")
     verdict.add_argument("--graph-dir", type=Path)
     verdict.add_argument("--connectome-dir", type=Path)
     verdict.add_argument("--neural-dt-ms", type=float, default=2.0)
