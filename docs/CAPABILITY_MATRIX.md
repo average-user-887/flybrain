@@ -1,11 +1,20 @@
 # Project NeuroFly — 14-Paradigm Capability Matrix
 
-**Version**: 2.0 · **Date**: 2026-09-24 · **Reference**: `docs/ROADMAP.md` Phase 0 (ground truth)
+**Version**: 2.1 · **Date**: 2026-10-05 · **Reference**: `docs/ROADMAP.md` Phase 0 (ground truth)
 
 Version 1.0 of this matrix marked the connectome as "Validated" for open arena,
 optomotor and the multisensory sandbox. No receipt supports that. This version
 claims only what a file in [`docs/receipts/`](receipts/README.md) shows. The owner decided on
 2026-09-24 that anything without a v3 receipt is labelled **Mapped, untested on v3**.
+
+Version 2.1 (5 October 2026) adds what has been measured since: the provisional v3
+optomotor pass, the `E_inh` sensitivity study, the photoreceptor-driven tests under
+v4 and v5, and the embodied-loop verification. No status was raised to **Tested on v3**.
+
+**The scan is used unmodified.** NeuroFly adds no connections; the engine graph has
+exactly the source's 25,582,938 edges with weights `synapse_count × 0.275`, and where
+the scan is incomplete (about 55 % of lamina cells have no photoreceptor input) that is
+reported as a result, not filled in ([`OWNER_DECISIONS.md`](OWNER_DECISIONS.md)).
 
 ---
 
@@ -14,6 +23,7 @@ claims only what a file in [`docs/receipts/`](receipts/README.md) shows. The own
 | Label | Meaning |
 |---|---|
 | **Tested on v3** | A receipt from the v3 engine with the v3 transmitter policy exists and meets its preregistered rule. **No paradigm has reached this yet.** |
+| **Provisional on v3, input-imposed** | A v3 receipt meets its preregistered behaviour gates, but the verdict is `PASS_PROVISIONAL` (gating bounds unverified) and the sensory encoder supplies a computation the circuit should perform itself. Only optomotor has this label. It is **not** evidence that the connectome computes the behaviour. |
 | **Mapped, untested on v3** | The paradigm runs and its sensory and motor channels are named in code, but there is no v3 behavioural receipt. |
 | **IO pinned** | The sensory and motor neuron sets are resolved from MaleCNS annotations and pinned by digest in `brainlab/io_map.py`. Only the optomotor map and the WP6 visual-heading map are pinned. |
 | **IO not verified** | The channel is declared, but `docs/receipts/graph_identity.json` states that it is not verified ("Other DN roles and the olfactory/wind sensory channels are NOT verified"). |
@@ -31,6 +41,17 @@ What the engines are, briefly (full spec in [`LIF_DYNAMICS_SPEC.md`](LIF_DYNAMIC
   `optomotor_v3.json`, 2026-09-24) **FAILED** under its preregistered rule: behaviour
   7/7, physiology 5/7 (HS above the 50 Hz ceiling). See
   [`receipts/validation/optomotor-yaw-v3-1.md`](receipts/validation/optomotor-yaw-v3-1.md).
+  The rerun under spec `optomotor_v3_2.json` (declared after the v3-1 failure, with the
+  HS checks made report-only) gave **PASS_PROVISIONAL**
+  ([`receipts/validation/optomotor-yaw-v3-2.md`](receipts/validation/optomotor-yaw-v3-2.md)).
+  v3 is the default everywhere.
+- **v4** adds declared graded (non-spiking) transmission for optic-lobe and other
+  classes ([`receipts/lif_dynamics_v4.json`](receipts/lif_dynamics_v4.json)). With no
+  class declared graded it is bit-identical to v3.
+- **v5** adds per-receptor-class synaptic time constants on top of v4
+  ([`receipts/lif_dynamics_v5.json`](receipts/lif_dynamics_v5.json)). Its no-stimulus
+  brain rate is 10.4 Hz against v4's 1.2 Hz. v4 and v5 are library-only
+  (`Brain(..., dynamics='v4'|'v5')`); the daemon offers v1-v3.
 
 ---
 
@@ -49,7 +70,7 @@ MaleCNS v1.0 graph (166,700 neurons, 25,582,938 synapses).
 | 6 | Visual Operant (`visual-operant`) | Visual quadrants, thermal reinforcement | DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 7 | Wind Tunnel (`wind-tunnel`) | JON-C/E → WED, olfactory PNs | DNa02, DNp09 | Runs in live UI; deterministic at 1x/20x/100x | Not verified | Mapped, untested on v3 | None | `wp1_wp2/determinism_receipt.json` (modular) |
 | 8 | Looming Escape (`looming-escape`) | LC4 / LPLC2 | Giant fiber (DNp01) | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | `connectome_closed_loop_looming.json` (v1, 1 s) |
-| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | Mapped, untested on v3. v1 POSITIVE but an engine artefact. v2 NULL. v3 confirmatory run v3-1 FAIL (behaviour passed, HS rate check failed); rerun v3-2 pending. | n/a | `validation/optomotor-yaw-v3-1.md` (v3, FAIL), `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
+| 9 | Optomotor (`optomotor`) | T4/T5 subtypes (encoder imposes direction selectivity) | DNa02 L/R | Runs in live UI | **Pinned** (`OPTOMOTOR_IO_PIN`) | **Provisional on v3, input-imposed.** v1 POSITIVE but an engine artefact. v2 NULL. v3-1 FAIL (behaviour passed, HS rate check failed); v3-2 PASS_PROVISIONAL with the encoder imposing direction selectivity. Photoreceptor-only input under v3, v4 and v5: no direction selectivity, DNa02 does not steer. | n/a | `validation/optomotor-yaw-v3-2.md` (v3, PASS_PROVISIONAL), `validation/optomotor-yaw-v3-1.md` (v3, FAIL), `einh_sensitivity.json` (v3), `lif_dynamics_v4.json`, `lif_dynamics_v5.json` (photoreceptor input, gate not passed), `wp5_optomotor.json` (v1), `lif_dynamics_v2.json` (v2), `lif_dynamics_v3.json` probe C (v3, 1 seed), `connectome_closed_loop_optomotor.json` (v1, 1 s) |
 | 10 | Gap Crossing (`gap-crossing`) | Leg FeCO, campaniform sensilla | CPG cadence and elevation | Runs in live UI | Not verified | Mapped, untested on v3 | n/a | live UI sign-off only |
 | 11 | Circadian DAM (`circadian-dam`) | Photoperiod | Locomotor arousal | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
 | 12 | Courtship (`courtship`) | Visual target, cVA (code drives `ORN_DA1`, the Or67d ORNs) | P1 → DNa02 | Runs in live UI | Not verified | Mapped, untested on v3 | None | live UI sign-off only |
@@ -92,12 +113,34 @@ They are not behavioural evidence and are no longer cited as such.
 - **Closed-loop connectome runs** (`connectome_closed_loop_*.json`): each is 1 s of
   simulated time (50 steps) with controller `brainlab-lif-v1`. They show that the loop
   executes. They are not behavioural evidence.
+- **Optomotor, v3, confirmatory** (`validation/optomotor-yaw-v3-2.md`): PASS_PROVISIONAL,
+  7/7 behaviour gates (turning index 0.079 [0.070, 0.088], DNa02 silencing gives yaw
+  exactly 0 on all 6 seeds) and 5/5 physiology checks, all against bounds marked
+  `verified: false`. HS fired 60 / 53 Hz, the same as in the failed v3-1, and is no
+  longer gated. The raw `receipt.json` is on the run host, not in the repository.
+  The encoder imposes direction selectivity on T4/T5.
+- **`E_inh` sensitivity** (`EINH_SENSITIVITY.md`, `einh_sensitivity.json`): the v3
+  optomotor verdict stays POSITIVE at `E_inh` −70 and −60 mV and under the alternative
+  treatment of 2,999 unlabelled neurons, but the effect at −60 mV is a third smaller
+  (TI +0.0452 vs +0.0671, dz 1.47 vs 3.18). At −56 mV the gate failed, so the verdict
+  there is unknown.
+- **Photoreceptor-driven optomotor, v3 / v4 / v5** (`WP5_OPTOMOTOR.md` §13-§14,
+  `lif_dynamics_v4.json`, `lif_dynamics_v5.json`): with input to R1-R6 only, no T4/T5
+  subtype becomes direction selective, HS has no direction-dependent sign, and the
+  DNa02 asymmetry never reverses. The declared gate failed for v4, v5 and v5's
+  slow-kinetics arm, so the expensive protocol was not run. About 55 % of lamina cells
+  have no photoreceptor input in the scan (`LITERATURE_SCAN_2026-10-05.md` §A1).
+- **Embodied loop, v3** (`embodied_mvp_verification.md`): reversing the stimulus
+  reverses the FlyGym body's turn on 2 of 2 seeds, and cutting the output path stops
+  locomotion. The motor command is 1-30 spikes in one DNa02 pair, passed through an
+  engineered decoder; the fly moves about 1 mm/s.
 
 ## Open gates
 
-1. The preregistered v3 optomotor confirmatory run (ROADMAP P1) has not passed. Run
-   v3-1 FAILED on physiology on 2026-09-24; the rerun under `optomotor_v3_2.json` is
-   pending. Until one passes, no connectome paradigm can move to **Tested on v3**.
+1. No connectome paradigm has a non-provisional v3 pass. Optomotor's v3-2 pass is
+   provisional and depends on an encoder that imposes direction selectivity; spec
+   `optomotor_v3_3.json` (verified bounds) is preregistered but has no receipt yet,
+   and neither do the preregistered `looming_gf_v3.json` and `tmaze_odour_naive_v3.json`.
 2. The IO maps for every paradigm except optomotor and Buridan are unverified.
 3. The receipts that need re-running are listed in
    [`docs/receipts/README.md`](receipts/README.md#re-run-queue).
