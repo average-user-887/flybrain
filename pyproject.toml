@@ -9,7 +9,7 @@ description = "A MaleCNS connectome coupled to an articulated FlyGym body"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-dependencies = ["numpy", "numba", "pandas", "pyarrow"]
+dependencies = ["numpy>=2.0,<3", "numba", "pandas>=2.2,<4", "pyarrow>=16"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -25,6 +25,14 @@ body = [
     "mujoco==3.9.0; python_version >= '3.12' and python_version < '3.15'",
 ]
 test = ["pytest", "brian2"]
+# NVIDIA GPU for the connectome brain (LIF v3, v4, v5). CuPy plus the CUDA 12 runtime
+# wheels it needs (NVRTC for the v3 kernel, cuSPARSE for v4/v5); needs only an NVIDIA
+# driver for CUDA 12 or newer, no CUDA toolkit. About 3 GB. Do not add numba-cuda: its
+# 0.30.x releases do not work with numpy 2.5 (the engine detects that and ignores it).
+gpu = ["cupy-cuda12x[ctk]>=13", "scipy"]
+# Real-browser dashboard checks (scripts/live_ui_signoff.py, tests/test_browser_recovery.py).
+# Also needs Firefox and geckodriver from the system (not installable with pip).
+browser-test = ["selenium>=4"]
 
 [project.scripts]
 neurofly = "neurofly.cli:main"

@@ -24,6 +24,9 @@ COPY neurofly/ ./neurofly/
 COPY brainlab/ ./brainlab/
 COPY experiments/ ./experiments/
 COPY neurofly_body/ ./neurofly_body/
+COPY validation/ ./validation/
+COPY data-provenance/ ./data-provenance/
+COPY docs/CAPABILITY_MATRIX.md ./docs/CAPABILITY_MATRIX.md
 COPY web/ ./web/
 COPY *.py ./
 
@@ -34,6 +37,19 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Default port for neurofly daemon
 EXPOSE 8769
 
+# Data. The image ships no MaleCNS data. Without a verified graph `neurofly run` starts the
+# hand-built modular controller and says so. For the connectome, keep the data on the host
+# and mount it (the default locations inside the image are under /app):
+#   docker run --rm -v "$PWD/connectome_data:/app/connectome_data" neurofly:latest download-data
+#   docker run --rm -v "$PWD/connectome_data:/app/connectome_data" -v "$PWD/outputs:/app/outputs" \
+#       --entrypoint python neurofly:latest -m brainlab.connectome
+#   docker run --rm -v "$PWD/connectome_data:/app/connectome_data" -v "$PWD/outputs:/app/outputs" \
+#       --entrypoint python neurofly:latest -m brainlab.prepare
+#   docker run -p 127.0.0.1:8769:8769 -v "$PWD/connectome_data:/app/connectome_data" \
+#       -v "$PWD/outputs:/app/outputs" neurofly:latest
+
 # Default entrypoint
 ENTRYPOINT ["neurofly"]
-CMD ["run", "--port", "8769", "--paradigm", "multisensory-sandbox"]
+# Inside the container the daemon must listen on all interfaces for `-p` to reach it;
+# publish with `-p 127.0.0.1:8769:8769` to keep it off the LAN.
+CMD ["run", "--host", "0.0.0.0", "--port", "8769", "--paradigm", "multisensory-sandbox"]
