@@ -85,11 +85,19 @@ def test_depression_dynamics_and_sign_preservation():
 
 
 def test_experiment_registry_plastic_backend_integration(tmp_path):
-    """Verify that connectome-plastic works in ExperimentRegistry with VisualHeadingPlasticityRule."""
+    """Verify that connectome-plastic works in ExperimentRegistry with VisualHeadingPlasticityRule.
+
+    The graph is loaded exactly as the daemon loads it (``SharedGraph.load_for_dynamics``),
+    i.e. with the weights the active dynamics version declares.  A bare
+    ``SharedGraph.load()`` returns the pinned v1 weights, which the registry
+    correctly refuses for v3 brains.
+    """
     if not (DEFAULT_GRAPH_DIR / 'graph.npz').is_file():
         pytest.skip('MaleCNS graph.npz not available in standard path')
+    if not (DEFAULT_CONNECTOME_DIR / 'normalized/neurons.feather').is_file():
+        pytest.skip('MaleCNS normalized/neurons.feather not available in standard path')
 
-    shared = SharedGraph.load()
+    shared = SharedGraph.load_for_dynamics()
     registry = ExperimentRegistry(shared, tmp_path / 'reg')
 
     # Activation should automatically attach VisualHeadingPlasticityRule

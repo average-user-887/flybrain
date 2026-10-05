@@ -7,8 +7,11 @@ It was written on 2026-09-24 as part of ROADMAP Phase 0.
 
 Engine labels: **v1** is current-based LIF (runaway, ~10⁶ spikes/s). **v2** is
 conductance-based (~4 × 10⁶ spikes/s). **v3** is conductance-based with per-sign PSP
-calibration and the `v3-modulatory-only` transmitter policy. **modular** is the
-hand-built controller, not the connectome.
+calibration and the `v3-modulatory-only` transmitter policy. **v4** is v3 plus the
+declared hybrid graded mode: cell classes listed as non-spiking are integrated as
+passive membranes and transmit their subthreshold membrane potential
+(`graded_transmission_v4_declaration.locked.md`, `lif_dynamics_v4.json`); it is not the
+default. **modular** is the hand-built controller, not the connectome.
 
 ## Known defect: "v3" equations on v1 weights
 
@@ -35,6 +38,8 @@ stage of `scripts/benchmark.py`.
 | `lif_dynamics_diagnosis.json` | v1, v2 | The v1 membrane is unbounded; v2 is bounded. Small-network self-sustain probes. | Valid, historical |
 | `lif_dynamics_v2.json` | v1, v2 | Full WP5 confirmatory set under v2: verdict **NULL**, network 4.08 × 10⁶ spikes/s. | Valid (negative result) |
 | `lif_dynamics_v3.json` | v3 | Calibration probes A/B pass. Fixed point −45.13 mV under the v3 policy. Probe C: one exploratory 2 s full-graph run per direction. | Valid, exploratory only |
+| `graded_transmission_v4_declaration.locked.md` | v4 | The locked, hashed pre-registration of the hybrid graded/spiking dynamics: graded membrane equation, derived release function, declared non-spiking cell classes, predictions, falsifiers and the stop rule before the expensive protocol. Written and committed before any v4 measurement. | Declaration, not a result |
+| `lif_dynamics_v4.json` | v4 | The measurements §7.10 of the spec predeclared: unit-level graded transmission, the S0 bit-identity check against v3, HS physiology in mV, and the direction-selectivity trace from R1-R6 to DNa02 under photoreceptor-only drive. | See the receipt's own verdict |
 | `wp5_optomotor.json` | v1 | Preregistered optomotor verdict POSITIVE, from a runaway engine. One-sided; null at contrast 0.5. | v1 only; the claim was withdrawn 2026-09-20 |
 | `connectome_closed_loop_optomotor.json` | v1 | 1 s (50 steps) of the optomotor loop running | Smoke test only; re-run on v3 |
 | `connectome_closed_loop_looming.json` | v1 | 1 s of looming; `escape_triggered: true` | Smoke test only; re-run on v3 |

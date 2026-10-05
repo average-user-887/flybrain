@@ -1,0 +1,676 @@
+{
+ "spec": "docs/LIF_DYNAMICS_SPEC.md#9.9",
+ "tag": "v4_protocol9",
+ "dynamics": "v4",
+ "dynamics_pin": "7ae0966578aa3c4a948021b8c38ce8c4de89aad8d67ac0f6d5c9c094b021ed44",
+ "backend": "cuda",
+ "graded_report": {
+  "policy": "v4-optic-lobe-graded",
+  "spec": "docs/LIF_DYNAMICS_SPEC.md#7",
+  "declaration_lock": "docs/receipts/graded_transmission_v4_declaration.locked.md",
+  "declaration_sha256": "2634c824476c9b799bd2c0c656040255360cd10f8837e2d874a97af5f939872e",
+  "tier1_cell_types": [
+   "R1-R6",
+   "R7d",
+   "R7p",
+   "R7y",
+   "R8d",
+   "R8p",
+   "R8y",
+   "R7_unclear",
+   "R8_unclear",
+   "R7R8_unclear",
+   "L1",
+   "L2",
+   "L3",
+   "L4",
+   "L5",
+   "Lai",
+   "Mi1",
+   "Mi4",
+   "Mi9",
+   "Tm1",
+   "Tm2",
+   "Tm3",
+   "Tm4",
+   "Tm9",
+   "CT1",
+   "T4a",
+   "T4b",
+   "T4c",
+   "T4d",
+   "T4_unclear",
+   "T5a",
+   "T5b",
+   "T5c",
+   "T5d",
+   "T5a_unclear",
+   "HSN",
+   "HSE",
+   "HSS",
+   "HST",
+   "H1",
+   "H2",
+   "VS",
+   "VST1",
+   "VST2",
+   "VSm"
+  ],
+  "note": "declared non-spiking classes; a coarse class list with its evidence, not physiology measured here",
+  "tier2_superclasses": [
+   "ol_intrinsic",
+   "ol_sensory"
+  ],
+  "tier2_status": "ENGINEERING ASSUMPTION (spec \u00a77.5)",
+  "excluded": "lobula columnar visual_projection neurons (they spike; von Reyn 2017)",
+  "neurons": 166700,
+  "graded_neurons": 95545,
+  "graded_fraction": 0.5731553689262148,
+  "graded_set_sha256": "761c90d423e0966b69195b97f4cda804e132c9ccea82990a8ac94163c9a805d4",
+  "tier1_neurons": 43052,
+  "resolved": "cell_type + superclass from neurons.feather (never row order)"
+ },
+ "kinetics_report": null,
+ "io_map": {
+  "sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+  "photoreceptors": {
+   "L": 1107,
+   "R": 2228
+  },
+  "cartridges": {
+   "L": 300,
+   "R": 524
+  },
+  "undriven": {
+   "L": 5,
+   "R": 37
+  },
+  "majority_assigned": {
+   "L": 16,
+   "R": 26
+  },
+  "trace": {
+   "R1-R6_L": 1107,
+   "R1-R6_R": 2228,
+   "L1_L": 884,
+   "L1_R": 892,
+   "L2_L": 886,
+   "L2_R": 893,
+   "L3_L": 880,
+   "L3_R": 892,
+   "L4_L": 879,
+   "L4_R": 891,
+   "L5_L": 889,
+   "L5_R": 898,
+   "Mi1_L": 886,
+   "Mi1_R": 887,
+   "Mi4_L": 883,
+   "Mi4_R": 889,
+   "Mi9_L": 886,
+   "Mi9_R": 889,
+   "Tm1_L": 887,
+   "Tm1_R": 890,
+   "Tm2_L": 883,
+   "Tm2_R": 883,
+   "Tm3_L": 1017,
+   "Tm3_R": 1037,
+   "Tm4_L": 837,
+   "Tm4_R": 833,
+   "Tm9_L": 884,
+   "Tm9_R": 887,
+   "CT1_L": 1,
+   "CT1_R": 1,
+   "T4a_L": 835,
+   "T4a_R": 849,
+   "T4b_L": 844,
+   "T4b_R": 846,
+   "T4c_L": 895,
+   "T4c_R": 883,
+   "T4d_L": 850,
+   "T4d_R": 859,
+   "T5a_L": 826,
+   "T5a_R": 838,
+   "T5b_L": 863,
+   "T5b_R": 852,
+   "T5c_L": 862,
+   "T5c_R": 858,
+   "T5d_L": 812,
+   "T5d_R": 808,
+   "HS_L": 4,
+   "HS_R": 4,
+   "H2_L": 1,
+   "H2_R": 1,
+   "VS_L": 16,
+   "VS_R": 18,
+   "DNa02_L": 1,
+   "DNa02_R": 1,
+   "DNa01_L": 1,
+   "DNa01_R": 1,
+   "PFL3_L": 12,
+   "PFL3_R": 12
+  },
+  "interommatidial_deg": 5.0
+ },
+ "encoder": {
+  "model": "drifting sinusoidal grating on R1-R6 only, retinotopic by cartridge",
+  "i_max": 20.0,
+  "spatial_period_deg": 30.0,
+  "temporal_frequency_hz": 1.5,
+  "noise": null,
+  "direction_selectivity": "NOT supplied by this encoder",
+  "units": "per-neuron drive current (upstream mV-equivalent)",
+  "io_map_sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+  "interommatidial_deg": 5.0
+ },
+ "yaw_axes": {
+  "L": 123.13008603630517,
+  "R": 123.94099513868764
+ },
+ "conditions": {
+  "dir0": {
+   "kind": "grating",
+   "directions": {
+    "L": 0.0,
+    "R": 0.0
+   }
+  },
+  "dir45": {
+   "kind": "grating",
+   "directions": {
+    "L": 45.0,
+    "R": 45.0
+   }
+  },
+  "dir90": {
+   "kind": "grating",
+   "directions": {
+    "L": 90.0,
+    "R": 90.0
+   }
+  },
+  "dir135": {
+   "kind": "grating",
+   "directions": {
+    "L": 135.0,
+    "R": 135.0
+   }
+  },
+  "dir180": {
+   "kind": "grating",
+   "directions": {
+    "L": 180.0,
+    "R": 180.0
+   }
+  },
+  "dir225": {
+   "kind": "grating",
+   "directions": {
+    "L": 225.0,
+    "R": 225.0
+   }
+  },
+  "dir270": {
+   "kind": "grating",
+   "directions": {
+    "L": 270.0,
+    "R": 270.0
+   }
+  },
+  "dir315": {
+   "kind": "grating",
+   "directions": {
+    "L": 315.0,
+    "R": 315.0
+   }
+  },
+  "yaw_ccw": {
+   "kind": "grating",
+   "directions": {
+    "L": 123.13008603630517,
+    "R": 303.94099513868764
+   }
+  },
+  "yaw_cw": {
+   "kind": "grating",
+   "directions": {
+    "L": 303.13008603630516,
+    "R": 123.94099513868764
+   }
+  },
+  "flicker": {
+   "kind": "flicker",
+   "directions": null
+  }
+ },
+ "protocol": {
+  "gray_settle_ms": 1000.0,
+  "gray_window_ms": 1000.0,
+  "grating_settle_ms": 500.0,
+  "window_ms": 2000.0,
+  "step_ms": 2.0,
+  "cycles_in_window": 3.0,
+  "contrast": 1.0,
+  "noise": null,
+  "seeds": null,
+  "f1": "2/N * sum V(t_k) exp(-i 2 pi f t_k), t_k = end of each step"
+ },
+ "populations": {
+  "R1-R6_L": {
+   "n": 1107,
+   "graded": true
+  },
+  "R1-R6_R": {
+   "n": 2228,
+   "graded": true
+  },
+  "L1_L": {
+   "n": 884,
+   "graded": true
+  },
+  "L1_R": {
+   "n": 892,
+   "graded": true
+  },
+  "L2_L": {
+   "n": 886,
+   "graded": true
+  },
+  "L2_R": {
+   "n": 893,
+   "graded": true
+  },
+  "L3_L": {
+   "n": 880,
+   "graded": true
+  },
+  "L3_R": {
+   "n": 892,
+   "graded": true
+  },
+  "L4_L": {
+   "n": 879,
+   "graded": true
+  },
+  "L4_R": {
+   "n": 891,
+   "graded": true
+  },
+  "L5_L": {
+   "n": 889,
+   "graded": true
+  },
+  "L5_R": {
+   "n": 898,
+   "graded": true
+  },
+  "Mi1_L": {
+   "n": 886,
+   "graded": true
+  },
+  "Mi1_R": {
+   "n": 887,
+   "graded": true
+  },
+  "Mi4_L": {
+   "n": 883,
+   "graded": true
+  },
+  "Mi4_R": {
+   "n": 889,
+   "graded": true
+  },
+  "Mi9_L": {
+   "n": 886,
+   "graded": true
+  },
+  "Mi9_R": {
+   "n": 889,
+   "graded": true
+  },
+  "Tm1_L": {
+   "n": 887,
+   "graded": true
+  },
+  "Tm1_R": {
+   "n": 890,
+   "graded": true
+  },
+  "Tm2_L": {
+   "n": 883,
+   "graded": true
+  },
+  "Tm2_R": {
+   "n": 883,
+   "graded": true
+  },
+  "Tm3_L": {
+   "n": 1017,
+   "graded": true
+  },
+  "Tm3_R": {
+   "n": 1037,
+   "graded": true
+  },
+  "Tm4_L": {
+   "n": 837,
+   "graded": true
+  },
+  "Tm4_R": {
+   "n": 833,
+   "graded": true
+  },
+  "Tm9_L": {
+   "n": 884,
+   "graded": true
+  },
+  "Tm9_R": {
+   "n": 887,
+   "graded": true
+  },
+  "CT1_L": {
+   "n": 1,
+   "graded": true
+  },
+  "CT1_R": {
+   "n": 1,
+   "graded": true
+  },
+  "T4a_L": {
+   "n": 835,
+   "graded": true
+  },
+  "T4a_R": {
+   "n": 849,
+   "graded": true
+  },
+  "T4b_L": {
+   "n": 844,
+   "graded": true
+  },
+  "T4b_R": {
+   "n": 846,
+   "graded": true
+  },
+  "T4c_L": {
+   "n": 895,
+   "graded": true
+  },
+  "T4c_R": {
+   "n": 883,
+   "graded": true
+  },
+  "T4d_L": {
+   "n": 850,
+   "graded": true
+  },
+  "T4d_R": {
+   "n": 859,
+   "graded": true
+  },
+  "T5a_L": {
+   "n": 826,
+   "graded": true
+  },
+  "T5a_R": {
+   "n": 838,
+   "graded": true
+  },
+  "T5b_L": {
+   "n": 863,
+   "graded": true
+  },
+  "T5b_R": {
+   "n": 852,
+   "graded": true
+  },
+  "T5c_L": {
+   "n": 862,
+   "graded": true
+  },
+  "T5c_R": {
+   "n": 858,
+   "graded": true
+  },
+  "T5d_L": {
+   "n": 812,
+   "graded": true
+  },
+  "T5d_R": {
+   "n": 808,
+   "graded": true
+  },
+  "HS_L": {
+   "n": 4,
+   "graded": true
+  },
+  "HS_R": {
+   "n": 4,
+   "graded": true
+  },
+  "H2_L": {
+   "n": 1,
+   "graded": true
+  },
+  "H2_R": {
+   "n": 1,
+   "graded": true
+  },
+  "VS_L": {
+   "n": 16,
+   "graded": true
+  },
+  "VS_R": {
+   "n": 18,
+   "graded": true
+  },
+  "DNa02_L": {
+   "n": 1,
+   "graded": false
+  },
+  "DNa02_R": {
+   "n": 1,
+   "graded": false
+  },
+  "DNa01_L": {
+   "n": 1,
+   "graded": false
+  },
+  "DNa01_R": {
+   "n": 1,
+   "graded": false
+  },
+  "PFL3_L": {
+   "n": 12,
+   "graded": false
+  },
+  "PFL3_R": {
+   "n": 12,
+   "graded": false
+  }
+ },
+ "pop_order": [
+  "CT1_L",
+  "CT1_R",
+  "DNa01_L",
+  "DNa01_R",
+  "DNa02_L",
+  "DNa02_R",
+  "H2_L",
+  "H2_R",
+  "HS_L",
+  "HS_R",
+  "L1_L",
+  "L1_R",
+  "L2_L",
+  "L2_R",
+  "L3_L",
+  "L3_R",
+  "L4_L",
+  "L4_R",
+  "L5_L",
+  "L5_R",
+  "Mi1_L",
+  "Mi1_R",
+  "Mi4_L",
+  "Mi4_R",
+  "Mi9_L",
+  "Mi9_R",
+  "PFL3_L",
+  "PFL3_R",
+  "R1-R6_L",
+  "R1-R6_R",
+  "T4a_L",
+  "T4a_R",
+  "T4b_L",
+  "T4b_R",
+  "T4c_L",
+  "T4c_R",
+  "T4d_L",
+  "T4d_R",
+  "T5a_L",
+  "T5a_R",
+  "T5b_L",
+  "T5b_R",
+  "T5c_L",
+  "T5c_R",
+  "T5d_L",
+  "T5d_R",
+  "Tm1_L",
+  "Tm1_R",
+  "Tm2_L",
+  "Tm2_R",
+  "Tm3_L",
+  "Tm3_R",
+  "Tm4_L",
+  "Tm4_R",
+  "Tm9_L",
+  "Tm9_R",
+  "VS_L",
+  "VS_R"
+ ],
+ "watch": {
+  "HS_L": [
+   26,
+   163,
+   386,
+   1673
+  ],
+  "HS_R": [
+   10,
+   11,
+   17,
+   2359
+  ],
+  "H2_L": [
+   14
+  ],
+  "H2_R": [
+   18
+  ],
+  "DNa02_L": [
+   131957
+  ],
+  "DNa02_R": [
+   332
+  ],
+  "CT1_L": [
+   5
+  ],
+  "CT1_R": [
+   141
+  ]
+ },
+ "graph_load_s": 1.9333907440000075,
+ "scalars": {
+  "gray": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.207252549490102
+  },
+  "dir0": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.210134973005399
+  },
+  "dir45": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2208578284343132
+  },
+  "dir90": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.229142171565687
+  },
+  "dir135": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2229034193161368
+  },
+  "dir180": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.224631073785243
+  },
+  "dir225": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.226112777444511
+  },
+  "dir270": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2223515296940612
+  },
+  "dir315": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2014367126574685
+  },
+  "yaw_ccw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2250779844031194
+  },
+  "yaw_cw": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2346820635872826
+  },
+  "flicker": {
+   "graded_at_floor_frac": 0.0,
+   "graded_at_ceiling_frac": 0.0,
+   "brain_mean_hz": 1.2345410917816437
+  }
+ },
+ "timing": {
+  "gray_wall_s": 444.82132675200046,
+  "dir0_wall_s": 556.6318148520004,
+  "dir45_wall_s": 556.7302423040001,
+  "dir90_wall_s": 557.21462221,
+  "dir135_wall_s": 556.8828729119996,
+  "dir180_wall_s": 557.2178980579993,
+  "dir225_wall_s": 556.9442417289993,
+  "dir270_wall_s": 556.9174275949999,
+  "dir315_wall_s": 564.9280804160007,
+  "yaw_ccw_wall_s": 564.1489141180009,
+  "yaw_cw_wall_s": 560.5335084630005,
+  "flicker_wall_s": 558.7753218359994
+ },
+ "conditions_done": [
+  "dir0",
+  "dir45",
+  "dir90",
+  "dir135",
+  "dir180",
+  "dir225",
+  "dir270",
+  "dir315",
+  "yaw_ccw",
+  "yaw_cw",
+  "flicker"
+ ],
+ "wall_s": 6593.731494274,
+ "simulated_s": 29.5,
+ "simulated_s_per_wall_s": 0.004473946205667885
+}

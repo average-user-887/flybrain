@@ -152,6 +152,22 @@ across segments. Display interpolation is not part of the data.
 | `run_id` | string | daemon process run id |
 | `paradigm` | string | active assay after the command |
 | `identity` | object | identity **after** the command (see below) |
+| `halted_by_error` | string or null | the step error that still halts the simulation after this command, else null |
+
+### Error halt (`error`, `halted`, `error_detail`; also in `/api/status`)
+
+An exception inside a simulation step halts the run: nothing advances, and the
+run is never stepped past a broken state. While halted, `/api/status` has
+`"status": "error"` and `"halted": true` (`paused` stays as the user set it),
+stream frames carry `error`, `halted: true` and `error_detail` (`message`,
+`type`, `step`, `sim_time_s`, `paradigm`, `backend`, `instance_id`, `at`,
+`recover`), `timing.achieved_speed` is 0, and the dashboard pill reads
+`SIMULATION HALTED · ERROR`. Pausing, resuming or changing speed does not lift
+the halt (their ack carries `halted_by_error`). A successful `switch_paradigm`
+(re-selecting the same assay retries it) or a `switch_backend` that changes the
+backend rebuilds the controller and world and lifts it; that reply carries
+`cleared_error`, and `/api/status` `cleared_errors` keeps the last 16 lifted
+halts. A failed switch leaves the halt in place.
 
 For `switch_paradigm` the reply is sent only after the target's brain snapshot
 (graph backends: `ExperimentRegistry.activate`) and world snapshot

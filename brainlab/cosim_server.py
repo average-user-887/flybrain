@@ -18,7 +18,7 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Sequence
 import numpy as np
 
 # Root path resolution
@@ -79,12 +79,22 @@ class ConnectomeServer:
                  graph_dir: Optional[Path] = None, connectome_dir: Optional[Path] = None,
                  allow_synthetic: bool = False, engineered_assistance: bool = True,
                  optomotor_seed: int = 0, dynamics: Optional[str] = None,
-                 transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory'):
+                 transmitter_policy: Optional[str] = None, unclear_mode: str = 'excitatory',
+                 silence: Sequence[str] = (), leg_load_feedback: bool = False):
         """Create a fixed-weight controller with an explicit LIF/policy pairing.
 
         ``dynamics`` defaults to the declared process setting. v1/v2 keep the
         prepared graph unchanged; v3 defaults to ``v3-modulatory-only``, which
         derives a distinct in-memory graph identity without altering graph.npz.
+
+        ``silence`` names cell types (``DNa02``) or one side of a type
+        (``DNa02:L``) whose input current is clamped to ``SILENCE_DRIVE`` on
+        every step, as in the validation harness.  Real graph only; empty
+        by default, and then no reply or status field changes.
+
+        ``leg_load_feedback`` drives the leg campaniform sensilla afferents
+        from ``sensory['leg_load_uN']`` (``io_map.LegLoadEncoder``).  Real
+        graph only; off by default, and then nothing changes.
         """
         if graph_path is not None:
             graph_path = Path(graph_path)
@@ -118,6 +128,7 @@ class ConnectomeServer:
         self.transmitter_policy_report = describe_transmitter_policy(
             self.transmitter_policy, self.unclear_mode)
         self.optomotor = None          # (io map, encoder, decoder) on the real graph only
+        self.locomotion_dn = None      # LocomotionDNMap (DNp09/MDN/GF/DNa02 by side), real graph only
         self.shared_graph = None        # retains transformed v3 arrays for this controller
         self.brain = None
         self.identity = None
@@ -147,6 +158,25 @@ class ConnectomeServer:
 
         self._load_brain()
         self._load_metadata()
+        self.silence_map = None
+        if silence:
+            if self.is_synthetic:
+                raise GraphUnavailable("silencing named cell types needs the real annotated graph")
+            try:
+                from .io_map import SILENCE_DRIVE, resolve_silence
+            except ImportError:
+                from brainlab.io_map import SILENCE_DRIVE, resolve_silence
+            self.silence_map = resolve_silence(silence, self.connectome_dir)
+            self._silence_drive = np.float32(SILENCE_DRIVE)
+        self.leg_load = None
+        if leg_load_feedback:
+            if self.is_synthetic:
+                raise GraphUnavailable("leg-load feedback needs the real annotated graph")
+            try:
+                from .io_map import LegLoadEncoder, resolve_leg_load_afferents
+            except ImportError:
+                from brainlab.io_map import LegLoadEncoder, resolve_leg_load_afferents
+            self.leg_load = LegLoadEncoder(resolve_leg_load_afferents(self.connectome_dir))
         self.sensory_map_sha256 = sha256_json(self.sensory_indices)
 
     def _load_brain(self):
@@ -232,6 +262,14 @@ class ConnectomeServer:
                               DNa02YawDecoder(io))
         except GraphUnavailable as error:
             print(f"[ConnectomeServer] optomotor IO map unavailable: {error}", flush=True)
+        try:
+            try:
+                from .io_map import resolve_locomotion_dns
+            except ImportError:
+                from brainlab.io_map import resolve_locomotion_dns
+            self.locomotion_dn = resolve_locomotion_dns(self.connectome_dir)
+        except GraphUnavailable as error:
+            print(f"[ConnectomeServer] locomotion DN map unavailable: {error}", flush=True)
         self.sensory_indices["jon_wind"] = df[df['cell_type'].str.contains('JO-', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["feco_proprio"] = df[df['cell_type'].str.contains('SNta', na=False)]['node_index'].tolist()[:50]
         self.sensory_indices["visual_looming"] = df[df['cell_type'].isin(['LC4', 'LPLC2'])]['node_index'].tolist()
@@ -261,6 +299,10 @@ class ConnectomeServer:
             "transmitter_policy_report": self.transmitter_policy_report,
             "engineered_assistance_enabled": self.engineered_assistance,
             "optomotor_io_map_sha256": self.optomotor[0].sha256 if self.optomotor else None,
+            "locomotion_dn_map_sha256": self.locomotion_dn.sha256 if self.locomotion_dn else None,
+            **({"silence": self.silence_map.summary()} if getattr(self, "silence_map", None) else {}),
+            **({"leg_load_afferent_map_sha256": self.leg_load.map.sha256}
+               if getattr(self, "leg_load", None) else {}),
             # A dynamics change is a new controller version (docs/LIF_DYNAMICS_SPEC.md):
             # telemetry must never leave which engine produced a spike ambiguous.
             "lif_dynamics_version": self.brain.dynamics,
@@ -287,6 +329,8 @@ class ConnectomeServer:
             encoder = type(encoder)(io, np.random.default_rng(self.optomotor_seed))
             decoder.reset()
             self.optomotor = (io, encoder, decoder)
+        if self.leg_load is not None:
+            self.leg_load.reset()
 
     def step(self, sensory: Dict[str, Any], duration_ms: float = 2.0) -> Dict[str, Any]:
         """
@@ -368,11 +412,22 @@ class ConnectomeServer:
                 if idx < self.n_neurons:
                     currents[idx] += bpn_tonic
 
-        # 6. Step the LIF connectome kernel
+        # 5b. Leg-load feedback onto leg campaniform sensilla afferents (opt-in)
+        leg_load_rates = None
+        if self.leg_load is not None:
+            if "leg_load_uN" not in sensory:
+                raise ValueError("leg-load feedback is on but the sensory input has no leg_load_uN")
+            leg_load_rates = self.leg_load.encode(currents, sensory["leg_load_uN"], duration_ms)
+
+        # 6. Clamp silenced cell types last, overriding every drive above
+        if self.silence_map is not None:
+            currents[self.silence_map.nodes] = self._silence_drive
+
+        # 7. Step the LIF connectome kernel
         spike_counts, elapsed_s = self.brain.step(currents, duration_ms)
         self.total_steps += 1
 
-        # 7. Decode Descending Neuron Activity (spikes / duration -> Hz)
+        # 8. Decode Descending Neuron Activity (spikes / duration -> Hz)
         sec = duration_ms / 1000.0
 
         # DNa02 fine yaw steering
@@ -411,7 +466,7 @@ class ConnectomeServer:
                 "decoder": "yaw = 0.02*(rate DNa02_L - rate DNa02_R), + = counter-clockwise; unclipped",
             }
 
-        return {
+        reply = {
             "status": "ok",
             **self.identity_fields(),
             "server_step": self.total_steps,
@@ -427,7 +482,35 @@ class ConnectomeServer:
             "dnp01_gf_spikes": dnp01_gf_spikes,
             "engineered_assistance_applied": applied_assistance,
             "optomotor": optomotor_reply,
+            "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }
+        if self.leg_load is not None:
+            reply["leg_load"] = {
+                "model_rate_hz": leg_load_rates,
+                "afferent_spikes": {leg: int(spike_counts[idx].sum())
+                                    for leg, idx in self.leg_load.map.populations.items()},
+            }
+        if self.silence_map is not None:
+            # Spikes of clamped neurons: nonzero means the clamp leaked (cf. gate O7).
+            reply["silenced"] = {
+                "spikes": int(spike_counts[self.silence_map.nodes].sum()),
+                "by_target": {t: int(spike_counts[idx].sum())
+                              for t, idx in self.silence_map.populations.items()},
+            }
+        return reply
+
+    def _locomotion_dn_reply(self, spike_counts, sec: float) -> Optional[Dict[str, Any]]:
+        """Per-side mean rates (Hz per neuron) of the locomotion DNs, plus raw GF spikes."""
+        dn = self.locomotion_dn
+        if dn is None:
+            return None
+        reply: Dict[str, Any] = {"map_sha256": dn.sha256}
+        for name, nodes in dn.populations.items():
+            spikes = int(spike_counts[nodes].sum())
+            reply[f"{name}_rate_hz"] = spikes / (len(nodes) * sec)
+            if name.startswith("GF_"):
+                reply[f"{name}_spikes"] = spikes
+        return reply
 
     def get_status(self) -> Dict[str, Any]:
         return {
@@ -445,7 +528,10 @@ class ConnectomeServer:
             "total_steps": self.total_steps,
             "total_spikes": self.brain.total_spikes if self.brain else 0,
             "sim_ms": self.brain.sim_ms if self.brain else 0.0,
-            "brunel_scaled": True
+            "brunel_scaled": True,
+            **({"silence_map": self.silence_map.describe()} if self.silence_map else {}),
+            **({"leg_load_encoder": self.leg_load.describe(),
+                "leg_load_afferent_map": self.leg_load.map.describe()} if self.leg_load else {}),
         }
 
 

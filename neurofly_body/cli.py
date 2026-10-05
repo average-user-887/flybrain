@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, Sequence
 
-from .decoder import DNa02CPGDecoder
+from .decoder import DNa02CPGDecoder, DNCommandDecoder
 from .runner import EmbodiedConfig, run_embodied
 
 
@@ -33,14 +33,70 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--warmup-s", type=float, default=0.05)
     run.add_argument("--world-angular-velocity-rad-s", type=float, default=4.0)
     run.add_argument("--contrast", type=float, default=1.0)
+    run.add_argument(
+        "--record-fps", type=float, default=50.0,
+        help="write body.nfbody for 1x browser replay at this many frames per simulated "
+             "second (web/embodied_replay.html); 0 disables",
+    )
+    run.add_argument(
+        "--controller", choices=("connectome", "modular"), default="connectome",
+        help="connectome: MaleCNS v3 graph; modular: the arena's phenomenological "
+             "optomotor model as a researcher baseline (neurofly_body/modular.py)",
+    )
+    run.add_argument(
+        "--motor-delay-steps", type=int, default=0, metavar="N",
+        help="opt-in motor latency: the body runs the command decoded N neural steps "
+             "(N x 2 ms) earlier; 0 (default) is the zero-latency sequential loop",
+    )
+    run.add_argument(
+        "--pipeline", action="store_true",
+        help="with --motor-delay-steps >= 1, step the graph and the body concurrently; "
+             "bit-identical to the same delay without --pipeline",
+    )
+    run.add_argument(
+        "--leg-load-feedback", action="store_true",
+        help="connectome only: drive each leg's campaniform sensilla afferents from its "
+             "measured load (contact force minus adhesion); off by default",
+    )
+    run.add_argument(
+        "--silence", action="append", metavar="CELL_TYPE[:L|:R]",
+        help="connectome only, repeatable: clamp this cell type (or one soma side) with the "
+             "validation harness's SILENCE_DRIVE every step; off by default",
+    )
+    run.add_argument("--modular-forward-drive", type=float, default=1.0,
+                     help="modular only: tonic CPG amplitude (assumption)")
+    run.add_argument("--modular-turn-gain", type=float, default=1.0,
+                     help="modular only: yaw-bias-to-amplitude gain (assumption)")
+    run.add_argument(
+        "--decoder", choices=("dn-v2", "dna02-crossed-v1"), default="dn-v2",
+        help="dn-v2: DNp09 forward, DNa02 ipsilateral stride, MDN reverse, GF event "
+             "(docs/EMBODIED_MVP.md); dna02-crossed-v1: legacy MVP mapping",
+    )
     run.add_argument("--decoder-tau-ms", type=float, default=50.0)
-    run.add_argument("--cpg-gain-per-hz", type=float, default=0.04)
     run.add_argument("--max-cpg-drive", type=float, default=1.2)
+    run.add_argument("--p9-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    run.add_argument("--dna02-stride-k-per-hz", type=float, default=0.01, help="dn-v2 (assumption)")
+    run.add_argument("--mdn-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    run.add_argument("--cpg-gain-per-hz", type=float, default=0.04, help="dna02-crossed-v1 only")
     run.add_argument(
         "--video",
         action="store_true",
         help="render output/body.mp4 offscreen (set MUJOCO_GL as needed, e.g. egl)",
     )
+    queue = subparsers.add_parser(
+        "queue", help="local run queue: runs execute one after another (neurofly_body/run_queue.py)")
+    queue_sub = queue.add_subparsers(dest="queue_command", required=True)
+    q_add = queue_sub.add_parser("add", help="append a run; arguments after -- are `run` arguments")
+    q_add.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_add.add_argument("name")
+    q_add.add_argument("run_args", nargs=argparse.REMAINDER,
+                       help="-- then run arguments without --output, e.g. -- --duration 10 --seed 1")
+    q_run = queue_sub.add_parser("run", help="execute pending runs in order")
+    q_run.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    q_run.add_argument("--watch", type=float, metavar="SECONDS",
+                       help="keep polling for new jobs every SECONDS instead of exiting")
+    q_status = queue_sub.add_parser("status", help="list jobs by state")
+    q_status.add_argument("queue_dir", type=Path, metavar="QUEUE")
     check = subparsers.add_parser(
         "replay-check",
         help="re-run a finished run from its manifest and require a bit-identical trajectory",
@@ -55,8 +111,17 @@ def _parser() -> argparse.ArgumentParser:
 RUN_ARGUMENTS = (
     "duration", "mode", "graph_dir", "connectome_dir", "seed", "neural_dt_ms",
     "physics_dt_s", "warmup_s", "world_angular_velocity_rad_s", "contrast",
-    "decoder_tau_ms", "cpg_gain_per_hz", "max_cpg_drive",
+    "record_fps", "controller", "modular_forward_drive", "modular_turn_gain",
+    "decoder", "decoder_tau_ms", "max_cpg_drive", "p9_gain_per_hz",
+    "dna02_stride_k_per_hz", "mdn_gain_per_hz", "cpg_gain_per_hz", "silence",
+    "motor_delay_steps", "pipeline", "leg_load_feedback",
 )
+# Runs recorded before an argument existed ran with this value.
+# The dn-v2 gains did not exist then and do not affect the legacy decoder.
+INVOCATION_BACKFILL = {"record_fps": 0.0, "controller": "connectome", "modular_forward_drive": 1.0,
+                       "modular_turn_gain": 1.0, "decoder": "dna02-crossed-v1", "p9_gain_per_hz": 0.02,
+                       "dna02_stride_k_per_hz": 0.01, "mdn_gain_per_hz": 0.02, "silence": None,
+                       "motor_delay_steps": 0, "pipeline": False, "leg_load_feedback": False}
 
 
 def _invocation(args: argparse.Namespace) -> dict[str, Any]:
@@ -87,11 +152,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "replay-check":
         return _replay_check(args.run_dir, args.output)
+    if args.command == "queue":
+        return _queue(args)
     if args.command != "run":  # pragma: no cover - argparse enforces this
         raise AssertionError(args.command)
     summary = _run(args)
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
+
+
+def _queue(args: argparse.Namespace) -> int:
+    from . import run_queue
+
+    if args.queue_command == "add":
+        run_args = list(args.run_args)
+        if run_args[:1] == ["--"]:
+            run_args = run_args[1:]
+        # Validate now, so a typo fails at `add` time and not hours later.
+        _parser().parse_args(["run", *run_args, "--output", "validate-only"])
+        print(run_queue.add(args.queue_dir, args.name, run_args))
+        return 0
+    if args.queue_command == "run":
+        state = run_queue.run(args.queue_dir, watch_s=args.watch)
+    else:
+        state = run_queue.status(args.queue_dir)
+    print(json.dumps(state, indent=2, sort_keys=True))
+    return 1 if args.queue_command == "run" and state["failed"] else 0
 
 
 def _replay_check(run_dir: Path, output: Path) -> int:
@@ -100,14 +186,20 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("status") != "complete":
         raise SystemExit(f"{run_dir} did not complete (status {manifest.get('status')!r})")
-    invocation = manifest.get("invocation") or {}
+    invocation = {**INVOCATION_BACKFILL, **(manifest.get("invocation") or {})}
     missing = [name for name in RUN_ARGUMENTS if name not in invocation]
     if missing:
         raise SystemExit(f"{run_dir}/manifest.json has no recorded invocation for {missing}")
     argv = ["run", "--output", str(output)]
     for name in RUN_ARGUMENTS:
         value = invocation[name]
-        if value is not None:
+        if isinstance(value, bool):          # store_true flags (--pipeline)
+            if value:
+                argv.append("--" + name.replace("_", "-"))
+        elif isinstance(value, list):        # repeatable flags (--silence)
+            for item in value:
+                argv += ["--" + name.replace("_", "-"), str(item)]
+        elif value is not None:
             argv += ["--" + name.replace("_", "-"), str(value)]
     args = _parser().parse_args(argv)
     summary = _run(args)
@@ -117,7 +209,10 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     replay_backend = replay_manifest["neural_backend"].get("brain_backend")
     original_sha = _sha256_file(run_dir / "telemetry.jsonl")
     replay_sha = _sha256_file(Path(output) / "telemetry.jsonl")
-    identical = original_sha == replay_sha
+    original_recording = (json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+                          .get("recording") or {}).get("frames_sha256")
+    replay_recording = (summary.get("recording") or {}).get("frames_sha256")
+    identical = original_sha == replay_sha and original_recording == replay_recording
     receipt = {
         "schema": "neurofly-embodied-replay-check-v1",
         "verdict": "BIT_IDENTICAL" if identical else "DIVERGED",
@@ -126,13 +221,14 @@ def _replay_check(run_dir: Path, output: Path) -> int:
         "original_trajectory_sha256": original_sha,
         "replay_trajectory_sha256": replay_sha,
         "recorded_trajectory_sha256": manifest.get("trajectory_sha256"),
-        "first_differing_record": None if identical else _first_difference(
+        "first_differing_record": None if original_sha == replay_sha else _first_difference(
             run_dir / "telemetry.jsonl", Path(output) / "telemetry.jsonl"),
         "records": summary["records"],
         "duration_s": summary["duration_s"],
         "brain_backend": {"original": original_backend, "replay": replay_backend},
         "graph_sha256": manifest["neural_backend"].get("graph_sha256"),
         "invocation": invocation,
+        "recording_frames_sha256": {"original": original_recording, "replay": replay_recording},
         "replay_wall_time_s": summary["wall_time_s"],
         "replay_real_time_factor": summary["real_time_factor"],
     }
@@ -157,6 +253,15 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
 
     if args.video:
         os.environ.setdefault("MUJOCO_GL", "egl")
+    if args.controller == "modular":
+        if args.silence or args.leg_load_feedback:
+            raise SystemExit("--silence and --leg-load-feedback need the connectome controller; "
+                             "the modular baseline has no neurons")
+        from .modular import ModularCommandDecoder, ModularOptomotorBackend
+
+        neural = ModularOptomotorBackend(forward_drive=args.modular_forward_drive,
+                                         turn_gain=args.modular_turn_gain)
+        return _run_with(args, neural, ModularCommandDecoder(max_drive=args.max_cpg_drive))
     try:
         neural = ConnectomeServer(
             graph_dir=args.graph_dir,
@@ -167,12 +272,33 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             unclear_mode="excitatory",
             engineered_assistance=False,
             optomotor_seed=args.seed,
+            **({"silence": tuple(args.silence)} if args.silence else {}),
+            **({"leg_load_feedback": True} if args.leg_load_feedback else {}),
         )
     except TypeError as error:
         raise SystemExit(
             "ConnectomeServer lacks the required explicit v3 transmitter-policy API; "
             "deploy the matching brainlab backend before running the body MVP."
         ) from error
+    if args.decoder == "dn-v2":
+        decoder = DNCommandDecoder(
+            gain_p9_per_hz=args.p9_gain_per_hz,
+            k_dna02_per_hz=args.dna02_stride_k_per_hz,
+            gain_mdn_per_hz=args.mdn_gain_per_hz,
+            tau_ms=args.decoder_tau_ms,
+            max_drive=args.max_cpg_drive,
+        )
+    else:
+        decoder = DNa02CPGDecoder(
+            gain_per_hz=args.cpg_gain_per_hz,
+            tau_ms=args.decoder_tau_ms,
+            max_drive=args.max_cpg_drive,
+        )
+    return _run_with(args, neural, decoder)
+
+
+def _run_with(args: argparse.Namespace, neural: Any, decoder: Any) -> dict[str, Any]:
+    from .flygym_body import FlyGymBody
 
     video_path = args.output.resolve() / "body.mp4" if args.video else None
     body = None
@@ -181,6 +307,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             physics_dt_s=args.physics_dt_s,
             warmup_s=args.warmup_s,
             video_path=video_path,
+            measure_leg_load=bool(getattr(args, "leg_load_feedback", False)),
         )
         config = EmbodiedConfig(
             duration_s=args.duration,
@@ -191,11 +318,10 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             world_angular_velocity_rad_s=args.world_angular_velocity_rad_s,
             contrast=args.contrast,
             seed=args.seed,
-        )
-        decoder = DNa02CPGDecoder(
-            gain_per_hz=args.cpg_gain_per_hz,
-            tau_ms=args.decoder_tau_ms,
-            max_drive=args.max_cpg_drive,
+            record_fps=args.record_fps,
+            motor_delay_steps=args.motor_delay_steps,
+            pipeline=args.pipeline,
+            leg_load_feedback=args.leg_load_feedback,
         )
         summary = run_embodied(config, neural, body, decoder=decoder,
                                invocation=_invocation(args))

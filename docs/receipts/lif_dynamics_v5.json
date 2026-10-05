@@ -1,0 +1,3065 @@
+{
+ "spec": "docs/LIF_DYNAMICS_SPEC.md#9",
+ "declaration_lock": "docs/receipts/receptor_kinetics_v5_declaration.locked.md",
+ "declaration_sha256": "3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b",
+ "dynamics": "v5",
+ "kinetics_tables": {
+  "v5-receptor-class": {
+   "nicotinic": 1.4,
+   "gaba_a": 3.7,
+   "glucl": 3.7,
+   "hiscl": 1.0
+  },
+  "v5-receptor-class-upper": {
+   "nicotinic": 5.23,
+   "gaba_a": 13.8,
+   "glucl": 13.8,
+   "hiscl": 6.1
+  },
+  "v4-equivalent": {
+   "nicotinic": 5.0,
+   "gaba_a": 5.0,
+   "glucl": 5.0,
+   "hiscl": 5.0
+  }
+ },
+ "pins": {
+  "v4_protocol9": "7ae0966578aa3c4a948021b8c38ce8c4de89aad8d67ac0f6d5c9c094b021ed44",
+  "v5_primary": "08ff5652c3916d68d85d22ef2e8cd164a9db86f5021100575a27e2c45d5310f4",
+  "v5_upper_S2": "08ff5652c3916d68d85d22ef2e8cd164a9db86f5021100575a27e2c45d5310f4"
+ },
+ "kinetics_reports": {
+  "v4_protocol9": null,
+  "v5_primary": {
+   "kinetics": "v5-receptor-class",
+   "tau_decay_ms": {
+    "nicotinic": 1.4,
+    "gaba_a": 3.7,
+    "glucl": 3.7,
+    "hiscl": 1.0
+   },
+   "tau_ref_ms": 5.0,
+   "class_from": "presynaptic neuron transmitter label (normalized/neurons.feather)",
+   "transmitter_to_class": {
+    "acetylcholine": "nicotinic",
+    "gaba": "gaba_a",
+    "glutamate": "glucl",
+    "histamine": "hiscl"
+   },
+   "default_class": "nicotinic",
+   "quantum": "q_k = (1 - exp(-dt/tau_k)) / (1 - exp(-dt/tau_ref)): charge-preserving",
+   "spec": "docs/LIF_DYNAMICS_SPEC.md#9",
+   "declaration_lock": "docs/receipts/receptor_kinetics_v5_declaration.locked.md",
+   "declaration_sha256": "3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b",
+   "resolved": "presynaptic transmitter label from normalized/neurons.feather",
+   "neurons": 166700,
+   "class_counts": {
+    "nicotinic": 107438,
+    "gaba_a": 22069,
+    "glucl": 29302,
+    "hiscl": 7891
+   },
+   "channels": [
+    {
+     "tau_ms": 1.4,
+     "classes": [
+      "nicotinic"
+     ],
+     "decay_per_dt": 0.9310627797040227,
+     "quantum_factor": 3.4814445195480412
+    },
+    {
+     "tau_ms": 3.7,
+     "classes": [
+      "gaba_a",
+      "glucl"
+     ],
+     "decay_per_dt": 0.9733349348192527,
+     "quantum_factor": 1.3466302331067606
+    },
+    {
+     "tau_ms": 1.0,
+     "classes": [
+      "hiscl"
+     ],
+     "decay_per_dt": 0.9048374180359595,
+     "quantum_factor": 4.805868992429954
+    }
+   ],
+   "kinetics_sha256": "08b358ed8b955cad2250bf38afd228804f90425f159dbd4651023c1b4c970e77"
+  },
+  "v5_upper_S2": {
+   "kinetics": "v5-receptor-class-upper",
+   "tau_decay_ms": {
+    "nicotinic": 5.23,
+    "gaba_a": 13.8,
+    "glucl": 13.8,
+    "hiscl": 6.1
+   },
+   "tau_ref_ms": 5.0,
+   "class_from": "presynaptic neuron transmitter label (normalized/neurons.feather)",
+   "transmitter_to_class": {
+    "acetylcholine": "nicotinic",
+    "gaba": "gaba_a",
+    "glutamate": "glucl",
+    "histamine": "hiscl"
+   },
+   "default_class": "nicotinic",
+   "quantum": "q_k = (1 - exp(-dt/tau_k)) / (1 - exp(-dt/tau_ref)): charge-preserving",
+   "spec": "docs/LIF_DYNAMICS_SPEC.md#9",
+   "declaration_lock": "docs/receipts/receptor_kinetics_v5_declaration.locked.md",
+   "declaration_sha256": "3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b",
+   "resolved": "presynaptic transmitter label from normalized/neurons.feather",
+   "neurons": 166700,
+   "class_counts": {
+    "nicotinic": 107438,
+    "gaba_a": 22069,
+    "glucl": 29302,
+    "hiscl": 7891
+   },
+   "channels": [
+    {
+     "tau_ms": 5.23,
+     "classes": [
+      "nicotinic"
+     ],
+     "decay_per_dt": 0.9810611775832845,
+     "quantum_factor": 0.9564420965377297
+    },
+    {
+     "tau_ms": 13.8,
+     "classes": [
+      "gaba_a",
+      "glucl"
+     ],
+     "decay_per_dt": 0.9927798148737282,
+     "quantum_factor": 0.3646313824383766
+    },
+    {
+     "tau_ms": 6.1,
+     "classes": [
+      "hiscl"
+     ],
+     "decay_per_dt": 0.9837401985812029,
+     "quantum_factor": 0.8211470711376214
+    }
+   ],
+   "kinetics_sha256": "4d5ff33f3b3e5c0503e76a4d4ac6f285c26fed2647693e6f071ec5e0c2524e87"
+  }
+ },
+ "graded_report": {
+  "policy": "v4-optic-lobe-graded",
+  "spec": "docs/LIF_DYNAMICS_SPEC.md#7",
+  "declaration_lock": "docs/receipts/graded_transmission_v4_declaration.locked.md",
+  "declaration_sha256": "2634c824476c9b799bd2c0c656040255360cd10f8837e2d874a97af5f939872e",
+  "tier1_cell_types": [
+   "R1-R6",
+   "R7d",
+   "R7p",
+   "R7y",
+   "R8d",
+   "R8p",
+   "R8y",
+   "R7_unclear",
+   "R8_unclear",
+   "R7R8_unclear",
+   "L1",
+   "L2",
+   "L3",
+   "L4",
+   "L5",
+   "Lai",
+   "Mi1",
+   "Mi4",
+   "Mi9",
+   "Tm1",
+   "Tm2",
+   "Tm3",
+   "Tm4",
+   "Tm9",
+   "CT1",
+   "T4a",
+   "T4b",
+   "T4c",
+   "T4d",
+   "T4_unclear",
+   "T5a",
+   "T5b",
+   "T5c",
+   "T5d",
+   "T5a_unclear",
+   "HSN",
+   "HSE",
+   "HSS",
+   "HST",
+   "H1",
+   "H2",
+   "VS",
+   "VST1",
+   "VST2",
+   "VSm"
+  ],
+  "note": "declared non-spiking classes; a coarse class list with its evidence, not physiology measured here",
+  "tier2_superclasses": [
+   "ol_intrinsic",
+   "ol_sensory"
+  ],
+  "tier2_status": "ENGINEERING ASSUMPTION (spec \u00a77.5)",
+  "excluded": "lobula columnar visual_projection neurons (they spike; von Reyn 2017)",
+  "neurons": 166700,
+  "graded_neurons": 95545,
+  "graded_fraction": 0.5731553689262148,
+  "graded_set_sha256": "761c90d423e0966b69195b97f4cda804e132c9ccea82990a8ac94163c9a805d4",
+  "tier1_neurons": 43052,
+  "resolved": "cell_type + superclass from neurons.feather (never row order)"
+ },
+ "io_map": {
+  "sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+  "photoreceptors": {
+   "L": 1107,
+   "R": 2228
+  },
+  "cartridges": {
+   "L": 300,
+   "R": 524
+  },
+  "undriven": {
+   "L": 5,
+   "R": 37
+  },
+  "majority_assigned": {
+   "L": 16,
+   "R": 26
+  },
+  "trace": {
+   "R1-R6_L": 1107,
+   "R1-R6_R": 2228,
+   "L1_L": 884,
+   "L1_R": 892,
+   "L2_L": 886,
+   "L2_R": 893,
+   "L3_L": 880,
+   "L3_R": 892,
+   "L4_L": 879,
+   "L4_R": 891,
+   "L5_L": 889,
+   "L5_R": 898,
+   "Mi1_L": 886,
+   "Mi1_R": 887,
+   "Mi4_L": 883,
+   "Mi4_R": 889,
+   "Mi9_L": 886,
+   "Mi9_R": 889,
+   "Tm1_L": 887,
+   "Tm1_R": 890,
+   "Tm2_L": 883,
+   "Tm2_R": 883,
+   "Tm3_L": 1017,
+   "Tm3_R": 1037,
+   "Tm4_L": 837,
+   "Tm4_R": 833,
+   "Tm9_L": 884,
+   "Tm9_R": 887,
+   "CT1_L": 1,
+   "CT1_R": 1,
+   "T4a_L": 835,
+   "T4a_R": 849,
+   "T4b_L": 844,
+   "T4b_R": 846,
+   "T4c_L": 895,
+   "T4c_R": 883,
+   "T4d_L": 850,
+   "T4d_R": 859,
+   "T5a_L": 826,
+   "T5a_R": 838,
+   "T5b_L": 863,
+   "T5b_R": 852,
+   "T5c_L": 862,
+   "T5c_R": 858,
+   "T5d_L": 812,
+   "T5d_R": 808,
+   "HS_L": 4,
+   "HS_R": 4,
+   "H2_L": 1,
+   "H2_R": 1,
+   "VS_L": 16,
+   "VS_R": 18,
+   "DNa02_L": 1,
+   "DNa02_R": 1,
+   "DNa01_L": 1,
+   "DNa01_R": 1,
+   "PFL3_L": 12,
+   "PFL3_R": 12
+  },
+  "interommatidial_deg": 5.0
+ },
+ "encoder": {
+  "model": "drifting sinusoidal grating on R1-R6 only, retinotopic by cartridge",
+  "i_max": 20.0,
+  "spatial_period_deg": 30.0,
+  "temporal_frequency_hz": 1.5,
+  "noise": null,
+  "direction_selectivity": "NOT supplied by this encoder",
+  "units": "per-neuron drive current (upstream mV-equivalent)",
+  "io_map_sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+  "interommatidial_deg": 5.0
+ },
+ "protocol": {
+  "gray_settle_ms": 1000.0,
+  "gray_window_ms": 1000.0,
+  "grating_settle_ms": 500.0,
+  "window_ms": 2000.0,
+  "step_ms": 2.0,
+  "cycles_in_window": 3.0,
+  "contrast": 1.0,
+  "noise": null,
+  "seeds": null,
+  "f1": "2/N * sum V(t_k) exp(-i 2 pi f t_k), t_k = end of each step"
+ },
+ "yaw_axes": {
+  "L": 123.13008603630517,
+  "R": 123.94099513868764
+ },
+ "gate_verdict": {
+  "primary": {
+   "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+   "t4t5_subtypes_passing": [],
+   "t4t5_clause": false,
+   "dna02_clause": false,
+   "passed": false
+  },
+  "s2": {
+   "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+   "t4t5_subtypes_passing": [],
+   "t4t5_clause": false,
+   "dna02_clause": false,
+   "passed": false
+  },
+  "v4_reference": {
+   "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+   "t4t5_subtypes_passing": [],
+   "t4t5_clause": false,
+   "dna02_clause": false,
+   "passed": false
+  },
+  "expensive_protocol_d_run": false
+ },
+ "predictions": {
+  "P1": {
+   "holds": true,
+   "note": "decay as declared, PSP area within 0.5 % of v4; S0 bit-identical on synthetic graphs, within v4's own run-to-run float noise on the real graph"
+  },
+  "P2": {
+   "holds": true
+  },
+  "P3": {
+   "holds": false
+  },
+  "P4": {
+   "holds": false
+  },
+  "P5": {
+   "holds": true
+  },
+  "P6": {
+   "holds": true
+  },
+  "P7": {
+   "holds": true,
+   "speed": {
+    "v4_protocol9": 0.004473946205667885,
+    "v5_primary": 0.00817523456502126,
+    "v5_upper_S2": 0.02440345908621055
+   },
+   "pre_lock_probe": {
+    "v4": {
+     "sim_s": 0.2,
+     "wall_s": 44.589058109000234,
+     "sim_s_per_wall_s": 0.0044854053546296
+    },
+    "v5_K4": {
+     "sim_s": 0.2,
+     "wall_s": 24.66660538899987,
+     "sim_s_per_wall_s": 0.008108128250561404
+    }
+   }
+  }
+ },
+ "falsifiers": {
+  "F1_s0_not_bit_identical": {
+   "triggered": true,
+   "synthetic_cpu_and_gpu": "bit-identical (tests/test_kinetics_v5.py)",
+   "real_graph": {
+    "v": {
+     "bit_identical": false,
+     "max_abs_diff": 1.1444091796875e-05
+    },
+    "g": {
+     "bit_identical": false,
+     "max_abs_diff": 2.288818359375e-05
+    },
+    "refractory": {
+     "bit_identical": true,
+     "max_abs_diff": 0.0
+    },
+    "rel_ring": {
+     "bit_identical": false,
+     "max_abs_diff": 7.450580596923828e-09
+    }
+   },
+   "v4_vs_itself": {
+    "v": {
+     "bit_identical": false,
+     "max_abs_diff": 1.1444091796875e-05
+    },
+    "g": {
+     "bit_identical": false,
+     "max_abs_diff": 1.52587890625e-05
+    },
+    "refractory": {
+     "bit_identical": true,
+     "max_abs_diff": 0.0
+    },
+    "rel_ring": {
+     "bit_identical": false,
+     "max_abs_diff": 7.450580596923828e-09
+    }
+   },
+   "spikes": {
+    "v4": 41004,
+    "v5_S0": 41004,
+    "v4_repeat": 41004
+   },
+   "attribution": "v4 is itself not bit-reproducible run to run on the real graph on this GPU; the v5-S0 difference equals v4's own run-to-run difference"
+  },
+  "F2_unit_psp": {
+   "triggered": false,
+   "checks": {
+    "v5-receptor-class/nicotinic": {
+     "declared_tau_ms": 1.4,
+     "fitted_tau_ms": 1.4000001551001147,
+     "psp_area_ratio_to_v4": 0.9987364517161191,
+     "conductance_area_ratio_to_v4": 1.000000161097396,
+     "psp_peak_ratio_to_v4": 1.29776668942062
+    },
+    "v5-receptor-class/gaba_a": {
+     "declared_tau_ms": 3.7,
+     "fitted_tau_ms": 3.7000001760760375,
+     "psp_area_ratio_to_v4": 0.998765300120979,
+     "conductance_area_ratio_to_v4": 1.0000000038999366,
+     "psp_peak_ratio_to_v4": 1.0810696537228925
+    },
+    "v5-receptor-class/glucl": {
+     "declared_tau_ms": 3.7,
+     "fitted_tau_ms": 3.7000001760760375,
+     "psp_area_ratio_to_v4": 0.998765300120979,
+     "conductance_area_ratio_to_v4": 1.0000000038999366,
+     "psp_peak_ratio_to_v4": 1.0810696537228925
+    },
+    "v5-receptor-class/hiscl": {
+     "declared_tau_ms": 1.0,
+     "fitted_tau_ms": 1.0000000434857237,
+     "psp_area_ratio_to_v4": 0.9958652484500702,
+     "conductance_area_ratio_to_v4": 0.9999999214068535,
+     "psp_peak_ratio_to_v4": 1.3500211406126488
+    },
+    "v5-receptor-class-upper/nicotinic": {
+     "declared_tau_ms": 5.23,
+     "fitted_tau_ms": 5.229999211496958,
+     "psp_area_ratio_to_v4": 1.0000006645457404,
+     "conductance_area_ratio_to_v4": 0.9999999999815108,
+     "psp_peak_ratio_to_v4": 0.9872839632956584
+    },
+    "v5-receptor-class-upper/gaba_a": {
+     "declared_tau_ms": 13.8,
+     "fitted_tau_ms": 13.799997380120933,
+     "psp_area_ratio_to_v4": 1.0054432752694313,
+     "conductance_area_ratio_to_v4": 0.9999996932703024,
+     "psp_peak_ratio_to_v4": 0.6984980973448616
+    },
+    "v5-receptor-class-upper/glucl": {
+     "declared_tau_ms": 13.8,
+     "fitted_tau_ms": 13.799997380120933,
+     "psp_area_ratio_to_v4": 1.0054432752694313,
+     "conductance_area_ratio_to_v4": 0.9999996932703024,
+     "psp_peak_ratio_to_v4": 0.6984980973448616
+    },
+    "v5-receptor-class-upper/hiscl": {
+     "declared_tau_ms": 6.1,
+     "fitted_tau_ms": 6.099999973987946,
+     "psp_area_ratio_to_v4": 1.000901760523283,
+     "conductance_area_ratio_to_v4": 0.9999999944738975,
+     "psp_peak_ratio_to_v4": 0.9434779678049916
+    }
+   }
+  },
+  "F3_gate_passes": {
+   "triggered": false
+  },
+  "F4_departs_from_v4": {
+   "primary": {
+    "d1_max_abs_diff_mV": {
+     "R1-R6_L": 0.000152587890625,
+     "R1-R6_R": 0.00045013427734375,
+     "L1_L": 0.002803802490234375,
+     "L1_R": 0.0159454345703125,
+     "L2_L": 0.0043792724609375,
+     "L2_R": 0.01470947265625,
+     "L3_L": 0.004749298095703125,
+     "L3_R": 0.029544830322265625,
+     "L4_L": 0.000896453857421875,
+     "L4_R": 0.0173797607421875,
+     "L5_L": 0.00423431396484375,
+     "L5_R": 0.00307464599609375,
+     "Mi1_L": 0.03240203857421875,
+     "Mi1_R": 0.0623321533203125,
+     "Mi4_L": 0.025238037109375,
+     "Mi4_R": 0.0963897705078125,
+     "Mi9_L": 0.00331878662109375,
+     "Mi9_R": 0.025798797607421875,
+     "Tm1_L": 0.009151458740234375,
+     "Tm1_R": 0.005435943603515625,
+     "Tm2_L": 0.007694244384765625,
+     "Tm2_R": 0.015995025634765625,
+     "Tm3_L": 0.0394287109375,
+     "Tm3_R": 0.052860260009765625,
+     "Tm4_L": 0.020633697509765625,
+     "Tm4_R": 0.022190093994140625,
+     "Tm9_L": 0.007579803466796875,
+     "Tm9_R": 0.15726470947265625,
+     "CT1_L": 0.044480323791503906,
+     "CT1_R": 0.08456039428710938,
+     "T4a_L": 0.011608123779296875,
+     "T4a_R": 0.10623550415039062,
+     "T4b_L": 0.015125274658203125,
+     "T4b_R": 0.12535858154296875,
+     "T4c_L": 0.01244354248046875,
+     "T4c_R": 0.09817123413085938,
+     "T4d_L": 0.01132965087890625,
+     "T4d_R": 0.11404800415039062,
+     "T5a_L": 0.014087677001953125,
+     "T5a_R": 0.02848052978515625,
+     "T5b_L": 0.008243560791015625,
+     "T5b_R": 0.024143218994140625,
+     "T5c_L": 0.0077056884765625,
+     "T5c_R": 0.0292205810546875,
+     "T5d_L": 0.008045196533203125,
+     "T5d_R": 0.02965545654296875,
+     "HS_L": 0.06366348266601562,
+     "HS_R": 0.054096221923828125,
+     "H2_L": 0.060382843017578125,
+     "H2_R": 0.12329864501953125,
+     "VS_L": 0.037403106689453125,
+     "VS_R": 0.051006317138671875
+    },
+    "d2_median_diff": {
+     "R1-R6_L": -1.15406364784576e-05,
+     "R1-R6_R": 1.178700040327385e-05,
+     "L1_L": -0.02272087335586548,
+     "L1_R": 0.0013656531227752566,
+     "L2_L": -0.025610223412513733,
+     "L2_R": 0.007076655980199575,
+     "L3_L": 0.030675172805786133,
+     "L3_R": 0.10801921412348747,
+     "L4_L": 0.1653890609741211,
+     "L4_R": 0.012118898332118988,
+     "L5_L": 0.025496363639831543,
+     "L5_R": 0.03760134056210518,
+     "Mi1_L": -0.01622307300567627,
+     "Mi1_R": 0.011397913098335266,
+     "Mi4_L": 0.12088152766227722,
+     "Mi4_R": 0.07063591480255127,
+     "Mi9_L": 0.1161927878856659,
+     "Mi9_R": 0.14246345683932304,
+     "Tm1_L": -0.11541858315467834,
+     "Tm1_R": 0.009028829168528318,
+     "Tm2_L": -0.0032231807708740234,
+     "Tm2_R": 0.027720345184206963,
+     "Tm3_L": -0.009945571422576904,
+     "Tm3_R": -0.002622060477733612,
+     "Tm4_L": -0.012379497289657593,
+     "Tm4_R": 0.03656630031764507,
+     "Tm9_L": 0.1475735753774643,
+     "Tm9_R": 0.3907925635576248,
+     "CT1_L": -0.22068238258361816,
+     "CT1_R": 0.11924004554748535,
+     "T4a_L": 0.06254351139068604,
+     "T4a_R": 0.2799403965473175,
+     "T4b_L": 0.08229762315750122,
+     "T4b_R": 0.44797080010175705,
+     "T4c_L": 0.053473472595214844,
+     "T4c_R": 0.39117904752492905,
+     "T4d_L": -0.026029348373413086,
+     "T4d_R": 0.43885164707899094,
+     "T5a_L": -0.019779682159423828,
+     "T5a_R": 0.02887578308582306,
+     "T5b_L": 0.17990046739578247,
+     "T5b_R": 0.1820231769233942,
+     "T5c_L": 0.08014558255672455,
+     "T5c_R": 0.19843116216361523,
+     "T5d_L": 0.16240936517715454,
+     "T5d_R": 0.18002705462276936,
+     "HS_L": 0.27587978541851044,
+     "HS_R": 0.0073079913854599,
+     "H2_L": -0.6688577979803085,
+     "H2_R": 0.15274834632873535,
+     "VS_L": -0.0323447585105896,
+     "VS_R": -0.1466948240995407
+    },
+    "d4_phase_diff_deg": {
+     "R1-R6_L": 0.004048470957229711,
+     "R1-R6_R": 0.002157422232130557,
+     "L1_L": -2.0073556988888868,
+     "L1_R": -2.113739803404684,
+     "L2_L": -3.067499954658871,
+     "L2_R": -2.221964834211292,
+     "L3_L": -0.6972957241485744,
+     "L3_R": -0.6461660646314442,
+     "L4_L": -1.645905141332264,
+     "L4_R": -3.0403438381316334,
+     "L5_L": 4.699244228709887,
+     "L5_R": 0.05203228968645135,
+     "Mi1_L": -10.185317855556377,
+     "Mi1_R": 0.19013388959999133,
+     "Mi4_L": -147.63131987177434,
+     "Mi4_R": -37.704640971286494,
+     "Mi9_L": -5.5552911232977635,
+     "Mi9_R": -3.4332262017273933,
+     "Tm1_L": -8.301443803692536,
+     "Tm1_R": -3.638819553222106,
+     "Tm2_L": -9.287859085337516,
+     "Tm2_R": -3.7888119294653393,
+     "Tm3_L": -4.400984788659883,
+     "Tm3_R": -3.0937654852776006,
+     "Tm4_L": -11.772621044925955,
+     "Tm4_R": -3.256638171736739,
+     "Tm9_L": 2.7143938035148665,
+     "Tm9_R": -2.4519338484493574,
+     "CT1_L": -48.377766348983215,
+     "CT1_R": 166.82230031068258,
+     "T4a_L": -118.03547052436193,
+     "T4a_R": -6.281796618309301,
+     "T4b_L": 170.42183309557572,
+     "T4b_R": 0.520898266729489,
+     "T4c_L": -51.05630301064514,
+     "T4c_R": -4.572221184910205,
+     "T4d_L": -165.57294292705603,
+     "T4d_R": -7.220479060941017,
+     "T5a_L": -10.907377788736909,
+     "T5a_R": -2.177595216176286,
+     "T5b_L": -0.5625901277464891,
+     "T5b_R": -3.5095174607201898,
+     "T5c_L": 2.2287231860217673,
+     "T5c_R": -0.12570552439996163,
+     "T5d_L": 2.5025409829343346,
+     "T5d_R": 0.10932819639646141,
+     "HS_L": 71.60434271744936,
+     "HS_R": 13.648461855670064,
+     "H2_L": -8.240529767809505,
+     "H2_R": 95.02276268693345,
+     "VS_L": 52.438808405886505,
+     "VS_R": -6.848721762866887
+    },
+    "violations": {
+     "d1": [
+      "CT1_R",
+      "H2_L",
+      "H2_R",
+      "HS_L",
+      "HS_R",
+      "Mi1_R",
+      "Mi4_R",
+      "T4a_R",
+      "T4b_R",
+      "T4c_R",
+      "T4d_R",
+      "Tm3_R",
+      "Tm9_R",
+      "VS_R"
+     ],
+     "d2": [
+      "CT1_L",
+      "CT1_R",
+      "H2_L",
+      "H2_R",
+      "HS_L",
+      "L3_R",
+      "L4_L",
+      "Mi4_L",
+      "Mi4_R",
+      "Mi9_L",
+      "Mi9_R",
+      "T4a_L",
+      "T4a_R",
+      "T4b_L",
+      "T4b_R",
+      "T4c_L",
+      "T4c_R",
+      "T4d_R",
+      "T5b_L",
+      "T5b_R",
+      "T5c_L",
+      "T5c_R",
+      "T5d_L",
+      "T5d_R",
+      "Tm1_L",
+      "Tm9_L",
+      "Tm9_R",
+      "VS_R"
+     ],
+     "d4": [
+      "CT1_L",
+      "CT1_R",
+      "H2_L",
+      "H2_R",
+      "HS_L",
+      "HS_R",
+      "Mi1_L",
+      "Mi4_L",
+      "Mi4_R",
+      "Mi9_L",
+      "T4a_L",
+      "T4a_R",
+      "T4b_L",
+      "T4c_L",
+      "T4d_L",
+      "T4d_R",
+      "T5a_L",
+      "Tm1_L",
+      "Tm2_L",
+      "Tm4_L",
+      "VS_L",
+      "VS_R"
+     ]
+    },
+    "holds": false
+   },
+   "s2": {
+    "d1_max_abs_diff_mV": {
+     "R1-R6_L": 0.000537872314453125,
+     "R1-R6_R": 0.00064849853515625,
+     "L1_L": 0.0053863525390625,
+     "L1_R": 0.003360748291015625,
+     "L2_L": 0.004058837890625,
+     "L2_R": 0.003986358642578125,
+     "L3_L": 0.025852203369140625,
+     "L3_R": 0.0207366943359375,
+     "L4_L": 0.00571441650390625,
+     "L4_R": 0.0059051513671875,
+     "L5_L": 0.00628662109375,
+     "L5_R": 0.003147125244140625,
+     "Mi1_L": 0.045520782470703125,
+     "Mi1_R": 0.03656768798828125,
+     "Mi4_L": 0.059436798095703125,
+     "Mi4_R": 0.06121826171875,
+     "Mi9_L": 0.005458831787109375,
+     "Mi9_R": 0.00580596923828125,
+     "Tm1_L": 0.016277313232421875,
+     "Tm1_R": 0.00522613525390625,
+     "Tm2_L": 0.029296875,
+     "Tm2_R": 0.004947662353515625,
+     "Tm3_L": 0.034870147705078125,
+     "Tm3_R": 0.040630340576171875,
+     "Tm4_L": 0.009796142578125,
+     "Tm4_R": 0.007110595703125,
+     "Tm9_L": 0.008144378662109375,
+     "Tm9_R": 0.0079803466796875,
+     "CT1_L": 0.009828567504882812,
+     "CT1_R": 0.018074989318847656,
+     "T4a_L": 0.011737823486328125,
+     "T4a_R": 0.02024078369140625,
+     "T4b_L": 0.005615234375,
+     "T4b_R": 0.0125579833984375,
+     "T4c_L": 0.01071929931640625,
+     "T4c_R": 0.011295318603515625,
+     "T4d_L": 0.01271820068359375,
+     "T4d_R": 0.0247802734375,
+     "T5a_L": 0.0087432861328125,
+     "T5a_R": 0.019256591796875,
+     "T5b_L": 0.004428863525390625,
+     "T5b_R": 0.001346588134765625,
+     "T5c_L": 0.00847625732421875,
+     "T5c_R": 0.00147247314453125,
+     "T5d_L": 0.008663177490234375,
+     "T5d_R": 0.013580322265625,
+     "HS_L": 0.06373977661132812,
+     "HS_R": 0.09375,
+     "H2_L": 0.0278778076171875,
+     "H2_R": 0.013584136962890625,
+     "VS_L": 0.0749359130859375,
+     "VS_R": 0.0615997314453125
+    },
+    "d2_median_diff": {
+     "R1-R6_L": -3.898647264577448e-06,
+     "R1-R6_R": 2.859233063645661e-07,
+     "L1_L": 0.0261298269033432,
+     "L1_R": 0.0003112872363999486,
+     "L2_L": 0.08621914684772491,
+     "L2_R": -0.0007054121233522892,
+     "L3_L": 0.10387560725212097,
+     "L3_R": 0.031724220141768456,
+     "L4_L": 0.1126956045627594,
+     "L4_R": 0.004651837050914764,
+     "L5_L": 0.028156429529190063,
+     "L5_R": -0.028722772374749184,
+     "Mi1_L": 0.0005164444446563721,
+     "Mi1_R": -0.07166240364313126,
+     "Mi4_L": -0.009775131940841675,
+     "Mi4_R": 0.048548877239227295,
+     "Mi9_L": 0.04705549776554108,
+     "Mi9_R": 0.010453857481479645,
+     "Tm1_L": -0.04094862937927246,
+     "Tm1_R": -0.0013076472096145153,
+     "Tm2_L": 0.0503421425819397,
+     "Tm2_R": -0.00034519750624895096,
+     "Tm3_L": -0.07619920372962952,
+     "Tm3_R": -0.02255380153656006,
+     "Tm4_L": 0.00038492679595947266,
+     "Tm4_R": 0.003916647285223007,
+     "Tm9_L": 0.038979485630989075,
+     "Tm9_R": -0.026488952338695526,
+     "CT1_L": -0.2936174273490906,
+     "CT1_R": 0.03395414352416992,
+     "T4a_L": -0.1674380898475647,
+     "T4a_R": -0.19201816618442535,
+     "T4b_L": 0.028538778424263,
+     "T4b_R": -0.03275345638394356,
+     "T4c_L": -0.08053907752037048,
+     "T4c_R": -0.028869062662124634,
+     "T4d_L": -0.16306009888648987,
+     "T4d_R": 0.008400112390518188,
+     "T5a_L": -0.04217706620693207,
+     "T5a_R": -0.1480100303888321,
+     "T5b_L": 0.17327317595481873,
+     "T5b_R": -0.004227936267852783,
+     "T5c_L": 0.09336598217487335,
+     "T5c_R": 0.0031137578189373016,
+     "T5d_L": 0.13235384225845337,
+     "T5d_R": 0.026804549619555473,
+     "HS_L": 0.21586035192012787,
+     "HS_R": 0.009416833519935608,
+     "H2_L": -0.11828917264938354,
+     "H2_R": 0.39401549100875854,
+     "VS_L": 0.059320107102394104,
+     "VS_R": 0.04470524191856384
+    },
+    "d4_phase_diff_deg": {
+     "R1-R6_L": 0.0034152568039189646,
+     "R1-R6_R": 0.006430060230144363,
+     "L1_L": 0.5769889729552347,
+     "L1_R": 0.48596488919426406,
+     "L2_L": 0.653725104848661,
+     "L2_R": 0.8083294587400474,
+     "L3_L": 0.6335273975544737,
+     "L3_R": 0.7487291536014311,
+     "L4_L": 1.8492982436554826,
+     "L4_R": 1.1804713045811752,
+     "L5_L": 11.117867884599036,
+     "L5_R": 10.855469881988824,
+     "Mi1_L": 9.383094996738464,
+     "Mi1_R": 12.210958304618657,
+     "Mi4_L": -19.67349052427511,
+     "Mi4_R": 11.927241260378594,
+     "Mi9_L": 0.6330059136077182,
+     "Mi9_R": 2.116851155547039,
+     "Tm1_L": 0.28741378747423596,
+     "Tm1_R": 1.2913135246611773,
+     "Tm2_L": -0.05394990817916323,
+     "Tm2_R": 1.1411798370688189,
+     "Tm3_L": 6.558727364434361,
+     "Tm3_R": 7.325318060759713,
+     "Tm4_L": 1.2360586622127698,
+     "Tm4_R": 2.6345743713973775,
+     "Tm9_L": -0.010611661725278054,
+     "Tm9_R": -0.06370239394769328,
+     "CT1_L": 15.831555581819686,
+     "CT1_R": 75.14441193426572,
+     "T4a_L": 26.749297634849967,
+     "T4a_R": 10.39246632927589,
+     "T4b_L": 4.2317328850659806,
+     "T4b_R": 8.215387526448126,
+     "T4c_L": 6.458615370556629,
+     "T4c_R": 8.54625853099978,
+     "T4d_L": 6.912390752820784,
+     "T4d_R": 9.303800788791307,
+     "T5a_L": -13.606168043096517,
+     "T5a_R": 0.07412882372821628,
+     "T5b_L": 4.234979467426996,
+     "T5b_R": 2.454904873295675,
+     "T5c_L": 1.4280253383031436,
+     "T5c_R": 2.3987187182528658,
+     "T5d_L": 1.4787113353494874,
+     "T5d_R": 1.9658046474856974,
+     "HS_L": -134.81825953822423,
+     "HS_R": -157.8904242722483,
+     "H2_L": 14.667189478621367,
+     "H2_R": 139.86664262030683,
+     "VS_L": 159.428247181509,
+     "VS_R": -168.607314644897
+    },
+    "violations": {
+     "d1": [],
+     "d2": [
+      "CT1_L",
+      "H2_L",
+      "H2_R",
+      "HS_L",
+      "L3_L",
+      "L4_L",
+      "T4a_L",
+      "T4a_R",
+      "T4d_L",
+      "T5a_R",
+      "T5b_L",
+      "T5d_L"
+     ],
+     "d4": [
+      "CT1_L",
+      "CT1_R",
+      "H2_L",
+      "H2_R",
+      "HS_L",
+      "HS_R",
+      "L5_L",
+      "L5_R",
+      "Mi1_R",
+      "Mi4_L",
+      "Mi4_R",
+      "T4a_L",
+      "T4a_R",
+      "T5a_L",
+      "VS_L",
+      "VS_R"
+     ]
+    },
+    "holds": false
+   },
+   "triggered": true,
+   "brain_mean_hz_gray": {
+    "v4_protocol9": 1.207252549490102,
+    "v5_primary": 10.40126574685063,
+    "v5_upper_S2": 7.898926214757049
+   }
+  },
+  "F5_instrument_null_controls": {
+   "failures": {
+    "v4_protocol9": [
+     "R1-R6_L D1 DSI 1.000 at 0.25 uV"
+    ],
+    "v5_primary": [],
+    "v5_upper_S2": []
+   },
+   "triggered": true
+  },
+  "F6_saturation_or_collapse": {
+   "triggered": false,
+   "graded_at_bound": {
+    "v4_protocol9": {
+     "floor": 0.0,
+     "ceiling": 0.0
+    },
+    "v5_primary": {
+     "floor": 0.0,
+     "ceiling": 0.0
+    },
+    "v5_upper_S2": {
+     "floor": 0.0,
+     "ceiling": 0.0
+    }
+   }
+  },
+  "F7_verdict_depends_on_arm": {
+   "triggered": false,
+   "primary": false,
+   "s2": false
+  }
+ },
+ "runs": {
+  "v4_protocol9": {
+   "gate": {
+    "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+    "t4t5_subtypes_passing": [],
+    "t4t5_clause": false,
+    "dna02_clause": false,
+    "passed": false
+   },
+   "t4t5": {
+    "T4a_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.015106201171875,
+     "preferred_deg": 225,
+     "d2_median": 0.44795119762420654,
+     "d2_frac_ge_0_2": 0.8694610778443114,
+     "d2_pref": 307.01798145116834
+    },
+    "T4a_R": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.012691497802734375,
+     "preferred_deg": 315,
+     "d2_median": 0.31467387080192566,
+     "d2_frac_ge_0_2": 0.64075382803298,
+     "d2_pref": 133.0739751501286
+    },
+    "T4b_L": {
+     "dsi": 0.06916019760056458,
+     "magnitude_mV": 0.005779266357421875,
+     "preferred_deg": 45,
+     "d2_median": 0.34535764157772064,
+     "d2_frac_ge_0_2": 0.6398104265402843,
+     "d2_pref": 320.3493634749936
+    },
+    "T4b_R": {
+     "dsi": 0.12482662968099861,
+     "magnitude_mV": 0.00618743896484375,
+     "preferred_deg": 45,
+     "d2_median": 0.1153414323925972,
+     "d2_frac_ge_0_2": 0.37706855791962174,
+     "d2_pref": 340.6277427573966
+    },
+    "T4c_L": {
+     "dsi": 0.07944676744934062,
+     "magnitude_mV": 0.00640106201171875,
+     "preferred_deg": 45,
+     "d2_median": 0.42548075318336487,
+     "d2_frac_ge_0_2": 0.6916201117318436,
+     "d2_pref": 320.206321259901
+    },
+    "T4c_R": {
+     "dsi": 0.05585464333781965,
+     "magnitude_mV": 0.005985260009765625,
+     "preferred_deg": 45,
+     "d2_median": 0.11188051849603653,
+     "d2_frac_ge_0_2": 0.3669309173272933,
+     "d2_pref": 348.1188002238334
+    },
+    "T4d_L": {
+     "dsi": 0.11324991979467437,
+     "magnitude_mV": 0.006618499755859375,
+     "preferred_deg": 45,
+     "d2_median": 0.42841653525829315,
+     "d2_frac_ge_0_2": 0.6717647058823529,
+     "d2_pref": 334.54801687554584
+    },
+    "T4d_R": {
+     "dsi": 0.04840848806366048,
+     "magnitude_mV": 0.006031036376953125,
+     "preferred_deg": 45,
+     "d2_median": 0.1110469177365303,
+     "d2_frac_ge_0_2": 0.37834691501746215,
+     "d2_pref": 303.0839930027096
+    },
+    "T5a_L": {
+     "dsi": null,
+     "magnitude_mV": 0.014404296875,
+     "preferred_deg": 0,
+     "d2_median": 0.43006372451782227,
+     "d2_frac_ge_0_2": 0.7893462469733656,
+     "d2_pref": 254.10383659633774
+    },
+    "T5a_R": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.014926910400390625,
+     "preferred_deg": 315,
+     "d2_median": 0.21795091778039932,
+     "d2_frac_ge_0_2": 0.5286396181384249,
+     "d2_pref": 145.3718462552509
+    },
+    "T5b_L": {
+     "dsi": 0.5301668806161746,
+     "magnitude_mV": 0.0022735595703125,
+     "preferred_deg": 135,
+     "d2_median": 0.2665988504886627,
+     "d2_frac_ge_0_2": 0.5573580533024334,
+     "d2_pref": 197.65121230130825
+    },
+    "T5b_R": {
+     "dsi": 0.14150943396226415,
+     "magnitude_mV": 0.00276947021484375,
+     "preferred_deg": 45,
+     "d2_median": 0.04270662181079388,
+     "d2_frac_ge_0_2": 0.29694835680751175,
+     "d2_pref": 191.98124332950815
+    },
+    "T5c_L": {
+     "dsi": 0.21292775665399238,
+     "magnitude_mV": 0.001216888427734375,
+     "preferred_deg": 0,
+     "d2_median": 0.2901531159877777,
+     "d2_frac_ge_0_2": 0.5754060324825986,
+     "d2_pref": 254.46674444887577
+    },
+    "T5c_R": {
+     "dsi": 0.0056022408963585435,
+     "magnitude_mV": 0.00273895263671875,
+     "preferred_deg": 180,
+     "d2_median": 0.038470545783638954,
+     "d2_frac_ge_0_2": 0.28554778554778554,
+     "d2_pref": 9.324883636498749
+    },
+    "T5d_L": {
+     "dsi": 0.050175029171528586,
+     "magnitude_mV": 0.00171661376953125,
+     "preferred_deg": 0,
+     "d2_median": 0.21431902050971985,
+     "d2_frac_ge_0_2": 0.5184729064039408,
+     "d2_pref": 203.389938435888
+    },
+    "T5d_R": {
+     "dsi": 0.032432432432432434,
+     "magnitude_mV": 0.0029144287109375,
+     "preferred_deg": 180,
+     "d2_median": 0.038435323163867,
+     "d2_frac_ge_0_2": 0.2834158415841584,
+     "d2_pref": 231.0995094391569
+    }
+   },
+   "antiparallel": {
+    "T4a/b_L": {
+     "d2_pref": [
+      307.01798145116834,
+      320.3493634749936
+     ],
+     "d2_separation_deg": 13.331382023825256,
+     "d1_pref": [
+      225,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": true
+    },
+    "T4c/d_L": {
+     "d2_pref": [
+      320.206321259901,
+      334.54801687554584
+     ],
+     "d2_separation_deg": 14.341695615644824,
+     "d1_pref": [
+      45,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4a/b_R": {
+     "d2_pref": [
+      133.0739751501286,
+      340.6277427573966
+     ],
+     "d2_separation_deg": 152.44623239273199,
+     "d1_pref": [
+      315,
+      45
+     ],
+     "antiparallel_d2_within_45deg": true,
+     "antiparallel_d1": false
+    },
+    "T4c/d_R": {
+     "d2_pref": [
+      348.1188002238334,
+      303.0839930027096
+     ],
+     "d2_separation_deg": 45.0348072211238,
+     "d1_pref": [
+      45,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_L": {
+     "d2_pref": [
+      254.10383659633774,
+      197.65121230130825
+     ],
+     "d2_separation_deg": 56.452624295029494,
+     "d1_pref": [
+      0,
+      135
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_L": {
+     "d2_pref": [
+      254.46674444887577,
+      203.389938435888
+     ],
+     "d2_separation_deg": 51.07680601298776,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_R": {
+     "d2_pref": [
+      145.3718462552509,
+      191.98124332950815
+     ],
+     "d2_separation_deg": 46.60939707425726,
+     "d1_pref": [
+      315,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_R": {
+     "d2_pref": [
+      9.324883636498749,
+      231.0995094391569
+     ],
+     "d2_separation_deg": 138.22537419734186,
+     "d1_pref": [
+      180,
+      180
+     ],
+     "antiparallel_d2_within_45deg": true,
+     "antiparallel_d1": false
+    }
+   },
+   "hs": {
+    "HS_L": {
+     "front_to_back_dc_mV": -0.016010761260986328,
+     "back_to_front_dc_mV": -0.023380756378173828,
+     "depolarises_ftb": false,
+     "hyperpolarises_btf": true,
+     "ftb_minus_btf_mV": 0.0073699951171875
+    },
+    "HS_R": {
+     "front_to_back_dc_mV": -0.002048969268798828,
+     "back_to_front_dc_mV": -0.009898662567138672,
+     "depolarises_ftb": false,
+     "hyperpolarises_btf": true,
+     "ftb_minus_btf_mV": 0.007849693298339844
+    }
+   },
+   "dna02": {
+    "gray": {
+     "L": 13.0,
+     "R": 2.0
+    },
+    "dir0": {
+     "L": 10.5,
+     "R": 4.5,
+     "L_minus_R": 6.0
+    },
+    "dir45": {
+     "L": 15.0,
+     "R": 3.0,
+     "L_minus_R": 12.0
+    },
+    "dir90": {
+     "L": 15.5,
+     "R": 4.5,
+     "L_minus_R": 11.0
+    },
+    "dir135": {
+     "L": 11.0,
+     "R": 1.5,
+     "L_minus_R": 9.5
+    },
+    "dir180": {
+     "L": 19.0,
+     "R": 0.5,
+     "L_minus_R": 18.5
+    },
+    "dir225": {
+     "L": 17.0,
+     "R": 2.0,
+     "L_minus_R": 15.0
+    },
+    "dir270": {
+     "L": 17.5,
+     "R": 1.0,
+     "L_minus_R": 16.5
+    },
+    "dir315": {
+     "L": 17.0,
+     "R": 4.5,
+     "L_minus_R": 12.5
+    },
+    "yaw_ccw": {
+     "L": 13.0,
+     "R": 2.0,
+     "L_minus_R": 11.0
+    },
+    "yaw_cw": {
+     "L": 11.0,
+     "R": 2.5,
+     "L_minus_R": 8.5
+    },
+    "flicker": {
+     "L": 13.5,
+     "R": 3.5,
+     "L_minus_R": 10.0
+    },
+    "yaw_clause": {
+     "ccw_L_minus_R": 11.0,
+     "cw_L_minus_R": 8.5,
+     "rule": "CCW (leftward) pattern motion must give L-R >= +1 Hz and CW must give L-R <= -1 Hz (syndirectional, the optomotor sign; DNa02 steers ipsilaterally)",
+     "passed": false,
+     "reverses_at_all": false
+    },
+    "eight_direction_reversal_v4_style": {
+     "0/180": {
+      "a": 6.0,
+      "b": 18.5,
+      "reverses": false
+     },
+     "45/225": {
+      "a": 12.0,
+      "b": 15.0,
+      "reverses": false
+     },
+     "90/270": {
+      "a": 11.0,
+      "b": 16.5,
+      "reverses": false
+     },
+     "135/315": {
+      "a": 9.5,
+      "b": 12.5,
+      "reverses": false
+     }
+    }
+   },
+   "brain_mean_hz": {
+    "gray": 1.207252549490102,
+    "dir0": 1.210134973005399,
+    "dir45": 1.2208578284343132,
+    "dir90": 1.229142171565687,
+    "dir135": 1.2229034193161368,
+    "dir180": 1.224631073785243,
+    "dir225": 1.226112777444511,
+    "dir270": 1.2223515296940612,
+    "dir315": 1.2014367126574685,
+    "yaw_ccw": 1.2250779844031194,
+    "yaw_cw": 1.2346820635872826,
+    "flicker": 1.2345410917816437
+   },
+   "graded_at_bound": {
+    "floor": 0.0,
+    "ceiling": 0.0
+   },
+   "instrument": {
+    "R1-R6_L": {
+     "D1_dsi": 1.0,
+     "D1_magnitude": 0.00025177001953125,
+     "D2_median_cell_abs_dsi_f1": 9.170643170364201e-05
+    },
+    "R1-R6_R": {
+     "D1_dsi": null,
+     "D1_magnitude": 0.00116729736328125,
+     "D2_median_cell_abs_dsi_f1": 9.837343895924278e-05
+    },
+    "L1_L": {
+     "D1_dsi": 0.0021939037483078936,
+     "D1_magnitude": 0.040950775146484375,
+     "D2_median_cell_abs_dsi_f1": 0.39280690252780914
+    },
+    "L2_L": {
+     "D1_dsi": 0.0549165721691236,
+     "D1_magnitude": 0.012420654296875,
+     "D2_median_cell_abs_dsi_f1": 0.3876922130584717
+    },
+    "L1_R": {
+     "D1_dsi": 2.6555487691531455e-05,
+     "D1_magnitude": 0.07182693481445312,
+     "D2_median_cell_abs_dsi_f1": 0.002167939906939864
+    },
+    "L2_R": {
+     "D1_dsi": 0.03970436576143004,
+     "D1_magnitude": 0.023075103759765625,
+     "D2_median_cell_abs_dsi_f1": 0.00527314143255353
+    }
+   },
+   "gray_drift_graded_max_abs_mV": 0.028408050537109375,
+   "flicker_equivalent_delay_ms": {
+    "R1-R6_L": 20.3,
+    "R1-R6_R": 20.2,
+    "L1_L": 33.6,
+    "L1_R": 33.3,
+    "L2_L": 32.7,
+    "L2_R": 31.8,
+    "L3_L": 33.3,
+    "L3_R": 33.8,
+    "L4_L": 49.0,
+    "L4_R": 50.1,
+    "L5_L": 41.5,
+    "L5_R": 42.2,
+    "Mi1_L": 49.4,
+    "Mi1_R": 34.9,
+    "Mi4_L": 64.3,
+    "Mi4_R": 36.2,
+    "Mi9_L": 49.9,
+    "Mi9_R": 48.6,
+    "Tm1_L": 45.7,
+    "Tm1_R": 42.2,
+    "Tm2_L": 45.7,
+    "Tm2_R": 43.2,
+    "Tm3_L": 53.0,
+    "Tm3_R": 46.0,
+    "Tm4_L": 50.9,
+    "Tm4_R": 47.8,
+    "Tm9_L": 55.2,
+    "Tm9_R": 60.9,
+    "CT1_L": 69.5,
+    "T4a_L": 33.4,
+    "T4a_R": 51.8,
+    "T4b_L": 73.8,
+    "T4b_R": 57.6,
+    "T4c_L": 70.2,
+    "T4c_R": 56.8,
+    "T4d_L": 68.6,
+    "T4d_R": 56.9,
+    "T5a_L": 88.9,
+    "T5a_R": 65.2,
+    "T5b_L": 55.6,
+    "T5b_R": 60.8,
+    "T5c_L": 62.2,
+    "T5c_R": 61.1,
+    "T5d_L": 64.0,
+    "T5d_R": 61.8,
+    "HS_L": -74.8,
+    "H2_L": -102.2
+   },
+   "flicker_amplitude_mV": {
+    "R1-R6_L": 9.573437806282293,
+    "R1-R6_R": 9.532077655347248,
+    "L1_L": 0.46617055544593966,
+    "L1_R": 0.8058346243683802,
+    "L2_L": 0.19407735999506523,
+    "L2_R": 0.34076133174299494,
+    "L3_L": 0.16825178225869059,
+    "L3_R": 0.24071222088333877,
+    "L4_L": 0.07054829984210097,
+    "L4_R": 0.132633302944356,
+    "L5_L": 0.03213147138514083,
+    "L5_R": 0.05227803756632902,
+    "Mi1_L": 0.051608622758650885,
+    "Mi1_R": 0.08639657483424691,
+    "Mi4_L": 0.0214601294259769,
+    "Mi4_R": 0.03667126714471448,
+    "Mi9_L": 0.03246630812980333,
+    "Mi9_R": 0.04917805101131503,
+    "Tm1_L": 0.056313222971838564,
+    "Tm1_R": 0.10621132222027198,
+    "Tm2_L": 0.063143824113756,
+    "Tm2_R": 0.11244800822946154,
+    "Tm3_L": 0.1066783310326315,
+    "Tm3_R": 0.22246844735869312,
+    "Tm4_L": 0.06043909496326826,
+    "Tm4_R": 0.13079038488756012,
+    "Tm9_L": 0.024580464310383368,
+    "Tm9_R": 0.04433918273942567,
+    "CT1_L": 0.01159614796763702,
+    "CT1_R": 0.004645431342526658,
+    "T4a_L": 0.020081607059777382,
+    "T4a_R": 0.04520525916027488,
+    "T4b_L": 0.02215372651693492,
+    "T4b_R": 0.04634114940950185,
+    "T4c_L": 0.021553821076310018,
+    "T4c_R": 0.04530185284109899,
+    "T4d_L": 0.021834703269783724,
+    "T4d_R": 0.04308951721190746,
+    "T5a_L": 0.02294854968417522,
+    "T5a_R": 0.04231500462078825,
+    "T5b_L": 0.021594714172294437,
+    "T5b_R": 0.04274102043644987,
+    "T5c_L": 0.02044248470771867,
+    "T5c_R": 0.04562454325158904,
+    "T5d_L": 0.021888309363976427,
+    "T5d_R": 0.04606767260612956,
+    "HS_L": 0.01252969952153275,
+    "HS_R": 0.00384457979914341,
+    "H2_L": 0.011436502332753886,
+    "H2_R": 0.0037077163674271254,
+    "VS_L": 0.0013270171114681234,
+    "VS_R": 0.0017203214184698381
+   },
+   "wall_s": 6593.731494274,
+   "simulated_s": 29.5,
+   "simulated_s_per_wall_s": 0.004473946205667885
+  },
+  "v5_primary": {
+   "gate": {
+    "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+    "t4t5_subtypes_passing": [],
+    "t4t5_clause": false,
+    "dna02_clause": false,
+    "passed": false
+   },
+   "t4t5": {
+    "T4a_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.00839996337890625,
+     "preferred_deg": 225,
+     "d2_median": 0.5104947090148926,
+     "d2_frac_ge_0_2": 0.8023952095808383,
+     "d2_pref": 259.6806210139545
+    },
+    "T4a_R": {
+     "dsi": null,
+     "magnitude_mV": 0.11031341552734375,
+     "preferred_deg": 0,
+     "d2_median": 0.5946142673492432,
+     "d2_frac_ge_0_2": 0.8351001177856302,
+     "d2_pref": 349.3499770885701
+    },
+    "T4b_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.01202392578125,
+     "preferred_deg": 45,
+     "d2_median": 0.42765526473522186,
+     "d2_frac_ge_0_2": 0.8056872037914692,
+     "d2_pref": 244.99997200633467
+    },
+    "T4b_R": {
+     "dsi": null,
+     "magnitude_mV": 0.119171142578125,
+     "preferred_deg": 0,
+     "d2_median": 0.5633122324943542,
+     "d2_frac_ge_0_2": 0.8085106382978723,
+     "d2_pref": 356.4798389064762
+    },
+    "T4c_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.009128570556640625,
+     "preferred_deg": 315,
+     "d2_median": 0.4789542257785797,
+     "d2_frac_ge_0_2": 0.7564245810055866,
+     "d2_pref": 196.35005811804936
+    },
+    "T4c_R": {
+     "dsi": null,
+     "magnitude_mV": 0.09218597412109375,
+     "preferred_deg": 0,
+     "d2_median": 0.5030595660209656,
+     "d2_frac_ge_0_2": 0.7633069082672707,
+     "d2_pref": 348.78523302220384
+    },
+    "T4d_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.0080108642578125,
+     "preferred_deg": 315,
+     "d2_median": 0.40238718688488007,
+     "d2_frac_ge_0_2": 0.7776470588235294,
+     "d2_pref": 221.80747343458717
+    },
+    "T4d_R": {
+     "dsi": null,
+     "magnitude_mV": 0.1080169677734375,
+     "preferred_deg": 0,
+     "d2_median": 0.5498985648155212,
+     "d2_frac_ge_0_2": 0.8009313154831199,
+     "d2_pref": 358.90681082901267
+    },
+    "T5a_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.0054168701171875,
+     "preferred_deg": 225,
+     "d2_median": 0.41028404235839844,
+     "d2_frac_ge_0_2": 0.8184019370460048,
+     "d2_pref": 122.95423203384935
+    },
+    "T5a_R": {
+     "dsi": null,
+     "magnitude_mV": 0.02187347412109375,
+     "preferred_deg": 0,
+     "d2_median": 0.24682670086622238,
+     "d2_frac_ge_0_2": 0.5417661097852029,
+     "d2_pref": 59.749873344855274
+    },
+    "T5b_L": {
+     "dsi": 1.0,
+     "magnitude_mV": 0.006755828857421875,
+     "preferred_deg": 180,
+     "d2_median": 0.4464993178844452,
+     "d2_frac_ge_0_2": 0.8412514484356894,
+     "d2_pref": 176.77184059439853
+    },
+    "T5b_R": {
+     "dsi": null,
+     "magnitude_mV": 0.021373748779296875,
+     "preferred_deg": 0,
+     "d2_median": 0.22472979873418808,
+     "d2_frac_ge_0_2": 0.5363849765258216,
+     "d2_pref": 48.401923805495635
+    },
+    "T5c_L": {
+     "dsi": 0.8232142857142857,
+     "magnitude_mV": 0.006488800048828125,
+     "preferred_deg": 225,
+     "d2_median": 0.37029869854450226,
+     "d2_frac_ge_0_2": 0.8167053364269141,
+     "d2_pref": 146.7799179855393
+    },
+    "T5c_R": {
+     "dsi": null,
+     "magnitude_mV": 0.026729583740234375,
+     "preferred_deg": 0,
+     "d2_median": 0.23690170794725418,
+     "d2_frac_ge_0_2": 0.5477855477855478,
+     "d2_pref": 76.71737086997304
+    },
+    "T5d_L": {
+     "dsi": 0.6994894237782641,
+     "magnitude_mV": 0.006328582763671875,
+     "preferred_deg": 225,
+     "d2_median": 0.3767283856868744,
+     "d2_frac_ge_0_2": 0.8472906403940886,
+     "d2_pref": 155.5776553393148
+    },
+    "T5d_R": {
+     "dsi": null,
+     "magnitude_mV": 0.02707672119140625,
+     "preferred_deg": 0,
+     "d2_median": 0.21846237778663635,
+     "d2_frac_ge_0_2": 0.5247524752475248,
+     "d2_pref": 132.86543637041945
+    }
+   },
+   "antiparallel": {
+    "T4a/b_L": {
+     "d2_pref": [
+      259.6806210139545,
+      244.99997200633467
+     ],
+     "d2_separation_deg": 14.680649007619849,
+     "d1_pref": [
+      225,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": true
+    },
+    "T4c/d_L": {
+     "d2_pref": [
+      196.35005811804936,
+      221.80747343458717
+     ],
+     "d2_separation_deg": 25.457415316537805,
+     "d1_pref": [
+      315,
+      315
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4a/b_R": {
+     "d2_pref": [
+      349.3499770885701,
+      356.4798389064762
+     ],
+     "d2_separation_deg": 7.1298618179060895,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4c/d_R": {
+     "d2_pref": [
+      348.78523302220384,
+      358.90681082901267
+     ],
+     "d2_separation_deg": 10.12157780680883,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_L": {
+     "d2_pref": [
+      122.95423203384935,
+      176.77184059439853
+     ],
+     "d2_separation_deg": 53.817608560549175,
+     "d1_pref": [
+      225,
+      180
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_L": {
+     "d2_pref": [
+      146.7799179855393,
+      155.5776553393148
+     ],
+     "d2_separation_deg": 8.797737353775489,
+     "d1_pref": [
+      225,
+      225
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_R": {
+     "d2_pref": [
+      59.749873344855274,
+      48.401923805495635
+     ],
+     "d2_separation_deg": 11.347949539359632,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_R": {
+     "d2_pref": [
+      76.71737086997304,
+      132.86543637041945
+     ],
+     "d2_separation_deg": 56.14806550044641,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    }
+   },
+   "hs": {
+    "HS_L": {
+     "front_to_back_dc_mV": -0.0665597915649414,
+     "back_to_front_dc_mV": -0.04374217987060547,
+     "depolarises_ftb": false,
+     "hyperpolarises_btf": true,
+     "ftb_minus_btf_mV": -0.022817611694335938
+    },
+    "HS_R": {
+     "front_to_back_dc_mV": -0.04658222198486328,
+     "back_to_front_dc_mV": -0.05223989486694336,
+     "depolarises_ftb": false,
+     "hyperpolarises_btf": true,
+     "ftb_minus_btf_mV": 0.005657672882080078
+    }
+   },
+   "dna02": {
+    "gray": {
+     "L": 18.0,
+     "R": 10.0
+    },
+    "dir0": {
+     "L": 21.5,
+     "R": 6.5,
+     "L_minus_R": 15.0
+    },
+    "dir45": {
+     "L": 22.0,
+     "R": 7.5,
+     "L_minus_R": 14.5
+    },
+    "dir90": {
+     "L": 7.0,
+     "R": 9.0,
+     "L_minus_R": -2.0
+    },
+    "dir135": {
+     "L": 17.0,
+     "R": 2.0,
+     "L_minus_R": 15.0
+    },
+    "dir180": {
+     "L": 17.5,
+     "R": 4.0,
+     "L_minus_R": 13.5
+    },
+    "dir225": {
+     "L": 12.0,
+     "R": 5.0,
+     "L_minus_R": 7.0
+    },
+    "dir270": {
+     "L": 5.5,
+     "R": 3.0,
+     "L_minus_R": 2.5
+    },
+    "dir315": {
+     "L": 8.5,
+     "R": 7.5,
+     "L_minus_R": 1.0
+    },
+    "yaw_ccw": {
+     "L": 14.0,
+     "R": 1.5,
+     "L_minus_R": 12.5
+    },
+    "yaw_cw": {
+     "L": 12.5,
+     "R": 6.0,
+     "L_minus_R": 6.5
+    },
+    "flicker": {
+     "L": 11.5,
+     "R": 16.5,
+     "L_minus_R": -5.0
+    },
+    "yaw_clause": {
+     "ccw_L_minus_R": 12.5,
+     "cw_L_minus_R": 6.5,
+     "rule": "CCW (leftward) pattern motion must give L-R >= +1 Hz and CW must give L-R <= -1 Hz (syndirectional, the optomotor sign; DNa02 steers ipsilaterally)",
+     "passed": false,
+     "reverses_at_all": false
+    },
+    "eight_direction_reversal_v4_style": {
+     "0/180": {
+      "a": 15.0,
+      "b": 13.5,
+      "reverses": false
+     },
+     "45/225": {
+      "a": 14.5,
+      "b": 7.0,
+      "reverses": false
+     },
+     "90/270": {
+      "a": -2.0,
+      "b": 2.5,
+      "reverses": true
+     },
+     "135/315": {
+      "a": 15.0,
+      "b": 1.0,
+      "reverses": false
+     }
+    }
+   },
+   "brain_mean_hz": {
+    "gray": 10.40126574685063,
+    "dir0": 10.368380323935213,
+    "dir45": 10.429649070185963,
+    "dir90": 10.404943011397721,
+    "dir135": 10.394187162567487,
+    "dir180": 10.440944811037792,
+    "dir225": 10.396985602879424,
+    "dir270": 10.410632873425316,
+    "dir315": 10.399547090581883,
+    "yaw_ccw": 10.406004799040192,
+    "yaw_cw": 10.41740551889622,
+    "flicker": 10.462114577084582
+   },
+   "graded_at_bound": {
+    "floor": 0.0,
+    "ceiling": 0.0
+   },
+   "instrument": {
+    "R1-R6_L": {
+     "D1_dsi": null,
+     "D1_magnitude": 0.00035858154296875,
+     "D2_median_cell_abs_dsi_f1": 8.016579522518441e-05
+    },
+    "R1-R6_R": {
+     "D1_dsi": null,
+     "D1_magnitude": 0.0008697509765625,
+     "D2_median_cell_abs_dsi_f1": 0.00011016043936251663
+    },
+    "L1_L": {
+     "D1_dsi": 0.029420275875373783,
+     "D1_magnitude": 0.04071044921875,
+     "D2_median_cell_abs_dsi_f1": 0.37008602917194366
+    },
+    "L2_L": {
+     "D1_dsi": 0.01861635220125786,
+     "D1_magnitude": 0.015445709228515625,
+     "D2_median_cell_abs_dsi_f1": 0.36208198964595795
+    },
+    "L1_R": {
+     "D1_dsi": 0.00761006870628832,
+     "D1_magnitude": 0.0623779296875,
+     "D2_median_cell_abs_dsi_f1": 0.003533593029715121
+    },
+    "L2_R": {
+     "D1_dsi": 0.0951872925557136,
+     "D1_magnitude": 0.035243988037109375,
+     "D2_median_cell_abs_dsi_f1": 0.012349797412753105
+    }
+   },
+   "gray_drift_graded_max_abs_mV": 0.12685775756835938,
+   "flicker_equivalent_delay_ms": {
+    "R1-R6_L": 20.3,
+    "R1-R6_R": 20.2,
+    "L1_L": 29.9,
+    "L1_R": 29.4,
+    "L2_L": 27.1,
+    "L2_R": 27.7,
+    "L3_L": 32.0,
+    "L3_R": 32.6,
+    "L4_L": 46.0,
+    "L4_R": 44.5,
+    "L5_L": 50.2,
+    "L5_R": 42.3,
+    "Mi1_L": 30.6,
+    "Mi1_R": 35.3,
+    "Mi4_L": 124.3,
+    "Mi4_R": -33.6,
+    "Mi9_L": 39.6,
+    "Mi9_R": 42.2,
+    "Tm1_L": 30.3,
+    "Tm1_R": 35.5,
+    "Tm2_L": 28.5,
+    "Tm2_R": 36.2,
+    "Tm3_L": 44.9,
+    "Tm3_R": 40.3,
+    "Tm4_L": 29.1,
+    "Tm4_R": 41.7,
+    "Tm9_L": 60.2,
+    "Tm9_R": 56.4,
+    "CT1_L": -20.1,
+    "CT1_R": 68.6,
+    "T4a_R": 40.1,
+    "T4b_R": 58.6,
+    "T4c_R": 48.4,
+    "T4d_R": 43.6,
+    "T5a_L": 68.7,
+    "T5a_R": 61.2,
+    "T5b_L": 54.5,
+    "T5b_R": 54.3,
+    "T5c_L": 66.4,
+    "T5c_R": 60.8,
+    "T5d_L": 68.7,
+    "T5d_R": 62.0,
+    "HS_L": 57.8,
+    "HS_R": -53.8,
+    "H2_L": -117.5,
+    "H2_R": -123.5
+   },
+   "flicker_amplitude_mV": {
+    "R1-R6_L": 9.569972684888862,
+    "R1-R6_R": 9.526674964312354,
+    "L1_L": 0.47085828264461765,
+    "L1_R": 0.8105575552684084,
+    "L2_L": 0.18317721424726102,
+    "L2_R": 0.3276380502749636,
+    "L3_L": 0.1676399804975176,
+    "L3_R": 0.23696789059401727,
+    "L4_L": 0.07281987550288205,
+    "L4_R": 0.13486940966021588,
+    "L5_L": 0.03516136527794844,
+    "L5_R": 0.0546596899327095,
+    "Mi1_L": 0.03101790173761417,
+    "Mi1_R": 0.07304710079280649,
+    "Mi4_L": 0.019062126642914536,
+    "Mi4_R": 0.010645857933575307,
+    "Mi9_L": 0.03702361632750682,
+    "Mi9_R": 0.05664562775359256,
+    "Tm1_L": 0.05005306558647087,
+    "Tm1_R": 0.10083737213124735,
+    "Tm2_L": 0.06174770802131468,
+    "Tm2_R": 0.11263368923952324,
+    "Tm3_L": 0.09594186403349628,
+    "Tm3_R": 0.21595196606278738,
+    "Tm4_L": 0.04500918786890253,
+    "Tm4_R": 0.11827545001312602,
+    "Tm9_L": 0.05511473597822071,
+    "Tm9_R": 0.07330639131865516,
+    "CT1_L": 0.04780503941345847,
+    "CT1_R": 0.03517447480379172,
+    "T4a_L": 0.004452285326188719,
+    "T4a_R": 0.02201373180797227,
+    "T4b_L": 0.008968032219226476,
+    "T4b_R": 0.018228941875504234,
+    "T4c_L": 0.0003845863350147928,
+    "T4c_R": 0.02569489744601555,
+    "T4d_L": 0.0025028490434184274,
+    "T4d_R": 0.020374751151553846,
+    "T5a_L": 0.01799459274220587,
+    "T5a_R": 0.03963216197671547,
+    "T5b_L": 0.021549180525308863,
+    "T5b_R": 0.04560256110017933,
+    "T5c_L": 0.018443918436997376,
+    "T5c_R": 0.04471672747653733,
+    "T5d_L": 0.01974897441883934,
+    "T5d_R": 0.045801284497184694,
+    "HS_L": 0.023823913117381745,
+    "HS_R": 0.02307436201646684,
+    "H2_L": 0.01841966355199238,
+    "H2_R": 0.0277905676125818,
+    "VS_L": 0.007475638780192983,
+    "VS_R": 0.0023983906395342036
+   },
+   "wall_s": 3608.4591537250017,
+   "simulated_s": 29.5,
+   "simulated_s_per_wall_s": 0.00817523456502126
+  },
+  "v5_upper_S2": {
+   "gate": {
+    "rule": "LIF_DYNAMICS_SPEC \u00a77.10 gate reused verbatim: DSI >= 0.2 in at least one T4/T5 subtype whose response magnitude is >= 0.5 mV, AND a DNa02 asymmetry |L-R| >= 1 Hz whose sign follows the stimulus in both directions (\u00a79.9: evaluated on the yaw CCW / CW conditions)",
+    "t4t5_subtypes_passing": [],
+    "t4t5_clause": false,
+    "dna02_clause": false,
+    "passed": false
+   },
+   "t4t5": {
+    "T4a_L": {
+     "dsi": null,
+     "magnitude_mV": 0.005321502685546875,
+     "preferred_deg": 0,
+     "d2_median": 0.28051310777664185,
+     "d2_frac_ge_0_2": 0.5964071856287425,
+     "d2_pref": 327.78037615192835
+    },
+    "T4a_R": {
+     "dsi": null,
+     "magnitude_mV": 0.011318206787109375,
+     "preferred_deg": 0,
+     "d2_median": 0.1226557046175003,
+     "d2_frac_ge_0_2": 0.4004711425206125,
+     "d2_pref": 141.3667149390878
+    },
+    "T4b_L": {
+     "dsi": 0.30780277644806125,
+     "magnitude_mV": 0.00521087646484375,
+     "preferred_deg": 315,
+     "d2_median": 0.37389642000198364,
+     "d2_frac_ge_0_2": 0.6101895734597157,
+     "d2_pref": 91.82617294978898
+    },
+    "T4b_R": {
+     "dsi": null,
+     "magnitude_mV": 0.00637054443359375,
+     "preferred_deg": 0,
+     "d2_median": 0.08258797600865364,
+     "d2_frac_ge_0_2": 0.34515366430260047,
+     "d2_pref": 172.16499455894512
+    },
+    "T4c_L": {
+     "dsi": null,
+     "magnitude_mV": 0.0043182373046875,
+     "preferred_deg": 0,
+     "d2_median": 0.3449416756629944,
+     "d2_frac_ge_0_2": 0.6201117318435754,
+     "d2_pref": 189.329800722351
+    },
+    "T4c_R": {
+     "dsi": null,
+     "magnitude_mV": 0.00531005859375,
+     "preferred_deg": 0,
+     "d2_median": 0.0830114558339119,
+     "d2_frac_ge_0_2": 0.33861834654586637,
+     "d2_pref": 113.80906402605285
+    },
+    "T4d_L": {
+     "dsi": null,
+     "magnitude_mV": 0.006099700927734375,
+     "preferred_deg": 0,
+     "d2_median": 0.2653564363718033,
+     "d2_frac_ge_0_2": 0.5705882352941176,
+     "d2_pref": 135.59227855687092
+    },
+    "T4d_R": {
+     "dsi": null,
+     "magnitude_mV": 0.018749237060546875,
+     "preferred_deg": 0,
+     "d2_median": 0.11944703012704849,
+     "d2_frac_ge_0_2": 0.3981373690337602,
+     "d2_pref": 193.45416225484416
+    },
+    "T5a_L": {
+     "dsi": null,
+     "magnitude_mV": 0.007434844970703125,
+     "preferred_deg": 0,
+     "d2_median": 0.3878866583108902,
+     "d2_frac_ge_0_2": 0.585956416464891,
+     "d2_pref": 145.0187865233777
+    },
+    "T5a_R": {
+     "dsi": null,
+     "magnitude_mV": 0.00498199462890625,
+     "preferred_deg": 0,
+     "d2_median": 0.06994088739156723,
+     "d2_frac_ge_0_2": 0.3424821002386635,
+     "d2_pref": 242.3169952279501
+    },
+    "T5b_L": {
+     "dsi": 0.6878483835005574,
+     "magnitude_mV": 0.002933502197265625,
+     "preferred_deg": 45,
+     "d2_median": 0.43987202644348145,
+     "d2_frac_ge_0_2": 0.5944380069524913,
+     "d2_pref": 44.23083360206581
+    },
+    "T5b_R": {
+     "dsi": 0.037611940298507465,
+     "magnitude_mV": 0.003314971923828125,
+     "preferred_deg": 0,
+     "d2_median": 0.03847868554294109,
+     "d2_frac_ge_0_2": 0.29577464788732394,
+     "d2_pref": 256.5398952398215
+    },
+    "T5c_L": {
+     "dsi": null,
+     "magnitude_mV": 0.00732421875,
+     "preferred_deg": 0,
+     "d2_median": 0.38351909816265106,
+     "d2_frac_ge_0_2": 0.6136890951276102,
+     "d2_pref": 113.02662049135003
+    },
+    "T5c_R": {
+     "dsi": 0.3241551939924906,
+     "magnitude_mV": 0.00403594970703125,
+     "preferred_deg": 135,
+     "d2_median": 0.041584303602576256,
+     "d2_frac_ge_0_2": 0.2913752913752914,
+     "d2_pref": 221.21770200935342
+    },
+    "T5d_L": {
+     "dsi": null,
+     "magnitude_mV": 0.007129669189453125,
+     "preferred_deg": 0,
+     "d2_median": 0.3466728627681732,
+     "d2_frac_ge_0_2": 0.5677339901477833,
+     "d2_pref": 65.0282023810887
+    },
+    "T5d_R": {
+     "dsi": null,
+     "magnitude_mV": 0.01132965087890625,
+     "preferred_deg": 0,
+     "d2_median": 0.06523987278342247,
+     "d2_frac_ge_0_2": 0.32673267326732675,
+     "d2_pref": 238.010366623802
+    }
+   },
+   "antiparallel": {
+    "T4a/b_L": {
+     "d2_pref": [
+      327.78037615192835,
+      91.82617294978898
+     ],
+     "d2_separation_deg": 124.04579679786065,
+     "d1_pref": [
+      0,
+      315
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4c/d_L": {
+     "d2_pref": [
+      189.329800722351,
+      135.59227855687092
+     ],
+     "d2_separation_deg": 53.73752216548007,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4a/b_R": {
+     "d2_pref": [
+      141.3667149390878,
+      172.16499455894512
+     ],
+     "d2_separation_deg": 30.79827961985731,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T4c/d_R": {
+     "d2_pref": [
+      113.80906402605285,
+      193.45416225484416
+     ],
+     "d2_separation_deg": 79.64509822879131,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_L": {
+     "d2_pref": [
+      145.0187865233777,
+      44.23083360206581
+     ],
+     "d2_separation_deg": 100.7879529213119,
+     "d1_pref": [
+      0,
+      45
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_L": {
+     "d2_pref": [
+      113.02662049135003,
+      65.0282023810887
+     ],
+     "d2_separation_deg": 47.998418110261326,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5a/b_R": {
+     "d2_pref": [
+      242.3169952279501,
+      256.5398952398215
+     ],
+     "d2_separation_deg": 14.222900011871388,
+     "d1_pref": [
+      0,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    },
+    "T5c/d_R": {
+     "d2_pref": [
+      221.21770200935342,
+      238.010366623802
+     ],
+     "d2_separation_deg": 16.792664614448597,
+     "d1_pref": [
+      135,
+      0
+     ],
+     "antiparallel_d2_within_45deg": false,
+     "antiparallel_d1": false
+    }
+   },
+   "hs": {
+    "HS_L": {
+     "front_to_back_dc_mV": 0.005219459533691406,
+     "back_to_front_dc_mV": 0.011105060577392578,
+     "depolarises_ftb": true,
+     "hyperpolarises_btf": false,
+     "ftb_minus_btf_mV": -0.005885601043701172
+    },
+    "HS_R": {
+     "front_to_back_dc_mV": 0.07940864562988281,
+     "back_to_front_dc_mV": 0.09702539443969727,
+     "depolarises_ftb": true,
+     "hyperpolarises_btf": false,
+     "ftb_minus_btf_mV": -0.017616748809814453
+    }
+   },
+   "dna02": {
+    "gray": {
+     "L": 0.0,
+     "R": 0.0
+    },
+    "dir0": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir45": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir90": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir135": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir180": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir225": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir270": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "dir315": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "yaw_ccw": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "yaw_cw": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "flicker": {
+     "L": 0.0,
+     "R": 0.0,
+     "L_minus_R": 0.0
+    },
+    "yaw_clause": {
+     "ccw_L_minus_R": 0.0,
+     "cw_L_minus_R": 0.0,
+     "rule": "CCW (leftward) pattern motion must give L-R >= +1 Hz and CW must give L-R <= -1 Hz (syndirectional, the optomotor sign; DNa02 steers ipsilaterally)",
+     "passed": false,
+     "reverses_at_all": false
+    },
+    "eight_direction_reversal_v4_style": {
+     "0/180": {
+      "a": 0.0,
+      "b": 0.0,
+      "reverses": false
+     },
+     "45/225": {
+      "a": 0.0,
+      "b": 0.0,
+      "reverses": false
+     },
+     "90/270": {
+      "a": 0.0,
+      "b": 0.0,
+      "reverses": false
+     },
+     "135/315": {
+      "a": 0.0,
+      "b": 0.0,
+      "reverses": false
+     }
+    }
+   },
+   "brain_mean_hz": {
+    "gray": 7.898926214757049,
+    "dir0": 7.800551889622076,
+    "dir45": 7.804022195560888,
+    "dir90": 7.799547090581884,
+    "dir135": 7.828845230953809,
+    "dir180": 7.814916016796641,
+    "dir225": 7.800959808038392,
+    "dir270": 7.826319736052789,
+    "dir315": 7.811379724055189,
+    "yaw_ccw": 7.815797840431913,
+    "yaw_cw": 7.82496100779844,
+    "flicker": 7.815683863227354
+   },
+   "graded_at_bound": {
+    "floor": 0.0,
+    "ceiling": 0.0
+   },
+   "instrument": {
+    "R1-R6_L": {
+     "D1_dsi": null,
+     "D1_magnitude": 0.00058746337890625,
+     "D2_median_cell_abs_dsi_f1": 8.780778443906456e-05
+    },
+    "R1-R6_R": {
+     "D1_dsi": null,
+     "D1_magnitude": 0.00139617919921875,
+     "D2_median_cell_abs_dsi_f1": 9.865936226560734e-05
+    },
+    "L1_L": {
+     "D1_dsi": 0.01583663263179829,
+     "D1_magnitude": 0.03719329833984375,
+     "D2_median_cell_abs_dsi_f1": 0.41893672943115234
+    },
+    "L2_L": {
+     "D1_dsi": 0.0973478460830906,
+     "D1_magnitude": 0.013652801513671875,
+     "D2_median_cell_abs_dsi_f1": 0.4739113599061966
+    },
+    "L1_R": {
+     "D1_dsi": 0.005650328476033415,
+     "D1_magnitude": 0.07094955444335938,
+     "D2_median_cell_abs_dsi_f1": 0.0024792271433398128
+    },
+    "L2_R": {
+     "D1_dsi": 0.05570560432140446,
+     "D1_magnitude": 0.02385711669921875,
+     "D2_median_cell_abs_dsi_f1": 0.0045677293092012405
+    }
+   },
+   "gray_drift_graded_max_abs_mV": 0.0185699462890625,
+   "flicker_equivalent_delay_ms": {
+    "R1-R6_L": 20.3,
+    "R1-R6_R": 20.2,
+    "L1_L": 34.7,
+    "L1_R": 34.2,
+    "L2_L": 33.9,
+    "L2_R": 33.3,
+    "L3_L": 34.5,
+    "L3_R": 35.2,
+    "L4_L": 52.5,
+    "L4_R": 52.3,
+    "L5_L": 62.1,
+    "L5_R": 62.3,
+    "Mi1_L": 66.8,
+    "Mi1_R": 57.5,
+    "Mi4_L": 27.9,
+    "Mi4_R": 58.3,
+    "Mi9_L": 51.0,
+    "Mi9_R": 52.5,
+    "Tm1_L": 46.2,
+    "Tm1_R": 44.6,
+    "Tm2_L": 45.6,
+    "Tm2_R": 45.3,
+    "Tm3_L": 65.2,
+    "Tm3_R": 59.6,
+    "Tm4_L": 53.2,
+    "Tm4_R": 52.6,
+    "Tm9_L": 55.2,
+    "Tm9_R": 60.8,
+    "CT1_L": 98.8,
+    "T4a_L": 83.0,
+    "T4a_R": 71.0,
+    "T4b_L": 81.6,
+    "T4b_R": 72.8,
+    "T4c_L": 82.2,
+    "T4c_R": 72.7,
+    "T4d_L": 81.4,
+    "T4d_R": 74.2,
+    "T5a_L": 63.7,
+    "T5a_R": 65.3,
+    "T5b_L": 63.4,
+    "T5b_R": 65.3,
+    "T5c_L": 64.9,
+    "T5c_R": 65.5,
+    "T5d_L": 66.8,
+    "T5d_R": 65.5,
+    "H2_R": -40.4,
+    "VS_R": -16.5
+   },
+   "flicker_amplitude_mV": {
+    "R1-R6_L": 9.570878890229578,
+    "R1-R6_R": 9.527832654350453,
+    "L1_L": 0.46644788708623924,
+    "L1_R": 0.8058665372222468,
+    "L2_L": 0.18761753269709716,
+    "L2_R": 0.33106850757683454,
+    "L3_L": 0.16295006691145492,
+    "L3_R": 0.23305614962908433,
+    "L4_L": 0.0687215677699648,
+    "L4_R": 0.12974356999170444,
+    "L5_L": 0.033331410398884126,
+    "L5_R": 0.05402488854802021,
+    "Mi1_L": 0.040975991283322966,
+    "Mi1_R": 0.07595675335804367,
+    "Mi4_L": 0.023163831653556156,
+    "Mi4_R": 0.0366400045748795,
+    "Mi9_L": 0.030789125332984793,
+    "Mi9_R": 0.047305359772741015,
+    "Tm1_L": 0.05290848631457085,
+    "Tm1_R": 0.10113652136500606,
+    "Tm2_L": 0.06092887923862248,
+    "Tm2_R": 0.10919253316750903,
+    "Tm3_L": 0.0939150463310227,
+    "Tm3_R": 0.2077612356029783,
+    "Tm4_L": 0.055062112876657875,
+    "Tm4_R": 0.12162171285409501,
+    "Tm9_L": 0.026276113607105665,
+    "Tm9_R": 0.045005383030699106,
+    "CT1_L": 0.016649614761980753,
+    "CT1_R": 0.0015215865011075453,
+    "T4a_L": 0.01685256136359314,
+    "T4a_R": 0.040413292714389974,
+    "T4b_L": 0.018529571157300306,
+    "T4b_R": 0.04038748056821217,
+    "T4c_L": 0.017210624089970664,
+    "T4c_R": 0.04033482474789778,
+    "T4d_L": 0.017646447165968696,
+    "T4d_R": 0.03789564162710736,
+    "T5a_L": 0.01887818529773376,
+    "T5a_R": 0.0380337058078055,
+    "T5b_L": 0.020174428836600908,
+    "T5b_R": 0.042172167571114166,
+    "T5c_L": 0.019406249388573524,
+    "T5c_R": 0.04334943930061743,
+    "T5d_L": 0.020688984386118478,
+    "T5d_R": 0.04411718362550772,
+    "HS_L": 0.0015792745066785247,
+    "HS_R": 0.006707786502212547,
+    "H2_L": 0.00718829417962106,
+    "H2_R": 0.01032352389355461,
+    "VS_L": 0.005766947405039382,
+    "VS_R": 0.012806651721134921
+   },
+   "wall_s": 1208.845020527,
+   "simulated_s": 29.5,
+   "simulated_s_per_wall_s": 0.02440345908621055
+  }
+ },
+ "unit_level": {
+  "spec": "docs/LIF_DYNAMICS_SPEC.md#9.9",
+  "tables": {
+   "v5-receptor-class": {
+    "nicotinic": 1.4,
+    "gaba_a": 3.7,
+    "glucl": 3.7,
+    "hiscl": 1.0
+   },
+   "v5-receptor-class-upper": {
+    "nicotinic": 5.23,
+    "gaba_a": 13.8,
+    "glucl": 13.8,
+    "hiscl": 6.1
+   },
+   "v4-equivalent": {
+    "nicotinic": 5.0,
+    "gaba_a": 5.0,
+    "glucl": 5.0,
+    "hiscl": 5.0
+   }
+  },
+  "a1": {
+   "v5-receptor-class": {
+    "nicotinic": {
+     "psp_peak_mV": 0.8195152282714844,
+     "psp_time_to_peak_ms": 4.6000000000000005,
+     "psp_area_mV_ms": 20.065692138671878,
+     "conductance_peak": 0.267803430557251,
+     "conductance_decay_tau_fit_ms": 1.4000001551001147,
+     "conductance_area": 0.38847441178186637
+    },
+    "gaba_a": {
+     "psp_peak_mV": -0.6730003356933594,
+     "psp_time_to_peak_ms": 8.200000000000001,
+     "psp_area_mV_ms": -19.776634597778322,
+     "conductance_peak": 0.29925116896629333,
+     "conductance_decay_tau_fit_ms": 3.7000001760760375,
+     "conductance_area": 1.1222593604823836
+    },
+    "glucl": {
+     "psp_peak_mV": -0.6730003356933594,
+     "psp_time_to_peak_ms": 8.200000000000001,
+     "psp_area_mV_ms": -19.776634597778322,
+     "conductance_peak": 0.29925116896629333,
+     "conductance_decay_tau_fit_ms": 3.7000001760760375,
+     "conductance_area": 1.1222593604823836
+    },
+    "hiscl": {
+     "psp_peak_mV": -0.8404312133789062,
+     "psp_time_to_peak_ms": 3.7,
+     "psp_area_mV_ms": -19.71921043395996,
+     "conductance_peak": 1.067970871925354,
+     "conductance_decay_tau_fit_ms": 1.0000000434857237,
+     "conductance_area": 1.1222592679037493
+    }
+   },
+   "v5-receptor-class-upper": {
+    "nicotinic": {
+     "psp_peak_mV": 0.6234512329101562,
+     "psp_time_to_peak_ms": 10.100000000000001,
+     "psp_area_mV_ms": 20.091091537475588,
+     "conductance_peak": 0.07357247173786163,
+     "conductance_decay_tau_fit_ms": 5.229999211496958,
+     "conductance_area": 0.3884743491924777
+    },
+    "gaba_a": {
+     "psp_peak_mV": -0.43483734130859375,
+     "psp_time_to_peak_ms": 17.0,
+     "psp_area_mV_ms": -19.90886573791504,
+     "conductance_peak": 0.08102919906377792,
+     "conductance_decay_tau_fit_ms": 13.799997380120933,
+     "conductance_area": 1.1222590118753704
+    },
+    "glucl": {
+     "psp_peak_mV": -0.43483734130859375,
+     "psp_time_to_peak_ms": 17.0,
+     "psp_area_mV_ms": -19.90886573791504,
+     "conductance_peak": 0.08102919906377792,
+     "conductance_decay_tau_fit_ms": 13.799997380120933,
+     "conductance_area": 1.1222590118753704
+    },
+    "hiscl": {
+     "psp_peak_mV": -0.5873451232910156,
+     "psp_time_to_peak_ms": 10.9,
+     "psp_area_mV_ms": -19.81893882751465,
+     "conductance_peak": 0.18247713148593903,
+     "conductance_decay_tau_fit_ms": 6.099999973987946,
+     "conductance_area": 1.122259349903923
+    }
+   },
+   "v4-equivalent": {
+    "nicotinic": {
+     "psp_peak_mV": 0.6314811706542969,
+     "psp_time_to_peak_ms": 9.8,
+     "psp_area_mV_ms": 20.09107818603516,
+     "conductance_peak": 0.07692307978868484,
+     "conductance_decay_tau_fit_ms": 5.000000183596994,
+     "conductance_area": 0.3884743491996603
+    },
+    "gaba_a": {
+     "psp_peak_mV": -0.6225318908691406,
+     "psp_time_to_peak_ms": 9.8,
+     "psp_area_mV_ms": -19.801082992553713,
+     "conductance_peak": 0.2222222238779068,
+     "conductance_decay_tau_fit_ms": 5.0000002829281165,
+     "conductance_area": 1.1222593561056433
+    },
+    "glucl": {
+     "psp_peak_mV": -0.6225318908691406,
+     "psp_time_to_peak_ms": 9.8,
+     "psp_area_mV_ms": -19.801082992553713,
+     "conductance_peak": 0.2222222238779068,
+     "conductance_decay_tau_fit_ms": 5.0000002829281165,
+     "conductance_area": 1.1222593561056433
+    },
+    "hiscl": {
+     "psp_peak_mV": -0.6225318908691406,
+     "psp_time_to_peak_ms": 9.8,
+     "psp_area_mV_ms": -19.801082992553713,
+     "conductance_peak": 0.2222222238779068,
+     "conductance_decay_tau_fit_ms": 5.0000002829281165,
+     "conductance_area": 1.1222593561056433
+    }
+   }
+  },
+  "a2": {
+   "v5-receptor-class": {
+    "nicotinic": {
+     "baseline_conductance": 0.04540609195828438,
+     "step_on_10_90_ms": 31.800000000000004,
+     "step_on_final": 0.009118128567934036,
+     "step_off_time_to_1_over_e_ms": 23.5
+    },
+    "gaba_a": {
+     "baseline_conductance": 0.13117265701293945,
+     "step_on_10_90_ms": 31.900000000000002,
+     "step_on_final": 0.025945603847503662,
+     "step_off_time_to_1_over_e_ms": 26.400000000000002
+    },
+    "glucl": {
+     "baseline_conductance": 0.13117265701293945,
+     "step_on_10_90_ms": 31.900000000000002,
+     "step_on_final": 0.025945603847503662,
+     "step_off_time_to_1_over_e_ms": 26.400000000000002
+    },
+    "hiscl": {
+     "baseline_conductance": 0.1311730593442917,
+     "step_on_10_90_ms": 31.9,
+     "step_on_final": 0.026400431990623474,
+     "step_off_time_to_1_over_e_ms": 23.0
+    }
+   },
+   "v5-receptor-class-upper": {
+    "nicotinic": {
+     "baseline_conductance": 0.045406028628349304,
+     "step_on_10_90_ms": 32.1,
+     "step_on_final": 0.008866507560014725,
+     "step_off_time_to_1_over_e_ms": 28.5
+    },
+    "gaba_a": {
+     "baseline_conductance": 0.13117124140262604,
+     "step_on_10_90_ms": 33.5,
+     "step_on_final": 0.022693350911140442,
+     "step_off_time_to_1_over_e_ms": 41.2
+    },
+    "glucl": {
+     "baseline_conductance": 0.13117124140262604,
+     "step_on_10_90_ms": 33.5,
+     "step_on_final": 0.022693350911140442,
+     "step_off_time_to_1_over_e_ms": 41.2
+    },
+    "hiscl": {
+     "baseline_conductance": 0.13117261230945587,
+     "step_on_10_90_ms": 32.3,
+     "step_on_final": 0.025397107005119324,
+     "step_off_time_to_1_over_e_ms": 29.700000000000003
+    }
+   },
+   "v4-equivalent": {
+    "nicotinic": {
+     "baseline_conductance": 0.04540608450770378,
+     "step_on_10_90_ms": 32.10000000000001,
+     "step_on_final": 0.008885093033313751,
+     "step_off_time_to_1_over_e_ms": 28.200000000000003
+    },
+    "gaba_a": {
+     "baseline_conductance": 0.13117298483848572,
+     "step_on_10_90_ms": 32.10000000000001,
+     "step_on_final": 0.025668218731880188,
+     "step_off_time_to_1_over_e_ms": 28.200000000000003
+    },
+    "glucl": {
+     "baseline_conductance": 0.13117298483848572,
+     "step_on_10_90_ms": 32.10000000000001,
+     "step_on_final": 0.025668218731880188,
+     "step_off_time_to_1_over_e_ms": 28.200000000000003
+    },
+    "hiscl": {
+     "baseline_conductance": 0.13117298483848572,
+     "step_on_10_90_ms": 32.10000000000001,
+     "step_on_final": 0.025668218731880188,
+     "step_off_time_to_1_over_e_ms": 28.200000000000003
+    }
+   }
+  },
+  "F2_check": {
+   "v5-receptor-class/nicotinic": {
+    "declared_tau_ms": 1.4,
+    "fitted_tau_ms": 1.4000001551001147,
+    "psp_area_ratio_to_v4": 0.9987364517161191,
+    "conductance_area_ratio_to_v4": 1.000000161097396,
+    "psp_peak_ratio_to_v4": 1.29776668942062
+   },
+   "v5-receptor-class/gaba_a": {
+    "declared_tau_ms": 3.7,
+    "fitted_tau_ms": 3.7000001760760375,
+    "psp_area_ratio_to_v4": 0.998765300120979,
+    "conductance_area_ratio_to_v4": 1.0000000038999366,
+    "psp_peak_ratio_to_v4": 1.0810696537228925
+   },
+   "v5-receptor-class/glucl": {
+    "declared_tau_ms": 3.7,
+    "fitted_tau_ms": 3.7000001760760375,
+    "psp_area_ratio_to_v4": 0.998765300120979,
+    "conductance_area_ratio_to_v4": 1.0000000038999366,
+    "psp_peak_ratio_to_v4": 1.0810696537228925
+   },
+   "v5-receptor-class/hiscl": {
+    "declared_tau_ms": 1.0,
+    "fitted_tau_ms": 1.0000000434857237,
+    "psp_area_ratio_to_v4": 0.9958652484500702,
+    "conductance_area_ratio_to_v4": 0.9999999214068535,
+    "psp_peak_ratio_to_v4": 1.3500211406126488
+   },
+   "v5-receptor-class-upper/nicotinic": {
+    "declared_tau_ms": 5.23,
+    "fitted_tau_ms": 5.229999211496958,
+    "psp_area_ratio_to_v4": 1.0000006645457404,
+    "conductance_area_ratio_to_v4": 0.9999999999815108,
+    "psp_peak_ratio_to_v4": 0.9872839632956584
+   },
+   "v5-receptor-class-upper/gaba_a": {
+    "declared_tau_ms": 13.8,
+    "fitted_tau_ms": 13.799997380120933,
+    "psp_area_ratio_to_v4": 1.0054432752694313,
+    "conductance_area_ratio_to_v4": 0.9999996932703024,
+    "psp_peak_ratio_to_v4": 0.6984980973448616
+   },
+   "v5-receptor-class-upper/glucl": {
+    "declared_tau_ms": 13.8,
+    "fitted_tau_ms": 13.799997380120933,
+    "psp_area_ratio_to_v4": 1.0054432752694313,
+    "conductance_area_ratio_to_v4": 0.9999996932703024,
+    "psp_peak_ratio_to_v4": 0.6984980973448616
+   },
+   "v5-receptor-class-upper/hiscl": {
+    "declared_tau_ms": 6.1,
+    "fitted_tau_ms": 6.099999973987946,
+    "psp_area_ratio_to_v4": 1.000901760523283,
+    "conductance_area_ratio_to_v4": 0.9999999944738975,
+    "psp_peak_ratio_to_v4": 0.9434779678049916
+   }
+  },
+  "F2_triggered": false
+ },
+ "raw_files": [
+  "posthoc_rate_locus.json",
+  "s0_real_graph.json",
+  "speed_probe.json",
+  "unit_level.json",
+  "v4_protocol9.analysis.json",
+  "v4_protocol9.meta.json",
+  "v4_protocol9.npz",
+  "v5_primary.analysis.json",
+  "v5_primary.meta.json",
+  "v5_primary.npz",
+  "v5_upper_S2.analysis.json",
+  "v5_upper_S2.meta.json",
+  "v5_upper_S2.npz",
+  "yaw_axes.json"
+ ],
+ "posthoc_not_preregistered": {
+  "rate_locus": {
+   "v4": {
+    "brain_mean_hz": 1.2083803239352129,
+    "spiking_neurons_active": 5763,
+    "by_superclass_hz": {
+     "ENS": 0.0,
+     "ascending_neuron": 3.294691224268689,
+     "cb_efferent": 0.0,
+     "cb_endocrine": 0.08333333333333333,
+     "cb_intrinsic": 3.2312523317995274,
+     "cb_motor": 11.523364485981308,
+     "cb_sensory": 0.0,
+     "cb_sensory_tbc": 0.0,
+     "descending_neuron": 7.014459665144597,
+     "descending_neuron_tbc": 0.0,
+     "efferent_ascending": 60.75,
+     "efferent_descending": 0.0,
+     "ol_intrinsic": 0.0,
+     "ol_sensory": 0.0,
+     "sensory_ascending": 0.0,
+     "sensory_ascending_tbc": 0.0,
+     "sensory_descending": 0.0,
+     "visual_centrifugal": 15.30550621669627,
+     "visual_projection": 4.602325834148462,
+     "visual_projection_tbc": 0.0,
+     "vnc_efferent": 5.276595744680851,
+     "vnc_endocrine": 11.409090909090908,
+     "vnc_intrinsic": 1.631638933211762,
+     "vnc_motor": 10.248587570621469,
+     "vnc_sensory": 0.005337519623233909,
+     "vnc_sensory_tbc": 0.0,
+     "vnc_tbc": 0.23684210526315788
+    },
+    "by_superclass_spikes": {
+     "ENS": 0,
+     "ascending_neuron": 6082,
+     "cb_efferent": 0,
+     "cb_endocrine": 6,
+     "cb_intrinsic": 103930,
+     "cb_motor": 1233,
+     "cb_sensory": 0,
+     "cb_sensory_tbc": 0,
+     "descending_neuron": 9217,
+     "descending_neuron_tbc": 0,
+     "efferent_ascending": 486,
+     "efferent_descending": 0,
+     "ol_intrinsic": 0,
+     "ol_sensory": 0,
+     "sensory_ascending": 0,
+     "sensory_ascending_tbc": 0,
+     "sensory_descending": 0,
+     "visual_centrifugal": 8617,
+     "visual_projection": 42346,
+     "visual_projection_tbc": 0,
+     "vnc_efferent": 496,
+     "vnc_endocrine": 251,
+     "vnc_intrinsic": 21474,
+     "vnc_motor": 7256,
+     "vnc_sensory": 34,
+     "vnc_sensory_tbc": 0,
+     "vnc_tbc": 9
+    },
+    "by_receptor_class_of_spiker_hz": {
+     "gaba_a": 2.8300783905025146,
+     "glucl": 0.7202921302300185,
+     "hiscl": 0.0,
+     "nicotinic": 1.0971350918669371
+    },
+    "rate_percentiles_hz": {
+     "50": 17.0,
+     "90": 96.0,
+     "99": 196.3800000000001,
+     "100": 334.0
+    },
+    "top_types_by_spikes": [
+     [
+      "LPLC2",
+      15167
+     ],
+     [
+      "LC10b",
+      4040
+     ],
+     [
+      "PEN_a(PEN1)",
+      2670
+     ],
+     [
+      "PEN_b(PEN2)",
+      2484
+     ],
+     [
+      "AVLP465",
+      2281
+     ],
+     [
+      "MeTu3c",
+      2204
+     ],
+     [
+      "LT52",
+      1883
+     ],
+     [
+      "LLPC3",
+      1737
+     ],
+     [
+      "LLPC2",
+      1659
+     ],
+     [
+      "EPG",
+      1627
+     ],
+     [
+      "MeTu3b",
+      1617
+     ],
+     [
+      "PVLP111",
+      1563
+     ],
+     [
+      "AN09A005",
+      1412
+     ],
+     [
+      "",
+      1397
+     ],
+     [
+      "FR1",
+      1365
+     ]
+    ]
+   },
+   "v5_primary": {
+    "brain_mean_hz": 10.40126574685063,
+    "spiking_neurons_active": 14848,
+    "by_superclass_hz": {
+     "ENS": 0.0,
+     "ascending_neuron": 9.940411700975082,
+     "cb_efferent": 0.0,
+     "cb_endocrine": 1.1527777777777777,
+     "cb_intrinsic": 43.34917920656635,
+     "cb_motor": 21.327102803738317,
+     "cb_sensory": 4.902013147082991,
+     "cb_sensory_tbc": 0.0,
+     "descending_neuron": 20.862252663622527,
+     "descending_neuron_tbc": 0.0,
+     "efferent_ascending": 103.875,
+     "efferent_descending": 1.25,
+     "ol_intrinsic": 0.0,
+     "ol_sensory": 0.0,
+     "sensory_ascending": 3.7243947858473,
+     "sensory_ascending_tbc": 0.0,
+     "sensory_descending": 0.0,
+     "visual_centrifugal": 38.38721136767318,
+     "visual_projection": 13.097272035648299,
+     "visual_projection_tbc": 0.0,
+     "vnc_efferent": 15.925531914893616,
+     "vnc_endocrine": 63.09090909090909,
+     "vnc_intrinsic": 7.307651394270952,
+     "vnc_motor": 33.25706214689266,
+     "vnc_sensory": 0.00847723704866562,
+     "vnc_sensory_tbc": 0.0,
+     "vnc_tbc": 0.0
+    },
+    "by_superclass_spikes": {
+     "ENS": 0,
+     "ascending_neuron": 18350,
+     "cb_efferent": 0,
+     "cb_endocrine": 83,
+     "cb_intrinsic": 1394283,
+     "cb_motor": 2282,
+     "cb_sensory": 23863,
+     "cb_sensory_tbc": 0,
+     "descending_neuron": 27413,
+     "descending_neuron_tbc": 0,
+     "efferent_ascending": 831,
+     "efferent_descending": 5,
+     "ol_intrinsic": 0,
+     "ol_sensory": 0,
+     "sensory_ascending": 2000,
+     "sensory_ascending_tbc": 0,
+     "sensory_descending": 0,
+     "visual_centrifugal": 21612,
+     "visual_projection": 120508,
+     "visual_projection_tbc": 0,
+     "vnc_efferent": 1497,
+     "vnc_endocrine": 1388,
+     "vnc_intrinsic": 96176,
+     "vnc_motor": 23546,
+     "vnc_sensory": 54,
+     "vnc_sensory_tbc": 0,
+     "vnc_tbc": 0
+    },
+    "by_receptor_class_of_spiker_hz": {
+     "gaba_a": 14.951017264035524,
+     "glucl": 5.831137806293086,
+     "hiscl": 0.0060828792295019645,
+     "nicotinic": 11.476619073326011
+    },
+    "rate_percentiles_hz": {
+     "50": 111.0,
+     "90": 229.0,
+     "99": 378.0,
+     "100": 424.0
+    },
+    "top_types_by_spikes": [
+     [
+      "KCg-m",
+      278530
+     ],
+     [
+      "KCab-s",
+      119359
+     ],
+     [
+      "KCab-m",
+      94710
+     ],
+     [
+      "KCab-c",
+      77635
+     ],
+     [
+      "LPLC2",
+      43531
+     ],
+     [
+      "",
+      19592
+     ],
+     [
+      "lLN1_bc",
+      11389
+     ],
+     [
+      "PAM08",
+      11334
+     ],
+     [
+      "PAM01",
+      10116
+     ],
+     [
+      "LLPC2",
+      8799
+     ],
+     [
+      "PAM04",
+      6973
+     ],
+     [
+      "LPC2",
+      6782
+     ],
+     [
+      "LLPC3",
+      6150
+     ],
+     [
+      "EPG",
+      5444
+     ],
+     [
+      "PEN_a(PEN1)",
+      5276
+     ]
+    ]
+   }
+  },
+  "note": "POST-HOC, not preregistered, cannot change any verdict: where the v5 primary's higher no-stimulus spike rate (F4) lives, 1 s of gray after 1 s settle, GTX 1660 Ti"
+ },
+ "hardware_note": "v4_protocol9, v5_primary, the a3 S0 check and the pre-lock speed probe ran on the Quadro P620 (CUDA_VISIBLE_DEVICES=1 under the default FASTEST_FIRST ordering selects it); v5_upper_S2 and the post-hoc diagnostic ran on the GTX 1660 Ti (CUDA_DEVICE_ORDER=PCI_BUS_ID). Same arithmetic; only float-rounding and speed differ.",
+ "post_lock_corrections": [
+  "analyse_tuning.py D4: f1_im is stored as +sum V sin(wt), the negative of the declared F1 imaginary part; the first version mirrored every lag. Fixed before any v5 analysis was read; definition unchanged; D1/D2/D5 unaffected."
+ ]
+}

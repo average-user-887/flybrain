@@ -1,0 +1,33 @@
+{
+  "L": {
+    "c1": -0.7603866976796416,
+    "c2": 0.6288068511846387,
+    "theta_front_to_back_deg": 123.13008603630517,
+    "displacement_nm_per_unit_step": [
+      832.8330659492758,
+      -137.92925399338458,
+      750.8175630321714
+    ],
+    "fraction_xyz": [
+      0.7371756091397857,
+      0.12208698956359913,
+      0.6645802346358817
+    ]
+  },
+  "R": {
+    "c1": -0.7761682747386577,
+    "c2": 0.6106829694450083,
+    "theta_front_to_back_deg": 123.94099513868764,
+    "displacement_nm_per_unit_step": [
+      -944.2215163554308,
+      -24.889635192054925,
+      630.9221500736184
+    ],
+    "fraction_xyz": [
+      0.8312644859305454,
+      0.021912093131262765,
+      0.5554450599341335
+    ]
+  },
+  "rule": "Pre-lock anatomy: the posterior (front-to-back) direction of each eye, expressed in\nthe v4 photoreceptor encoder's own lattice-plane frame.\n\nAnatomy only, no simulation and no response is read. Reuses the already-declared\nlattice derivation of ``brainlab.io_map_photoreceptor._lattice`` (least squares of\nL1 somaLocation on hex; docs/PHOTORECEPTOR_ENCODER.md \u00a72.2): posteriority per hex\nstep is ``c1*dh1 + c2*dh2``. The v4 encoder places a cartridge at\n``(u, w) = M @ (h1, h2)`` with ``M = [[1, 1/2], [0, sqrt(3)/2]]`` (times 5 deg), so\nposteriority is ``c . M^-1 (u, w)`` and its gradient in the encoder plane is\n``M^-T c``. The grating ``cos(k*(u cos t + w sin t) - wt)`` drifts toward +theta,\nso a drift direction theta_post = atan2(g_w, g_u) moves the pattern posteriorly\n(front-to-back) on that eye."
+}

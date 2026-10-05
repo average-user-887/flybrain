@@ -101,6 +101,165 @@ includes the GPU copy of the brain state and the optomotor encoder's random
 stream, which restarts from `optomotor_seed`. So a second run in the same
 process matches a run on a new server.
 
+## Modular baseline controller
+
+`--controller modular` drives the same FlyGym body with the arena's
+phenomenological optomotor model (`vision.CompoundEyeVision`) instead of the
+connectome. This is the researcher baseline named in the roadmap. It is not
+derived from the connectome and makes no biological claim:
+
+```bash
+python -m neurofly_body run --controller modular --duration 10 --output runs/modular-10s --seed 1
+```
+
+It gets the same retinal-slip input as the connectome, with the drum at
+infinity so only rotation matters. It walks with a tonic amplitude
+(`--modular-forward-drive`, default 1.0) and turns by shrinking the amplitude
+of the legs on the side it turns toward, scaled by the arena's clipped yaw
+bias (`--modular-turn-gain`). Both values are assumptions. The manifest
+records `controller_kind: modular-baseline`, and `replay-check` works as it
+does for connectome runs. On the laptop CPU, a 1 s run with a 4 rad/s drum
+walked forward and turned counter-clockwise with the drum at about
+4.5 rad/s, at 0.38x real time. The replay was bit-identical.
+
+## Run queue
+
+Runs are slower than real time, so experiments can be queued and left to run
+one after another:
+
+```bash
+python -m neurofly_body queue add runs/queue optomotor-s1 -- --duration 10 --seed 1
+python -m neurofly_body queue add runs/queue modular-s1 -- --controller modular --duration 10 --seed 1
+python -m neurofly_body queue run runs/queue            # add --watch 30 to keep polling
+python -m neurofly_body queue status runs/queue
+```
+
+`add` checks the run arguments right away. Each job runs in its own process,
+in the order it was added. Its output goes to `runs/queue/runs/<name>`, its
+log to `runs/queue/logs/<name>.log`, and the job file moves from `pending/`
+through `running/` to `done/` or `failed/`. A finished job file records the
+exit status, wall time, `trajectory_sha256` and real-time factor. If the
+worker is killed during a job, the next `queue run` moves that job to
+`failed/` rather than running it again, because its output may be partial.
+
+## Replay in the browser
+
+The loop runs slower than real time, so each run also writes `body.nfbody`:
+the 3D positions of every body segment, the thorax yaw, the CPG command, leg
+contacts, per-side DN rates (connectome controller), graph spikes per frame
+and motor events, at `--record-fps` frames per simulated second (default 50;
+the frame period must be a whole number of 2 ms neural steps; 0 turns it off).
+The file holds no wall-clock data, so a replayed run gives a byte-identical
+recording, and `replay-check` compares its frame hash too.
+
+To watch a run at the fly's own speed, open `/embodied_replay.html` on the
+dashboard (or `web/embodied_replay.html` from any static server) and pick the
+`body.nfbody` file, drop it on the page, or pass `?src=<url>`. Playback is 1x
+simulated time by default, with 0.25x to 4x, seeking and pause (space). The page
+checks the frame SHA-256 against the file's end record where the browser allows
+it (localhost or HTTPS); on a plain-HTTP LAN address it says the file is not
+verified.
+
+## Silencing cell types
+
+`--silence CELL_TYPE` (repeatable; `CELL_TYPE:L` or `:R` for one annotated soma
+side) clamps those neurons in a connectome run. It is off by default, and a run
+without it is byte-identical to one made before the flag existed.
+
+```bash
+python -m neurofly_body run --duration 10 --seed 1 --silence DNa02 --output runs/dna02-silenced
+```
+
+The semantics match the validation harness's `dna02_silenced` condition. Every
+2 ms step, after all sensory drive, each silenced neuron's input current is
+replaced by `SILENCE_DRIVE` (-200, `brainlab/io_map.py`). Cell types are
+matched on the prepared `cell_type` and sides on the annotated `somaSide`. A
+target that resolves to no neurons stops the run before it starts. Under v3
+conductance dynamics the clamp can leak, which is why the harness's gate O7
+checks it. So every telemetry record counts the spikes of silenced neurons
+(`neural.silenced`), and `summary.json` gets a `silenced` block with the
+targets, neuron counts, map hash, `spikes_total` and `clamp_held`
+(no silenced spike in the whole run). The manifest's `neural_backend.silence_map`
+lists the silenced source IDs, and the recording header carries the same
+`silenced` summary. `replay-check` repeats the flag. The modular baseline has
+no neurons and refuses it.
+
+## Motor delay and brain/body overlap (opt-in)
+
+The default loop is sequential with zero motor latency. The body runs the
+command decoded from this step's graph output, so the graph and the body cannot
+run at the same time. Overlapping them therefore changes the model: the body
+has to run a command from an earlier step. Both options below are off by
+default. Without them, a run is byte-identical to one made before they existed
+(checked against master on a 1 s modular run).
+
+- `--motor-delay-steps N` adds N neural steps (N x 2 ms) of motor latency. The
+  body executes the command decoded N steps earlier and zeros until then. This
+  is the sequential reference for the overlapped mode. Each telemetry record
+  keeps `decoded_cpg_drive` (this step's decode) and `applied_cpg_drive`
+  (what the body ran) and adds `motor.delay_steps`. The manifest gives
+  `lockstep.motor_delay_ms`.
+- `--pipeline` (needs `--motor-delay-steps` >= 1) runs this step's body
+  substeps in a worker thread while the graph computes. The body's input no
+  longer depends on the graph's current step. The graph kernels release the
+  GIL (`KERNEL_OPTIONS nogil=True`), and so do the GPU and MuJoCo steps. The
+  result is bit-identical to the same delay without `--pipeline`, because the
+  two steps share no state and the order in which results are joined is
+  fixed. Tests and a 1 s FlyGym run confirm this.
+
+Why a 2 ms delay is defensible: real flies are slower than that. The optomotor
+response has a pure delay of about 20 ms (Theobald et al. 2010, J Exp Biol
+213:1366), so one 2 ms step of latency lies inside the biological delay. It is
+still a model change, and it is recorded in every run.
+
+Measured cost:
+- **Behaviour:** in a 1 s modular run (seed 1, 4 rad/s drum), the final yaw was
+  2.89108 rad at zero latency and 2.89237 rad with a 2 ms delay, a difference of
+  0.04 %.
+- **Speed:** the modular controller is too cheap to show a speed-up (0.33x real
+  time in both modes on a cloud CPU). The speed-up has to be measured with the
+  connectome brain on the Ryzen: 2 s runs with `--motor-delay-steps 1`, with and
+  without `--pipeline`, compared on `real_time_factor`.
+
+## Leg-load feedback (opt-in)
+
+`--leg-load-feedback` (connectome controller only) feeds each leg's measured
+load into that leg's campaniform sensilla (CS) afferents. CS are the insect
+cuticle load sensors. The flag is off by default, and a run without it is
+byte-identical to one made before it existed.
+
+- **Load.** FlyGym's tarsal adhesion actuator (gain 40 uN) pulls each tarsus
+  into the ground, and the contact solver pushes back. So the vertical contact
+  force equals the leg's load plus the adhesion force. `FlyGymBody.leg_load_uN`
+  subtracts the adhesion actuator force while a leg is in contact, and returns 0
+  otherwise. Model units are mm, g and s, so forces are in uN. Check: in quiet
+  standing the six loads sum to 10.02 uN against a body weight of 10.05 uN. A
+  test asserts this within 3 %. A negative load means the pad is holding a leg
+  that is pulling away.
+- **Neurons.** In MaleCNS v1.0 the leg comes from `entryNerve` (ProLN, MesoLN
+  and MetaLN for the front, middle and hind legs) and the side from `rootSide`.
+  Only SNpp53 has `subclass == "campaniform sensilla"` with a leg nerve: 12
+  neurons, two per leg (map sha256 `731f03e2…` from the pinned annotations
+  file). Most leg CS are still untyped (subclass `leg`). They get no drive; we
+  do not guess their identity. The resolver fails closed if a leg has no
+  afferent.
+- **Encoding.** `brainlab.io_map.LegLoadEncoder`:
+  `r = r_max * tanh(([F - F0]+ + tau_phasic * [dF/dt]+) / F_sat)`, with dF/dt
+  low-pass filtered over 10 ms, then `drive = i_max * r / r_max` on every
+  afferent of that leg. The tonic-to-force and phasic-to-loading-rate responses
+  with saturation follow insect CS recordings (Ridgel et al. 2000, J Comp
+  Physiol A 186:359; Zill et al. 2012, J Neurophysiol 108:1453). No Drosophila
+  leg CS rate curves are published. So these values are ASSUMPTIONS, declared
+  before any run and never fitted: F0 0.5 uN, F_sat 10 uN, tau_phasic 20 ms,
+  r_max 200 Hz. `i_max` is 20, the WP5 encoder amplitude. Not modelled:
+  adaptation, the CS groups selective for unloading, and noise.
+- **Check on a walking body** (1 s at drive 1.0): loads averaged 1.7 uN
+  (maximum 7.9). The model rates were 0 Hz for 45 % of the time (swing),
+  median 11 Hz, 95th percentile 154 Hz.
+- **Recorded.** Each record carries `sensory.leg_load_uN` and
+  `neural.leg_load` (model rates and afferent spikes per leg). The manifest
+  carries the encoder and the afferent map with source IDs.
+
 ## What the loop means
 
 The prepared graph contains 166,700 retained annotated neuronal entries and
@@ -116,11 +275,33 @@ to named descending neurons are disabled.
 
 The current interface makes two explicit engineering choices:
 
-- DNa02 left/right spike rates are mapped to the opposite-side leg CPG
-  magnitude commands used by FlyGym's stock hybrid turning controller. The
-  gain, smoothing time and cap are controller parameters, not fitted
-  biological values. Zero DNa02 rates produce zero CPG drive; there is no
-  hidden tonic drive or minimum walking speed.
+- The default decoder `dn-v2` (`neurofly_body/decoder.py`,
+  `DNCommandDecoder`) maps descending-neuron rates to the signed left/right
+  commands of FlyGym's hybrid turning controller. The signs and sides come
+  from the literature, but the gains are assumptions:
+
+  | DN | Mapping | Source for the sign and side | Gain |
+  |---|---|---|---|
+  | DNp09 | forward amplitude of the opposite-side legs, so one active P9 turns the fly toward its own side | Bidaye et al. 2020, Neuron | 0.02 per Hz, assumed |
+  | DNa02 | multiplies the same-side amplitude by `max(0, 1 - k·rate)`, which shortens the strides on that side; alone it produces no walking | Yang et al. 2024, Cell; Rayshubskiy et al. 2025, eLife | k = 0.01 per Hz, assumed |
+  | MDN | when its drive beats the forward drive, both sides go negative (reverse stepping) | Bidaye et al. 2014, Science | 0.02 per Hz, assumed |
+  | GF (DNp01) | any spike logs a `takeoff_command` event | von Reyn et al. 2014, Nat Neurosci | none |
+
+  The rates are filtered with a 50 ms time constant (assumed), and the
+  command is clipped to ±1.2, the NeuroMechFly v2 drive range. No published
+  calibration from firing rate to speed exists for these neurons, so no gain
+  was fitted to behaviour. Zero spikes give zero drive, and there is no tonic
+  term. Some things are reported rather than faked: the legs-only body cannot
+  take off, FlyGym's reverse replays the forward step backwards instead of the
+  hindleg-led MDN program, and speed changes through stride amplitude only.
+  The sides of DNp09, MDN, GF and DNa02 are resolved from annotated soma sides
+  (`brainlab/io_map.py`, `resolve_locomotion_dns`). The run refuses to start
+  when that map is missing.
+- `--decoder dna02-crossed-v1` keeps the earlier MVP mapping, in which the
+  DNa02 rates drive the opposite-side legs and DNa02 is the only source of
+  propulsion. It contradicts Yang et al. 2024 and is kept only so that
+  earlier runs can be reproduced. `replay-check` uses it for runs recorded
+  before `--decoder` existed.
 - A retinal-slip proxy is computed from commanded world angular velocity minus
   measured body yaw velocity and fed to the connectome's visual input. It is
   not a rendered retinal image or a calibrated optic-flow pathway.
@@ -143,5 +324,5 @@ is engineered and should be read as a testable interface hypothesis.
 
 Useful source references: `brainlab/graph_identity.py` (identity checks),
 `brainlab/transmitter_policy.py` (transmitter mapping),
-`neurofly_body/decoder.py` (engineered CPG mapping), and
+`neurofly_body/decoder.py` (declared DN-to-CPG decoders), and
 `neurofly_body/flygym_body.py` (FlyGym adapter).

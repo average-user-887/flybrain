@@ -66,6 +66,7 @@ The table above is the snapshot the plan was approved on and is kept as it was.
 | Recording and replay | Deterministic `.nfrec` recordings with 1x replay; the brain backend is recorded. | PRs #8, #13 |
 | Validation harness | `neurofly validate` with preregistered specs and verified firing-rate bounds. | PRs #9, #15 |
 | P1 optomotor on v3 | Run v3-1 **FAILED**: behaviour 7/7, physiology 5/7 (HS above the 50 Hz ceiling). Spec v3-2 was declared before its rerun; the rerun is pending on the Ryzen. | `docs/receipts/validation/optomotor-yaw-v3-1.md`, PR #16 |
+| P1 graded transmission (v4) | Pre-registered and measured 2026-09-27. LIF v4 adds declared graded (non-spiking) cell classes; a photoreceptor-only grating now reaches DNa02 (10-24 Hz) where v3 died at the first synapse, but T4/T5 carry **no direction selectivity** (flat tuning, <=0.26 mV, subtypes not anti-parallel) against the animal's DSI 0.7-0.9. The declared gate on the expensive protocol was not passed, so it was not run. Named blocker: one global tau_syn = 5 ms cannot express a 20-50 ms delay line. Default stays v3. | `docs/LIF_DYNAMICS_SPEC.md` §7, `docs/receipts/lif_dynamics_v4.json`, `docs/WP5_OPTOMOTOR.md` §13 |
 | Brain + body loop benchmark | Still not measured. | none yet |
 
 ## Phase map
