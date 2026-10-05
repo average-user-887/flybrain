@@ -79,9 +79,11 @@ OPTOMOTOR = StudioParadigm(
     explanation=(
         "The fly stands on a flat floor inside a patterned world that rotates around it. "
         "Real flies turn with the motion to keep their view steady (the optomotor response). "
-        "Here the rotation drives direction-selective motion neurons of the MaleCNS connectome, "
-        "the whole graph is simulated, and descending neurons such as DNa02 steer the six-legged "
-        "FlyGym body."
+        "Here an engineered encoder turns the rotation into input to the T4/T5 motion cells of the "
+        "MaleCNS connectome, with the direction already built in: the connectome does not compute "
+        "motion direction by itself. The whole graph is simulated, and an engineered decoder turns "
+        "descending-neuron activity (DNa02, DNp09, MDN) into commands for the six-legged FlyGym "
+        "body. It is not a biological nerve cord, and this paradigm has no passing validation yet."
     ),
     parameters=(
         Parameter("world_angular_velocity_rad_s", "--world-angular-velocity-rad-s",
@@ -94,7 +96,8 @@ OPTOMOTOR = StudioParadigm(
                   help="The full simulation runs slower than real time, so runs wait in a "
                        "queue and you watch them afterwards at the fly's own speed."),
         Parameter("seed", "--seed", "Random seed", "", 0, 2_147_483_647, 1, 1, integer=True,
-                  help="Same seed and settings give a bit-identical run."),
+                  help="Same seed and settings give a bit-identical run on the same computer. "
+                       "Agreement across different machines has not been measured yet."),
     ),
     controls={
         "output-disconnected": "Brain disconnected from the legs: the connectome runs and is "
@@ -104,10 +107,11 @@ OPTOMOTOR = StudioParadigm(
     # Cell types named in brainlab/io_map.py for this circuit; sources in docs/EXPERIMENT_STUDIO.md.
     silence_groups=(
         SilenceGroup("t4t5", "Motion detectors (T4 and T5)", ("T4a", "T4b", "T5a", "T5b"),
-                     "The direction-selective cells that receive the rotating pattern here. "
-                     "Silencing them should leave the fly motion-blind."),
+                     "In real flies, the direction-selective motion cells. Here the encoder's "
+                     "input enters through them, so silencing them cuts the stimulus off."),
         SilenceGroup("hs", "Horizontal system cells (HS)", ("HSN", "HSE", "HSS"),
-                     "Large lobula plate cells that respond to horizontal motion across the eye."),
+                     "In real flies, large lobula plate cells that respond to horizontal motion "
+                     "across the eye."),
         SilenceGroup("dna02", "Steering neurons (DNa02)", ("DNa02",),
                      "Descending neurons whose activity predicts turning toward their own side."),
         SilenceGroup("dnp09", "Forward-walking neurons (DNp09)", ("DNp09",),
