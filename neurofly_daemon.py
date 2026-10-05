@@ -633,6 +633,121 @@ class SlowStepBallast:
         self.brain.step(self.drive, self.duration_ms)
 
 
+class DiskSpaceLow(OSError):
+    """Free space is below what the next checkpoint needs; the write was skipped."""
+
+
+class PersistenceMonitor:
+    """What the daemon failed to save, since when, and when it retries (audit F, F2).
+
+    A failed save never stops the simulation (unless --halt-on-persistence-failure):
+    the run keeps stepping, visibly degraded.  Each channel (checkpoint, trial ledger,
+    halt bookkeeping, recording, ...) is tracked separately, so a later successful
+    write on one channel cannot hide a failure on another.  The periodic checkpoint
+    retries with a back-off (30 s doubling to 10 min) instead of on every step.
+    """
+
+    BACKOFF_START_S = 30.0
+    BACKOFF_MAX_S = 600.0
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.channels: Dict[str, Dict[str, Any]] = {}
+        self.last_ok: Dict[str, float] = {}      # channel -> wall time of the last good write
+        self.total_failures = 0
+
+    def failed(self, channel: str, exc: BaseException, path: Any = None, now: Optional[float] = None) -> Dict[str, Any]:
+        now = time.time() if now is None else now
+        with self._lock:
+            entry = self.channels.get(channel)
+            if entry is None:
+                entry = self.channels[channel] = {"channel": channel, "since": round(now, 3), "failures": 0,
+                                                  "backoff_s": 0.0}
+            entry["failures"] += 1
+            self.total_failures += 1
+            entry["backoff_s"] = (self.BACKOFF_START_S if not entry["backoff_s"]
+                                  else min(self.BACKOFF_MAX_S, entry["backoff_s"] * 2))
+            entry.update(state="disk_low" if isinstance(exc, DiskSpaceLow) else "failing",
+                         error=f"{type(exc).__name__}: {exc}", errno=getattr(exc, "errno", None),
+                         path=str(path or getattr(exc, "filename", None) or "") or None,
+                         last_failure_at=round(now, 3), next_retry_at=round(now + entry["backoff_s"], 3))
+            return dict(entry)
+
+    def succeeded(self, channel: str, now: Optional[float] = None) -> None:
+        now = time.time() if now is None else now
+        with self._lock:
+            self.channels.pop(channel, None)
+            self.last_ok[channel] = now
+
+    def clear(self, channel: str) -> None:
+        with self._lock:
+            self.channels.pop(channel, None)
+
+    def retry_due(self, channel: str, now: Optional[float] = None) -> bool:
+        entry = self.channels.get(channel)
+        return entry is None or (time.time() if now is None else now) >= entry["next_retry_at"]
+
+    def failing(self) -> bool:
+        return bool(self.channels)
+
+    def describe(self, extra: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """JSON-safe summary for /api/status, frames and heartbeats."""
+        now = time.time()
+        with self._lock:
+            channels = {k: dict(v) for k, v in self.channels.items()}
+            last_ok = dict(self.last_ok)
+        channels.update(extra or {})
+        state = "ok"
+        if channels:
+            state = "disk_low" if all(c.get("state") == "disk_low" for c in channels.values()) else "failing"
+        last_save = last_ok.get("checkpoint")
+        out = {"state": state, "ok": not channels, "failing": channels, "total_failures": self.total_failures,
+               "last_ok_save_at": round(last_save, 3) if last_save else None,
+               "last_ok_save_age_s": round(now - last_save, 1) if last_save else None}
+        if channels:
+            first = min(channels.values(), key=lambda c: c.get("since") or now)
+            disk = any(c.get("errno") == 28 or c.get("state") == "disk_low" for c in channels.values())
+            out["since"] = first.get("since")
+            out["reason"] = "disk full" if disk else first.get("error")
+            out["summary"] = "; ".join(f"{name}: {c.get('error')}" for name, c in sorted(channels.items()))
+        return out
+
+
+_RUNNERS: "weakref.WeakSet" = None   # set lazily by _install_thread_excepthook
+
+
+def _install_thread_excepthook(runner) -> None:
+    """Backstop (F1): an uncaught exception in any NeuroFly-* thread is recorded on
+    the runner, so status reports it instead of a traceback scrolling past on stderr."""
+    global _RUNNERS
+    import weakref
+    if _RUNNERS is None:
+        _RUNNERS = weakref.WeakSet()
+    _RUNNERS.add(runner)
+    if getattr(threading.excepthook, "_neurofly", False):
+        return
+    previous = threading.excepthook
+
+    def hook(args):
+        name = getattr(args.thread, "name", "") or ""
+        if name.startswith("NeuroFly"):
+            for r in list(_RUNNERS):
+                try:
+                    r._note_thread_failure(name, args.exc_type, args.exc_value, args.exc_traceback)
+                except Exception:  # noqa: BLE001 -- the hook itself must never raise
+                    pass
+        previous(args)
+
+    hook._neurofly = True
+    threading.excepthook = hook
+
+
+def _traceback_tail(exc: BaseException, lines: int = 8) -> List[str]:
+    import traceback
+    text = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    return "".join(text).rstrip().splitlines()[-lines:]
+
+
 class ContinuousExperimentRunner:
     """Manages the continuous headless simulation loop and online plasticity."""
 
@@ -772,6 +887,35 @@ class ContinuousExperimentRunner:
         self.sched_stats = {"rebases": 0, "forgiven_wall_s": 0.0, "batches": 0,
                             "max_batch_hold_ms": 0.0, "steps_since_publish": 0, "achieved_speed": 0.0,
                             "published_snapshots": 0}
+        # Failure handling (audit F, docs/LEARNING_OBSERVATORY.md "When something fails").
+        self.persistence = PersistenceMonitor()
+        self.halt_on_persistence_failure = False   # --halt-on-persistence-failure
+        self.disk_reserve_bytes = 512 * 1024 * 1024
+        self._last_checkpoint_bytes: Optional[int] = None
+        self.keep_shutdown_checkpoints = 5          # final_shutdown JSON records kept per assay
+        self.recording_error: Optional[Dict[str, Any]] = None
+        self.learning_records = None                # RecorderThread, set by run_daemon
+        self.loop_failure: Optional[Dict[str, Any]] = None
+        self.thread_failures: deque = deque(maxlen=8)
+        self._loop_phase = "idle"
+        self._publish_failures = 0
+        self._loop_fault_log = 0.0
+        # Watchdog (F3): when a step last completed, when stepping last became
+        # expected (after a pause, halt or command), and recent (wall, step) samples
+        # from which the achieved speed is computed at read time.
+        self.last_advance_wall: Optional[float] = None
+        self._steppable_since: float = time.perf_counter()
+        self._command_started: Optional[float] = None
+        self._advance_samples: deque = deque(maxlen=8192)
+        self.step_hard_limit_s = 300.0
+        self.min_stall_s = 10.0
+        self.exit_on_stall_s: Optional[float] = None   # --exit-on-stall
+        self._exit = os._exit                          # replaced in tests
+        self.watchdog_interval_s = 2.0
+        self._watchdog_stop = threading.Event()
+        self._stop_lock = threading.Lock()
+        self._stopped = False
+        self._stop_ok = True
         self.sim_speed = max(0.1, min(100.0, float(sim_speed)))
         self.dt = 0.02
         self.active_paradigm_id = initial_paradigm
@@ -882,7 +1026,10 @@ class ContinuousExperimentRunner:
                 print(f"[Daemon] manifest write failed: {exc}", file=sys.stderr)
         if hasattr(self, "active_brain"):
             self.active_brain.elapsed = self.trial_sim_time
-            self.active_brain.save()
+            # The outgoing brain stays cached in memory (self.brains), so a failed
+            # save here loses nothing yet: it is reported and retried by the next
+            # checkpoint's save_all, and the switch goes ahead.
+            self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         self.manifest = manifest
         self.activation += 1
         manifest.record_event("activate", step=getattr(self, "total_steps", 0), activation=self.activation,
@@ -971,24 +1118,64 @@ class ContinuousExperimentRunner:
         return prov
 
     def start(self):
-        """Starts background continuous execution thread."""
+        """Starts background continuous execution thread (and the watchdog, once)."""
+        _install_thread_excepthook(self)
         self.running = True
+        self.loop_failure = None
+        self._steppable_since = time.perf_counter()
         self.sim_thread = threading.Thread(target=self._run_loop, daemon=True, name="NeuroFly-SimLoop")
         self.sim_thread.start()
+        watchdog = getattr(self, "watchdog_thread", None)
+        if watchdog is None or not watchdog.is_alive():
+            self._watchdog_stop.clear()
+            self.watchdog_thread = threading.Thread(target=self._watchdog_loop, daemon=True,
+                                                    name="NeuroFly-Watchdog")
+            self.watchdog_thread.start()
         print(f"[Daemon] Simulation loop started (Speed: {self.sim_speed}x, Paradigm: {self.active_paradigm_id}).", flush=True)
 
-    def stop(self):
-        """Stops simulation and saves final checkpoint."""
+    def stop(self) -> bool:
+        """Stop the simulation and save the final checkpoint.  Runs once (F5).
+
+        Returns False when the final checkpoint or the recording could not be saved.
+        The caller still completes its own cleanup (recorder flush, PID file) and only
+        then exits non-zero.
+        """
+        with self._stop_lock:
+            if self._stopped:
+                return self._stop_ok
+            self._stopped = True
         print("[Daemon] Stopping simulation loop...", flush=True)
         self.running = False
         self._wake.set()
+        self._watchdog_stop.set()
         if hasattr(self, "sim_thread"):
             self.sim_thread.join(timeout=3.0)
-        with self.lock:
-            summary = self.stop_recording()
-        if summary is not None:
-            print(f"[Daemon] Recording saved: {summary['path']} ({summary['frames']} frames)", flush=True)
-        self.save_checkpoint("final_shutdown")
+        ok = True
+        # A step that never returns may still hold the lock: do not wait for it forever.
+        if not self.lock.acquire(timeout=10.0):
+            print("[Daemon] Final checkpoint skipped: the simulation step did not finish within 10 s "
+                  "(its state would be inconsistent). The last periodic checkpoint is kept.",
+                  file=sys.stderr, flush=True)
+            self._stop_ok = False
+            return False
+        try:
+            try:
+                summary = self.stop_recording()
+                if summary is not None:
+                    print(f"[Daemon] Recording saved: {summary['path']} ({summary['frames']} frames)", flush=True)
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                print(f"[Daemon] Recording could not be finished: {type(exc).__name__}: {exc}",
+                      file=sys.stderr, flush=True)
+            if self.checkpoint_now("final_shutdown", check_space=False) is None:
+                ok = False
+                entry = self.persistence.describe()["failing"].get("checkpoint") or {}
+                print(f"[Daemon] Final checkpoint NOT saved: {entry.get('error')}. The last good checkpoint "
+                      f"is kept and will be resumed.", file=sys.stderr, flush=True)
+        finally:
+            self.lock.release()
+        self._stop_ok = ok
+        return ok
 
     # ------------------------------------------------------------------ scheduling
     def _can_step(self) -> bool:
@@ -1028,65 +1215,150 @@ class ContinuousExperimentRunner:
         under the lock; between batches the lock is yielded to waiting threads,
         queued commands are applied at a step boundary and a snapshot is published.
         """
+        try:
+            self._schedule_loop()
+        except BaseException as exc:
+            # Not an Exception (those are handled per iteration): SystemExit,
+            # KeyboardInterrupt or a deliberate kill.  Record it before the thread ends.
+            self._record_loop_failure(exc)
+            raise
+        finally:
+            if self.running and self.loop_failure is None:
+                self._record_loop_failure(None)
+
+    def _publish_frame(self) -> None:
+        self._loop_phase = "publish"
+        self._publish_snapshot()
+        self._publish_failures = 0
+
+    def _schedule_loop(self):
         dt = self.dt
         anchor_wall = time.perf_counter()
         anchor_steps = self.total_steps
         anchor_speed = self.sim_speed
         last_publish = 0.0
         while self.running:
-            self._wake.clear()
-            self._drain_commands()
-            now = time.perf_counter()
-            if not self._can_step():
-                if self._publish_due or now - last_publish >= 1.0 / self.paused_publish_hz:
-                    self._publish_snapshot()
+            # F1: one failing iteration (a step, a publish, a write, a command) becomes
+            # an honest halt naming the phase; it never ends this thread.
+            try:
+                self._wake.clear()
+                self._loop_phase = "command"
+                self._drain_commands()
+                now = time.perf_counter()
+                if not self._can_step():
+                    # Not expected to advance (paused, halted, held): restart the stall clock
+                    # and the achieved-speed window.
+                    self._steppable_since = now
+                    if self._advance_samples:
+                        self._advance_samples.clear()
+                    if self._publish_due or now - last_publish >= 1.0 / self.paused_publish_hz:
+                        last_publish = now
+                        self._publish_frame()
+                    self._loop_phase = "idle"
+                    self._wake.wait(0.05)
+                    anchor_wall, anchor_steps, anchor_speed = time.perf_counter(), self.total_steps, self.sim_speed
+                    continue
+                speed = self.sim_speed
+                if speed != anchor_speed:
+                    anchor_wall, anchor_steps, anchor_speed = now, self.total_steps, speed
+                behind = anchor_steps + int((now - anchor_wall) * speed / dt) - self.total_steps
+                if behind <= 0:
+                    fresh = self.sched_stats["steps_since_publish"] > 0
+                    if self._publish_due or (now - last_publish >= 1.0 / self.publish_hz
+                                             and (fresh or now - last_publish >= 0.5)):
+                        last_publish = now
+                        self._publish_frame()
+                    next_deadline = anchor_wall + (self.total_steps + 1 - anchor_steps) * dt / speed
+                    wait = min(next_deadline, last_publish + 1.0 / self.publish_hz) - time.perf_counter()
+                    self._loop_phase = "idle"
+                    if wait > 0:
+                        self._wake.wait(min(wait, 0.05))
+                    continue
+                max_lag = max(1, int(self.max_lag_wall_s * speed / dt))
+                if behind > max_lag:
+                    # Overload: forgive the debt instead of bursting to catch up.
+                    self.sched_stats["rebases"] += 1
+                    self.sched_stats["forgiven_wall_s"] += (behind - 1) * dt / speed
+                    anchor_wall, anchor_steps = now - dt / speed, self.total_steps
+                    behind = 1
+                batch_start = time.perf_counter()
+                with self.lock:
+                    taken = 0
+                    while taken < behind and self._can_step() and self.running:
+                        self._advance_one()
+                        taken += 1
+                        if time.perf_counter() - batch_start >= self.max_batch_wall_s:
+                            break
+                hold_ms = (time.perf_counter() - batch_start) * 1e3
+                self.sched_stats["batches"] += 1
+                self.sched_stats["max_batch_hold_ms"] = max(self.sched_stats["max_batch_hold_ms"], round(hold_ms, 3))
+                self._loop_phase = "idle"
+                self._yield_lock()
+                now = time.perf_counter()
+                if self._publish_due or now - last_publish >= 1.0 / self.publish_hz:
                     last_publish = now
-                self._wake.wait(0.05)
+                    self._publish_frame()
+            except Exception as exc:  # noqa: BLE001 -- see F1 above
+                self._on_loop_exception(exc)
                 anchor_wall, anchor_steps, anchor_speed = time.perf_counter(), self.total_steps, self.sim_speed
-                continue
-            speed = self.sim_speed
-            if speed != anchor_speed:
-                anchor_wall, anchor_steps, anchor_speed = now, self.total_steps, speed
-            behind = anchor_steps + int((now - anchor_wall) * speed / dt) - self.total_steps
-            if behind <= 0:
-                fresh = self.sched_stats["steps_since_publish"] > 0
-                if self._publish_due or (now - last_publish >= 1.0 / self.publish_hz
-                                         and (fresh or now - last_publish >= 0.5)):
-                    self._publish_snapshot()
-                    last_publish = now
-                next_deadline = anchor_wall + (self.total_steps + 1 - anchor_steps) * dt / speed
-                wait = min(next_deadline, last_publish + 1.0 / self.publish_hz) - time.perf_counter()
-                if wait > 0:
-                    self._wake.wait(min(wait, 0.05))
-                continue
-            max_lag = max(1, int(self.max_lag_wall_s * speed / dt))
-            if behind > max_lag:
-                # Overload: forgive the debt instead of bursting to catch up.
-                self.sched_stats["rebases"] += 1
-                self.sched_stats["forgiven_wall_s"] += (behind - 1) * dt / speed
-                anchor_wall, anchor_steps = now - dt / speed, self.total_steps
-                behind = 1
-            batch_start = time.perf_counter()
-            with self.lock:
-                taken = 0
-                while taken < behind and self._can_step() and self.running:
-                    self._advance_one()
-                    taken += 1
-                    if time.perf_counter() - batch_start >= self.max_batch_wall_s:
-                        break
-            hold_ms = (time.perf_counter() - batch_start) * 1e3
-            self.sched_stats["batches"] += 1
-            self.sched_stats["max_batch_hold_ms"] = max(self.sched_stats["max_batch_hold_ms"], round(hold_ms, 3))
-            self._yield_lock()
-            now = time.perf_counter()
-            if self._publish_due or now - last_publish >= 1.0 / self.publish_hz:
-                self._publish_snapshot()
-                last_publish = now
+
+    PUBLISH_RETRIES = 3   # consecutive failed publications before an honest halt
+
+    def _on_loop_exception(self, exc: BaseException) -> None:
+        """Turn an exception that escaped one loop iteration into an honest halt."""
+        phase = self._loop_phase or "loop"
+        self._step_started = None
+        now = time.monotonic()
+        if now - self._loop_fault_log >= 5.0:
+            self._loop_fault_log = now
+            print(f"[Daemon] Simulation loop error during {phase}: {type(exc).__name__}: {exc}",
+                  file=sys.stderr, flush=True)
+        if phase == "publish":
+            # A frame that could not be assembled: retry a few times (it may depend on
+            # a transient state), then halt instead of silently freezing the display.
+            self._publish_failures += 1
+            if self._publish_failures < self.PUBLISH_RETRIES and self.last_error is None:
+                self._wake.wait(0.05)
+                return
+        if self.lock.acquire(timeout=5.0):
+            try:
+                self._halt_on_error(exc, phase=phase)
+            finally:
+                self.lock.release()
+        else:   # cannot happen unless another thread holds the lock forever; still report
+            self._halt_on_error(exc, phase=phase)
+        self._loop_phase = "idle"
+        self._wake.wait(0.2)
+
+    def _record_loop_failure(self, exc: Optional[BaseException]) -> None:
+        if exc is None:
+            self.loop_failure = {"type": "LoopExit", "message": "the simulation loop returned while it should run",
+                                 "phase": self._loop_phase, "at": round(time.time(), 3), "traceback": []}
+        else:
+            self.loop_failure = {"type": type(exc).__name__, "message": str(exc) or type(exc).__name__,
+                                 "phase": self._loop_phase, "at": round(time.time(), 3),
+                                 "traceback": _traceback_tail(exc)}
+        print(f"[Daemon] SIMULATION THREAD STOPPED during {self.loop_failure['phase']}: "
+              f"{self.loop_failure['type']}: {self.loop_failure['message']}", file=sys.stderr, flush=True)
+
+    def _note_thread_failure(self, name, exc_type, exc_value, exc_tb) -> None:
+        """threading.excepthook backstop: an uncaught exception in a NeuroFly thread."""
+        entry = {"thread": name, "type": getattr(exc_type, "__name__", str(exc_type)),
+                 "message": str(exc_value), "at": round(time.time(), 3)}
+        self.thread_failures.append(entry)
+        if name == "NeuroFly-SimLoop" and self.loop_failure is None:
+            self.loop_failure = dict(entry, phase=self._loop_phase, traceback=[])
+
+    def _loop_dead(self) -> bool:
+        """The loop should be running (``running``) but its thread has ended."""
+        thread = getattr(self, "sim_thread", None)
+        return bool(self.running and thread is not None and not thread.is_alive())
 
     def _advance_one(self):
         """One scheduled step: step-indexed commands first, then the fixed-dt tick. Holds lock."""
         for entry in self._scheduled.pop(self.total_steps, ()):
             entry["result"] = self._apply_command(entry["cmd"])
+        before = self.total_steps
         started = self._step_started = time.perf_counter()
         try:
             result = self.step_once(publish=False)
@@ -1095,8 +1367,126 @@ class ContinuousExperimentRunner:
                 self.step_hook(self)
         finally:
             self._step_started = None
-            self.last_step_wall_s = time.perf_counter() - started
+            end = time.perf_counter()
+            self.last_step_wall_s = end - started
+            if self.total_steps != before:
+                self.last_advance_wall = end
+                samples = self._advance_samples
+                samples.append((end, self.total_steps))
+                while samples and end - samples[0][0] > 30.0:
+                    samples.popleft()
         return result
+
+    # ------------------------------------------------------------------ watchdog (F3)
+    def stall_threshold_s(self) -> float:
+        """No step for longer than this, while stepping is expected, is a stall."""
+        return max(self.min_stall_s, 20.0 * self.dt / max(self.sim_speed, 1e-6), 3.0 * self.last_step_wall_s)
+
+    def _work_in_progress_s(self) -> float:
+        started = self._command_started
+        command = 0.0 if started is None else time.perf_counter() - started
+        return max(self.step_in_progress_s(), command)
+
+    def liveness(self) -> Dict[str, Any]:
+        """Is the simulation advancing?  advancing / paused / halted / slow / stalled / dead."""
+        now = time.perf_counter()
+        thread = getattr(self, "sim_thread", None)
+        alive = bool(thread is not None and thread.is_alive())
+        in_progress = self._work_in_progress_s()
+        last = self.last_advance_wall
+        age = None if last is None else now - last
+        threshold = self.stall_threshold_s()
+        expected_since = max(last or 0.0, self._steppable_since)
+        if thread is None:
+            state = "not_started"
+        elif self.running and not alive:
+            state = "dead"
+        elif not self.running:
+            state = "stopped"
+        elif self.last_error is not None:
+            state = "halted"
+        elif not self._can_step():
+            state = "paused"
+        elif in_progress > self.step_hard_limit_s:
+            state = "stalled"
+        elif in_progress > 2.0:
+            state = "slow"
+        elif in_progress == 0.0 and now - expected_since > threshold:
+            state = "stalled"
+        else:
+            state = "advancing"
+        return {"state": state, "step": self.total_steps,
+                "last_advance_age_s": None if age is None else round(age, 2),
+                "sim_thread_alive": alive, "step_in_progress_s": round(in_progress, 3),
+                "stall_threshold_s": round(threshold, 2), "step_hard_limit_s": self.step_hard_limit_s}
+
+    def health(self) -> Dict[str, Any]:
+        """The one honest status: error (halted, stalled, dead) > degraded > online."""
+        live = self.liveness()
+        error, halted = self.last_error, self.last_error is not None
+        if live["state"] == "dead":
+            failure = self.loop_failure or {}
+            reason = f"{failure.get('type', 'unknown')}: {failure.get('message', '')}".strip(": ")
+            error = f"simulation thread stopped: {reason or 'unknown reason'}"
+            halted = True
+        elif live["state"] == "stalled" and error is None:
+            if live["step_in_progress_s"] > self.step_hard_limit_s:
+                error = (f"simulation not advancing: one step has run for {live['step_in_progress_s']:.0f} s "
+                         f"(limit {self.step_hard_limit_s:.0f} s)")
+            else:
+                error = (f"simulation not advancing: no step for {live['last_advance_age_s'] or 0:.0f} s "
+                         f"while running (limit {live['stall_threshold_s']:.0f} s)")
+        persistence = self.persistence_summary()
+        if live["state"] in ("dead", "stalled") or halted:
+            status = "error"
+        elif not persistence["ok"]:
+            status = "degraded"
+        else:
+            status = "online"
+        return {"status": status, "error": error, "halted": halted, "liveness": live,
+                "persistence": persistence, "recording_error": self.recording_error,
+                "loop_failure": self.loop_failure, "thread_failures": list(self.thread_failures)}
+
+    def persistence_summary(self) -> Dict[str, Any]:
+        extra = {}
+        records = self.learning_records
+        if records is not None and hasattr(records, "describe"):
+            info = records.describe()
+            if info.get("failing"):
+                extra["learning_records"] = {"channel": "learning_records", "state": "failing",
+                                             "error": info.get("last_error"), "errno": info.get("last_errno"),
+                                             "since": info.get("failing_since"), "failures": info.get("errors"),
+                                             "path": info.get("data_dir")}
+        return self.persistence.describe(extra)
+
+    def _watchdog_loop(self) -> None:
+        """NeuroFly-Watchdog: logs stall onset; optionally exits so systemd restarts."""
+        previous, bad_since = None, None
+        while not self._watchdog_stop.wait(self.watchdog_interval_s):
+            try:
+                if not self.running:
+                    break                       # stopped; start() launches a new watchdog
+                live = self.liveness()
+                state = live["state"]
+                if state in ("stalled", "dead"):
+                    if previous not in ("stalled", "dead"):
+                        bad_since = time.monotonic()
+                        print(f"[Watchdog] Simulation NOT ADVANCING ({state}) at step {live['step']}: "
+                              f"last step {live['last_advance_age_s']} s ago, step in progress "
+                              f"{live['step_in_progress_s']} s, sim thread alive={live['sim_thread_alive']}. "
+                              f"{self.health()['error']}", file=sys.stderr, flush=True)
+                    if (self.exit_on_stall_s is not None and bad_since is not None
+                            and time.monotonic() - bad_since >= self.exit_on_stall_s):
+                        print(f"[Watchdog] Exiting with code 70 after {self.exit_on_stall_s:g} s not advancing "
+                              f"(--exit-on-stall); a service manager restarts from the last checkpoint.",
+                              file=sys.stderr, flush=True)
+                        self._exit(70)
+                elif previous in ("stalled", "dead"):
+                    print(f"[Watchdog] Simulation advancing again ({state}) at step {live['step']}.", flush=True)
+                    bad_since = None
+                previous = state
+            except Exception as exc:  # noqa: BLE001 -- the watchdog must outlive what it watches
+                print(f"[Watchdog] check failed: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
 
     def schedule_command(self, step: int, cmd: dict) -> dict:
         """Apply ``cmd`` exactly when ``total_steps == step`` (before that step's successor).
@@ -1118,16 +1508,23 @@ class ContinuousExperimentRunner:
                 if not self._commands:
                     return
                 entry = self._commands.popleft()
-            with self.lock:
-                try:
-                    entry["result"] = self._apply_command(entry["cmd"])
-                except Exception as exc:  # never kill the loop over one bad command
-                    entry["result"] = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-                self._note_latency(entry["result"], entry["received"])
-                if isinstance(entry["result"], dict):
-                    entry["result"]["command_id"] = entry["id"]
-                    self.command_acks.append(entry["result"])
-            entry["done"].set()
+            try:
+                with self.lock:
+                    # A long command (a graph instance switch) is work, not a stall.
+                    self._command_started = time.perf_counter()
+                    try:
+                        entry["result"] = self._apply_command(entry["cmd"])
+                    except Exception as exc:  # never kill the loop over one bad command
+                        entry["result"] = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+                    finally:
+                        self._command_started = None
+                        self._steppable_since = time.perf_counter()
+                    self._note_latency(entry["result"], entry["received"])
+                    if isinstance(entry["result"], dict):
+                        entry["result"]["command_id"] = entry["id"]
+                        self.command_acks.append(entry["result"])
+            finally:
+                entry["done"].set()   # the HTTP caller never waits on a command that failed
 
     # ------------------------------------------------------------------ publication
     def step_in_progress_s(self) -> float:
@@ -1135,20 +1532,51 @@ class ContinuousExperimentRunner:
         started = self._step_started
         return 0.0 if started is None else round(time.perf_counter() - started, 3)
 
+    def achieved_speed_now(self) -> float:
+        """Achieved speed computed at read time from (wall, step) samples (F3).
+
+        The window ends NOW, so a simulation that stopped advancing reads 0 within a
+        few seconds instead of repeating the last value a dead thread stored.
+        """
+        if not self._can_step():
+            return 0.0
+        thread = getattr(self, "sim_thread", None)
+        if thread is not None and not thread.is_alive():
+            return 0.0
+        samples = list(self._advance_samples)
+        if not samples:
+            return 0.0
+        now = time.perf_counter()
+        window = max(2.0, 3.0 * self.last_step_wall_s)
+        t_last, s_last = samples[-1]
+        if now - t_last > window:
+            return 0.0
+        # The newest sample at or before the window start anchors a full interval.
+        idx = next((i for i, (t, _) in enumerate(samples) if now - t <= window), len(samples) - 1)
+        t0, s0 = samples[max(0, idx - 1)]
+        if s_last <= s0 or now - t0 <= 0.0:
+            return 0.0
+        # Steps completed since the anchor sample, over the wall time up to now.
+        return round((s_last - s0) * self.dt / (now - t0), 3)
+
     def timing_snapshot(self) -> Dict[str, Any]:
         """Requested versus achieved speed and delivery counters (JSON-safe)."""
+        achieved = self.achieved_speed_now()
+        if achieved and getattr(self, "sim_thread", None) is not None \
+                and self.liveness()["state"] in ("stalled", "dead"):
+            achieved = 0.0
         return {
             "last_step_wall_s": round(self.last_step_wall_s, 4),
             "step_in_progress_s": self.step_in_progress_s(),
             "requested_speed": self.sim_speed,
-            "achieved_speed": 0.0 if not self._can_step() else self.sched_stats["achieved_speed"],
+            "achieved_speed": achieved,
             "integration_dt_s": self.dt,
             "sim_time_s": round(self.total_steps * self.dt, 5),
             "step": self.total_steps,
             "snapshot_seq": self._snapshot_seq,
             "publish_hz": self.publish_hz,
-            "overloaded": bool(self._can_step() and self.sched_stats["achieved_speed"] < 0.9 * self.sim_speed
-                               and len(self._speed_samples) > 4),
+            "overloaded": bool(self._can_step() and achieved < 0.9 * self.sim_speed
+                               and len(self._advance_samples) > 4),
             "schedule_rebases": self.sched_stats["rebases"],
             "forgiven_wall_s": round(self.sched_stats["forgiven_wall_s"], 3),
             "max_batch_hold_ms": self.sched_stats["max_batch_hold_ms"],
@@ -1246,20 +1674,20 @@ class ContinuousExperimentRunner:
             if publish:
                 self.latest_telemetry = self._assemble_telemetry({})
             if self.recorder is not None:
-                self.recorder.capture(self, {})
+                self._capture_recording({})
             return {}
 
         # 1. Step simulation arena
+        self._loop_phase = "step"
         try:
             step_result = self.arena.step(step_dt)
         except Exception as step_err:
             print(f"[Daemon] Exception in arena.step: {step_err}", file=sys.stderr)
-            self._halt_on_error(step_err)
-            self.active_brain.log("simulation_error", error=self.last_error, step=self.total_steps,
-                                  run_id=self.run_id, segment_id=self.segment_id,
-                                  error_type=self.error_detail["type"])
-            self._publish_due = True
-            self.latest_telemetry = self._assemble_telemetry({})
+            self._halt_on_error(step_err, phase="step")
+            try:
+                self.latest_telemetry = self._assemble_telemetry({})
+            except Exception as telem_err:  # noqa: BLE001 -- the halt is already recorded
+                print(f"[Daemon] telemetry after the halt failed: {telem_err}", file=sys.stderr)
             return {}
 
         self.total_steps += 1
@@ -1269,6 +1697,7 @@ class ContinuousExperimentRunner:
         self._path.append((self.total_steps, round(float(pos.x), 4), round(float(pos.y), 4)))
 
         # 2. Trial advancement: natural endpoint or time limit
+        self._loop_phase = "trial bookkeeping"
         end_reason = self._trial_end_reason(step_result)
         if end_reason is not None:
             self._end_trial(step_result, end_reason)
@@ -1278,31 +1707,160 @@ class ContinuousExperimentRunner:
         # 3. Assemble telemetry (the scheduler defers this to snapshot publication)
         self._last_step_result = step_result
         if publish:
+            self._loop_phase = "publish"
             self.latest_telemetry = self._assemble_telemetry(step_result)
         if self.recorder is not None:
-            self.recorder.capture(self, step_result)
+            self._capture_recording(step_result)
 
-        # 4. Periodic Checkpointing
-        now = time.time()
-        if now - self.last_checkpoint_time >= self.checkpoint_interval:
-            self.save_checkpoint("periodic")
-            self.last_checkpoint_time = now
+        # 4. Periodic checkpoint.  A failed save never stops the run (F2).
+        self._maybe_periodic_checkpoint()
+        self._loop_phase = "step"
         return step_result
+
+    # ------------------------------------------------------------------ persistence (F2)
+    def _persist(self, channel: str, fn, *args, path: Any = None, **kwargs):
+        """One durable write.  A failure degrades the run (reported, retried later)
+        instead of stopping it; with --halt-on-persistence-failure it halts honestly."""
+        try:
+            result = fn(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001 -- every write failure is reported, none is fatal
+            self._persistence_failed(channel, exc, path)
+            return None
+        self.persistence.succeeded(channel)
+        return result
+
+    def _ledger(self, kind: str, **fields) -> None:
+        """Append one event to the active brain's ledger (events.jsonl), guarded."""
+        channel = "trial_ledger" if kind == "trial" else "events_ledger"
+        brain = self.active_brain
+        self._persist(channel, brain.log, kind, path=getattr(brain, "directory", None), **fields)
+
+    def _persistence_failed(self, channel: str, exc: BaseException, path: Any = None) -> None:
+        entry = self.persistence.failed(channel, exc, path)
+        if entry["failures"] == 1 or entry["failures"] % 20 == 0:
+            print(f"[Daemon] NOT SAVING ({channel}, failure {entry['failures']}): {entry['error']}. The "
+                  f"simulation keeps running; next attempt in {entry['backoff_s']:.0f} s. Free disk space "
+                  f"if the disk is full.", file=sys.stderr, flush=True)
+        if self.halt_on_persistence_failure and self.last_error is None:
+            self._halt_on_error(exc, phase="persistence", channel=channel)
+
+    def _checkpoint_bytes_needed(self) -> int:
+        last = self._last_checkpoint_bytes
+        if last is None:
+            last = 0
+            if self.graph_mode and self.registry is not None and self.registry.active is not None:
+                try:
+                    pointer = self.registry.current_pointer(self.registry.active.instance_id)
+                    last = int((pointer or {}).get("bytes") or 0)
+                except Exception:  # noqa: BLE001 -- an estimate only
+                    last = 0
+        return 2 * int(last) + int(self.disk_reserve_bytes)
+
+    def _check_free_space(self) -> None:
+        """Skip a checkpoint BEFORE the disk is full: free < 2 x last checkpoint + reserve."""
+        import shutil
+        needed = self._checkpoint_bytes_needed()
+        roots = {self.output_dir}
+        if self.registry is not None:
+            roots.add(Path(self.registry.root))
+        for root in roots:
+            try:
+                free = shutil.disk_usage(root).free
+            except OSError:
+                continue
+            if free < needed:
+                raise DiskSpaceLow(28, f"only {free / 2**20:.0f} MB free, a checkpoint needs "
+                                       f"{needed / 2**20:.0f} MB (2 x last checkpoint + reserve); "
+                                       f"checkpoint skipped", str(root))
+
+    def checkpoint_now(self, tag: str = "periodic", check_space: bool = True) -> Optional[Path]:
+        """Guarded checkpoint: returns the path, or None when the save failed (reported)."""
+        prev_phase, self._loop_phase = self._loop_phase, "persistence"
+        try:
+            if check_space:
+                self._check_free_space()
+            path = self.save_checkpoint(tag)
+        except Exception as exc:  # noqa: BLE001
+            self._persistence_failed("checkpoint", exc, getattr(exc, "filename", None) or self.checkpoints_dir)
+            return None
+        finally:
+            self._loop_phase = prev_phase
+        self.persistence.succeeded("checkpoint")
+        return path
+
+    def _maybe_periodic_checkpoint(self) -> None:
+        now = time.time()
+        if now - self.last_checkpoint_time < self.checkpoint_interval:
+            return
+        if not self.persistence.retry_due("checkpoint", now):
+            return
+        self.last_checkpoint_time = now
+        self.checkpoint_now("periodic")
+
+    def _capture_recording(self, step_result: Dict[str, Any]) -> None:
+        """Capture one replay frame; a failing --record stops visibly (F2)."""
+        self._loop_phase = "recording"
+        try:
+            self.recorder.capture(self, step_result)
+        except Exception as exc:  # noqa: BLE001
+            self._recording_failed(exc)
+
+    def _recording_failed(self, exc: BaseException) -> None:
+        recorder, self.recorder = self.recorder, None
+        name = getattr(getattr(recorder, "path", None), "name", None)
+        try:
+            if recorder is not None and hasattr(recorder, "abort"):
+                recorder.abort(f"{type(exc).__name__}: {exc}")
+        except Exception:  # noqa: BLE001 -- the recording is already lost; report it
+            pass
+        self.recording_error = {"recording": name, "error": f"{type(exc).__name__}: {exc}",
+                                "errno": getattr(exc, "errno", None), "step": self.total_steps,
+                                "frames": getattr(recorder, "frames", None), "at": round(time.time(), 3),
+                                "message": f"Recording {name} stopped: it could not be written "
+                                           f"({type(exc).__name__}: {exc}). The simulation keeps running."}
+        self._persistence_failed("recording", exc, getattr(recorder, "path", None))
+        print(f"[Daemon] {self.recording_error['message']}", file=sys.stderr, flush=True)
 
     HALT_RECOVERY = ("The simulation is halted by this error and does not advance. Select an assay "
                      "(selecting the same one retries it) or switch the controller backend to rebuild "
                      "the controller and resume. Pausing, resuming or changing speed does not lift it.")
+    PHASE_LABELS = {"step": "simulation step", "publish": "telemetry publication",
+                    "persistence": "saving", "command": "command", "recording": "recording",
+                    "trial bookkeeping": "trial bookkeeping", "loop": "simulation loop"}
 
-    def _halt_on_error(self, exc: BaseException):
-        """Record the step failure that halts the simulation. Caller holds the lock."""
+    def _halt_on_error(self, exc: BaseException, phase: str = "step", channel: Optional[str] = None):
+        """Record the failure that halts the simulation (F1). Caller holds the lock.
+
+        Never raises: its own bookkeeping write is guarded, so a full disk cannot turn
+        an honest halt into a dead simulation thread (audit F, #7).  A second failure
+        while already halted is counted, not allowed to overwrite the first cause.
+        """
+        if self.last_error is not None:
+            if self.error_detail is not None:
+                self.error_detail["repeats"] = self.error_detail.get("repeats", 0) + 1
+            return
         registry = self.registry if self.graph_mode else None
         active = registry.active if registry is not None else None
-        self.last_error = str(exc) or type(exc).__name__
+        message = str(exc) or type(exc).__name__
+        if phase != "step":
+            message = f"{self.PHASE_LABELS.get(phase, phase)} failed: {type(exc).__name__}: {message}"
+        self.last_error = message
         self.error_detail = {
-            "message": self.last_error, "type": type(exc).__name__, "step": self.total_steps,
+            "message": self.last_error, "type": type(exc).__name__, "phase": phase, "step": self.total_steps,
             "sim_time_s": round(self.total_steps * self.dt, 5), "paradigm": self.active_paradigm_id,
             "backend": self.backend, "instance_id": active.instance_id if active is not None else None,
-            "at": round(time.time(), 3), "recover": self.HALT_RECOVERY}
+            "at": round(time.time(), 3), "recover": self.HALT_RECOVERY,
+            "traceback": _traceback_tail(exc)}
+        if channel:
+            self.error_detail["channel"] = channel
+        self._publish_due = True
+        print(f"[Daemon] HALTED ({phase}): {message}", file=sys.stderr, flush=True)
+        try:
+            self._ledger("simulation_error", error=self.last_error, step=self.total_steps,
+                         run_id=self.run_id, segment_id=getattr(self, "segment_id", None),
+                         error_type=self.error_detail["type"], phase=phase)
+        except Exception:  # noqa: BLE001 -- _ledger is guarded; this is belt and braces
+            pass
 
     def _clear_error(self, cleared_by: str) -> Optional[Dict[str, Any]]:
         """Lift a halt after a successful rebuild; the cleared error is kept and logged."""
@@ -1312,11 +1870,14 @@ class ContinuousExperimentRunner:
         detail.update(cleared_by=cleared_by, cleared_at=round(time.time(), 3), cleared_step=self.total_steps,
                       resumed_paradigm=self.active_paradigm_id, resumed_backend=self.backend)
         detail.pop("recover", None)
+        detail.pop("traceback", None)
         self.cleared_errors.append(detail)
         self.last_error = None
         self.error_detail = None
-        self.active_brain.log("simulation_error_cleared", error=detail["message"], cleared_by=cleared_by,
-                              step=self.total_steps, run_id=self.run_id, segment_id=self.segment_id)
+        self._publish_failures = 0
+        self._steppable_since = time.perf_counter()
+        self._ledger("simulation_error_cleared", error=detail["message"], cleared_by=cleared_by,
+                     step=self.total_steps, run_id=self.run_id, segment_id=self.segment_id)
         print(f"[Daemon] Halt lifted by {cleared_by}: {detail['message']}", flush=True)
         self._publish_due = True
         return detail
@@ -1449,6 +2010,7 @@ class ContinuousExperimentRunner:
                 leg_contacts = [bool(f > 0.5) for f in b_obs["contacts"]["found"][:6]]
 
         motor = self.motor_summary()
+        health = self.health()
         packet = {
             "type": "telemetry",
             "run_id": self.run_id,
@@ -1470,6 +2032,12 @@ class ContinuousExperimentRunner:
             "error": self.last_error,
             "halted": self.last_error is not None,
             "error_detail": self.error_detail,
+            # Audit F: is the simulation advancing, and is it saving?  The page shows
+            # "NOT ADVANCING" and "NOT SAVING" from these (docs/DATA_SCHEMA.md).
+            "status": health["status"],
+            "liveness": health["liveness"],
+            "persistence": health["persistence"],
+            "recording_error": health["recording_error"],
             "sim_time_s": round(self.total_steps * self.dt, 5),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
@@ -1565,10 +2133,11 @@ class ContinuousExperimentRunner:
         metric_val = self._trial_metric(metrics)
         self.learning_curve.append(metric_val)
         self.active_brain.trials += 1
-        self.active_brain.log("trial", trial=self.active_brain.trials, metric=metric_val,
-                              metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
-                              reason=reason, metrics=metrics, probe=self.active_brain.probe())
-        self.active_brain.save()
+        # Guarded (F2): a full disk degrades the run; the trial still counts in memory.
+        self._ledger("trial", trial=self.active_brain.trials, metric=metric_val,
+                     metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
+                     reason=reason, metrics=metrics, probe=self.active_brain.probe())
+        self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         ident = self.identity()
         self.trial_history.append({
             "run_id": ident.get("run_id"),
@@ -1613,9 +2182,40 @@ class ContinuousExperimentRunner:
                         "step_in_progress_s": self.step_in_progress_s(),
                         "message": "Queued: applied when the current simulation step finishes"}
             return entry["result"]
+        if self._loop_dead():
+            return self._dispatch_with_dead_loop(cmd, received)
         with self.lock:
             result = self._apply_command(cmd)
         self._note_latency(result, received)
+        return result
+
+    REBUILD_ACTIONS = ("switch_paradigm", "switch_backend", "switch_controller")
+
+    def _dispatch_with_dead_loop(self, cmd: dict, received: float) -> dict:
+        """The loop should run but its thread is gone (F1).  Only a rebuild may run,
+        and a successful one restarts the thread; anything else is refused, so no
+        reply can say "ok" while nothing steps (audit F, #1-#7 recovery column)."""
+        failure = self.loop_failure or {}
+        reason = f"{failure.get('type', 'unknown')}: {failure.get('message', '')}"
+        if cmd.get("action") not in self.REBUILD_ACTIONS:
+            return {"status": "error", "applied": False, "loop_dead": True,
+                    "message": f"The simulation thread has stopped ({reason}); nothing can be applied. "
+                               f"Select an assay or switch the backend to rebuild and restart it, "
+                               f"or restart the daemon."}
+        with self.lock:
+            result = self._apply_command(cmd)
+        restarted = False
+        if isinstance(result, dict) and result.get("status") == "ok":
+            print(f"[Daemon] Restarting the stopped simulation thread after {cmd.get('action')} "
+                  f"(it had stopped: {reason}).", flush=True)
+            self.start()
+            restarted = self.sim_thread.is_alive()
+        self._note_latency(result, received)
+        if isinstance(result, dict):
+            result["loop_restarted"] = restarted
+            if isinstance(result.get("ack"), dict):
+                result["ack"]["loop_restarted"] = restarted
+                result["ack"]["applied"] = bool(result["ack"].get("applied") and restarted)
         return result
 
     def _note_latency(self, result, received: float):
@@ -1629,7 +2229,10 @@ class ContinuousExperimentRunner:
         """Apply one command now. Caller holds ``self.lock``; adds the acknowledgement."""
         result = self._apply_command_unacked(cmd)
         if self.recorder is not None and isinstance(result, dict):
-            self.recorder.command(self, cmd, result)
+            try:
+                self.recorder.command(self, cmd, result)
+            except Exception as exc:  # noqa: BLE001 -- a failing recording stops visibly (F2)
+                self._recording_failed(exc)
         if isinstance(result, dict):
             result = dict(result)
             result["ack"] = {"action": cmd.get("action", ""), "run_id": self.run_id,
@@ -1689,7 +2292,7 @@ class ContinuousExperimentRunner:
 
         elif action == "probe_brain":
             probe = self.active_brain.probe()
-            self.active_brain.log("probe", probe=probe)
+            self._ledger("probe", probe=probe)
             return {"status": "ok", "brain_id": self.active_brain.brain_id, "probe": probe}
 
         elif action == "teach_brain":
@@ -1709,8 +2312,8 @@ class ContinuousExperimentRunner:
             self.arena.fly.learning_enabled = enabled
             if self.registry is not None:
                 self.registry.learning_enabled = enabled
-            self.active_brain.log("learning_control", enabled=enabled)
-            self.active_brain.save()
+            self._ledger("learning_control", enabled=enabled)
+            self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
             return {"status": "ok", "learning_enabled": enabled}
 
         elif action == "set_paused":
@@ -1742,7 +2345,7 @@ class ContinuousExperimentRunner:
                     value = None
             except (ValueError, TypeError) as exc:
                 return {'status':'error','message':str(exc)}
-            self.active_brain.log('intervention', action=action, name=name, value=value,
+            self._ledger('intervention', action=action, name=name, value=value,
                                   run_id=self.run_id, segment_id=self.segment_id, sim_time_s=self.total_steps*self.dt)
             return {'status':'ok','applied':name,'live_assay':assay_controls.describe(self.arena)}
 
@@ -1765,7 +2368,7 @@ class ContinuousExperimentRunner:
                 else: raise ValueError('This spatial stimulus is not supported by the live model')
             except (ValueError,TypeError) as exc:
                 return {'status':'error','message':str(exc)}
-            self.active_brain.log('spatial_intervention', stimulus=kind,x=x,y=y,run_id=self.run_id,step=self.total_steps)
+            self._ledger('spatial_intervention', stimulus=kind,x=x,y=y,run_id=self.run_id,step=self.total_steps)
             return {'status':'ok','applied':kind}
 
         elif action == 'inject_stimulus':
@@ -1778,8 +2381,8 @@ class ContinuousExperimentRunner:
                 self.current_trial += 1
             if not keep_mem and hasattr(self.arena.fly, "circuit"):
                 self.arena.fly.circuit.reset_state(keep_memory=False)
-                self.active_brain.log("memory_reset")
-                self.active_brain.save()
+                self._ledger("memory_reset")
+                self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
             # Reset paradigm trial state and return the fly to the paradigm spawn
             paradigm = getattr(self.arena, "paradigm", None)
             if paradigm is not None and hasattr(paradigm, "reset_trial"):
@@ -1789,7 +2392,7 @@ class ContinuousExperimentRunner:
             self.segment_id = uuid.uuid4().hex
             self.transition = {"reason": "manual_reset", "step": self.total_steps}
             self._path.clear()
-            self.active_brain.log("manual_reset", segment_id=self.segment_id)
+            self._ledger("manual_reset", segment_id=self.segment_id)
             self.latest_telemetry = self._assemble_telemetry({})
             return {"status": "ok", "current_trial": self.current_trial}
 
@@ -1801,6 +2404,8 @@ class ContinuousExperimentRunner:
                                                label=cmd.get("label", p.get("label", "")))
             except (ValueError, OSError) as exc:
                 return {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            self.recording_error = None
+            self.persistence.clear("recording")
             return {"status": "ok", "recording": summary}
 
         elif action == "record_stop":
@@ -1810,7 +2415,10 @@ class ContinuousExperimentRunner:
             return {"status": "ok", "recording": summary}
 
         elif action == "save_checkpoint":
-            path = self.save_checkpoint(cmd.get("label", "manual"))
+            path = self.checkpoint_now(cmd.get("label", "manual"))
+            if path is None:
+                failing = self.persistence.describe()["failing"].get("checkpoint") or {}
+                return {"status": "error", "message": f"Checkpoint not saved: {failing.get('error', 'unknown error')}"}
             return {"status": "ok", "checkpoint": str(path)}
 
         else:
@@ -1909,26 +2517,49 @@ class ContinuousExperimentRunner:
         }
         with open(target_file, "w", encoding="utf-8") as f:
             json.dump(redact_local(data), f, indent=2)   # no absolute local paths on disk
-        if safe_tag == "periodic":
-            self._prune_periodic_checkpoints()
+        try:
+            size = target_file.stat().st_size
+            if graph_checkpoint:
+                size += Path(graph_checkpoint).stat().st_size
+            self._last_checkpoint_bytes = size
+        except OSError:
+            pass
+        if safe_tag in ("periodic", "final_shutdown"):
+            try:
+                self._prune_json_checkpoints()
+            except OSError as exc:   # pruning is housekeeping; never fail a save over it
+                print(f"[Daemon] checkpoint pruning failed: {exc}", file=sys.stderr)
         return target_file
 
-    def _prune_periodic_checkpoints(self) -> None:
-        """Keep the newest ``keep_checkpoints`` periodic JSON records of the active
-        assay.  Manual and shutdown records are never removed."""
-        if not self.keep_checkpoints:
-            return
-        prefix = f"checkpoint_{self.active_paradigm_id}_periodic_"
-        stamped = []
-        for path in self.checkpoints_dir.glob(prefix + "*.json"):
-            stamp = path.stem[len(prefix):]
-            if stamp.isdigit():
-                stamped.append((int(stamp), path))
-        for _, path in sorted(stamped, reverse=True)[self.keep_checkpoints:]:
-            try:
-                path.unlink()
-            except FileNotFoundError:
-                pass
+    def _prune_json_checkpoints(self) -> List[Path]:
+        """Retention for the daemon's JSON records, for EVERY assay (F7).
+
+        Keeps the newest ``keep_checkpoints`` periodic records and the newest
+        ``keep_shutdown_checkpoints`` final_shutdown records per assay.  Manual and
+        other labelled records are never removed.  Returns the removed paths.
+        """
+        groups: Dict[tuple, List[tuple]] = {}
+        for path in self.checkpoints_dir.glob("checkpoint_*.json"):
+            for tag in ("periodic", "final_shutdown"):
+                head, sep, stamp = path.stem.rpartition(f"_{tag}_")
+                if sep and stamp.isdigit() and head.startswith("checkpoint_"):
+                    groups.setdefault((head[len("checkpoint_"):], tag), []).append((int(stamp), path))
+                    break
+        removed = []
+        for (_, tag), stamped in groups.items():
+            keep = self.keep_checkpoints if tag == "periodic" else self.keep_shutdown_checkpoints
+            if not keep:
+                continue
+            for _, path in sorted(stamped, reverse=True)[keep:]:
+                try:
+                    path.unlink()
+                    removed.append(path)
+                except FileNotFoundError:
+                    pass
+        return removed
+
+    # Older name, kept for callers outside this file.
+    _prune_periodic_checkpoints = _prune_json_checkpoints
 
 
 class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
@@ -1952,12 +2583,22 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
 
     def _status_payload(self):
         uptime = time.time() - self.runner.start_time
+        # F1/F3: status reads thread liveness and step age, not only flags that a dead
+        # simulation thread could never change.  Minimal runners (tests) have no health().
+        health = (self.runner.health() if hasattr(self.runner, "health") else
+                  {"status": "error" if self.runner.last_error else "online", "error": self.runner.last_error,
+                   "halted": self.runner.last_error is not None})
         payload = {
-            "status": "error" if self.runner.last_error else "online",
-            "error": self.runner.last_error,
+            "status": health["status"],
+            "error": health["error"],
             # A halted run is not paused: nothing advances until a rebuild lifts it.
-            "halted": self.runner.last_error is not None,
+            "halted": health["halted"],
             "error_detail": getattr(self.runner, "error_detail", None),
+            "liveness": health.get("liveness"),
+            "persistence": health.get("persistence"),
+            "recording_error": health.get("recording_error"),
+            "loop_failure": health.get("loop_failure"),
+            "thread_failures": health.get("thread_failures"),
             "cleared_errors": list(getattr(self.runner, "cleared_errors", ())),
             "paused": self.runner.paused,
             "continuous": self.runner.continuous,
@@ -2047,7 +2688,12 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         if url in ("", "/status", "/api/status"):
             # Plain attribute reads only: status never waits for the simulation lock,
             # so a busy simulation cannot make the dashboard's reconnect probe time out.
-            resp = self._status_payload()
+            try:
+                resp = self._status_payload()
+            except Exception as exc:  # noqa: BLE001 -- answer, never drop the connection
+                self._send_json({"status": "error", "error": f"status unavailable: {type(exc).__name__}: {exc}"},
+                                status=500)
+                return
             self.send_response(200)
             self._set_cors_headers("application/json")
             self.end_headers()
@@ -2240,6 +2886,16 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                     # A slow computer, not a dead daemon: say how long this step has run.
                     beat["step_in_progress_s"] = runner.step_in_progress_s()
                     beat["last_step_wall_s"] = round(runner.last_step_wall_s, 4)
+                if hasattr(runner, "health"):
+                    # F3: the heartbeat says whether the simulation advances, so the page
+                    # can tell a dead loop from an idle one even when no frame arrives.
+                    try:
+                        health = runner.health()
+                        beat.update(step=runner.total_steps, paused=runner.paused, status=health["status"],
+                                    halted=health["halted"], error=health["error"],
+                                    liveness=health["liveness"], persistence=health["persistence"])
+                    except Exception as exc:  # noqa: BLE001 -- a heartbeat must always go out
+                        beat["health_error"] = f"{type(exc).__name__}: {exc}"
                 self.wfile.write(f"event: heartbeat\ndata: {json.dumps(beat)}\n\n".encode("utf-8"))
                 self.wfile.flush()
                 last_write = now
@@ -2335,10 +2991,29 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8769, help="Port to bind HTTP API (default: 8769)")
     parser.add_argument("--paradigm", default="multisensory-sandbox", help="Initial experimental paradigm")
     parser.add_argument("--speed", type=float, default=5.0, help="Initial simulation speed multiplier (default: 5.0x for real connectome)")
-    parser.add_argument("--checkpoint-interval", type=float, default=60.0, help="Interval between checkpoints in seconds")
+    parser.add_argument("--checkpoint-interval", type=float,
+                        default=float(os.environ.get("NEUROFLY_CHECKPOINT_INTERVAL") or 60.0),
+                        help="Seconds between periodic checkpoints (env: NEUROFLY_CHECKPOINT_INTERVAL; "
+                             "default 60, minimum 5). For a long-running observatory 300 is recommended: "
+                             "a connectome checkpoint is ~17 MB, so 30 s writes ~2 GB/hour")
     parser.add_argument("--keep-checkpoints", type=int, default=None,
                         help="Newest periodic checkpoints kept per assay; older ones are deleted "
                              "(env: NEUROFLY_KEEP_CHECKPOINTS; default 20; 0 keeps all)")
+    parser.add_argument("--keep-shutdown-checkpoints", type=int, default=5,
+                        help="Newest final_shutdown JSON records kept per assay (default 5; 0 keeps all)")
+
+    failure_group = parser.add_argument_group(
+        "failure handling", "What happens when saving fails or the simulation stops advancing "
+        "(docs/LEARNING_OBSERVATORY.md, 'When something fails').")
+    failure_group.add_argument("--halt-on-persistence-failure", action="store_true",
+                               help="Halt the simulation when a save fails. Default: keep stepping, report "
+                                    "status 'degraded' (NOT SAVING) and retry with a back-off (30 s to 10 min)")
+    failure_group.add_argument("--exit-on-stall", type=float, default=None, metavar="SECONDS",
+                               help="Exit with code 70 after the simulation has not advanced (stalled or its "
+                                    "thread dead) for this many seconds, so a service manager with "
+                                    "Restart=always resumes from the last checkpoint. Default: off")
+    failure_group.add_argument("--step-hard-limit", type=float, default=300.0, metavar="SECONDS",
+                               help="One step running longer than this counts as stalled (default 300)")
     parser.add_argument("--trial-seconds", type=float, default=60.0,
                         help="Simulated seconds per trial for paradigms without a natural endpoint (default: 60)")
     parser.add_argument("--continuous", action="store_true", help="Observe continuously without automatic respawns; manual reset starts a new segment")
@@ -2475,14 +3150,22 @@ def run_daemon():
             test_synthetic_graph=args.test_synthetic_graph,
             graph_step_ms=args.graph_step_ms,
         )
-    except RuntimeError as exc:
-        # Missing/mismatching graph or an unusable backend: fail explicitly, no fallback.
-        print(f"[Daemon] Cannot start backend {args.backend!r}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+    except Exception as exc:  # noqa: BLE001 -- every startup refusal is one plain sentence (F6)
+        # Missing/mismatching graph, an unusable backend or saved state that cannot be
+        # restored: fail explicitly, no fallback to another controller or fresh weights.
+        print(startup_refusal(args, exc), file=sys.stderr, flush=True)
+        if os.environ.get("NEUROFLY_DEBUG"):
+            import traceback
+            traceback.print_exc()
         try:
             pid_path.unlink()
         except OSError:
             pass
         sys.exit(2)
+    runner.halt_on_persistence_failure = bool(args.halt_on_persistence_failure)
+    runner.exit_on_stall_s = args.exit_on_stall
+    runner.step_hard_limit_s = max(1.0, float(args.step_hard_limit))
+    runner.keep_shutdown_checkpoints = max(0, int(args.keep_shutdown_checkpoints))
     ident = runner.identity()
     print(f"[Daemon] Backend: {ident.get('backend')} | label: {ident.get('label')} | "
           f"graph_sha256: {ident.get('graph_sha256')} | synthetic: {ident.get('synthetic')}", flush=True)
@@ -2516,6 +3199,7 @@ def run_daemon():
             "manifest": runner.manifest.to_dict() if runner.manifest is not None else None,
         })
         recorder_thread = RecorderThread(runner, recorder, summary_interval=args.summary_interval)
+        runner.learning_records = recorder_thread   # its write errors appear in status (F2)
         recorder_thread.start()
         print(f"[Daemon] Learning records: {data_dir}", flush=True)
 
@@ -2523,36 +3207,74 @@ def run_daemon():
     NeuroflyHTTPHandler.gateway = StreamGateway(stream_policy)
     server = ThreadingHTTPServer((args.host, args.port), NeuroflyHTTPHandler)
 
-    def _signal_handler(signum, frame):
-        print(f"\n[Daemon] Received signal {signum}. Initiating graceful shutdown...", flush=True)
-        runner.stop()
+    def _cleanup() -> bool:
+        """Stop once (F5): final checkpoint, recorder flush and PID file, each guarded,
+        so a failed final checkpoint never skips the rest."""
+        ok = runner.stop()
         if recorder_thread is not None:
-            recorder_thread.stop()
+            try:
+                recorder_thread.stop()
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                print(f"[Daemon] Learning records could not be flushed: {type(exc).__name__}: {exc}",
+                      file=sys.stderr, flush=True)
         try:
             if pid_path.exists():
                 pid_path.unlink()
         except OSError:
             pass
+        return ok
+
+    def _signal_handler(signum, frame):
+        print(f"\n[Daemon] Received signal {signum}. Initiating graceful shutdown...", flush=True)
+        ok = _cleanup()
         # Do not call server.shutdown() here: the handler runs on the thread
         # that is inside serve_forever(), and shutdown() would wait forever for
         # that loop to exit.  SystemExit unwinds serve_forever() instead and the
         # finally block below closes the socket.
-        sys.exit(0)
+        sys.exit(0 if ok else 1)
 
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
+    exit_code = 0
     try:
         print(f"[Daemon] HTTP API & SSE stream ready at http://{args.host}:{args.port}/", flush=True)
         server.serve_forever()
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt:
         pass
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
     finally:
-        runner.stop()
-        if recorder_thread is not None:
-            recorder_thread.stop()
+        if not _cleanup():          # no-op after the signal handler ran it
+            exit_code = exit_code or 1
         server.server_close()
-        print("[Daemon] Clean shutdown complete.", flush=True)
+        print("[Daemon] Clean shutdown complete." if not exit_code else
+              f"[Daemon] Shutdown complete, but not everything was saved (exit code {exit_code}).", flush=True)
+    if exit_code:
+        sys.exit(exit_code)
+
+
+def startup_refusal(args, exc: BaseException) -> str:
+    """One plain sentence (path plus what to do) for a daemon that cannot start (F6)."""
+    name = type(exc).__name__
+    text = str(exc) or name
+    out_dir = args.output_dir or "outputs"
+    if name in ("GraphUnavailable", "BackendError"):
+        return f"[Daemon] Cannot start backend {args.backend!r}: {name}: {text}"
+    if name in ("CheckpointCorrupt", "IncompatibleCheckpoint"):
+        return (f"[Daemon] Cannot start: saved state in {out_dir} cannot be restored ({text}). Nothing was "
+                f"changed. To start this assay fresh, move that output directory aside or pass a new "
+                f"--output-dir; set NEUROFLY_DEBUG=1 for the traceback.")
+    if isinstance(exc, ValueError):   # includes json.JSONDecodeError and 'Cannot restore <path>'
+        return (f"[Daemon] Cannot start: a saved state file is unreadable ({name}: {text}). Nothing was "
+                f"changed. Restore that file from a backup, or move {out_dir} aside to start fresh; set "
+                f"NEUROFLY_DEBUG=1 for the traceback.")
+    if isinstance(exc, OSError):
+        where = f" ({exc.filename})" if getattr(exc, "filename", None) else ""
+        return (f"[Daemon] Cannot start: {exc.strerror or text}{where}. Check that the path exists, is "
+                f"readable and that the disk is not full; set NEUROFLY_DEBUG=1 for the traceback.")
+    return f"[Daemon] Cannot start backend {args.backend!r}: {name}: {text}"
 
 
 if __name__ == "__main__":

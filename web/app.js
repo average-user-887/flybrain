@@ -3670,6 +3670,17 @@ class DaemonBridgeClient {
         this.commandAckTimeoutMs = 120000;
         this.lastHeartbeat = null;          // {step_in_progress_s, last_step_wall_s, at}
         this.daemonHalt = null;             // {error, detail} while a step error halts the daemon
+        // Page watchdog (audit F, F4): when the step last INCREASED, independent of
+        // whether frames keep arriving.  A dead simulation thread behind a live HTTP
+        // server shows old frames forever; only the step age tells it apart.
+        this.lastStepAdvanceTime = 0;
+        this.lastStepSeen = null;
+        this.stepKey = null;
+        this.daemonLiveness = null;         // {state, last_advance_age_s, ...} from frames/heartbeats
+        this.daemonPersistence = null;      // {state, reason, last_ok_save_age_s, ...}
+        this.daemonRecordingError = null;
+        this.daemonPaused = false;
+        this.daemonError = null;            // status error text (dead/stalled) from heartbeats
         this.rejectedIdentityPackets = 0;
         this.lastIdentityRejection = null;
         this.manifest = null;               // full run manifest (GET /api/manifest), for exports
@@ -3842,6 +3853,16 @@ class DaemonBridgeClient {
         this.lastTrailStep = -1;
         this.showingStale = false;
         this.freshnessState = 'live';
+        // Start the step clock from the status probe; a frozen daemon is then caught
+        // even if it never sends a frame with a newer step.
+        this.stepKey = null;
+        this.lastStepSeen = null;
+        this.noteStep(status.total_steps, 'probe');
+        this.daemonLiveness = status.liveness ? {...status.liveness, at: performance.now()} : null;
+        this.daemonPersistence = status.persistence || null;
+        this.daemonRecordingError = status.recording_error || null;
+        this.daemonPaused = !!status.paused;
+        this.daemonError = status.error || null;
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
@@ -3915,14 +3936,50 @@ class DaemonBridgeClient {
             ageEl.textContent = age === null ? '--' : `${age < 10 ? age.toFixed(1) : Math.round(age)}s${this.connected ? '' : ' (frozen)'}`;
             ageEl.style.color = age === null ? '' : (!this.connected ? '#f87171' : age * 1000 > this.staleAfterMs ? '#fbbf24' : '#4ade80');
         }
-        if (!this.connected || !this.statusPill || age === null) return;
-        const stale = age * 1000 > this.staleAfterMs;
+        const stepAge = this.stepAgeSeconds();
+        const stepAgeEl = document.getElementById('statStepAge');
+        this.updatePersistenceBanner();
+        if (!this.connected || !this.statusPill || (age === null && stepAge === null)) {
+            if (stepAgeEl && !this.connected) { stepAgeEl.textContent = '--'; stepAgeEl.style.color = ''; }
+            return;
+        }
+        const stale = age !== null && age * 1000 > this.staleAfterMs;
         // Old data while the daemon reports a step still running is a slow computer,
         // not a lost connection: say so instead of "stale".
-        const slowStep = stale ? this.slowStepSeconds() : null;
+        const slowStep = this.slowStepSeconds();
         const halt = this.daemonHalt;
-        const state = halt ? 'error' : slowStep !== null ? 'slow' : stale ? 'stale' : 'live';
+        const stopped = this.notAdvancing(stepAge, slowStep);
+        const paused = this.daemonPaused || this.daemonLiveness?.state === 'paused';
+        const state = stopped ? 'stopped' : halt ? 'error' : (stale && slowStep !== null) ? 'slow'
+            : paused ? 'paused' : stale ? 'stale' : 'live';
+        if (stepAgeEl) {
+            stepAgeEl.textContent = stepAge === null ? '--' : paused && !stopped ? 'paused'
+                : `${stepAge < 10 ? stepAge.toFixed(1) : Math.round(stepAge)}s`;
+            stepAgeEl.style.color = stopped || halt ? '#f87171' : paused ? '#94a3b8'
+                : stepAge !== null && stepAge > 3 ? '#fbbf24' : '#4ade80';
+        }
         const ro = this.readOnly ? ' (READ-ONLY)' : '';
+        if (state === 'stopped') {
+            // Never LIVE while the step does not advance (audit F, the "static page").
+            const n = Math.round(stepAge ?? this.daemonLiveness?.last_advance_age_s ?? 0);
+            const live = this.daemonLiveness;
+            this.statusPill.textContent = `● SIMULATION NOT ADVANCING${ro} · ${n}s`;
+            const why = this.daemonError || halt?.error || (live?.state === 'dead'
+                ? 'the simulation thread in the daemon has stopped' : `no new step for ${n} s`);
+            const fix = live?.state === 'dead'
+                ? 'Select an assay to rebuild and restart the simulation, or restart the daemon.'
+                : 'Not paused and not halted, yet the step counter has not moved. If it does not recover, '
+                  + 'select an assay or restart the daemon (it resumes from the last checkpoint).';
+            this.statusPill.title = `The daemon answers but the simulation is not advancing (step `
+                + `${this.lastStepSeen ?? '?'}, unchanged for ${n} s): ${why}. ${fix}`;
+            // The last frame's achieved speed is history, not the present.
+            const achievedEl = document.getElementById('statAchieved');
+            if (achievedEl) { achievedEl.textContent = '0x'; achievedEl.style.color = '#f87171'; }
+        }
+        if (state === 'paused') {
+            this.statusPill.textContent = `● DAEMON CONNECTED${ro} · PAUSED`;
+            this.statusPill.title = 'The daemon is connected and paused: the simulation does not advance until you resume it.';
+        }
         if (state === 'error') {
             // Connected and fresh, but the simulation does not advance: never show LIVE.
             this.statusPill.textContent = `● SIMULATION HALTED${ro} · ERROR`;
@@ -3937,18 +3994,84 @@ class DaemonBridgeClient {
                 + `This computer runs the simulation slower than real time; no steps are skipped.`;
             if (ageEl) ageEl.style.color = '#38bdf8';
         }
-        if (state === this.freshnessState && state !== 'slow' && state !== 'error') return;
+        if (state === this.freshnessState && !['slow', 'error', 'stopped', 'stale'].includes(state)) return;
         this.freshnessState = state;
         this.showingStale = state === 'stale';
-        if (state === 'live' || state === 'stale') {
-            this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
+        if (state === 'live') {
+            this.statusPill.textContent = `● LIVE DAEMON${ro}`;
             if (this.connectedPillTitle && !this.readOnly) this.statusPill.title = this.connectedPillTitle;
         }
+        if (state === 'stale') {
+            // Connected, but no new frame: not "LIVE" (the step may not be advancing).
+            this.statusPill.textContent = `● DAEMON CONNECTED${ro} · NO NEW DATA ${Math.round(age)}s`;
+            this.statusPill.title = `The daemon is connected but has sent no new frame for ${Math.round(age)} s. `
+                + `The last step seen is ${this.lastStepSeen ?? '?'}.`;
+        }
         const color = {live: ['#4ade80', '#22c55e'], stale: ['#fbbf24', '#f59e0b'], slow: ['#38bdf8', '#0ea5e9'],
-                       error: ['#f87171', '#ef4444']}[state];
-        this.statusPill.style.background = state === 'error' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(34, 197, 94, 0.25)';
+                       error: ['#f87171', '#ef4444'], stopped: ['#f87171', '#ef4444'],
+                       paused: ['#cbd5e1', '#64748b']}[state];
+        this.statusPill.style.background = (state === 'error' || state === 'stopped') ? 'rgba(239, 68, 68, 0.25)'
+            : state === 'paused' ? 'rgba(148, 163, 184, 0.18)' : 'rgba(34, 197, 94, 0.25)';
         this.statusPill.style.color = color[0];
         this.statusPill.style.border = `1px solid ${color[1]}`;
+    }
+
+    /** Seconds since the daemon's step last increased (frames, heartbeats or status), else null. */
+    stepAgeSeconds() {
+        return this.lastStepAdvanceTime ? (performance.now() - this.lastStepAdvanceTime) / 1000 : null;
+    }
+
+    /** Record a step reported by the daemon; the clock restarts only when it increases
+     *  (or the run/assay changes), never merely because a frame arrived. */
+    noteStep(step, key) {
+        if (!Number.isFinite(step)) return;
+        // A new run, assay or activation starts a new step context (the counter may
+        // even go down after a daemon restart); the status probe has no context.
+        const newContext = !!(key && this.stepKey && key !== 'probe' && this.stepKey !== 'probe'
+                              && key !== this.stepKey);
+        if (newContext || this.lastStepSeen === null || step > this.lastStepSeen) {
+            this.lastStepAdvanceTime = performance.now();
+            this.lastStepSeen = step;
+        }
+        if (key !== 'probe' || this.stepKey === null) this.stepKey = key;
+    }
+
+    /** F4: the simulation is not advancing.  The daemon says so (stalled/dead), or,
+     *  as a fallback for daemons without a watchdog, the step has not increased for
+     *  max(10 s, 20 steps at the requested speed) while not paused, halted or slow. */
+    notAdvancing(stepAge, slowStep) {
+        const live = this.daemonLiveness;
+        if (live && (live.state === 'stalled' || live.state === 'dead')) return true;
+        if (stepAge === null || this.daemonHalt || this.daemonPaused || slowStep !== null) return false;
+        if (live && ['paused', 'halted', 'slow'].includes(live.state)) return false;
+        const speed = Number(this.lastOrderedPacket?.sim_speed) || 1;
+        const threshold = Math.max(10, 20 * 0.02 / Math.max(speed, 1e-3), 3 * (this.lastHeartbeat?.last_step_wall_s || 0));
+        return stepAge > threshold;
+    }
+
+    /** Amber "NOT SAVING" banner while the daemon reports a persistence failure (F2/F4). */
+    updatePersistenceBanner() {
+        const el = document.getElementById('persistenceBanner');
+        if (!el) return;
+        const p = this.connected ? this.daemonPersistence : null;
+        const rec = this.connected ? this.daemonRecordingError : null;
+        if ((!p || p.ok !== false) && !rec) {
+            if (el.style.display !== 'none') { el.style.display = 'none'; el.textContent = ''; }
+            return;
+        }
+        const ago = (s) => s === null || s === undefined ? 'not yet in this run'
+            : s < 90 ? `${Math.round(s)} s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${(s / 3600).toFixed(1)} h ago`;
+        let text;
+        if (p && p.ok === false) {
+            const reason = p.state === 'disk_low' ? 'disk almost full' : (p.reason || 'write failed');
+            text = `NOT SAVING: ${reason} (last saved ${ago(p.last_ok_save_age_s)}). The simulation keeps running; `
+                + `free disk space and saving resumes automatically.`;
+        } else {
+            text = `NOT SAVING: ${rec.message || 'the recording stopped'}`;
+        }
+        el.textContent = text;
+        el.title = [p?.summary, rec?.message].filter(Boolean).join(' | ');
+        el.style.display = 'block';
     }
 
     /** Seconds the daemon's current step has run, from a recent heartbeat, else null. */
@@ -3995,6 +4118,17 @@ class DaemonBridgeClient {
                 this.lastPacketTime = performance.now();
                 try { this.lastHeartbeat = {...JSON.parse(event.data), at: this.lastPacketTime}; }
                 catch (e) { this.lastHeartbeat = null; }
+                const beat = this.lastHeartbeat;
+                if (beat && beat.liveness) {
+                    // F3/F4: heartbeats say whether the simulation advances even when no
+                    // frame is published (a dead loop publishes nothing).
+                    this.noteStep(beat.step, this.stepKey);
+                    this.daemonLiveness = {...beat.liveness, at: this.lastPacketTime};
+                    this.daemonPersistence = beat.persistence || null;
+                    this.daemonPaused = !!beat.paused;
+                    this.daemonError = beat.error || null;
+                    this.updateFreshness();
+                }
             });
             this.eventSource.addEventListener('stream', (event) => {
                 this.lastPacketTime = performance.now();
@@ -4073,6 +4207,13 @@ class DaemonBridgeClient {
         const halt = (pkt.halted || pkt.error) ? {error: pkt.error || 'unknown error', detail: pkt.error_detail || null} : null;
         const haltChanged = (halt?.error || null) !== (this.daemonHalt?.error || null);
         this.daemonHalt = halt;
+        // Page watchdog (F4): the step clock moves only when the step increases.
+        this.noteStep(step, `${pkt.run_id}|${pkt.paradigm}|${pkt.identity?.activation ?? ''}`);
+        this.daemonPaused = !!pkt.paused;
+        if (pkt.liveness) this.daemonLiveness = {...pkt.liveness, at: performance.now()};
+        this.daemonPersistence = pkt.persistence || null;
+        this.daemonRecordingError = pkt.recording_error || null;
+        this.daemonError = pkt.error || null;
         renderIdentity(pkt);
         if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 

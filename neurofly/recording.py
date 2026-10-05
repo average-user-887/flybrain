@@ -41,7 +41,9 @@ SUFFIX = ".nfrec"
 
 # Telemetry keys that depend on the wall clock, the viewer or random IDs.  The
 # replay player re-creates the ones the dashboard needs from the header.
-_DROP_KEYS = ("type", "timestamp", "timing", "run_id", "identity", "path", "brain_id", "sim_speed", "activity")
+_DROP_KEYS = ("type", "timestamp", "timing", "run_id", "identity", "path", "brain_id", "sim_speed", "activity",
+              # Operational health (wall-clock liveness, save failures): not simulation state.
+              "status", "liveness", "persistence", "recording_error")
 # Deterministic subset of the modular brain summary (``history`` has timestamps).
 _BRAIN_KEYS = ("teaching", "trials", "steps", "learning_enabled", "weight_mean", "weight_std",
                "weight_change_l2", "probe", "restored", "seed", "model", "n_kc", "synapses")
@@ -363,6 +365,19 @@ class RunRecorder:
             return   # refused commands changed nothing
         clean = {k: v for k, v in cmd.items() if k not in ("token",)}
         self.event("command", runner.total_steps, cmd=clean)
+
+    def abort(self, reason: str) -> None:
+        """Stop after a write failure: close the handles quietly, keep the ``.partial``
+        file as it is (evidence, never deleted) and refuse further captures."""
+        if self.closed:
+            return
+        self.closed = True
+        self.aborted = reason
+        for handle in (self._gz, self._raw):
+            try:
+                handle.close()
+            except Exception:  # noqa: BLE001 -- the disk that failed the write may fail this too
+                pass
 
     def close(self) -> dict:
         """Finish the file (atomic rename) and write the sidecar; returns the summary."""

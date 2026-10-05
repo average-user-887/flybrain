@@ -1,0 +1,2370 @@
+{
+ "kind": "live-ui-signoff",
+ "started_at": "2026-10-05T15:43:30.933146+00:00",
+ "web_url": "http://127.0.0.1:8860/index.html?daemon=http%3A%2F%2F127.0.0.1%3A8861",
+ "daemon_url": "http://127.0.0.1:8861",
+ "automated_real_firefox": true,
+ "scenarios": {
+  "initial_load": {
+   "at": "2026-10-05T15:43:35.035022+00:00",
+   "live_reached": true,
+   "first": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "OPEN ARENA",
+    "step": "1415",
+    "simTime": "28.30s",
+    "speed": "1x",
+    "achieved": "0.096x",
+    "dataAge": "0.0s",
+    "fps": "60",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 197,
+    "lastStep": 1415,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "open-arena",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": -140,
+      "maxX": 140,
+      "minY": -100,
+      "maxY": 100
+     },
+     "walls": 4,
+     "fly": {
+      "x": 2.6248999999999967,
+      "y": -9.112870000000001
+     },
+     "packetAssay": "open-arena",
+     "packetBounds": [
+      0,
+      0,
+      100,
+      100
+     ],
+     "packetStep": 1415
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run 40908efcf10c",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174142-40908efcf10c",
+     "packetActivation": 22,
+     "packetAssay": "open-arena",
+     "ackActivation": null,
+     "ackAssay": null,
+     "rejected": 0
+    }
+   },
+   "after_3s": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "OPEN ARENA",
+    "step": "1430",
+    "simTime": "28.60s",
+    "speed": "1x",
+    "achieved": "0.094x",
+    "dataAge": "0.1s",
+    "fps": "20",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 93,
+    "lastStep": 1430,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "open-arena",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": -140,
+      "maxX": 140,
+      "minY": -100,
+      "maxY": 100
+     },
+     "walls": 4,
+     "fly": {
+      "x": 1.8102000000000018,
+      "y": -7.853560000000002
+     },
+     "packetAssay": "open-arena",
+     "packetBounds": [
+      0,
+      0,
+      100,
+      100
+     ],
+     "packetStep": 1430
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run 40908efcf10c",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174142-40908efcf10c",
+     "packetActivation": 22,
+     "packetAssay": "open-arena",
+     "ackActivation": null,
+     "ackAssay": null,
+     "rejected": 0
+    }
+   },
+   "daemon_status": {
+    "active_paradigm": "open-arena",
+    "total_steps": 1430,
+    "sim_speed": 1.0,
+    "paused": false
+   },
+   "canvas_sha256_16": "8522ef3484c89ca8",
+   "canvas_data_len": 43130,
+   "checks": {
+    "pill_live": true,
+    "assay_matches_daemon": true,
+    "clock_advanced": true,
+    "steps_advanced": true,
+    "identity_backend_matches_daemon": true,
+    "identity_label_present": true,
+    "achieved_live": true,
+    "data_age_live": true,
+    "tools_panel": true,
+    "arena_rendered": true,
+    "no_errors": true
+   },
+   "pass": true
+  },
+  "all_assays": {
+   "rows": [
+    {
+     "assay": "open-arena",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:41.808515+00:00",
+     "badge": "OPEN ARENA",
+     "arena_assay": "open-arena",
+     "packet_assay": "open-arena",
+     "daemon_assay": "open-arena",
+     "bounds": {
+      "minX": -140,
+      "maxX": 140,
+      "minY": -100,
+      "maxY": 100
+     },
+     "packet_bounds": [
+      0,
+      0,
+      100,
+      100
+     ],
+     "walls": 4,
+     "fly": {
+      "x": 1.041710000000002,
+      "y": -6.806800000000003
+     },
+     "ui_step_before": 1431,
+     "ui_step_after": 1443,
+     "daemon_steps_before": 1431,
+     "daemon_steps_after": 1444,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 23,
+      "ackActivation": 23,
+      "packetAssay": "open-arena",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "57f852153ea83f96",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 174,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "t-maze",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:44.694998+00:00",
+     "badge": "T MAZE",
+     "arena_assay": "t-maze",
+     "packet_assay": "t-maze",
+     "daemon_assay": "t-maze",
+     "bounds": {
+      "minX": 0,
+      "maxX": 140,
+      "minY": 0,
+      "maxY": 80
+     },
+     "packet_bounds": [
+      10,
+      10,
+      130,
+      57
+     ],
+     "walls": 8,
+     "fly": {
+      "x": 70,
+      "y": 55.4999
+     },
+     "ui_step_before": 1444,
+     "ui_step_after": 1481,
+     "daemon_steps_before": 1444,
+     "daemon_steps_after": 1482,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 24,
+      "ackActivation": 24,
+      "packetAssay": "t-maze",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "a12c53d047a331e1",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 34,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "y-maze",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:47.308940+00:00",
+     "badge": "Y MAZE",
+     "arena_assay": "y-maze",
+     "packet_assay": "y-maze",
+     "daemon_assay": "y-maze",
+     "bounds": {
+      "minX": 0,
+      "maxX": 120,
+      "minY": 0,
+      "maxY": 120
+     },
+     "packet_bounds": [
+      12,
+      12,
+      108,
+      108
+     ],
+     "walls": 9,
+     "fly": {
+      "x": 95.64668,
+      "y": 44.74208
+     },
+     "ui_step_before": 1483,
+     "ui_step_after": 1524,
+     "daemon_steps_before": 1483,
+     "daemon_steps_after": 1525,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 25,
+      "ackActivation": 25,
+      "packetAssay": "y-maze",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "912f41dce2f33976",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 42,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "heat-maze",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:50.150653+00:00",
+     "badge": "HEAT MAZE",
+     "arena_assay": "heat-maze",
+     "packet_assay": "heat-maze",
+     "daemon_assay": "heat-maze",
+     "bounds": {
+      "minX": 0,
+      "maxX": 120,
+      "minY": 0,
+      "maxY": 120
+     },
+     "packet_bounds": [
+      5,
+      5,
+      115,
+      115
+     ],
+     "walls": 32,
+     "fly": {
+      "x": 62.59772,
+      "y": 59.91204
+     },
+     "ui_step_before": 1526,
+     "ui_step_after": 1541,
+     "daemon_steps_before": 1526,
+     "daemon_steps_after": 1541,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 26,
+      "ackActivation": 26,
+      "packetAssay": "heat-maze",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "74dc080ba0633534",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 139,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "buridan",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:52.737697+00:00",
+     "badge": "BURIDAN",
+     "arena_assay": "buridan",
+     "packet_assay": "buridan",
+     "daemon_assay": "buridan",
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "packet_bounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "ui_step_before": 1541,
+     "ui_step_after": 1575,
+     "daemon_steps_before": 1542,
+     "daemon_steps_after": 1575,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 27,
+      "ackActivation": 27,
+      "packetAssay": "buridan",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "3feba685ff8308cf",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 40,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "visual-operant",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:55.302785+00:00",
+     "badge": "VISUAL OPERANT",
+     "arena_assay": "visual-operant",
+     "packet_assay": "visual-operant",
+     "daemon_assay": "visual-operant",
+     "bounds": {
+      "minX": 0,
+      "maxX": 80,
+      "minY": 0,
+      "maxY": 80
+     },
+     "packet_bounds": [
+      0,
+      0,
+      80,
+      80
+     ],
+     "walls": 0,
+     "fly": {
+      "x": 40,
+      "y": 40
+     },
+     "ui_step_before": 1575,
+     "ui_step_after": 1617,
+     "daemon_steps_before": 1576,
+     "daemon_steps_after": 1618,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 28,
+      "ackActivation": 28,
+      "packetAssay": "visual-operant",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "479089acfb4a33db",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 38,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "wind-tunnel",
+     "switch_ok": true,
+     "at": "2026-10-05T15:43:58.384512+00:00",
+     "badge": "WIND TUNNEL",
+     "arena_assay": "wind-tunnel",
+     "packet_assay": "wind-tunnel",
+     "daemon_assay": "wind-tunnel",
+     "bounds": {
+      "minX": 0,
+      "maxX": 200,
+      "minY": 0,
+      "maxY": 60
+     },
+     "packet_bounds": [
+      0,
+      0,
+      200,
+      60
+     ],
+     "walls": 4,
+     "fly": {
+      "x": 22.39926,
+      "y": 30.05801
+     },
+     "ui_step_before": 1617,
+     "ui_step_after": 1637,
+     "daemon_steps_before": 1618,
+     "daemon_steps_after": 1637,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 29,
+      "ackActivation": 29,
+      "packetAssay": "wind-tunnel",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "3c77d358ade3a147",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 63,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "looming-escape",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:01.535847+00:00",
+     "badge": "LOOMING ESCAPE",
+     "arena_assay": "looming-escape",
+     "packet_assay": "looming-escape",
+     "daemon_assay": "looming-escape",
+     "bounds": {
+      "minX": 0,
+      "maxX": 80,
+      "minY": 0,
+      "maxY": 80
+     },
+     "packet_bounds": [
+      0,
+      0,
+      80,
+      80
+     ],
+     "walls": 0,
+     "fly": {
+      "x": 45.1,
+      "y": 40
+     },
+     "ui_step_before": 1637,
+     "ui_step_after": 1654,
+     "daemon_steps_before": 1637,
+     "daemon_steps_after": 1655,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 30,
+      "ackActivation": 30,
+      "packetAssay": "looming-escape",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "5f021df1d931c1c2",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 198,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "optomotor",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:04.653712+00:00",
+     "badge": "OPTOMOTOR",
+     "arena_assay": "optomotor",
+     "packet_assay": "optomotor",
+     "daemon_assay": "optomotor",
+     "bounds": {
+      "minX": 0,
+      "maxX": 90,
+      "minY": 0,
+      "maxY": 90
+     },
+     "packet_bounds": [
+      0,
+      0,
+      90,
+      90
+     ],
+     "walls": 0,
+     "fly": {
+      "x": 45,
+      "y": 45
+     },
+     "ui_step_before": 1655,
+     "ui_step_after": 1669,
+     "daemon_steps_before": 1655,
+     "daemon_steps_after": 1669,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 31,
+      "ackActivation": 31,
+      "packetAssay": "optomotor",
+      "rejected": 0,
+      "banner": "OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer (about 0.1 simulated s per wall s; 0.105 sim s per wall s measured). The daemon runs slower than requested instead of dropping simulation steps. \u00b7 FORWARD DRIVE: no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0"
+     },
+     "canvas_sha256_16": "c2829e5bca96ed79",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 149,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "gap-crossing",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:07.981601+00:00",
+     "badge": "GAP CROSSING",
+     "arena_assay": "gap-crossing",
+     "packet_assay": "gap-crossing",
+     "daemon_assay": "gap-crossing",
+     "bounds": {
+      "minX": 0,
+      "maxX": 100,
+      "minY": 0,
+      "maxY": 20
+     },
+     "packet_bounds": [
+      5,
+      7.5,
+      95,
+      12.5
+     ],
+     "walls": 4,
+     "fly": {
+      "x": 65.2,
+      "y": 10
+     },
+     "ui_step_before": 1670,
+     "ui_step_after": 1712,
+     "daemon_steps_before": 1671,
+     "daemon_steps_after": 1713,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 32,
+      "ackActivation": 32,
+      "packetAssay": "gap-crossing",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "8697a1c5cbd29a11",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 19,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "circadian-dam",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:10.825546+00:00",
+     "badge": "CIRCADIAN DAM",
+     "arena_assay": "circadian-dam",
+     "packet_assay": "circadian-dam",
+     "daemon_assay": "circadian-dam",
+     "bounds": {
+      "minX": -10,
+      "maxX": 75,
+      "minY": -10,
+      "maxY": 172
+     },
+     "packet_bounds": [
+      5,
+      1,
+      60,
+      9
+     ],
+     "walls": 4,
+     "fly": {
+      "x": 58.5,
+      "y": 5
+     },
+     "ui_step_before": 1712,
+     "ui_step_after": 1758,
+     "daemon_steps_before": 1713,
+     "daemon_steps_after": 1758,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 33,
+      "ackActivation": 33,
+      "packetAssay": "circadian-dam",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "4aa2831dda8c6dcd",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 2,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "courtship",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:13.672426+00:00",
+     "badge": "COURTSHIP",
+     "arena_assay": "courtship",
+     "packet_assay": "courtship",
+     "daemon_assay": "courtship",
+     "bounds": {
+      "minX": 0,
+      "maxX": 20,
+      "minY": 0,
+      "maxY": 20
+     },
+     "packet_bounds": [
+      1.5,
+      1.5,
+      18.5,
+      18.5
+     ],
+     "walls": 24,
+     "fly": {
+      "x": 10.04595,
+      "y": 11.4019
+     },
+     "ui_step_before": 1758,
+     "ui_step_after": 1777,
+     "daemon_steps_before": 1759,
+     "daemon_steps_after": 1777,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 34,
+      "ackActivation": 34,
+      "packetAssay": "courtship",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "4435975accba7fb8",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 108,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "labyrinth",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:16.563085+00:00",
+     "badge": "LABYRINTH",
+     "arena_assay": "labyrinth",
+     "packet_assay": "labyrinth",
+     "daemon_assay": "labyrinth",
+     "bounds": {
+      "minX": 0,
+      "maxX": 140,
+      "minY": 0,
+      "maxY": 100
+     },
+     "packet_bounds": [
+      0,
+      0,
+      140,
+      100
+     ],
+     "walls": 16,
+     "fly": {
+      "x": 23.4999,
+      "y": 15
+     },
+     "ui_step_before": 1777,
+     "ui_step_after": 1833,
+     "daemon_steps_before": 1777,
+     "daemon_steps_after": 1834,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 35,
+      "ackActivation": 35,
+      "packetAssay": "labyrinth",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "84f1675a774e489e",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 4,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    },
+    {
+     "assay": "multisensory-sandbox",
+     "switch_ok": true,
+     "at": "2026-10-05T15:44:19.345075+00:00",
+     "badge": "MULTISENSORY SANDBOX",
+     "arena_assay": "multisensory-sandbox",
+     "packet_assay": "multisensory-sandbox",
+     "daemon_assay": "multisensory-sandbox",
+     "bounds": {
+      "minX": -80,
+      "maxX": 80,
+      "minY": -80,
+      "maxY": 80
+     },
+     "packet_bounds": [
+      -75,
+      -75,
+      75,
+      75
+     ],
+     "walls": 64,
+     "fly": {
+      "x": 49.2,
+      "y": 0
+     },
+     "ui_step_before": 1838,
+     "ui_step_after": 1891,
+     "daemon_steps_before": 1839,
+     "daemon_steps_after": 1892,
+     "identity": {
+      "backend": "connectome-fixed",
+      "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+      "assists": "OFF",
+      "motor": "graph",
+      "fault": "none",
+      "assistance": "OFF",
+      "packetActivation": 36,
+      "ackActivation": 36,
+      "packetAssay": "multisensory-sandbox",
+      "rejected": 0,
+      "banner": ""
+     },
+     "canvas_sha256_16": "ab8053212b348b9e",
+     "canvas_changed_from_prev": true,
+     "data_age_ms": 12,
+     "pill": "\u25cf LIVE DAEMON",
+     "errors": [],
+     "console_errors": [],
+     "fly_inside_bounds": true,
+     "checks": {
+      "acked": true,
+      "ui_matches_daemon": true,
+      "identity_assay_matches": true,
+      "activation_current": true,
+      "steps_advancing": true,
+      "daemon_steps_monotonic": true,
+      "fly_inside": true,
+      "live": true,
+      "no_errors": true
+     },
+     "pass": true
+    }
+   ],
+   "pass": true,
+   "distinct_canvases": 14,
+   "distinct_bounds": 12
+  },
+  "rapid_selection": {
+   "at": "2026-10-05T15:44:19.552560+00:00",
+   "sequence": [
+    "t-maze",
+    "wind-tunnel",
+    "looming-escape",
+    "heat-maze",
+    "y-maze"
+   ],
+   "settled": true,
+   "settle_ui": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "Y MAZE",
+    "step": "1928",
+    "simTime": "38.56s",
+    "speed": "1x",
+    "achieved": "0.12x",
+    "dataAge": "0.1s",
+    "fps": "33",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 50,
+    "lastStep": 1928,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "y-maze",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 0,
+      "maxX": 120,
+      "minY": 0,
+      "maxY": 120
+     },
+     "walls": 9,
+     "fly": {
+      "x": 95.64668,
+      "y": 44.74208
+     },
+     "packetAssay": "y-maze",
+     "packetBounds": [
+      12,
+      12,
+      108,
+      108
+     ],
+     "packetStep": 1928
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run 1113734390ca",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174157-1113734390ca",
+     "packetActivation": 41,
+     "packetAssay": "y-maze",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "post_settle_samples": [
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1928,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1937,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1947,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1956,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1965,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1974,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1984,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 1993,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 2001,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 2010,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 2019,
+     "act": 41,
+     "ack": 41
+    },
+    {
+     "packetAssay": "y-maze",
+     "arenaAssay": "y-maze",
+     "badge": "Y MAZE",
+     "step": 2028,
+     "act": 41,
+     "ack": 41
+    }
+   ],
+   "daemon_assay": "y-maze",
+   "daemon_steps_before": 1898,
+   "daemon_steps_after": 2038,
+   "rejected_before": 0,
+   "rejected_after": 0,
+   "checks": {
+    "settled_on_last": true,
+    "daemon_agrees": true,
+    "no_stale_after_settle": true,
+    "activation_current": true,
+    "no_hidden_reset": true,
+    "steps_monotonic_in_ui": true,
+    "no_errors": true
+   },
+   "pass": true
+  },
+  "two_tab_sync": {
+   "tab_b_live": true,
+   "tab_b_switch_ok": true,
+   "tab_b": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "BURIDAN",
+    "step": "2108",
+    "simTime": "42.16s",
+    "speed": "1x",
+    "achieved": "0.41x",
+    "dataAge": "0.0s",
+    "fps": "20",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 64,
+    "lastStep": 2108,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2108
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 42,
+     "ackAssay": "buridan",
+     "rejected": 0
+    }
+   },
+   "tab_a_followed": true,
+   "tab_a": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "BURIDAN",
+    "step": "2139",
+    "simTime": "42.78s",
+    "speed": "1x",
+    "achieved": "0.4x",
+    "dataAge": "0.1s",
+    "fps": "24",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 5,
+    "lastStep": 2140,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2140
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "daemon": "buridan",
+   "checks": {
+    "tab_b_switched": true,
+    "tab_a_followed": true,
+    "tab_a_badge": true,
+    "tab_a_still_live": true,
+    "tab_a_steps_advancing": true,
+    "tab_a_no_errors": true
+   },
+   "pass": true
+  },
+  "speed_control": {
+   "steps": [
+    {
+     "requested": 1.0,
+     "samples": [
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "1x",
+       "ui_achieved": "0.4x",
+       "ui_data_age_ms": 28,
+       "ui_step": 2267,
+       "server_requested": 1.0,
+       "server_achieved": 0.401,
+       "server_overloaded": true,
+       "server_step": 2268
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "1x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 5,
+       "ui_step": 2288,
+       "server_requested": 1.0,
+       "server_achieved": 0.405,
+       "server_overloaded": true,
+       "server_step": 2289
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "1x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 59,
+       "ui_step": 2308,
+       "server_requested": 1.0,
+       "server_achieved": 0.398,
+       "server_overloaded": true,
+       "server_step": 2309
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "1x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 25,
+       "ui_step": 2329,
+       "server_requested": 1.0,
+       "server_achieved": 0.401,
+       "server_overloaded": true,
+       "server_step": 2330
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "1x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 16,
+       "ui_step": 2350,
+       "server_requested": 1.0,
+       "server_achieved": 0.404,
+       "server_overloaded": true,
+       "server_step": 2351
+      }
+     ],
+     "checks": {
+      "server_requested_matches": true,
+      "ui_shows_requested": true,
+      "achieved_reported": true,
+      "never_disconnected": true,
+      "view_not_frozen": true,
+      "data_fresh": true
+     },
+     "achieved_vs_requested": [
+      0.401,
+      0.405,
+      0.398,
+      0.401,
+      0.404
+     ],
+     "pass": true
+    },
+    {
+     "requested": 20.0,
+     "samples": [
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "20x",
+       "ui_achieved": "0.4x",
+       "ui_data_age_ms": 28,
+       "ui_step": 2491,
+       "server_requested": 20.0,
+       "server_achieved": 0.394,
+       "server_overloaded": true,
+       "server_step": 2491
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "20x",
+       "ui_achieved": "0.4x",
+       "ui_data_age_ms": 31,
+       "ui_step": 2511,
+       "server_requested": 20.0,
+       "server_achieved": 0.401,
+       "server_overloaded": true,
+       "server_step": 2512
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "20x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 45,
+       "ui_step": 2532,
+       "server_requested": 20.0,
+       "server_achieved": 0.401,
+       "server_overloaded": true,
+       "server_step": 2533
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "20x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 15,
+       "ui_step": 2554,
+       "server_requested": 20.0,
+       "server_achieved": 0.407,
+       "server_overloaded": true,
+       "server_step": 2554
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "20x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 4,
+       "ui_step": 2575,
+       "server_requested": 20.0,
+       "server_achieved": 0.404,
+       "server_overloaded": true,
+       "server_step": 2575
+      }
+     ],
+     "checks": {
+      "server_requested_matches": true,
+      "ui_shows_requested": true,
+      "achieved_reported": true,
+      "never_disconnected": true,
+      "view_not_frozen": true,
+      "data_fresh": true
+     },
+     "achieved_vs_requested": [
+      0.394,
+      0.401,
+      0.401,
+      0.407,
+      0.404
+     ],
+     "pass": true
+    },
+    {
+     "requested": 100.0,
+     "samples": [
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "100x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 45,
+       "ui_step": 2719,
+       "server_requested": 100.0,
+       "server_achieved": 0.412,
+       "server_overloaded": true,
+       "server_step": 2720
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "100x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 1,
+       "ui_step": 2740,
+       "server_requested": 100.0,
+       "server_achieved": 0.404,
+       "server_overloaded": true,
+       "server_step": 2740
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "100x",
+       "ui_achieved": "0.4x",
+       "ui_data_age_ms": 30,
+       "ui_step": 2760,
+       "server_requested": 100.0,
+       "server_achieved": 0.403,
+       "server_overloaded": true,
+       "server_step": 2761
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "100x",
+       "ui_achieved": "0.4x",
+       "ui_data_age_ms": 2,
+       "ui_step": 2781,
+       "server_requested": 100.0,
+       "server_achieved": 0.397,
+       "server_overloaded": true,
+       "server_step": 2781
+      },
+      {
+       "pill": "\u25cf LIVE DAEMON",
+       "ui_speed": "100x",
+       "ui_achieved": "0.41x",
+       "ui_data_age_ms": 45,
+       "ui_step": 2801,
+       "server_requested": 100.0,
+       "server_achieved": 0.403,
+       "server_overloaded": true,
+       "server_step": 2802
+      }
+     ],
+     "checks": {
+      "server_requested_matches": true,
+      "ui_shows_requested": true,
+      "achieved_reported": true,
+      "never_disconnected": true,
+      "view_not_frozen": true,
+      "data_fresh": true
+     },
+     "achieved_vs_requested": [
+      0.412,
+      0.404,
+      0.403,
+      0.397,
+      0.403
+     ],
+     "pass": true
+    }
+   ],
+   "pass": true,
+   "errors": []
+  },
+  "pause_resume": {
+   "before": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "BURIDAN",
+    "step": "2868",
+    "simTime": "57.36s",
+    "speed": "1x",
+    "achieved": "0.4x",
+    "dataAge": "0.0s",
+    "fps": "42",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 50,
+    "lastStep": 2868,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2868
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "paused_first": {
+    "pill": "\u25cf DAEMON CONNECTED \u00b7 PAUSED",
+    "badge": "BURIDAN",
+    "step": "2871",
+    "simTime": "57.42s",
+    "speed": "1x",
+    "achieved": "paused",
+    "dataAge": "0.1s",
+    "fps": "34",
+    "runState": "PAUSED",
+    "pauseLabel": "Resume",
+    "banner": "",
+    "dataAgeMs": 266,
+    "lastStep": 2871,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2871
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "paused_after_4s": {
+    "pill": "\u25cf DAEMON CONNECTED \u00b7 PAUSED",
+    "badge": "BURIDAN",
+    "step": "2871",
+    "simTime": "57.42s",
+    "speed": "1x",
+    "achieved": "paused",
+    "dataAge": "0.1s",
+    "fps": "43",
+    "runState": "PAUSED",
+    "pauseLabel": "Resume",
+    "banner": "",
+    "dataAgeMs": 237,
+    "lastStep": 2871,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2871
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "resumed": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "BURIDAN",
+    "step": "2872",
+    "simTime": "57.44s",
+    "speed": "1x",
+    "achieved": "0x",
+    "dataAge": "0.2s",
+    "fps": "43",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 49,
+    "lastStep": 2872,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "buridan",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": 10,
+      "maxX": 110,
+      "minY": 10,
+      "maxY": 110
+     },
+     "walls": 32,
+     "fly": {
+      "x": 108.5,
+      "y": 60
+     },
+     "packetAssay": "buridan",
+     "packetBounds": [
+      10,
+      10,
+      110,
+      110
+     ],
+     "packetStep": 2872
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run d24a85d53853",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174202-d24a85d53853",
+     "packetActivation": 42,
+     "packetAssay": "buridan",
+     "ackActivation": 41,
+     "ackAssay": "y-maze",
+     "rejected": 0
+    }
+   },
+   "server_paused": true,
+   "server_resumed_paused": false,
+   "server_steps_paused": 2871,
+   "server_step_when_paused": 2871,
+   "ui_settled_on_server_step": true,
+   "checks": {
+    "ui_shows_paused": true,
+    "server_paused": true,
+    "steps_frozen": true,
+    "ui_reached_server_paused_step": true,
+    "server_steps_frozen": true,
+    "clock_frozen": true,
+    "metrics_retained": true,
+    "not_disconnected_flag": true,
+    "resumed": true,
+    "server_running_again": true,
+    "no_errors": true
+   },
+   "pass": true
+  },
+  "restore": {
+   "target": {
+    "assay": "open-arena",
+    "sim_speed": 1.0,
+    "paused": false
+   },
+   "ui": {
+    "pill": "\u25cf LIVE DAEMON",
+    "badge": "OPEN ARENA",
+    "step": "2906",
+    "simTime": "58.12s",
+    "speed": "1x",
+    "achieved": "0.13x",
+    "dataAge": "0.1s",
+    "fps": "34",
+    "runState": "GRAPH \u00b7 CONTINUOUS OBSERVATION",
+    "pauseLabel": "Pause",
+    "banner": "",
+    "dataAgeMs": 120,
+    "lastStep": 2906,
+    "errors": [],
+    "consoleErrors": [],
+    "toolsPanel": {
+     "present": true,
+     "buttons": [
+      "Inspect Fly",
+      "Drop Food (Odor A)",
+      "Alarm Pheromone (Odor B)",
+      "Deploy Threat",
+      "Drag Wind",
+      "View: 2D Arena",
+      "Cam: Orbit"
+     ],
+     "visible": true
+    },
+    "arena": {
+     "assay": "open-arena",
+     "remoteDriven": true,
+     "bounds": {
+      "minX": -140,
+      "maxX": 140,
+      "minY": -100,
+      "maxY": 100
+     },
+     "walls": 4,
+     "fly": {
+      "x": -1.2236699999999985,
+      "y": -4.408450000000002
+     },
+     "packetAssay": "open-arena",
+     "packetBounds": [
+      0,
+      0,
+      100,
+      100
+     ],
+     "packetStep": 2906
+    },
+    "ident": {
+     "backend": "connectome-fixed",
+     "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+     "assists": "OFF",
+     "motor": "graph",
+     "fault": "none",
+     "run": "run 40908efcf10c",
+     "assistance": "OFF",
+     "optoMap": "--",
+     "banner": "",
+     "packetRun": "20261005T174142-40908efcf10c",
+     "packetActivation": 43,
+     "packetAssay": "open-arena",
+     "ackActivation": 43,
+     "ackAssay": "open-arena",
+     "rejected": 0
+    }
+   },
+   "daemon_status": {
+    "active_paradigm": "open-arena",
+    "sim_speed": 1.0,
+    "paused": false,
+    "total_steps": 2906
+   },
+   "checks": {
+    "assay_restored": true,
+    "speed_restored": true,
+    "running": true,
+    "ui_agrees": true,
+    "ui_live": true,
+    "acked": true
+   },
+   "pass": true
+  }
+ },
+ "screenshots": [
+  {
+   "file": "<run>/01-initial-load.png",
+   "bytes": 430604
+  },
+  {
+   "file": "<run>/02-assay-optomotor.png",
+   "bytes": 427839
+  },
+  {
+   "file": "<run>/02-assay-labyrinth.png",
+   "bytes": 408614
+  },
+  {
+   "file": "<run>/03-identity-bar.png",
+   "bytes": 478714
+  },
+  {
+   "file": "<run>/04-after-rapid.png",
+   "bytes": 436206
+  },
+  {
+   "file": "<run>/05-tabA-follows-tabB.png",
+   "bytes": 406391
+  },
+  {
+   "file": "<run>/06-speed-100x.png",
+   "bytes": 408318
+  },
+  {
+   "file": "<run>/07-paused.png",
+   "bytes": 405814
+  },
+  {
+   "file": "<run>/08-restored-open-arena-1x.png",
+   "bytes": 432191
+  }
+ ],
+ "browser": {
+  "name": "firefox",
+  "version": "157.0",
+  "platform": "linux",
+  "headless": true,
+  "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0",
+  "geckodriver": "/snap/bin/geckodriver",
+  "firefox_binary": "0.37.1",
+  "viewport": [
+   1600,
+   914,
+   1
+  ],
+  "loaded_url": "http://127.0.0.1:8860/index.html?daemon=http%3A%2F%2F127.0.0.1%3A8861"
+ },
+ "status_at_start": {
+  "status": "online",
+  "error": null,
+  "halted": false,
+  "error_detail": null,
+  "liveness": {
+   "state": "advancing",
+   "step": 1412,
+   "last_advance_age_s": 0.01,
+   "sim_thread_alive": true,
+   "step_in_progress_s": 0.006,
+   "stall_threshold_s": 10.0,
+   "step_hard_limit_s": 300.0
+  },
+  "persistence": {
+   "state": "ok",
+   "ok": true,
+   "failing": {},
+   "total_failures": 0,
+   "last_ok_save_at": 1791214993.152,
+   "last_ok_save_age_s": 21.9
+  },
+  "recording_error": null,
+  "loop_failure": null,
+  "thread_failures": [],
+  "cleared_errors": [],
+  "paused": false,
+  "continuous": true,
+  "service": "Project NeuroFly Continuous Learning Daemon",
+  "version": "0.3.0",
+  "uptime_sec": 112.2,
+  "total_steps": 1412,
+  "sim_speed": 1.0,
+  "active_paradigm": "open-arena",
+  "active_paradigm_title": "Open Arena Assay",
+  "current_trial": 1,
+  "trials_completed": 0,
+  "recording": null,
+  "trial_elapsed_s": 2.04,
+  "trial_length_s": 120.0,
+  "world_bounds": [
+   0.0,
+   0.0,
+   100.0,
+   100.0
+  ],
+  "stream": {
+   "public": false,
+   "read_only": false,
+   "commands_require_token": false,
+   "max_stream_clients": 0,
+   "stream_hz": 30.0,
+   "active_stream_clients": 0,
+   "rejected_stream_clients": 0,
+   "rejected_commands": 0,
+   "delivered_snapshots": 1437,
+   "decimated_snapshots": 4
+  },
+  "identity": {
+   "run_id": "20261005T174142-40908efcf10c",
+   "instance_id": "56438e1ec6934d17b9aaeb71aef512e6",
+   "assay": "open-arena",
+   "backend": "connectome-fixed",
+   "controller_version": "brainlab-lif-v3",
+   "graph_sha256": "eab575f63211f1518b9688ab755c6fd1549fc5e35ca2ddcb690f7fa10709bbda",
+   "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+   "io_map_sha256": "c571ed627733e662f110006ff8e7bee7c8b94955981d2fd258022e4388a6165a",
+   "synthetic": false,
+   "test_mode": false,
+   "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+   "activation": 22,
+   "daemon_run_id": "af5a0c2a0db9450a9aee7a4a2b3a0e1c"
+  },
+  "motor": {
+   "controller_backend": "connectome-fixed",
+   "motor_assists": {
+    "wall_avoidance_reflex": false,
+    "contact_turn": false
+   },
+   "motor_assists_enabled": false,
+   "motor_source": "graph",
+   "motor_source_normal": true,
+   "motor_halted": false,
+   "controller_fault": null,
+   "assist_totals": {
+    "steps": 102,
+    "near_wall_steps": 0,
+    "contact_steps": 0,
+    "wall_reflex_steps": 0,
+    "wall_reflex_abs_yaw_rad": 0.0,
+    "controller_yaw_suppressed_steps": 0,
+    "contact_turn_events": 0,
+    "contact_turn_abs_rad": 0.0,
+    "solver_contact_steps": 0,
+    "solver_correction_mm": 0.0,
+    "overlap_correction_steps": 0,
+    "overlap_correction_mm": 0.0,
+    "failsafe_corrections": 0,
+    "failsafe_correction_mm": 0.0
+   },
+   "record": {
+    "step": 102,
+    "state": "GRAPH",
+    "controller_yaw": 1.0,
+    "controller_speed": 5.0,
+    "wall_reflex_yaw": 0.0,
+    "controller_yaw_suppressed": false,
+    "contact_turn_rad": 0.0,
+    "attempted_mm": 0.1,
+    "realized_mm": 0.1,
+    "solver_correction_mm": 0.0,
+    "failsafe_correction_mm": 0.0,
+    "overlap_correction_mm": 0.0,
+    "wall_gap_mm": 39.130378,
+    "near_wall": false,
+    "in_contact": false,
+    "tethered": false,
+    "halted": false,
+    "contacts": 0
+   },
+   "optomotor": {
+    "engineered_assistance_enabled": false,
+    "engineered_assistance_applied": [],
+    "optomotor_io_map_sha256": null,
+    "optomotor_yaw_rad_s": null,
+    "optomotor_slip_rad_s": null,
+    "optomotor_unsupported": null
+   }
+  },
+  "controller_fault": null,
+  "backend": "connectome-fixed",
+  "compute": {
+   "brain": "connectome-lif",
+   "dynamics": "v3",
+   "device": "cuda",
+   "gpu": "NVIDIA GeForce GTX 1660 Ti",
+   "source": "active brain",
+   "reason": "CuPy cooperative kernel compiled and ran",
+   "detail": "LIF v3 on CUDA (NVIDIA GeForce GTX 1660 Ti)"
+  },
+  "controller_id": "connectome-v3",
+  "joint_angles_rad": [
+   -0.1396,
+   -0.2094,
+   1.014,
+   0.1396,
+   0.2094,
+   1.7785,
+   -0.1396,
+   -0.2094,
+   1.014,
+   0.1396,
+   0.2094,
+   1.7785,
+   -0.1396,
+   -0.2094,
+   1.014,
+   0.1396,
+   0.2094,
+   1.7785
+  ],
+  "leg_contacts": [
+   false,
+   true,
+   false,
+   true,
+   false,
+   true
+  ],
+  "body_position_mm": [
+   52.7801,
+   40.6304,
+   0.5
+  ],
+  "body_quaternion_wxyz": [
+   0.49713,
+   0.0,
+   0.0,
+   0.86768
+  ],
+  "dn_rates": {
+   "dna02_l": 50.0,
+   "dna02_r": 0.0,
+   "dnp09": 0.0,
+   "mdn": 0.0,
+   "gf": 0.0
+  },
+  "body": {
+   "controller_id": "connectome-v3",
+   "joint_angles_rad": [
+    -0.1396,
+    -0.2094,
+    1.014,
+    0.1396,
+    0.2094,
+    1.7785,
+    -0.1396,
+    -0.2094,
+    1.014,
+    0.1396,
+    0.2094,
+    1.7785,
+    -0.1396,
+    -0.2094,
+    1.014,
+    0.1396,
+    0.2094,
+    1.7785
+   ],
+   "leg_contacts": [
+    false,
+    true,
+    false,
+    true,
+    false,
+    true
+   ],
+   "body_position_mm": [
+    52.7801,
+    40.6304,
+    0.5
+   ],
+   "body_quaternion_wxyz": [
+    0.49713,
+    0.0,
+    0.0,
+    0.86768
+   ],
+   "dn_rates": {
+    "dna02_l": 50.0,
+    "dna02_r": 0.0,
+    "dnp09": 0.0,
+    "mdn": 0.0,
+    "gf": 0.0
+   }
+  },
+  "timing": {
+   "last_step_wall_s": 0.2095,
+   "step_in_progress_s": 0.007,
+   "requested_speed": 1.0,
+   "achieved_speed": 0.094,
+   "integration_dt_s": 0.02,
+   "sim_time_s": 28.24,
+   "step": 1412,
+   "snapshot_seq": 1426,
+   "publish_hz": 60.0,
+   "overloaded": true,
+   "schedule_rebases": 282,
+   "forgiven_wall_s": 82.611,
+   "max_batch_hold_ms": 403.347,
+   "command_latency": {
+    "count": 26,
+    "p50_ms": 203.59,
+    "p95_ms": 263.4,
+    "max_ms": 272.44
+   }
+  },
+  "lock_profile": {
+   "simulation": {
+    "acquisitions": 2865,
+    "mean_wait_ms": 0.017,
+    "p50_wait_ms": 0.0,
+    "p95_wait_ms": 0.0,
+    "p99_wait_ms": 0.0,
+    "max_wait_ms": 4.29,
+    "window": 2865
+   },
+   "recorder": {
+    "acquisitions": 107,
+    "mean_wait_ms": 42.261,
+    "p50_wait_ms": 27.804,
+    "p95_wait_ms": 142.051,
+    "p99_wait_ms": 229.17,
+    "max_wait_ms": 288.298,
+    "window": 107
+   },
+   "http": {
+    "acquisitions": 89,
+    "mean_wait_ms": 52.257,
+    "p50_wait_ms": 34.748,
+    "p95_wait_ms": 164.765,
+    "p99_wait_ms": 193.952,
+    "max_wait_ms": 193.952,
+    "window": 89
+   }
+  }
+ },
+ "final_console_errors": [],
+ "final_app_errors": [],
+ "finished_at": "2026-10-05T15:45:19.148833+00:00",
+ "pass": true
+}

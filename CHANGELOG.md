@@ -51,6 +51,17 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 ### Fixed
 
+- **No more silent freezes** (audit F). The simulation thread no longer dies on an
+  exception outside the step (a full disk during a checkpoint froze the observatory for
+  42 minutes behind an "online" status). Any loop failure is an honest halt naming the
+  phase; a failed save keeps the run stepping with status `degraded` and an amber
+  "NOT SAVING" banner, retried with a back-off; a watchdog reports `stalled` / `dead`
+  in status, frames and heartbeats, and the page shows a red "SIMULATION NOT
+  ADVANCING" pill and a step age instead of LIVE. A rebuild restarts a dead thread.
+  Startup falls back to the newest checkpoint that verifies; shutdown saves once.
+  New options: `--halt-on-persistence-failure`, `--exit-on-stall`,
+  `--step-hard-limit`, `--keep-shutdown-checkpoints`, `NEUROFLY_CHECKPOINT_INTERVAL`.
+  See `docs/LEARNING_OBSERVATORY.md`, "When something fails".
 - Graph-controller node indices are resolved against the loaded graph, not a separately
   read neuron table (`a9c988c`).
 - The cached WP5 optomotor loop is bound to the live graph instance, which stopped the

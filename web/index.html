@@ -1138,6 +1138,7 @@
                     <span>Speed: <b id="statSpeed">1.0x</b></span>
                     <span title="Simulation speed the daemon actually achieved (measured), versus the requested speed">Achieved: <b id="statAchieved">--</b></span>
                     <span title="Time since the last valid daemon frame was received and applied">Data age: <b id="statDataAge">--</b></span>
+                    <span title="Time since the simulation step counter last increased. Frames can keep arriving while the simulation is stopped; this cannot.">Step age: <b id="statStepAge">--</b></span>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-btn" id="btnPauseToggle">Pause</button>
@@ -1184,6 +1185,7 @@
                 <span id="identRun" style="cursor:help">run --</span>
                 <label title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist</label>
             </div>
+            <div id="persistenceBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.18);border-bottom:1px solid #b45309;color:#fbbf24;font:10px monospace;font-weight:700"></div>
             <div id="identityBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.14);border-bottom:1px solid #92400e;color:#fcd34d;font:10px monospace;font-weight:700"></div>
             <!-- Run replay (web/replay.js): chooser and transport bar -->
             <div id="replayChooser" class="replay-chooser" hidden>
