@@ -191,3 +191,100 @@ def test_identity_that_changes_mid_run_fails_the_run(tmp_path):
 
     with pytest.raises(RuntimeError, match="identity changed mid-run"):
         run_embodied(_config(tmp_path / "drift"), Drifting(), FakeBody(), decoder=DNa02CPGDecoder())
+
+
+def test_summary_reports_spikes_and_drive_not_just_ringdown_steps(tmp_path):
+    """D1/D5/D8: the honest drive metrics, the sample size and its warning."""
+    summary = run_embodied(_config(tmp_path / "run"), FakeGraph(), FakeBody(), decoder=DNa02CPGDecoder())
+
+    # FakeGraph reports 25 Hz in one 2 ms bin, which is 0.05 of a spike and
+    # rounds to none: the run has no DNa02 spike at all, and its ringdown still
+    # keeps the applied drive above zero for every step.  That is exactly the
+    # gap D1 and D5 are about.
+    assert summary["total_dna02_spikes_l"] == 0
+    assert summary["total_dna02_spikes_r"] == 0
+    assert summary["dna02_spike_count"] == 0
+    assert "only 0 DNa02 spikes" in summary["dna02_spike_count_warning"]
+    assert summary["steps_with_nonzero_applied_drive"] == summary["records"]
+    assert summary["steps_with_applied_drive_above_1pct_of_max"] <= summary["records"]
+    assert summary["mean_applied_drive_l"] == 0.0
+    assert summary["mean_applied_drive_r"] > 0.0
+    assert summary["max_cpg_drive"] == DNa02CPGDecoder().max_drive
+    assert "ringdown" in summary["applied_drive_metrics_note"]
+
+    # D8
+    assert "any_neural_motor_output" not in summary
+    assert summary["decoder_produced_output"] is True
+    assert summary["motor_output_reached_body"] is True
+
+
+def test_disconnected_summary_says_the_output_never_reached_the_body(tmp_path):
+    summary = run_embodied(
+        _config(tmp_path / "control", "output-disconnected"), FakeGraph(), FakeBody(),
+        decoder=DNa02CPGDecoder(),
+    )
+    assert summary["decoder_produced_output"] is True
+    assert summary["motor_output_reached_body"] is False
+    assert summary["steps_with_nonzero_applied_drive"] == 0
+    assert summary["steps_with_applied_drive_above_1pct_of_max"] == 0
+    assert summary["mean_applied_drive_l"] == 0.0
+    assert summary["mean_applied_drive_r"] == 0.0
+    # The graph and the decoder still ran, and the spike count is still reported.
+    assert summary["dna02_spike_count"] == 0
+
+
+def test_spike_count_warning_clears_above_the_threshold(tmp_path):
+    class Busy(FakeGraph):
+        def step(self, sensory, duration_ms=2.0):
+            reply = super().step(sensory, duration_ms)
+            reply["dna02_rate_l"] = 2500.0  # five spikes in a 2 ms bin
+            return reply
+
+    summary = run_embodied(_config(tmp_path / "busy"), Busy(), FakeBody(), decoder=DNa02CPGDecoder())
+    assert summary["dna02_spike_count"] == 15
+    assert summary["dna02_spike_count_warning"] is None
+
+
+def test_integer_spike_counts_from_the_backend_are_used_verbatim(tmp_path):
+    """D2: the runner counts the backend's integers, not a rounded bin rate."""
+
+    class Counting(FakeGraph):
+        def step(self, sensory, duration_ms=2.0):
+            reply = super().step(sensory, duration_ms)
+            reply["dna02_spikes_l"] = 4
+            reply["dna02_spikes_r"] = 1
+            return reply
+
+    summary = run_embodied(_config(tmp_path / "counted"), Counting(), FakeBody(), decoder=DNa02CPGDecoder())
+    assert summary["total_dna02_spikes_l"] == 12  # 3 steps
+    assert summary["total_dna02_spikes_r"] == 3
+    assert summary["dna02_spike_count"] == 15
+    assert summary["dna02_spike_count_warning"] is None
+
+
+def test_dn_v2_summary_counts_every_decoder_input_population(tmp_path):
+    """D5 under dn-v2: the sample size is every DN population the decoder reads."""
+    from neurofly_body.decoder import DNCommandDecoder
+
+    class Locomotion(FakeGraph):
+        def get_status(self):
+            return {**super().get_status(), "locomotion_dn_map_sha256": "d" * 64}
+
+        def step(self, sensory, duration_ms=2.0):
+            reply = super().step(sensory, duration_ms)
+            block = {}
+            for name in ("DNp09_L", "DNp09_R", "DNa02_L", "DNa02_R", "MDN_L", "MDN_R", "GF_L", "GF_R"):
+                spikes = {"DNp09_L": 2, "DNp09_R": 2, "DNa02_L": 1}.get(name, 0)
+                block[f"{name}_rate_hz"] = spikes / 0.002
+                block[f"{name}_spikes"] = spikes
+            reply["locomotion_dn"] = block
+            return reply
+
+    summary = run_embodied(_config(tmp_path / "dn"), Locomotion(), FakeBody(), decoder=DNCommandDecoder())
+    assert summary["decoder_input_spikes"]["DNp09_L"] == 6
+    assert summary["decoder_input_spikes"]["DNa02_L"] == 3
+    assert summary["total_dna02_spikes_l"] == 3 and summary["total_dna02_spikes_r"] == 0
+    assert summary["dna02_spike_count"] == 3
+    assert "only 3 DNa02 spikes" in summary["dna02_spike_count_warning"]
+    assert summary["mean_applied_drive_l"] > 0 and summary["mean_applied_drive_r"] > 0
+    assert summary["max_cpg_drive"] == DNCommandDecoder().max_drive

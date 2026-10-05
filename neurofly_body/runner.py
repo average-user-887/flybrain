@@ -68,6 +68,16 @@ NEURAL_IDENTITY_FIELDS = (
 )
 
 
+# D5: below this many DNa02 spikes across the whole run the turning component
+# of the motor command is built from single-digit spike counts and no
+# conclusion about turning survives.
+MIN_USEFUL_DNA02_SPIKES = 10
+
+# D1: fraction of the decoder cap below which applied drive is the leaky
+# integrator's ringdown rather than a command the body can act on.
+DRIVE_REPORTING_FRACTION_OF_MAX = 0.01
+
+
 def _identity_digest(identity: dict[str, Any]) -> str:
     """SHA-256 of the canonical JSON of the hoisted identity block."""
     return hashlib.sha256(
@@ -289,6 +299,12 @@ def run_embodied(
     total_spikes = 0
     silenced_spikes = 0
     driven_steps = 0
+    driven_steps_above_floor = 0
+    input_spikes: dict[str, int] = {}
+    applied_drive_sum_l = 0.0
+    applied_drive_sum_r = 0.0
+    drive_floor = DRIVE_REPORTING_FRACTION_OF_MAX * float(decoder.max_drive)
+    count_input_spikes = getattr(decoder, "input_spikes", None)
     decoded_steps = 0
     events: list[dict[str, Any]] = []
     neural_identity: dict[str, Any] | None = None
@@ -480,6 +496,13 @@ def run_embodied(
                 applied_command = connected_command
             if applied_command != (0.0, 0.0):
                 driven_steps += 1
+            if max(abs(applied_command[0]), abs(applied_command[1])) > drive_floor:
+                driven_steps_above_floor += 1
+            applied_drive_sum_l += applied_command[0]
+            applied_drive_sum_r += applied_command[1]
+            if count_input_spikes is not None:
+                for name, count in count_input_spikes(reply, config.neural_dt_ms).items():
+                    input_spikes[name] = input_spikes.get(name, 0) + int(count)
             if body_future is not None:
                 raw_obs, body_future = body_future.result(), None
             else:
@@ -529,6 +552,10 @@ def run_embodied(
 
         if hasattr(body, "save_video"):
             body.save_video()  # type: ignore[attr-defined]
+        has_dna02 = "DNa02_L" in input_spikes or "DNa02_R" in input_spikes
+        dna02_l = input_spikes.get("DNa02_L", 0) if has_dna02 else None
+        dna02_r = input_spikes.get("DNa02_R", 0) if has_dna02 else None
+        dna02_count = dna02_l + dna02_r if has_dna02 else None
         summary = {
             "schema": "neurofly-embodied-summary-v2",
             "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
@@ -538,9 +565,44 @@ def run_embodied(
             "duration_s": config.duration_s,
             "wall_time_s": time.perf_counter() - started,
             "total_graph_spikes": total_spikes,
+            # D1.  ``steps_with_nonzero_applied_drive`` is kept for continuity but
+            # is not a measure of sustained neural drive: the decoder's 50 ms
+            # leaky integrator keeps a float above zero for hundreds of steps
+            # after a handful of spikes, so it approaches ``records`` whenever any
+            # spike occurs at all.  The fields after it are the honest ones.
             "steps_with_nonzero_applied_drive": driven_steps,
             "steps_with_nonzero_decoded_drive": decoded_steps,
-            "any_neural_motor_output": decoded_steps > 0,
+            "steps_with_applied_drive_above_1pct_of_max": driven_steps_above_floor,
+            "mean_applied_drive_l": applied_drive_sum_l / n_steps,
+            "mean_applied_drive_r": applied_drive_sum_r / n_steps,
+            "max_cpg_drive": float(decoder.max_drive),
+            # D5.  The motor command derives from these few descending neurons, so
+            # their spike counts are the run's real sample size.
+            "decoder_input_spikes": dict(sorted(input_spikes.items())),
+            "total_dna02_spikes_l": dna02_l,
+            "total_dna02_spikes_r": dna02_r,
+            "dna02_spike_count": dna02_count,
+            "dna02_spike_count_warning": (
+                None
+                if dna02_count is None or dna02_count >= MIN_USEFUL_DNA02_SPIKES
+                else (
+                    f"only {dna02_count} DNa02 spikes in {config.duration_s} s "
+                    f"(threshold {MIN_USEFUL_DNA02_SPIKES}): the turning component of the "
+                    "motor command is built from single-digit spike counts and this run "
+                    "is too short to support any conclusion about turning; the documented "
+                    "example duration is 5 s"
+                )
+            ),
+            "applied_drive_metrics_note": (
+                "steps_with_nonzero_applied_drive counts the decoder's leaky-integrator "
+                "ringdown and is not sustained neural drive; read "
+                "steps_with_applied_drive_above_1pct_of_max, mean_applied_drive_* and "
+                "decoder_input_spikes instead"
+            ),
+            # D8.  The decoder runs in every mode; whether its output reached the
+            # body is what the output-disconnected control changes.
+            "decoder_produced_output": decoded_steps > 0,
+            "motor_output_reached_body": bool(config.mode == "intact" and driven_steps > 0),
             "decoder": decoder.name,
             "motor_events": events,
             "final_thorax": None if last_record is None else last_record["body"]["thorax"],
