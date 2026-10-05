@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -109,6 +109,26 @@ def _split_identity(reply: dict[str, Any]) -> dict[str, Any]:
     return {name: reply.pop(name) for name in NEURAL_IDENTITY_FIELDS if name in reply}
 
 
+# The command paths a run can take to the body.  ``intact`` is the only one in
+# which what reaches the CPG is the decoder's own output; the other two are
+# controls and say so in every artefact they write.
+MODES = {
+    "intact": "the decoder's own command reaches the FlyGym CPG",
+    "output-disconnected": (
+        "output-path control: the same graph, feedback and decoder run, and the "
+        "command reaching the CPG is replaced by exact zeros"
+    ),
+    "drive-rate-matched-control": (
+        "rate-matched control: the command reaching the CPG is a supplied "
+        "rearrangement of a recorded intact drive sequence, so its per-channel "
+        "mean is preserved and its neural content is not"
+    ),
+}
+
+# Controls need an explicit drive supplier; ``intact`` must not have one.
+MODES_REQUIRING_DRIVE_OVERRIDE = frozenset({"drive-rate-matched-control"})
+
+
 @dataclass(frozen=True)
 class EmbodiedConfig:
     duration_s: float
@@ -130,8 +150,8 @@ class EmbodiedConfig:
     leg_load_feedback: bool = False
 
     def validated(self) -> "EmbodiedConfig":
-        if self.mode not in {"intact", "output-disconnected"}:
-            raise ValueError("mode must be 'intact' or 'output-disconnected'")
+        if self.mode not in MODES:
+            raise ValueError("mode must be one of " + ", ".join(sorted(MODES)))
         finite = (
             self.duration_s,
             self.neural_dt_ms,
@@ -290,6 +310,9 @@ def run_embodied(
     *,
     decoder: DNCommandDecoder | DNa02CPGDecoder | None = None,
     invocation: dict[str, Any] | None = None,
+    drive_override: Callable[[int, tuple[float, float]], tuple[float, float]] | None = None,
+    drive_override_description: dict[str, Any] | None = None,
+    close_body: bool = True,
 ) -> dict[str, Any]:
     """Run a coupled experiment and return the written summary.
 
@@ -300,8 +323,24 @@ def run_embodied(
     config and brain backend give a byte-identical file; its SHA-256 is the
     run's ``trajectory_sha256``.  Wall-clock measurements go to ``timing.jsonl``.
     ``invocation`` (the CLI arguments) is stored so ``replay-check`` can re-run it.
+
+    ``drive_override`` supplies the command that reaches the body in place of the
+    decoder's own output.  It is how a rate-matched control is built, so it is
+    only accepted for the modes in ``MODES_REQUIRING_DRIVE_OVERRIDE``, never for
+    ``intact``: a run whose body did not receive the decoder's output must never
+    be able to call itself intact.
+
+    ``close_body=False`` leaves the body open for the caller, which is how the
+    ``verdict`` subcommand runs several conditions on one loaded graph and body.
     """
     config = config.validated()
+    if config.mode in MODES_REQUIRING_DRIVE_OVERRIDE and drive_override is None:
+        raise ValueError(f"mode {config.mode!r} requires a drive_override")
+    if config.mode not in MODES_REQUIRING_DRIVE_OVERRIDE and drive_override is not None:
+        raise ValueError(
+            f"a drive_override may not be used with mode {config.mode!r}; use one of "
+            + ", ".join(sorted(MODES_REQUIRING_DRIVE_OVERRIDE))
+        )
     decoder = decoder or DNCommandDecoder()
     substeps = int(round((config.neural_dt_ms / 1000.0) / config.physics_dt_s))
     n_steps = int(round(config.duration_s / (config.neural_dt_ms / 1000.0)))
@@ -409,6 +448,9 @@ def run_embodied(
             "body_backend": _to_builtin(body.describe()),
             "decoder": decoder.describe(),
             "control": {
+                "mode": config.mode,
+                "modes": dict(MODES),
+                "drive_override": _to_builtin(drive_override_description or {}),
                 "intact": "decoded command reaches FlyGym CPG",
                 "output-disconnected": "same graph and feedback run, decoded command replaced by [0,0]",
                 "what_it_controls_for": (
@@ -560,9 +602,16 @@ def run_embodied(
                 decoded_steps += 1
             for event in decoded["events"]:
                 events.append({"step": step_index + 1, **event})
-            connected_command = (
-                (0.0, 0.0) if config.mode == "output-disconnected" else decoded_command
-            )
+            if config.mode == "output-disconnected":
+                connected_command = (0.0, 0.0)
+                applied_drive_source = "zeroed by the output-disconnected control"
+            elif drive_override is not None:
+                supplied = drive_override(step_index, decoded_command)
+                connected_command = (float(supplied[0]), float(supplied[1]))
+                applied_drive_source = f"supplied by the {config.mode} control"
+            else:
+                connected_command = decoded_command
+                applied_drive_source = "the decoder's own output"
             if delay:
                 pending.append(connected_command)
                 applied_command = body_command
@@ -612,6 +661,7 @@ def run_embodied(
                     "decoder": decoded,
                     "decoded_cpg_drive": list(decoded_command),
                     "applied_cpg_drive": list(applied_command),
+                    "applied_drive_source": applied_drive_source,
                     "output_connected": config.mode == "intact",
                     **({"delay_steps": delay} if delay else {}),
                 },
@@ -676,7 +726,9 @@ def run_embodied(
             # D8.  The decoder runs in every mode; whether its output reached the
             # body is what the output-disconnected control changes.
             "decoder_produced_output": decoded_steps > 0,
-            "motor_output_reached_body": bool(config.mode == "intact" and driven_steps > 0),
+            "motor_output_reached_body": bool(
+                config.mode == "intact" and drive_override is None and driven_steps > 0
+            ),
             "decoder": decoder.name,
             "motor_events": events,
             "final_thorax": None if last_record is None else last_record["body"]["thorax"],
@@ -716,4 +768,5 @@ def run_embodied(
         if executor is not None:
             executor.shutdown(wait=True)    # never close the body under a running step
         output.close()
-        body.close()
+        if close_body:
+            body.close()
