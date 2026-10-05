@@ -398,6 +398,7 @@ def apply_to_shared(shared, *, policy: str = POLICY_V3, unclear_mode: str = 'exc
         graph_path_source=f'{policy}(unclear={unclear_mode}){variant} applied in memory to {base.graph_sha256}',
         graph_sha256=digest.hexdigest(), neuron_map_path=base.neuron_map_path,
         neuron_map_sha256=base.neuron_map_sha256, io_map_sha256=base.io_map_sha256,
+        neuron_map_content_sha256=base.neuron_map_content_sha256,
         neurons=base.neurons, edges=base.edges, ids_sha256=base.ids_sha256,
         data_sha256=dict(base.data_sha256),
         label=f'{base.label} with DECLARED transmitter policy {policy} '
