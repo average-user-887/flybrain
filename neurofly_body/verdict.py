@@ -704,8 +704,10 @@ def _markdown(receipt: dict[str, Any]) -> str:
             "## Reproduce",
             "",
             f"The brain backend is pinned to `{backend_name}`, the backend that produced "
-            "these numbers: CPU and CUDA agree statistically, not bit for bit, so an "
-            "unpinned (`auto`) backend may not reproduce them. Every parameter is given "
+            "these numbers. Trajectories depend on the backend: the same condition gives "
+            "different trajectories on CPU and CUDA, and whether the two agree as "
+            "ensembles has not been tested, so an unpinned (`auto`) backend may not "
+            "reproduce them. Every parameter is given "
             "explicitly, defaults included, and floats are written exactly. Replace "
             "`<fresh-dir>` with a new directory. `<repo>` is the root of the checkout "
             "the command runs from (the CLI maps it); a data directory outside the "
@@ -1000,8 +1002,10 @@ def run_verdict(args: Any) -> int:
     body = FlyGymBody(physics_dt_s=args.physics_dt_s, warmup_s=args.warmup_s)
     equivalence_note = (
         "each condition sets the server's optomotor_seed to its own seed before "
-        "the reset, so a condition is equivalent to a standalone "
-        "`run --seed <seed>` on a freshly loaded server"
+        "the reset, as a standalone `run --seed <seed>` on a freshly loaded server "
+        "does. Equivalence to such a run is not established for every condition: it "
+        "is checked only for the condition the reuse check repeats, and for any "
+        "condition directory re-run with `replay-check`"
     )
     outcomes: dict[str, Outcome] = {}
     control_notes: list[str] = []
@@ -1202,8 +1206,10 @@ def _reuse_check(
     )
     if identical and covers_full_condition:
         note = preamble + (
-            "byte-identical telemetry to the fresh run: over this full-duration "
-            "comparison no state survived the resets, so the conditions are comparable"
+            "byte-identical telemetry to the fresh run. No telemetry difference was "
+            "observed over this one full-duration repeat. It does not compare internal "
+            "state that the telemetry does not record, and it does not repeat the other "
+            "seeds or conditions. It is the comparability check the verdict requires"
         )
     elif identical:
         note = preamble + (

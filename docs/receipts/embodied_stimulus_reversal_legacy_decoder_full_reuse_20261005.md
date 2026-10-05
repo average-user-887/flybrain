@@ -5,6 +5,25 @@
      unedited. Run artefacts were written outside the repository and are not
      committed. -->
 
+> **Interpretation addendum, 5 October 2026.** The generated text below is kept
+> unedited, with its provenance (commit cd7cf2b) and its values. Three of its
+> sentences claim more than was measured:
+>
+> - "CPU and CUDA agree statistically, not bit for bit": untested. Trajectories
+>   depend on the backend, and whether the two agree as ensembles has not been
+>   tested. Pinning `NEUROFLY_BRAIN_BACKEND=cpu` remains necessary.
+> - "no state survived the resets, so the conditions are comparable": the check
+>   repeated `seed0-positive-w` once, for its whole 5 s, after the other
+>   conditions, and observed no telemetry difference. It did not compare internal
+>   state that the telemetry does not record, and it did not repeat the other
+>   seeds or conditions. It is the comparability check the current gate requires,
+>   and it passed.
+> - "a condition is equivalent to a standalone `run --seed <seed>`": not
+>   established for every condition. Only the repeated condition was checked.
+>
+> Later code words these lines as above. The verdict, the numbers and the scope
+> are unchanged.
+
 # Embodied MVP verdict: stimulus-sign reversal
 
 Verdict: **PASS** - turn direction followed the stimulus sign in both directions on all 2 seeds, with |cumulative yaw| > 0.2 rad

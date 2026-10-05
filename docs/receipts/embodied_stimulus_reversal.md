@@ -13,10 +13,17 @@
 >   current gate, a check that short is a smoke comparison, so this receipt's
 >   verdict counts as **UNVERIFIED**, not as a validated result.
 > - **Trajectory digests.** The digests below are not reproducible on current
->   master. The server there fills one per-record identity field,
->   `neural.neuron_map_content_sha256`, which these runs recorded as null. A
->   record-by-record comparison of all 16 conditions (both decoders) against the
->   current rerun found no other difference in any record.
+>   master. These records omit two per-record identity fields,
+>   `neural.graph_content_sha256` and `neural.neuron_map_content_sha256`; current
+>   records carry `graph_content_sha256: null` and the neuron-map content hash.
+>   With those two fields removed, all 40,000 records of the 16 conditions (both
+>   decoders) are identical to the current rerun. *(Corrected 5 October 2026: an
+>   earlier version of this note named only the neuron-map field and said it had
+>   been recorded as null.)*
+> - **Standalone equivalence.** The line below saying each condition "is
+>   equivalent to a standalone `run --seed <seed>`" is not established for every
+>   condition. Only the repeated condition and conditions re-run with
+>   `replay-check` were checked.
 >
 > The current receipt is
 > [`embodied_stimulus_reversal_full_reuse_20261005.md`](embodied_stimulus_reversal_full_reuse_20261005.md):

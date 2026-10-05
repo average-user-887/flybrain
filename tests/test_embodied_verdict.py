@@ -575,6 +575,23 @@ def test_a_reuse_check_longer_than_the_condition_compares_the_condition(tmp_path
     assert check["records_compared"] == 20
 
 
+def test_generated_prose_claims_only_what_was_measured(tmp_path):
+    """A passing full-duration check is one repeat of one condition, not proof of a
+    full reset; CPU/CUDA ensemble agreement is untested; standalone equivalence is
+    not established per condition."""
+    import inspect
+
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.04")
+    note = V._reuse_check(args, first, tmp_path, neural, body)["note"]
+    assert "No telemetry difference was observed over this one full-duration repeat" in note
+    assert "does not repeat the other seeds or conditions" in note
+    assert "no state survived" not in note and "resets are complete" not in note
+    source = inspect.getsource(V)
+    assert "agree statistically" not in source
+    assert "a condition is equivalent to a standalone" not in source
+    assert "ensembles has not been tested" in source
+
+
 def _invocation(**overrides):
     invocation = {
         "duration_s": 5.0, "seeds": [0, 1], "angular_velocity_rad_s": 2.5,

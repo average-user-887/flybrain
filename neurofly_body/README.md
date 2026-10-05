@@ -26,8 +26,11 @@ condition, and the reuse check (the first condition re-run after all the others)
 reproduces the same telemetry bytes over the whole condition. A failed reuse
 check makes the verdict INVALID. A skipped one (`--no-reuse-check`) or one shorter
 than a condition (the default 0.1 s window is a smoke comparison) makes it
-UNVERIFIED, never PASS or FAIL. Pin the brain backend: CPU and CUDA agree
-statistically, not bit for bit. It writes `verdict.json` and `verdict.md`. Eight
+UNVERIFIED, never PASS or FAIL. Even a full-duration check repeats only the first
+condition, once: it shows no telemetry difference over that repeat, not that all
+internal state was reset or that every condition matches a standalone run. Pin the
+brain backend: the same condition gives different trajectories on CPU and CUDA,
+and whether the two agree as ensembles has not been tested. It writes `verdict.json` and `verdict.md`. Eight
 5 s conditions plus a 5 s reuse check take about 25 minutes on a CPU brain
 backend.
 
@@ -130,7 +133,8 @@ The same code, arguments, seed, graph and brain backend give a byte-identical
 `telemetry.jsonl`; check a finished run with
 `python -m neurofly_body replay-check RUN_DIR --output NEW_DIR`. Each intact or
 output-disconnected verdict condition can be replayed the same way. CPU and CUDA
-brains agree statistically, not bit for bit.
+brains give different trajectories for the same run; whether they agree as
+ensembles has not been tested, so replay on the backend that made the run.
 
 Telemetry format 2 keeps the static neural identity block in `manifest.json` and
 writes one `identity_sha256` per record. A format-2 run has a different

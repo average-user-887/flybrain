@@ -73,7 +73,10 @@ full-duration fresh-versus-reused comparison (`--reuse-check-duration` equal to
 `--duration`) counts. With `--no-reuse-check` or the default 0.1 s window, which
 is a smoke comparison and not proof of a complete reset, the verdict is
 UNVERIFIED, never PASS or FAIL, and the turns' own result is kept in
-`turn_outcome`. A valid FAIL is therefore distinct from INVALID, INCONCLUSIVE and
+`turn_outcome`. Even the full-duration check repeats only the first condition,
+once, after the others: it shows no telemetry difference over that repeat. It
+does not compare internal state the telemetry does not record, and it does not
+repeat every seed and condition. A valid FAIL is therefore distinct from INVALID, INCONCLUSIVE and
 UNVERIFIED. Eight 5 s conditions plus a 5 s reuse check take about 25 minutes
 with the CPU brain backend. The receipt's Reproduce section gives the complete
 command with the brain backend pinned, plus the code, data and dynamics
@@ -95,10 +98,12 @@ The earlier receipts with the same numbers,
 are kept as historical records. Each carries a dated note at the top. Their reuse
 check covered only 50 of 2,500 records, so under the current gate they are
 UNVERIFIED, not validation. The legacy one's shuffle reading claims mean-only
-coding, which the control does not support. Their trajectory digests predate one
-per-record identity field that current master fills
-(`neural.neuron_map_content_sha256`). Record by record, that field is the only
-difference from the current runs.
+coding, which the control does not support. Their trajectory digests differ from
+the current runs because the old records omit two per-record identity fields,
+`neural.graph_content_sha256` and `neural.neuron_map_content_sha256`. The current
+records carry `graph_content_sha256: null` and the neuron-map content hash. With
+those two fields removed, all 40,000 compared records (16 conditions, both
+decoders) are identical, so no numerical result changed.
 
 Under `dn-v2` the DNa02 left/right asymmetry still reverses with the stimulus on
 both seeds, but DNp09 is all but silent in the passive v3 graph, so there is no
@@ -122,8 +127,9 @@ the circuit downstream of T4/T5 and the body only.
 - seed 1 at +4 rad/s: DNa02 26/0 spikes and +2.117 rad then, 35/1 and +3.107 rad
   now. The cause is the brain backend, not the code: a standalone `run` of that
   condition on the GTX 1660 Ti with this branch's code gives 26/0 and +2.117 rad
-  again. CUDA and CPU agree statistically, not bit for bit. An independent CPU run
-  on a second host gave +3.107 rad as well.
+  again. Trajectories depend on the backend; whether CPU and CUDA agree as
+  ensembles has not been tested. An independent CPU run on a second host gave
+  +3.107 rad as well.
 - the output-disconnected control: DNa02 28/4 then, 24/3 now (same cause).
 - every displacement is smaller: it is now measured from the first record rather
   than from the origin, because the fly settles about 0.6 mm from the origin
@@ -205,8 +211,9 @@ physics, the spike counts and the `body.nfbody` frame digests are unchanged.
 
 This writes `replay_check.json` with the verdict `BIT_IDENTICAL` or
 `DIVERGED`, both hashes and the first telemetry record that differs. The command
-exits 1 when the runs diverge. CPU and GPU brains agree statistically but not
-bit for bit, so run the replay on the same backend. The receipt records both
+exits 1 when the runs diverge. CPU and GPU brains give different trajectories
+for the same run, and whether they agree as ensembles has not been tested, so run
+the replay on the same backend. The receipt records both
 backends.
 
 `ConnectomeServer.reset()` returns the server to its freshly built state. That
