@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# NeuroFly pre-push guard: refuses a push that would publish personal or private data.
+#
+#   1. the tree guard on the working tree (scripts/check_private_infra.sh), and
+#   2. the commit-metadata guard on exactly the commits this push sends: message,
+#      author and committer (scripts/check_private_infra.sh --commits RANGE).
+#
+# Install once per clone (a repository-relative hooks path, nothing is copied):
+#
+#   git config core.hooksPath scripts/hooks
+#
+# Bypass for a genuine emergency only: git push --no-verify (CI runs the same checks).
+set -euo pipefail
+
+remote="${1:-origin}"
+top="$(git rev-parse --show-toplevel)"
+guard="$top/scripts/check_private_infra.sh"
+status=0
+
+bash "$guard" || status=1
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>, one line per pushed ref.
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "${local_sha:-}" ] || continue
+    if [ -z "${local_sha//0/}" ]; then
+        continue                                           # branch deletion: nothing sent
+    fi
+    if [ -n "${remote_sha//0/}" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+        range="${remote_sha}..${local_sha}"                # update of an existing branch
+    else
+        # New branch, or a remote tip this clone has not fetched: every commit that no
+        # remote-tracking branch of this remote already contains.
+        range="${local_sha} --not --remotes=${remote}"
+    fi
+    echo "[pre-push] ${local_ref} -> ${remote_ref}: checking commit metadata"
+    bash "$guard" --commits "$range" || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+    echo "[pre-push] push refused: fix the findings above (CONTRIBUTING.md, rule 3)." >&2
+fi
+exit "$status"
