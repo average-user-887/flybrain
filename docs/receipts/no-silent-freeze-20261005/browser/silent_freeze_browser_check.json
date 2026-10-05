@@ -1,0 +1,175 @@
+{
+ "kind": "silent-freeze-browser-check",
+ "started_at": "2026-10-05T15:54:19+00:00",
+ "daemon_port": 8861,
+ "web_port": 8860,
+ "checks": {
+  "a_healthy_live": true,
+  "a_step_advancing": true,
+  "a_step_age_resets": true,
+  "a_no_banner": true,
+  "b_banner_shown": true,
+  "b_banner_says_disk_full": true,
+  "b_steps_still_advance": true,
+  "b_pill_still_live": true,
+  "b_status_degraded": true,
+  "c_banner_clears_after_retry": true,
+  "c_status_online": true,
+  "d_slow_then_not_advancing": true,
+  "d_recovers_when_step_returns": true,
+  "e_red_pill_within_threshold": true,
+  "e_never_live_while_dead": true,
+  "e_step_frozen": true,
+  "e_status_dead": true,
+  "e_reselect_restarts_and_live": true,
+  "e_status_online_after": true,
+  "no_page_errors": true
+ },
+ "samples": {
+  "a_healthy": [
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 161,
+    "liveness": "advancing",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 198,
+    "liveness": "advancing",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 240,
+    "liveness": "advancing",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 281,
+    "liveness": "advancing",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 322,
+    "liveness": "advancing",
+    "banner": ""
+   }
+  ],
+  "b_disk_full": [
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 379,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 5 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 422,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 6 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 464,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 7 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 506,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 8 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 548,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 9 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 590,
+    "liveness": "advancing",
+    "banner": "NOT SAVING: disk full (last saved 10 s ago). The simulation keeps running; free disk space and saving resumes automatically."
+   }
+  ],
+  "e_dead": [
+   {
+    "pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 1s",
+    "stepAge": "1.2s",
+    "lastStep": 1631,
+    "liveness": "dead",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 2s",
+    "stepAge": "2.2s",
+    "lastStep": 1631,
+    "liveness": "dead",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 3s",
+    "stepAge": "3.2s",
+    "lastStep": 1631,
+    "liveness": "dead",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 4s",
+    "stepAge": "4.2s",
+    "lastStep": 1631,
+    "liveness": "dead",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 5s",
+    "stepAge": "5.2s",
+    "lastStep": 1631,
+    "liveness": "dead",
+    "banner": ""
+   }
+  ]
+ },
+ "screenshots": [
+  "a-healthy-live.png",
+  "b-disk-full-not-saving.png",
+  "d-hung-step-not-advancing.png",
+  "e-thread-dead-not-advancing.png",
+  "e-recovered-live.png"
+ ],
+ "browser": {
+  "name": "firefox",
+  "version": "157.0",
+  "headless": true
+ },
+ "b_banner_after_s": 0.27,
+ "b_status_persistence": {
+  "state": "failing",
+  "reason": "disk full"
+ },
+ "c_cleared_after_s": 23.96,
+ "d_red_after_s": 9.0,
+ "d_pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 12s",
+ "e_red_after_s": 1.28,
+ "e_pill": "\u25cf SIMULATION NOT ADVANCING \u00b7 1s",
+ "e_status_error": "simulation thread stopped: SystemExit: injected simulation thread death",
+ "final_errors": [],
+ "daemon_exit_code": 0,
+ "finished_at": "2026-10-05T15:55:40+00:00",
+ "pass": true
+}

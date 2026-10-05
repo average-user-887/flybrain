@@ -175,7 +175,10 @@ def main():
         driver.execute_script(CONSOLE_HOOK)
 
         # a. healthy ---------------------------------------------------------------
-        u, ok, _ = wait_for(lambda u: "LIVE" in (u["pill"] or "") and u["lastStep"], 60)
+        # The step-age readout is painted by the page's 4 Hz freshness tick, which can
+        # follow the first LIVE paint by up to 250 ms: wait for both.
+        u, ok, _ = wait_for(lambda u: "LIVE" in (u["pill"] or "") and u["lastStep"]
+                            and u["stepAge"] not in (None, "--"), 60)
         rows = sample(5)
         R["samples"]["a_healthy"] = rows
         R["checks"]["a_healthy_live"] = ok and all("LIVE" in (r["pill"] or "") for r in rows)
