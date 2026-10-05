@@ -31,13 +31,16 @@ statistically, not bit for bit. It writes `verdict.json` and `verdict.md`. Eight
 5 s conditions plus a 5 s reuse check take about 25 minutes on a CPU brain
 backend.
 
-Measured on the CPU backend, with both decoders:
+Measured on the CPU backend, with both decoders, under the current gate. The
+full-duration reuse check was byte-identical over 2,500 of 2,500 records in both
+runs (5 October 2026, commit cd7cf2b):
 
 - **`dn-v2` (the default decoder): FAIL.** The DNa02 left/right asymmetry does
   reverse with the stimulus on both seeds, but DNp09 is all but silent, so there
   is no forward drive for DNa02 to shorten, and MDN spikes drive a small symmetric
-  reverse command. Every condition turns less than 0.04 rad. Receipt:
-  [`docs/receipts/embodied_stimulus_reversal.md`](../docs/receipts/embodied_stimulus_reversal.md).
+  reverse command. Every condition turns less than 0.04 rad. This is a valid
+  negative result. Receipt:
+  [`docs/receipts/embodied_stimulus_reversal_full_reuse_20261005.md`](../docs/receipts/embodied_stimulus_reversal_full_reuse_20261005.md).
 - **`dna02-crossed-v1` (legacy decoder): PASS.** Seed 0 turns +2.607 / -1.195 rad,
   seed 1 +3.107 / -1.017 rad; the turn is absent with the output cut, reverses
   when the left and right drive channels are exchanged (-2.457 rad), and same-sign
@@ -45,7 +48,13 @@ Measured on the CPU backend, with both decoders:
   magnitude (+2.607 -> +1.966 rad); one permutation does not show that the time
   course is irrelevant. Scope: CPU backend, two seeds, motion sign imposed on
   T4/T5 by the encoder, engineered decoder. Receipt:
-  [`docs/receipts/embodied_stimulus_reversal_legacy_decoder.md`](../docs/receipts/embodied_stimulus_reversal_legacy_decoder.md).
+  [`docs/receipts/embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md`](../docs/receipts/embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md).
+
+The earlier receipts (`embodied_stimulus_reversal.md`,
+`embodied_stimulus_reversal_legacy_decoder.md`) record the same numbers. They are
+kept as historical records with a dated note: their 50-record reuse check makes
+them UNVERIFIED under the current gate, and the legacy one's mean-only shuffle
+reading is not supported.
 
 The legacy decoder makes DNa02 the only source of propulsion, which the literature
 contradicts (see `docs/EMBODIED_MVP.md`), so its PASS is the claim *a DNa02
