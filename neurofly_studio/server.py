@@ -20,7 +20,10 @@ API (JSON unless noted):
 
 ``<source>`` is ``queue`` or ``curated``.  POST needs ``Content-Type:
 application/json`` and, when the browser sends one, a same-host ``Origin``, so
-another web page cannot queue runs through a visitor's browser.
+another web page cannot queue runs through a visitor's browser.  When the
+server is bound to a loopback address, every request must also name a loopback
+``Host`` (127.0.0.1, localhost or ::1): a DNS-rebinding page, whose requests
+carry its own host name in both ``Host`` and ``Origin``, is refused.
 """
 
 from __future__ import annotations
@@ -237,9 +240,20 @@ class Studio:
         raise FileNotFoundError(f"{name} is not waiting in the queue (it may already be running)")
 
 
+LOOPBACK_NAMES = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
 class StudioHandler(BaseHTTPRequestHandler):
     studio: Studio
     server_version = "NeuroFlyStudio/1"
+    # Host names a request may address; None accepts any (a non-loopback --host).
+    allowed_hosts: frozenset[str] | None = LOOPBACK_NAMES
+
+    def _host_allowed(self) -> bool:
+        if self.allowed_hosts is None:
+            return True
+        hostname = urlsplit("//" + (self.headers.get("Host") or "")).hostname
+        return hostname is not None and (hostname in self.allowed_hosts or hostname.startswith("127."))
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - stdlib signature
         return
@@ -266,6 +280,8 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self) -> None:  # noqa: N802
+        if not self._host_allowed():
+            return self._error(421, "this studio only answers requests addressed to 127.0.0.1 or localhost")
         path = urlsplit(self.path).path
         parts = [p for p in path.split("/") if p]
         try:
@@ -312,6 +328,8 @@ class StudioHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parts = [p for p in urlsplit(self.path).path.split("/") if p]
+        if not self._host_allowed():
+            return self._error(421, "this studio only answers requests addressed to 127.0.0.1 or localhost")
         if (self.headers.get("Content-Type") or "").split(";")[0].strip() != "application/json":
             return self._error(415, "send the experiment as application/json")
         if not self._same_origin():
@@ -339,7 +357,8 @@ class StudioHandler(BaseHTTPRequestHandler):
 
 
 def make_server(studio: Studio, host: str = "127.0.0.1", port: int = 8782) -> ThreadingHTTPServer:
-    handler = type("BoundStudioHandler", (StudioHandler,), {"studio": studio})
+    allowed = (LOOPBACK_NAMES | {host}) if is_loopback(host) else None
+    handler = type("BoundStudioHandler", (StudioHandler,), {"studio": studio, "allowed_hosts": allowed})
     server = ThreadingHTTPServer((host, port), handler)
     server.daemon_threads = True
     return server

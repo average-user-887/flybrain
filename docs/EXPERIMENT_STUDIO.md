@@ -92,7 +92,10 @@ daemon: that changes their speed, not their results.
 
 **Browser safety.** POSTs need `Content-Type: application/json` and, when the
 browser sends an `Origin`, the same host, so another web page cannot queue runs
-through a visitor's browser. Run names are server-generated, run files are
+through a visitor's browser. On a loopback bind (the default) every request must
+also be addressed to `127.0.0.1`, `localhost` or `::1` in its `Host` header, which
+refuses a DNS-rebinding page (its requests carry the attacker's host name in both
+`Host` and `Origin`, so the Origin check alone would pass them). Run names are server-generated, run files are
 served from a fixed list (`summary.json`, `manifest.json`, `body.nfbody`), and
 only finished runs are served.
 

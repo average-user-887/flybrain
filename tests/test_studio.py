@@ -228,6 +228,24 @@ def test_bad_submissions_and_cross_origin_posts_are_refused(served):
     assert studio.runs()["queue"] == []
 
 
+def test_dns_rebinding_hosts_are_refused_on_loopback(served):
+    """A rebinding page sends its own name as Host AND Origin, so the Origin check alone passes."""
+    studio, base = served
+    port = base.rsplit(":", 1)[1]
+    rebound = {"Host": f"attacker.example:{port}", "Origin": f"http://attacker.example:{port}"}
+    status, reply = _post(base + "/api/studio/experiments", GOOD, rebound)
+    assert status == 421 and "127.0.0.1" in reply["error"]
+    request = urllib.request.Request(base + "/api/studio/runs", headers={"Host": f"attacker.example:{port}"})
+    with pytest.raises(urllib.error.HTTPError) as error:
+        urllib.request.urlopen(request, timeout=10)
+    assert error.value.code == 421
+    assert studio.runs()["queue"] == []
+    for host in (f"localhost:{port}", f"127.0.0.1:{port}"):
+        request = urllib.request.Request(base + "/api/studio/runs", headers={"Host": host})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            assert response.status == 200
+
+
 def test_pending_jobs_can_be_cancelled(served):
     studio, base = served
     _, reply = _post(base + "/api/studio/experiments", {**GOOD, "repeats": 1, "control": None})
