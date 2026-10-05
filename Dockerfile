@@ -25,6 +25,7 @@ COPY brainlab/ ./brainlab/
 COPY experiments/ ./experiments/
 COPY neurofly_body/ ./neurofly_body/
 COPY validation/ ./validation/
+COPY neurofly_studio/ ./neurofly_studio/
 COPY data-provenance/ ./data-provenance/
 COPY docs/CAPABILITY_MATRIX.md ./docs/CAPABILITY_MATRIX.md
 COPY web/ ./web/
