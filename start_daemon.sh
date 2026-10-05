@@ -4,9 +4,10 @@
 #
 # Environment:
 #   NEUROFLY_PORT / NEUROFLY_SPEED / NEUROFLY_PARADIGM   launch parameters
-#   NEUROFLY_HOST                                        bind address. This script keeps its historical
-#                                                        0.0.0.0 (reachable from the LAN); set
-#                                                        NEUROFLY_HOST=127.0.0.1 for this machine only.
+#   NEUROFLY_HOST                                        bind address (default 127.0.0.1, this machine only).
+#                                                        NEUROFLY_HOST=0.0.0.0 exposes the API to your LAN;
+#                                                        commands are then open to anyone on it unless
+#                                                        NEUROFLY_PUBLIC/NEUROFLY_ADMIN_TOKEN are used.
 #                                                        (neurofly_daemon.py itself defaults to 127.0.0.1.)
 #   NEUROFLY_PUBLIC=1                                    read-only public mode (see docs/PUBLIC_STREAMING.md)
 #   NEUROFLY_ADMIN_TOKEN                                 bearer token that re-enables commands in public mode
@@ -23,7 +24,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR"
 
 PORT="${NEUROFLY_PORT:-8769}"
-HOST="${NEUROFLY_HOST:-0.0.0.0}"
+HOST="${NEUROFLY_HOST:-127.0.0.1}"
 SPEED="${NEUROFLY_SPEED:-15.0}"
 PARADIGM="${NEUROFLY_PARADIGM:-multisensory-sandbox}"
 BACKEND="${NEUROFLY_BACKEND:-modular}"
@@ -57,8 +58,10 @@ fi
 
 echo "[NeuroFly] Launching Continuous Learning Daemon in background..."
 echo "[NeuroFly] Interpreter: $PYTHON_BIN | Bind: $HOST:$PORT | Speed: ${SPEED}x | Assay: $PARADIGM | Backend: $BACKEND"
-if [ "$HOST" = "0.0.0.0" ]; then
-    echo "[NeuroFly] Note: listening on all interfaces (reachable from your LAN). Set NEUROFLY_HOST=127.0.0.1 for this machine only."
+if [ "$HOST" = "127.0.0.1" ]; then
+    echo "[NeuroFly] Note: reachable from this machine only. For LAN access set NEUROFLY_HOST=0.0.0.0 (commands are then open to your LAN)."
+else
+    echo "[NeuroFly] Note: listening on $HOST (reachable from your LAN). Unset NEUROFLY_HOST for this machine only."
 fi
 if [ "$BACKEND" != "modular" ] && [ -z "${NEUROFLY_GRAPH_DIR:-}" ]; then
     echo "[NeuroFly] Note: $BACKEND needs the prepared graph; set NEUROFLY_GRAPH_DIR=/path/to/malecns_v1 (or pass --graph-dir)."

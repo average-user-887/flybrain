@@ -15,10 +15,9 @@ def test_daemon_binds_localhost_by_default_and_keeps_host_option():
 
 
 def test_start_daemon_script_passes_host_explicitly():
-    # The owner's start_daemon.sh deployment relied on the old 0.0.0.0 default;
-    # it now states its bind address instead of inheriting the daemon default.
+    # Local only by default, stated explicitly; NEUROFLY_HOST=0.0.0.0 opts in to the LAN.
     text = (ROOT / 'start_daemon.sh').read_text()
-    assert 'HOST="${NEUROFLY_HOST:-0.0.0.0}"' in text
+    assert 'HOST="${NEUROFLY_HOST:-127.0.0.1}"' in text
     assert '--host "$HOST"' in text
 
 
