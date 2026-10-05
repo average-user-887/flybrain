@@ -58,8 +58,17 @@ preregistered spec later.
    - `tests/test_wp7_graph_policy.py::test_wp7_specs_are_frozen` recomputes
      it, so any edit fails CI. It also checks the sha256 of the T-maze spec
      that the encoder is taken from.
-   - E0: `872875ed24a3165475343f9e73e7ab782ec051dcf3a0b84932b83cfc03ebf455`.
-   - E1: `5f45ba6f50dffa736a0ad77d81d21eaaf6bc4de5416724f032e4aa56ef033401`.
+   - E0: `0e81043c0c8c735e08dc80a19c2626b3d7fde2736fb98b440aad391995eeea9c`.
+   - E1: `f7b8fbcac5637233cc7cd7b24043d4ad297ef434428c5bc95d9fc90289011ccc`.
+   - **Re-pins before any run.** The encoder is referenced by the sha256 of the
+     whole T-maze spec file, so an edit anywhere in that file breaks the pin.
+     It was re-pinned twice, both times before any WP7 output existed and with
+     the T-maze `encoder` block byte-identical: on 25 Sep 2026 after PR #22
+     changed the T-maze status (`7ac171fa…` → `7eb6f62b…`), and on 5 Oct 2026
+     after master repointed the T-maze spec to `firing_rate_bounds_v3.json`
+     (`7eb6f62b…` → `405cc81a…`, commit `9b1023f`). Each re-pin changes only
+     `encoder.from_spec_sha256` and therefore the two frozen content hashes
+     above.
 2. **Owner gate.** Only the owner changes `status` from `draft` to
    `preregistered`, in a commit that changes nothing else. That happens only
    after all three of these hold:
@@ -224,6 +233,10 @@ policy with defaults and are therefore unaffected.
 - `load_graph` passes `dynamics.kc_kc`, `dynamics.dpm` and
   `dynamics.kc_kc_calyx_file` to the policy. They are absent from every
   existing spec, so those specs behave as before.
+- `load_graph` refuses these options unless `dynamics.version` is `v3`. The
+  v4 and v5 engines take their graded and receptor-kinetics classes from the
+  released transmitter table, so under them a DPM relabelled GABA in the
+  weights would still be treated as dopaminergic.
 - `apply_graph_variant` and `python -m validation run --graph-variant ID`
   select one of a spec's **declared** `graph_variants`. An undeclared id is
   refused. The receipt records `graph.variant`.
@@ -420,7 +433,7 @@ compared with DAN-activation data first, and with shock data only by analogy.
 
 - **Graph.** All five variants of §2.2. Only V2_primary is gated.
 - **Encoder.** The P3 T-maze encoder, by reference: the `encoder` block of
-  `tmaze_odour_naive_v3.json` at sha256 `7eb6f62b…`. Odours are presented
+  `tmaze_odour_naive_v3.json` at sha256 `405cc81a…`. Odours are presented
   bilaterally.
 - **Protocol per seed** (20 s):
   - 2 s of air warm-up;
@@ -548,8 +561,8 @@ afterwards.
 
 - Confirmatory: 104 s × 6 conditions × 10 seeds = 6,240 s, about 4.3 GPU
   hours.
-- CPU parity: all 6 conditions on 3 seeds = 1,872 s, about 12.7 h on the Ryzen
-  CPU at 0.041×.
+- CPU parity: all 6 conditions on 3 seeds = 1,872 s, about 12.7 h on the reference
+  machine's CPU at 0.041×.
 
 ### 6.3 E2: the behavioural T-maze (declared; not frozen for running)
 
