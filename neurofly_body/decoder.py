@@ -68,6 +68,16 @@ class DNa02CPGDecoder:
             "right_cpg_drive": right_drive,
         }
 
+    def input_spikes(self, reply: dict, dt_ms: float) -> dict[str, int]:
+        """Integer DNa02 spikes per side this step: the decoder's whole input."""
+        counts = {}
+        for side, key in (("L", "l"), ("R", "r")):
+            spikes = reply.get(f"dna02_spikes_{key}")
+            if spikes is None:   # backend without integer counts: invert the bin rate
+                spikes = round(float(reply[f"dna02_rate_{key}"]) * dt_ms / 1000.0)
+            counts[f"DNa02_{side}"] = int(spikes)
+        return counts
+
     def decode_reply(self, reply: dict, dt_ms: float) -> dict:
         decoded = self.decode(float(reply["dna02_rate_l"]), float(reply["dna02_rate_r"]), dt_ms)
         decoded["events"] = []
@@ -186,6 +196,14 @@ class DNCommandDecoder:
             "right_cpg_drive": right,
             "events": events,
         }
+
+    def input_spikes(self, reply: dict, dt_ms: float) -> dict[str, int]:
+        """Integer spikes per input population this step, where the graph reports them."""
+        block = reply.get("locomotion_dn")
+        if not isinstance(block, dict):
+            return {}
+        names = self._RATES + ("GF_L", "GF_R")
+        return {name: int(block[f"{name}_spikes"]) for name in names if f"{name}_spikes" in block}
 
     def describe(self) -> dict:
         return {

@@ -508,8 +508,8 @@ class ConnectomeServer:
         for name, nodes in dn.populations.items():
             spikes = int(spike_counts[nodes].sum())
             reply[f"{name}_rate_hz"] = spikes / (len(nodes) * sec)
-            if name.startswith("GF_"):
-                reply[f"{name}_spikes"] = spikes
+            # Integer counts for every population: the run's real sample size.
+            reply[f"{name}_spikes"] = spikes
         return reply
 
     def get_status(self) -> Dict[str, Any]:
