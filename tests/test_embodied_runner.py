@@ -288,3 +288,13 @@ def test_dn_v2_summary_counts_every_decoder_input_population(tmp_path):
     assert "only 3 DNa02 spikes" in summary["dna02_spike_count_warning"]
     assert summary["mean_applied_drive_l"] > 0 and summary["mean_applied_drive_r"] > 0
     assert summary["max_cpg_drive"] == DNCommandDecoder().max_drive
+
+
+def test_manifest_limitations_name_the_decoder_inputs(tmp_path):
+    """D3/D4: the control is described honestly and the sample-size line fits the decoder."""
+    run_embodied(_config(tmp_path / "legacy"), FakeGraph(), FakeBody(), decoder=DNa02CPGDecoder())
+    manifest = json.loads((tmp_path / "legacy/manifest.json").read_text())
+    text = " ".join(manifest["limitations"])
+    assert "ACTIVE IN BOTH MODES" in text and "OUTPUT-PATH control" in text
+    assert "one DNa02 per side" in text
+    assert "not a biological lesion" in manifest["control"]["what_it_controls_for"]

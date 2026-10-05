@@ -76,6 +76,27 @@ MIN_USEFUL_DNA02_SPIKES = 10
 DRIVE_REPORTING_FRACTION_OF_MAX = 0.01
 
 
+def _sample_size_limitations(decoder_name: str) -> list[str]:
+    """D4/D5: what the motor command is built from, per decoder."""
+    if decoder_name == "dna02-crossed-v1":
+        return [
+            "The whole motor command derives from two single neurons out of 166,700 "
+            "(one DNa02 per side), so summary.json dna02_spike_count is the run's real "
+            "sample size.",
+            "At zero stimulus both DNa02 neurons still fire spontaneously and the fly "
+            "still walks. The decoder has no tonic term, but the system does have a "
+            "spontaneous walking drive from graph baseline activity.",
+        ]
+    if decoder_name == "dn-v2":
+        return [
+            "The whole motor command derives from a handful of descending neurons "
+            "(DNp09, DNa02, MDN and the giant fiber, per side), so summary.json "
+            "decoder_input_spikes is the run's real sample size; forward drive comes "
+            "from DNp09 and the turn from the DNa02 asymmetry (dna02_spike_count).",
+        ]
+    return []
+
+
 def _identity_digest(identity: dict[str, Any]) -> str:
     """SHA-256 of the canonical JSON of the hoisted identity block."""
     return hashlib.sha256(
@@ -390,6 +411,17 @@ def run_embodied(
             "control": {
                 "intact": "decoded command reaches FlyGym CPG",
                 "output-disconnected": "same graph and feedback run, decoded command replaced by [0,0]",
+                "what_it_controls_for": (
+                    "the output path only: it zeroes the CPG magnitude command and "
+                    "nothing else. It is not a biological lesion, and it does not "
+                    "distinguish the neural signal from any other signal of the same "
+                    "size. The stimulus-sign reversal does that; see the verdict "
+                    "subcommand."
+                ),
+                "still_active_in_the_control": (
+                    "the graph, the sensory feedback, the decoder, and FlyGym's own "
+                    "leg-retraction, stumbling and adhesion machinery"
+                ),
             },
             "determinism": {
                 "trajectory_sha256": "SHA-256 of telemetry.jsonl; set when the run completes",
@@ -427,6 +459,25 @@ def run_embodied(
                 "The model does not establish full behavioral reproduction.",
                 "Passive v3 graph activity may yield sparse or zero DNa02 spikes.",
                 "Contact force and torque values remain in raw MuJoCo model units.",
+                # D3
+                "FlyGym's stock leg-retraction and stumbling corrections and its "
+                "phase-driven tarsal adhesion stay ACTIVE IN BOTH MODES, including "
+                "when the decoded CPG command is exactly [0,0]: only the CPG "
+                "magnitude is zeroed, not the body controller. They are what moves "
+                "the joints of the output-disconnected control. Their per-step "
+                "values are in telemetry body.flygym_corrections and "
+                "body.cpg_phases_rad.",
+                "engineered_assistance_enabled=false in neural_backend refers to the "
+                "graph's injected currents only. It says nothing about the body: the "
+                "FlyGym controller's own corrections above are always on.",
+                # D4
+                "output-disconnected is an OUTPUT-PATH control, not a biological "
+                "lesion, and on its own it shows only that the FlyGym CPG moves the "
+                "body when driven and not when it is not. Noise, a constant or a sine "
+                "through the same decoder would produce the same gap. The claim that "
+                "the NEURAL signal drives the body rests on the stimulus-sign "
+                "reversal; run `python -m neurofly_body verdict`.",
+                *_sample_size_limitations(decoder.name),
             ],
         }
         output.set_manifest(manifest)

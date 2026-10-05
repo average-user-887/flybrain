@@ -215,7 +215,47 @@ class FlyGymBody:
             "cpg_magnitudes": np.asarray(
                 self.controller.cpg_network.curr_magnitudes, dtype=float
             ).tolist(),
+            "cpg_phases_rad": np.asarray(
+                self.controller.cpg_network.curr_phases, dtype=float
+            ).tolist(),
+            # D3.  FlyGym's own leg-retraction and stumbling corrections and its
+            # phase-driven adhesion run in EVERY mode, including when the decoded
+            # CPG command is exactly zero.  They were computed and discarded, so
+            # the residual joint motion of the output-disconnected control had no
+            # visible cause in the telemetry.  Now it does.
+            "flygym_corrections": self._controller_corrections(),
             **extra,
+        }
+
+    def _controller_corrections(self) -> dict[str, Any]:
+        """FlyGym's stock corrections for the substep just executed.
+
+        ``last_info`` is an empty dict until the controller has stepped once, so
+        a fresh ``reset()`` observation reports ``stepped: False`` and zeros.
+        """
+        info = getattr(self.controller, "last_info", None) or {}
+        legs = len(getattr(self.controller, "legs", ()) or ()) or 6
+        zeros = [0.0] * legs
+
+        def _floats(key: str) -> list[float]:
+            value = info.get(key)
+            return zeros if value is None else np.asarray(value, dtype=float).tolist()
+
+        leg = info.get("leg_to_correct_retraction")
+        return {
+            "stepped": bool(info),
+            "net_corrections": _floats("net_corrections"),
+            "retraction_correction": _floats("retraction_correction"),
+            "stumbling_correction": _floats("stumbling_correction"),
+            "stumbling_mask": [
+                bool(flag)
+                for flag in (
+                    info["stumbling_mask"]
+                    if info.get("stumbling_mask") is not None
+                    else [False] * legs
+                )
+            ],
+            "leg_to_correct_retraction": None if leg is None else int(leg),
         }
 
     def leg_load_uN(self, contact_found, forces) -> np.ndarray:
@@ -249,6 +289,17 @@ class FlyGymBody:
             "mujoco_version": version("mujoco"),
             "model": "FlyGym stock NeuroMechFly articulated locomotion model",
             "controller": "flygym_demo.complex_terrain.HybridTurningController",
+            "always_active_flygym_machinery": [
+                "leg-retraction correction (stock FlyGym): raises a leg whose tarsus is "
+                "too high, in every mode, including when the decoded CPG command is zero",
+                "stumbling correction (stock FlyGym): reacts to leg contact forces "
+                "against the heading, in every mode",
+                "phase-driven adhesion (add_adhesion=True): tarsal adhesion is switched "
+                "by CPG phase, which keeps advancing when the CPG magnitude is zero",
+                "these three explain the residual joint motion of the "
+                "output-disconnected control; per-substep values are in "
+                "telemetry body.flygym_corrections and body.cpg_phases_rad",
+            ],
             "physics_dt_s": self.physics_dt_s,
             "controller_loop": "fast" if self._fast_loop is not None else "stock",
             "warmup_s": self._warmup_s,
