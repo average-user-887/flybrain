@@ -23,6 +23,7 @@ import hashlib
 import io
 import json
 import os
+import sys
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -320,7 +321,11 @@ class ExperimentRegistry:
         if not self.index_path.exists():
             return dict(format=REGISTRY_FORMAT, graph_sha256=self.shared.identity.graph_sha256,
                         synthetic=self.shared.identity.synthetic, instances={})
-        index = json.loads(self.index_path.read_text())
+        try:
+            index = json.loads(self.index_path.read_text())
+        except ValueError as error:
+            raise IncompatibleCheckpoint(f'{self.index_path} is not valid JSON ({error}); it is empty or '
+                                         f'truncated') from error
         if index.get('format') != REGISTRY_FORMAT:
             raise IncompatibleCheckpoint(f'{self.index_path} is not a {REGISTRY_FORMAT} index')
         if index.get('graph_sha256') != self.shared.identity.graph_sha256:
@@ -395,14 +400,96 @@ class ExperimentRegistry:
         entry = self.index['instances'][instance_id]
         manifest = self.manifest(instance_id)
         instance = GraphInstance(self, assay, backend, instance_id, entry['seed'], manifest)
-        current = self.current_pointer(instance_id)
-        if current is not None:
-            meta, arrays = self.read_checkpoint(instance_id)
-            instance.load_payload(meta, arrays)
-            instance.checkpoint_version = current['version']
-            self._event(instance, 'restore', version=current['version'], step=instance.step_index)
+        self._restore(instance)
         self.active = instance
         return instance
+
+    def _restore(self, instance: 'GraphInstance') -> None:
+        """Restore the newest checkpoint that verifies (audit F, F6).
+
+        The version CURRENT.json names is tried first.  If CURRENT.json is
+        unreadable, or that file is missing, corrupt or incompatible, the retained
+        versions are tried newest to oldest (each checked against the hash its
+        ``checkpoint`` event recorded, when there is one).  The first that verifies
+        is restored and a ``restore`` event names the skipped versions.  Damaged
+        files are left in place.  Refuses only when none verifies.
+        """
+        instance_id = instance.instance_id
+        pointer_path = self.instance_dir(instance_id) / 'CURRENT.json'
+        if not pointer_path.exists():
+            return                                          # a new instance: fresh start
+        problem = None
+        try:
+            current = self.current_pointer(instance_id)
+        except (ValueError, OSError) as error:
+            current, problem = None, f'CURRENT.json unreadable ({type(error).__name__}: {error})'
+        if current is not None:
+            try:
+                meta, arrays = self.read_checkpoint(instance_id)
+            except (CheckpointCorrupt, IncompatibleCheckpoint, OSError, KeyError, ValueError) as error:
+                problem = f'version {current.get("version")}: {type(error).__name__}: {error}'
+            else:
+                instance.load_payload(meta, arrays)
+                instance.checkpoint_version = current['version']
+                self._event(instance, 'restore', version=current['version'], step=instance.step_index)
+                return
+        directory = self.instance_dir(instance_id) / 'checkpoints'
+        versions = []
+        for path in directory.glob('ckpt-*.npz'):
+            try:
+                versions.append((int(path.stem[len('ckpt-'):]), path))
+            except ValueError:
+                continue
+        hashes = self._recorded_hashes(instance_id)
+        skipped = [{'version': current.get('version'), 'reason': problem}] if current is not None else []
+        for version, path in sorted(versions, reverse=True):
+            if current is not None and version == current.get('version'):
+                continue
+            try:
+                meta, arrays = load_checkpoint_file(path, expected_sha256=hashes.get(version))
+                self._check_meta(instance_id, path, meta)
+            except (CheckpointCorrupt, IncompatibleCheckpoint, OSError, KeyError, ValueError) as error:
+                skipped.append({'version': version, 'reason': f'{type(error).__name__}: {error}'})
+                continue
+            instance.load_payload(meta, arrays)
+            # New checkpoints are numbered above every file on disk, so the damaged
+            # ones are never overwritten (retention prunes them later, as usual).
+            highest = max([v for v, _ in versions] + [int((current or {}).get('version') or 0)])
+            instance.checkpoint_version = highest
+            self._event(instance, 'restore', version=version, step=instance.step_index, fallback=True,
+                        problem=problem, skipped=skipped, sha256_checked=version in hashes)
+            print(f'[Registry] {instance.assay}/{instance.backend}: {problem}; restored the newest checkpoint '
+                  f'that verifies (version {version}, step {instance.step_index}); skipped '
+                  f'{len(skipped)} newer version(s).', file=sys.stderr, flush=True)
+            return
+        raise CheckpointCorrupt(f'no saved checkpoint of {instance.assay}/{instance.backend} verifies '
+                                f'({problem}; {len(versions)} retained version(s) tried) in '
+                                f'{self.instance_dir(instance_id)}')
+
+    def _recorded_hashes(self, instance_id: str) -> dict:
+        """version -> sha256 from the instance's ``checkpoint`` events (best effort)."""
+        hashes = {}
+        path = self.instance_dir(instance_id) / 'events.jsonl'
+        try:
+            lines = path.read_text().splitlines()
+        except OSError:
+            return hashes
+        for line in lines:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if event.get('kind') == 'checkpoint' and event.get('sha256') and event.get('version') is not None:
+                hashes[int(event['version'])] = event['sha256']
+        return hashes
+
+    def _check_meta(self, instance_id: str, path: Path, meta: dict) -> None:
+        entry = self.index['instances'][instance_id]
+        for key, expected in (('backend', entry['backend']), ('assay', entry['assay']),
+                              ('instance_id', instance_id), ('graph_sha256', self.shared.identity.graph_sha256),
+                              ('io_map_sha256', self.shared.identity.io_map_sha256)):
+            if meta.get(key) != expected:
+                raise IncompatibleCheckpoint(f'Checkpoint {path.name} {key}={meta.get(key)!r}, expected {expected!r}')
 
     def is_current_packet(self, identity: dict) -> bool:
         """Stale packets (other run/instance) must be rejected by the consumer."""

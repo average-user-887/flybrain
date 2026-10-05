@@ -311,6 +311,13 @@ class RecorderThread(threading.Thread):
         self._stopped = False
         self._last_summary = 0.0
         self.errors = 0
+        # Exposed in the daemon's /api/status (audit F, F2): a disk-full recorder is
+        # reported as "not saving" instead of only printing to the journal.
+        self.last_error: Optional[str] = None
+        self.last_errno: Optional[int] = None
+        self.last_error_at: Optional[float] = None
+        self.failing_since: Optional[float] = None
+        self.last_ok_at: Optional[float] = None
 
     def poll_once(self, force_summary: bool = False) -> Dict[str, int]:
         """One drain cycle; safe to call directly from tests."""
@@ -325,13 +332,32 @@ class RecorderThread(threading.Thread):
             self._last_summary = now
         return {"trials": written, "summaries": 1 if summary is not None else 0}
 
+    def _note_error(self, err: BaseException) -> None:
+        self.errors += 1
+        now = time.time()
+        self.last_error = f"{type(err).__name__}: {err}"
+        self.last_errno = getattr(err, "errno", None)
+        self.last_error_at = now
+        if self.failing_since is None:
+            self.failing_since = now
+
+    def describe(self) -> Dict[str, Any]:
+        """Recorder health: ``failing`` while the newest attempt failed."""
+        return {"errors": self.errors, "last_error": self.last_error, "last_errno": self.last_errno,
+                "last_error_at": self.last_error_at, "last_ok_at": self.last_ok_at,
+                "failing": self.failing_since is not None, "failing_since": self.failing_since,
+                "data_dir": str(getattr(self.recorder, "data_dir", "") or "") or None}
+
     def run(self) -> None:
         while not self._stop_event.is_set():
             try:
                 self.poll_once()
             except Exception as err:  # never let recording kill the daemon
-                self.errors += 1
+                self._note_error(err)
                 print(f"[Recorder] error: {err}", file=sys.stderr, flush=True)
+            else:
+                self.last_ok_at = time.time()
+                self.failing_since = None
             self._stop_event.wait(self.poll_interval)
 
     def stop(self, timeout: float = 3.0) -> None:
@@ -345,6 +371,6 @@ class RecorderThread(threading.Thread):
         try:
             self.poll_once(force_summary=True)
         except Exception as err:
-            self.errors += 1
+            self._note_error(err)
             print(f"[Recorder] final flush error: {err}", file=sys.stderr, flush=True)
         self.recorder.close()

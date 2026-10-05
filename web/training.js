@@ -95,7 +95,10 @@ async function refresh() {
   if(data.brain.brain_id!==data.telemetry.brain_id) throw new Error('Inconsistent brain snapshot; retrying.');
   if (!connected) message('Connected. Live controls act on this retained brain; each experiment keeps its own memory.');
   connected=true; snapshot=data;writable=!data.status.stream?.read_only&&!data.status.stream?.commands_require_token;
-  $('trainingConnection').textContent=`Live daemon · ${data.status.sim_speed}×${writable?'':' · read only'}`;
+  // Audit F: never say "Live" while the daemon reports the simulation not advancing.
+  const st=data.status||{}, live=st.liveness||{}, notAdv=st.status==='error'||['stalled','dead'].includes(live.state);
+  $('trainingConnection').textContent=(notAdv?`Daemon connected · SIMULATION NOT ADVANCING (${st.error||live.state||'halted'})`
+   :st.paused?'Daemon connected · paused':`Live daemon · ${st.sim_speed}×`)+(st.status==='degraded'?` · NOT SAVING: ${st.persistence?.reason||'write failed'}`:'')+(writable?'':' · read only');
   render();
  }catch(error){connected=false;writable=false;$('trainingConnection').textContent='Disconnected · last measurements may be stale';message(error.message,true);buttons();}
  finally{refreshing=false;}

@@ -186,6 +186,44 @@ SSE `heartbeat` events carry `step_in_progress_s` (wall seconds the current step
 has run, 0 between steps) and `last_step_wall_s`; `timing` in frames and
 `/api/status` carries the same two fields.
 
+### Liveness and saving (`status`, `liveness`, `persistence`, `recording_error`)
+
+Added after audit F (docs/receipts/audit-20261005/F-robustness.md), where the
+simulation thread died on a full disk while `/api/status` still said `online`.
+`/api/status`, every stream frame and every SSE `heartbeat` (which also carries
+`step`, `paused`, `halted` and `error`) report whether the simulation advances and
+whether it saves:
+
+| field | meaning |
+|---|---|
+| `status` | `error` (halted, stalled or the simulation thread is dead), else `degraded` (something is not being saved), else `online`. A paused run is `online` with `paused: true` |
+| `liveness.state` | `advancing`, `paused`, `halted`, `slow` (one step has run > 2 s), `stalled` (no step for longer than `stall_threshold_s` while it should step, or one step longer than `step_hard_limit_s`), `dead` (the simulation thread has ended), `not_started`, `stopped` |
+| `liveness.step`, `last_advance_age_s` | the step counter and the wall seconds since it last increased |
+| `liveness.sim_thread_alive` | whether the simulation thread runs |
+| `liveness.stall_threshold_s` | `max(10 s, 20 x dt / speed, 3 x last_step_wall_s)` |
+| `persistence.state` | `ok`, `failing` (a write raised) or `disk_low` (free space below 2 x the last checkpoint + 512 MB, so the checkpoint was skipped before the disk filled) |
+| `persistence.failing` | per channel (`checkpoint`, `trial_ledger`, `events_ledger`, `brain_save`, `recording`, `learning_records`): `error`, `errno`, `path`, `since`, `failures`, `backoff_s`, `next_retry_at` |
+| `persistence.reason`, `summary`, `since` | `"disk full"` when any channel failed with ENOSPC or is `disk_low` |
+| `persistence.last_ok_save_at`, `last_ok_save_age_s` | the last checkpoint that was written |
+| `recording_error` | a `--record` / `record_start` capture that failed: the recording stopped (its `.partial` file is kept), the run continues |
+
+`/api/status` also has `loop_failure` (type, message, phase and traceback tail of
+whatever ended the simulation thread) and `thread_failures` (uncaught exceptions
+in any `NeuroFly-*` thread, recorded by a `threading.excepthook` backstop).
+With status `dead`, `halted` is true and `error` starts with
+`simulation thread stopped:`; `POST /api/command` then refuses everything except
+`switch_paradigm` / `switch_backend`, whose success restarts the thread (the reply
+has `loop_restarted: true`). `timing.achieved_speed` is computed when it is read,
+from the steps of the last few seconds, so it drops to 0 when nothing advances.
+
+An exception anywhere in the simulation loop (not only inside `arena.step`) is an
+honest halt whose `error_detail.phase` names where it happened (`step`, `publish`
+after 3 consecutive failed frames, `trial bookkeeping`, `command`, `persistence`
+with `--halt-on-persistence-failure`). A failed save is not a halt: the run keeps
+stepping and reports `status: "degraded"`; the periodic checkpoint is retried after
+30 s, doubling to at most 10 minutes. These health fields are wall-clock state and
+are not part of `.nfrec` recordings.
+
 ### Identity (`identity`, also in `/api/status`, the ack and exports)
 
 Compact form of the run manifest (`provenance.RunManifest.identity()`):

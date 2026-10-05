@@ -111,6 +111,49 @@ without a choice; they must not be presented as successful learning trials.
 - Public-stream authorization applies to all new commands. The observatory
   acts as a read-only viewer when public commands need an admin token.
 
+## When something fails
+
+The daemon never shows a stopped simulation as running (audit F,
+`docs/receipts/audit-20261005/F-robustness.md`):
+
+- **The page.** Next to *Data age* the navbar shows *Step age*: seconds since the
+  step counter last increased. If the daemon reports the simulation stalled or its
+  thread dead, or the step has not moved for `max(10 s, 20 steps)` while not
+  paused or halted, the pill turns red: `SIMULATION NOT ADVANCING · Ns`. It never
+  says LIVE while the step does not advance (paused shows `DAEMON CONNECTED ·
+  PAUSED`). Selecting an assay rebuilds the controller and restarts a stopped
+  simulation thread; if that does not help, restart the daemon (it resumes from the
+  last checkpoint).
+- **Disk full.** A failed save does not stop the simulation. The run keeps
+  stepping, `/api/status` says `degraded`, and the page shows an amber
+  `NOT SAVING: disk full (last saved N min ago)` banner. The checkpoint is retried
+  after 30 s, then 1, 2, 4, 8 and at most 10 minutes; free disk space and it
+  resumes by itself. Before each checkpoint the daemon checks that at least 2 x the
+  last checkpoint size + 512 MB is free and skips the write (reported as
+  `disk almost full`) if not, so it is not the process that fills the disk. Prefer
+  to stop instead? Start with `--halt-on-persistence-failure`. A failing
+  `--record` recording stops and is reported; the run continues.
+- **A step that never returns** (a GPU or I/O hang) is reported as stalled after
+  `--step-hard-limit` seconds (default 300).
+- **Unattended restarts.** `--exit-on-stall SECONDS` makes the daemon exit with
+  code 70 after the simulation has not advanced for that long. Under a service
+  manager with `Restart=always` (as the observatory units have) it then restarts
+  and resumes from the last checkpoint. It is off by default and the generated
+  unit files do not set it; add it to the brain unit's command line if you want it.
+- **Startup.** If the newest checkpoint of an assay is damaged or missing, or its
+  `CURRENT.json` is unreadable, the daemon restores the newest retained checkpoint
+  that verifies and logs which versions it skipped; damaged files are kept. If none
+  verifies, or another state file is unreadable, it refuses to start with one plain
+  sentence naming the file and what to do (`NEUROFLY_DEBUG=1` adds the traceback).
+- **Disk use.** A connectome checkpoint is about 17 MB. At the observatory's 30 s
+  interval that is about 2 GB of writes per hour; for a long-running observatory
+  `--checkpoint-interval 300` (or `NEUROFLY_CHECKPOINT_INTERVAL=300`) is
+  recommended, about 0.2 GB per hour. Retention keeps the newest
+  `--keep-checkpoints` (default 20) periodic records for every assay and the
+  newest `--keep-shutdown-checkpoints` (default 5) shutdown records.
+- **Shutdown** saves one final checkpoint. If that fails, the recorder flush and
+  PID-file removal still run, and the exit code is 1.
+
 ## Verification
 
 ```bash
