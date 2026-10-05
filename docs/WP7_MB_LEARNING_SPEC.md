@@ -21,13 +21,17 @@ preregistration drafts:
 > audit; the frozen spec JSONs, their content hashes and every gate above are
 > unchanged).
 >
-> - **E1 is calibration robustness, not independent biological validation.** η_γ1pedc
->   is fitted to Hige 2015's 80 % CS+ depression (§6.2.3), and E1 then measures that
->   same depression on fresh seeds. A pass would show that the fitted rule reproduces
->   its own calibration target across seeds and survives the null controls. It would
->   not be independent evidence that MB-R1 or the MaleCNS mushroom body learns as the
->   fly does. The D(CS−) specificity comparison is the only out-of-sample quantity in
->   E1, and it is reported, not gated. Results must be described in these terms.
+> - **Fresh seeds do not independently validate the fitted 80 % target.** η_γ1pedc is
+>   fitted to Hige 2015's 80 % CS+ depression (§6.2.3). Reproducing that depression on
+>   fresh seeds is calibration robustness, not independent biological validation of
+>   MB-R1 or of the MaleCNS mushroom body.
+> - **Quantities distinct from the fitted target keep their declared gates.** The
+>   specificity direction, D(CS+) − D(CS−) > 0 (E1_G2), and the null-control
+>   comparisons (E1_G3–G7) are not the fitted target and remain gated as declared.
+>   The compartment-specificity check is likewise distinct from the fit, and stays
+>   reported as declared. Only the quantitative magnitude comparison of D(CS−) to
+>   Hige's 27 % CS− depression is report-only. Results must be described in these
+>   terms.
 > - **Fitting permission.** The owner's standing permission (`docs/OWNER_DECISIONS.md`,
 >   5 October 2026, Ruling 2) covers fitting the properties of **non-motion input
 >   cells** to physiological recordings, with the tested behaviour held out. Fitting a

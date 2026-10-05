@@ -1716,7 +1716,7 @@ against the primary papers on 5 October 2026 (details and quotations in
   in §3.1 and §6.7 (arm S2) is unverified. It is in any case a whole-cell reversal,
   which the pipette sets.
 * No paper retrieved reports a **native** adult central `E_Cl`. `E_inh` is
-  unconstrained by the literature, so −70 mV (the assumption here), −60 mV and −56 mV
+  not numerically constrained by these reviewed measurements, so −70 mV (the assumption here), −60 mV and −56 mV
   are all sensitivity points, and none is physiologically privileged.
 
 §3.1 already labels −70 mV an engineering assumption, and that stands. What is
