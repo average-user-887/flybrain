@@ -352,6 +352,32 @@ def run_embodied(
                              f"(zeros until then){'; graph and body steps run concurrently' if config.pipeline else ''}"),
                 "motor_delay_ms": config.motor_delay_steps * config.neural_dt_ms,
             },
+            # D2.  Three rate conventions coexist in a telemetry record and only
+            # one of them can be read against the WP5 acceptance bands.
+            "rate_conventions": {
+                "applies_to": (
+                    "the connectome controller; the modular controller has no spiking "
+                    "neurons and its records carry none of these fields"
+                ),
+                "integer_counts": (
+                    "neural.dna02_spikes_l/r are integer spikes of one DNa02 neuron per "
+                    "side per neural bin; neural.locomotion_dn.<population>_spikes are "
+                    "integer spikes of each dn-v2 input population per bin"
+                ),
+                "bin_rates": (
+                    "neural.dna02_bin_rate_l/r_hz, the legacy neural.dna02_rate_l/r and "
+                    "neural.locomotion_dn.<population>_rate_hz divide a count by the bin "
+                    "duration (per neuron for locomotion_dn), so a 2 ms bin quantizes one "
+                    "neuron's rate to multiples of 500 Hz"
+                ),
+                "wp5_comparable_field": (
+                    "only a rate filtered across bins is comparable with the WP5 DNa02 "
+                    "acceptance bands (< 20 Hz): motor.decoder.filtered_rates_hz under "
+                    "dn-v2, motor.decoder.filtered_rate_l_hz / filtered_rate_r_hz under "
+                    "dna02-crossed-v1; the bin rates are not, and neither is dna02_diff"
+                ),
+                "sample_size_field": "summary.json decoder_input_spikes and dna02_spike_count",
+            },
             "sensory_feedback": {
                 "equation": "retinal_slip_rad_s = world_angular_velocity_rad_s - body_yaw_velocity_rad_s",
                 "contrast": config.contrast,

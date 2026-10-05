@@ -59,9 +59,16 @@ class DNa02CPGDecoder:
         right_drive = min(self.max_drive, self.gain_per_hz * self.rate_l_hz)
         if self.rate_l_hz == 0.0 and self.rate_r_hz == 0.0:
             left_drive = right_drive = 0.0
+        # D2.  ``raw_rate_*_hz`` invited the reader to compare a single neuron's
+        # count over one 2 ms bin - quantized to multiples of 500 Hz - with the
+        # WP5 DNa02 acceptance band of < 20 Hz.  The integer count and the bin
+        # rate are now named for what they are, and only ``filtered_rate_*_hz``
+        # is comparable with those bands.
         return {
-            "raw_rate_l_hz": float(rate_l_hz),
-            "raw_rate_r_hz": float(rate_r_hz),
+            "dna02_spikes_l": int(round(float(rate_l_hz) * dt_ms / 1000.0)),
+            "dna02_spikes_r": int(round(float(rate_r_hz) * dt_ms / 1000.0)),
+            "dna02_bin_rate_l_hz": float(rate_l_hz),
+            "dna02_bin_rate_r_hz": float(rate_r_hz),
             "filtered_rate_l_hz": self.rate_l_hz,
             "filtered_rate_r_hz": self.rate_r_hz,
             "left_cpg_drive": left_drive,
@@ -95,6 +102,23 @@ class DNa02CPGDecoder:
             "tonic_drive": 0.0,
             "zero_spikes": "exactly zero CPG drive after reset",
             "biological_vnc_claim": False,
+            "rate_conventions": {
+                "dna02_spikes_l_and_r": (
+                    "integer spikes of one DNa02 neuron per side in this neural bin"
+                ),
+                "dna02_bin_rate_l_and_r_hz": (
+                    "those spikes divided by the bin duration; a 2 ms bin quantizes it "
+                    "to multiples of 500 Hz, so it is NOT comparable with the WP5 DNa02 "
+                    "acceptance band (< 20 Hz)"
+                ),
+                "filtered_rate_l_and_r_hz": (
+                    f"the {self.tau_ms} ms leaky integral of the bin rates, and the only "
+                    "quantity in this record comparable with the WP5 DNa02 bands"
+                ),
+                "drives_the_body": (
+                    "left_cpg_drive and right_cpg_drive, computed from filtered_rate_*"
+                ),
+            },
         }
 
 
@@ -238,6 +262,20 @@ class DNCommandDecoder:
             "tonic_drive": 0.0,
             "zero_spikes": "exactly zero CPG drive",
             "biological_vnc_claim": False,
+            "rate_conventions": {
+                "raw_rates_hz": (
+                    "per-neuron spikes of each population in this neural bin divided by the "
+                    "bin duration; a 2 ms bin quantizes a single neuron's rate to multiples "
+                    "of 500 Hz, so it is NOT comparable with the WP5 DNa02 acceptance band "
+                    "(< 20 Hz)"
+                ),
+                "filtered_rates_hz": (
+                    f"the {self.tau_ms} ms leaky integral of raw_rates_hz, and the only rate "
+                    "in this record comparable with the WP5 DNa02 bands"
+                ),
+                "integer_counts": "neural.locomotion_dn.<population>_spikes",
+                "drives_the_body": "left_cpg_drive and right_cpg_drive, computed from filtered_rates_hz",
+            },
         }
 
 
