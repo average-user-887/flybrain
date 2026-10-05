@@ -1,0 +1,83 @@
+[
+ {
+  "assay": "t-maze",
+  "wp6": {
+   "mean": "0.0000",
+   "max": "0.0000",
+   "pct": "0.0"
+  },
+  "last": {
+   "pktStep": 154769,
+   "fly": [
+    70,
+    55.5,
+    1.57
+   ],
+   "spikes": 2,
+   "dn": {
+    "l": "0.0",
+    "r": "0.0",
+    "dnp09": "0.0",
+    "mdn": "0.0",
+    "gf": "0.0"
+   },
+   "identBackend": "connectome-plastic",
+   "badge": "CONNECTOME PLASTIC (WP6)",
+   "epgBump": "0\u00b0"
+  }
+ },
+ {
+  "assay": "buridan",
+  "wp6": {
+   "mean": "0.0088",
+   "max": "0.0232",
+   "pct": "1.8"
+  },
+  "last": {
+   "pktStep": 155117,
+   "fly": [
+    108.5,
+    60,
+    0
+   ],
+   "spikes": 136,
+   "dn": {
+    "l": "0.0",
+    "r": "0.0",
+    "dnp09": "0.0",
+    "mdn": "0.0",
+    "gf": "0.0"
+   },
+   "identBackend": "connectome-plastic",
+   "badge": "CONNECTOME PLASTIC (WP6)",
+   "epgBump": "0\u00b0"
+  }
+ },
+ {
+  "assay": "optomotor",
+  "wp6": {
+   "mean": "0.4272",
+   "max": "3.3156",
+   "pct": "85.4"
+  },
+  "last": {
+   "pktStep": 155263,
+   "fly": [
+    45,
+    45,
+    0.76
+   ],
+   "spikes": 1774,
+   "dn": {
+    "l": "11.7",
+    "r": "0.0",
+    "dnp09": "0.0",
+    "mdn": "0.0",
+    "gf": "0.0"
+   },
+   "identBackend": "connectome-plastic",
+   "badge": "CONNECTOME PLASTIC (WP6)",
+   "epgBump": "0\u00b0"
+  }
+ }
+]

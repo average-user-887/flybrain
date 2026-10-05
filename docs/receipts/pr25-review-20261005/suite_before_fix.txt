@@ -1,0 +1,8 @@
+E       AssertionError: assert '405cc81a612a...7562faa44bbf5' == '7eb6f62bf2c2...64addd568be2a'
+E       AssertionError: assert '405cc81a612a...7562faa44bbf5' == '7eb6f62bf2c2...64addd568be2a'
+SKIPPED [1] tests/test_browser_recovery.py:27: set NEUROFLY_BROWSER_PYTHON to an interpreter with selenium
+SKIPPED [1] tests/test_embodied_physics.py:7: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [4] tests/test_fast_controller.py:7: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [1] tests/test_fast_controller.py:62: set NEUROFLY_RUN_PHYSICS=1 in the FlyGym 2.1 environment
+SKIPPED [2] tests/test_wall_progress_fixtures.py:256: set NEUROFLY_RETAINED_BRAINS to a COPY of retained checkpoints
+2 failed, 733 passed, 9 skipped in 187.64s (0:03:07)

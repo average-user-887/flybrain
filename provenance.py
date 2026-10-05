@@ -14,7 +14,6 @@ import copy
 import hashlib
 import json
 import os
-import platform
 import subprocess
 import time
 import uuid
@@ -23,6 +22,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+
+from neurofly.privacy import host_description, portable_path, redact_local
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST_SCHEMA = 'neurofly.run-manifest.v1'
@@ -109,7 +110,9 @@ def _sha(path: Path) -> Optional[str]:
 
 def source_revision(root: Path = ROOT, files: Optional[tuple] = None) -> dict:
     """Git revision (read-only commands, no index refresh) plus file hashes."""
-    info: Dict[str, Any] = {'root': str(root)}
+    # 'root' is kept for readers of older manifests; it is written as a placeholder
+    # (``<repo>``), never as the absolute checkout path.
+    info: Dict[str, Any] = {'root': portable_path(root)}
     env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
     try:
         info['commit'] = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], env=env,
@@ -170,7 +173,9 @@ class RunManifest:
     events: List[dict] = field(default_factory=list)
     parent_run_id: Optional[str] = None
     created_at: float = field(default_factory=time.time)
-    host: str = field(default_factory=platform.node)
+    # Non-identifying hardware/software description (neurofly.privacy.host_description).
+    # Manifests written before October 2026 hold a string here; both shapes are read.
+    host: Any = field(default_factory=host_description)
 
     @classmethod
     def create(cls, *, backend: str, assay: str, instance_id: str, seed: int,
@@ -213,7 +218,9 @@ class RunManifest:
                     test_mode=self.test_mode, label=self.label)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        """The manifest as written to disk and shown in the UI: absolute local paths
+        (graph files, checkpoints, source root) are replaced by placeholders."""
+        return redact_local(asdict(self))
 
     def write(self, path: Path) -> None:
         atomic_write_bytes(Path(path), (json.dumps(self.to_dict(), indent=2, allow_nan=False) + '\n').encode())

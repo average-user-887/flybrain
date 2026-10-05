@@ -46,11 +46,9 @@ from .engine import (DELAY_MS, E_EXC_MV, R_MAX_HZ, REFRACTORY_MS, TAU_M_MS,
 
 
 def cupy_available() -> bool:
-    try:
-        import cupy
-        return bool(cupy.cuda.runtime.getDeviceCount())
-    except Exception:
-        return False
+    """True only when CuPy kernels and cuSPARSE really run (brainlab.gpu_probe)."""
+    from .gpu_probe import cupy_sparse
+    return cupy_sparse()[0]
 
 
 def _transposed_csr(ptr, post, data, n):

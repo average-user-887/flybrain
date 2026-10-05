@@ -11,8 +11,11 @@ This module runs that experiment as a single subcommand, with the same decoder
 choice as ``run`` (``dn-v2`` by default, ``dna02-crossed-v1`` for the legacy
 mapping).  The graph and the body are loaded once and reset between
 conditions, because the graph load costs tens of seconds; a reuse check at the
-end proves the reset is complete by re-running the first condition from the
-reused state and requiring the same telemetry bytes.  Every intact and
+end re-runs the first condition from the reused state and requires the same
+telemetry bytes as its fresh run.  Only a reuse check over the whole condition
+(``--reuse-check-duration`` equal to ``--duration``) counts as the comparability
+control; the default 0.1 s window is a smoke comparison and leaves the verdict
+UNVERIFIED.  Every intact and
 output-disconnected condition also records a ``run``-compatible invocation, so
 ``python -m neurofly_body replay-check <condition dir>`` re-runs it standalone
 on a freshly loaded server.
@@ -25,15 +28,24 @@ on a freshly loaded server.
   drive so that the per-channel mean reaching the CPG is preserved exactly while
   its neural content is not.  ``channel-swapped`` exchanges left and right, which
   tests whether the body follows WHICH side the command came from.
-  ``time-shuffled`` permutes the time order of the drive pairs, which tests
-  whether the temporal pattern matters or only the mean difference does.
+  ``time-shuffled`` permutes the time order of the drive pairs under one fixed
+  seed.  It shows only whether same-sign turning survives that one
+  permutation; a single permutation cannot show that the time course is
+  irrelevant or that the turn is carried by the mean alone.
+
+The stimulus is not seen: the server injects the motion sign directly into the
+T4/T5 direction-selective neurons (``brainlab/cosim_server.py``, the WP5
+optomotor encoder).  A verdict is therefore about the circuit downstream of
+T4/T5 and the body, never about motion computation from photoreceptors.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import os
 import platform
+import shlex
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -59,7 +71,31 @@ YAW_PASS_THRESHOLD_RAD = 0.2
 # Fixed permutation seed, so the time-shuffled control is reproducible.
 SHUFFLE_SEED = 20260926
 
-VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "INVALID")
+# Identities a reproduction must match, copied from the server status.
+REPRODUCE_DATA_IDS = (
+    "graph_sha256",
+    "graph_content_sha256",
+    "neuron_map_sha256",
+    "neuron_map_content_sha256",
+    "io_map_sha256",
+    "optomotor_io_map_sha256",
+    "locomotion_dn_map_sha256",
+    "num_neurons",
+)
+REPRODUCE_DYNAMICS_IDS = (
+    "lif_dynamics_version",
+    "lif_dynamics_pin",
+    "controller_version",
+    "transmitter_policy",
+    "engineered_assistance_enabled",
+)
+
+# PASS and FAIL are the only validated outcomes.  INCONCLUSIVE: too few DNa02
+# spikes to judge.  UNVERIFIED: the comparability control (a reuse check over a
+# whole condition) was skipped or ran over only part of a condition, so the
+# turns may be read but not relied on.  INVALID: the reuse check found
+# divergent telemetry, so the conditions are not comparable at all.
+VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE", "UNVERIFIED", "INVALID")
 
 # What the verdict's decoders are built from, for the receipt.
 DECODER_INPUTS = {
@@ -225,9 +261,10 @@ def build_drive_override(
         note = (
             "the recorded intact drive with its time order permuted (both channels "
             "moved together, so each channel's values and mean are exactly "
-            "preserved and the left/right pairing is intact). This removes the "
-            "temporal pattern only: if the turn survives it, the turn depends on "
-            "the mean left/right difference and not on the drive's time course."
+            "preserved and the left/right pairing is intact), using one fixed "
+            f"permutation (seed {SHUFFLE_SEED}). It tests only whether same-sign "
+            "turning survives that one permutation; it cannot show that the time "
+            "course is irrelevant or that the turn is carried by the mean alone."
         )
     else:  # pragma: no cover - the CLI restricts the choices
         raise ValueError(f"unknown drive construction {construction!r}")
@@ -307,6 +344,11 @@ def judge(
     A reuse check that ran and found divergent telemetry makes the verdict
     INVALID whatever the turns did: the conditions were then not run on
     comparable reset states, so no comparison between them can stand.
+
+    Comparability is a required control.  If the reuse check is missing, was
+    skipped, or covered only part of a condition (the default 0.1 s window is a
+    smoke comparison), the verdict is UNVERIFIED, never PASS or FAIL; what the
+    turns alone gave is kept in ``turn_outcome``.
     """
     per_seed = []
     for seed in seeds:
@@ -347,31 +389,53 @@ def judge(
     undersampled = sorted(
         {name for entry in per_seed for name in entry["undersampled_conditions"]}
     )
-    if reuse_check is not None and reuse_check.get("ran") and not reuse_check.get("bit_identical"):
-        verdict = "INVALID"
-        reason = (
-            "the reuse check failed (" + str(reuse_check.get("note", "divergent telemetry"))
-            + "), so the conditions are not comparable and the turns are not judged"
-        )
-    elif undersampled:
-        verdict = "INCONCLUSIVE"
-        reason = (
+    if undersampled:
+        turn_outcome = "INCONCLUSIVE"
+        turn_reason = (
             "at least one reversal condition produced fewer than "
             f"{MIN_USEFUL_DNA02_SPIKES} DNa02 spikes ({', '.join(undersampled)}); "
             "raise --duration"
         )
     elif all_follow:
-        verdict = "PASS"
-        reason = (
+        turn_outcome = "PASS"
+        turn_reason = (
             "turn direction followed the stimulus sign in both directions on all "
             f"{len(per_seed)} seeds, with |cumulative yaw| > {threshold} rad"
         )
     else:
-        verdict = "FAIL"
-        reason = "at least one seed did not turn with the stimulus sign"
+        turn_outcome = "FAIL"
+        turn_reason = "at least one seed did not turn with the stimulus sign"
+
+    check = reuse_check or {}
+    if check.get("ran") and not check.get("bit_identical"):
+        verdict = "INVALID"
+        reason = (
+            "the reuse check failed (" + str(check.get("note", "divergent telemetry"))
+            + "), so the conditions are not comparable and the turns are not judged"
+        )
+    elif not check.get("ran"):
+        verdict = "UNVERIFIED"
+        reason = (
+            "the reuse check did not run ("
+            + str(check.get("note", "no comparability check supplied"))
+            + "), so comparability of the conditions is unverified; the turns alone "
+            f"give {turn_outcome}: {turn_reason}"
+        )
+    elif not check.get("covers_full_condition"):
+        verdict = "UNVERIFIED"
+        reason = (
+            f"the reuse check compared only {check.get('records_compared')} of "
+            f"{check.get('condition_records')} records of a condition, a smoke "
+            "comparison rather than a full-duration fresh-versus-reused check, so "
+            f"comparability is unverified; the turns alone give {turn_outcome}: "
+            f"{turn_reason} (rerun with --reuse-check-duration equal to --duration)"
+        )
+    else:
+        verdict, reason = turn_outcome, turn_reason
     return {
         "verdict": verdict,
         "reason": reason,
+        "turn_outcome": turn_outcome,
         "yaw_pass_threshold_rad": threshold,
         "min_useful_dna02_spikes": MIN_USEFUL_DNA02_SPIKES,
         "per_seed": per_seed,
@@ -422,12 +486,17 @@ def control_findings(
                 )
             else:
                 entry["turn_survived"] = beyond and same_sign
+                magnitude = (
+                    f"|yaw| {abs(source.cumulative_yaw_rad):.3f} -> "
+                    f"{abs(outcome.cumulative_yaw_rad):.3f} rad"
+                )
                 entry["reading"] = (
-                    "the turn survives shuffling the time order: it depends on the "
-                    "mean left/right drive difference, not on the drive's time course"
+                    "same-sign turning survives this one time permutation "
+                    f"(seed {SHUFFLE_SEED}), with a changed magnitude ({magnitude}); "
+                    "one permutation does not show that the time course is irrelevant"
                     if entry["turn_survived"]
-                    else "the turn does not survive shuffling the time order: the "
-                    "drive's time course matters, not only its mean"
+                    else "same-sign turning beyond the threshold does not survive this "
+                    f"one time permutation (seed {SHUFFLE_SEED}; {magnitude})"
                 )
         findings.append(entry)
     return findings
@@ -438,15 +507,24 @@ def interpretation(
     judgement: dict[str, Any],
     outcomes: dict[str, Outcome],
     duration_s: float,
+    brain_backend: str | None = None,
 ) -> list[str]:
     """The receipt's reading, built from the measured numbers, never from memory."""
     reversal = [o for o in outcomes.values() if o.condition.role == "reversal"]
-    lines = []
+    seeds = len(judgement.get("per_seed", []))
+    lines = [
+        "The input is imposed, not seen: the stimulus sign is injected directly into "
+        "the T4/T5 direction-selective neurons by the optomotor encoder, so no "
+        "photoreceptor motion computation is tested. Any result here is about the "
+        "circuit downstream of T4/T5 and the body only."
+    ]
     if judgement["verdict"] == "PASS":
         lines.append(
-            "What it establishes: stimulus-sign-appropriate turning of an articulated "
-            f"fly driven through {DECODER_INPUTS.get(decoder_name, decoder_name)}, on "
-            "the real v3 MaleCNS graph, replicated across seeds."
+            "What it establishes, and only within this scope: stimulus-sign-appropriate "
+            f"turning on the `{brain_backend or 'unrecorded'}` brain backend, over "
+            f"{seeds} seeds, with T4/T5-imposed input, of an articulated fly driven "
+            f"through an engineered decoder ({DECODER_INPUTS.get(decoder_name, decoder_name)}), "
+            "on the real v3 MaleCNS graph."
         )
     else:
         lines.append(
@@ -538,6 +616,13 @@ def _markdown(receipt: dict[str, Any]) -> str:
         f"Verdict: **{receipt['judgement']['verdict']}** - "
         f"{receipt['judgement']['reason']}",
         "",
+        *(
+            [f"Turns alone: {receipt['judgement']['turn_outcome']} (not a validated "
+             "verdict, because comparability was not established).", ""]
+            if receipt["judgement"].get("turn_outcome")
+            not in (None, receipt["judgement"]["verdict"])
+            else []
+        ),
         f"Generated {receipt['created_at']} by `python -m neurofly_body verdict` "
         f"(neurofly_body {receipt['package_version']}, telemetry format "
         f"{receipt['telemetry_format_version']}, decoder `{decoder}`).",
@@ -611,26 +696,48 @@ def _markdown(receipt: dict[str, Any]) -> str:
             f"- wall time {receipt.get('wall_time_s', 0.0) / 60.0:.1f} min for "
             f"{len(receipt['conditions'])} conditions plus the reuse check",
         ]
-    invocation = receipt.get("invocation") or {}
-    if invocation:
+    reproduce = receipt.get("reproduce") or {}
+    if reproduce.get("command"):
+        backend_name = reproduce.get("brain_backend")
         lines += [
             "",
             "## Reproduce",
             "",
+            f"The brain backend is pinned to `{backend_name}`, the backend that produced "
+            "these numbers. Trajectories depend on the backend: the same condition gives "
+            "different trajectories on CPU and CUDA, and whether the two agree as "
+            "ensembles has not been tested, so an unpinned (`auto`) backend may not "
+            "reproduce them. Every parameter is given "
+            "explicitly, defaults included, and floats are written exactly. Replace "
+            "`<fresh-dir>` with a new directory. `<repo>` is the root of the checkout "
+            "the command runs from (the CLI maps it); a data directory outside the "
+            "repository is read from `NEUROFLY_GRAPH_DIR` / `NEUROFLY_CONNECTOME_DIR`. "
+            "The files are verified against the sha256 values below when they load. "
+            "The command refuses to run if a model override "
+            f"({', '.join(f'`{name}`' for name in reproduce.get('refused_environment') or REFUSED_ENVIRONMENT)}) "
+            "is set.",
+            "",
             "```bash",
-            "python -m neurofly_body verdict --output <fresh-dir> "
-            f"--duration {invocation.get('duration_s'):g} "
-            f"--seeds {' '.join(str(s) for s in invocation.get('seeds', []))} "
-            f"--decoder {decoder}"
-            + (" --full-controls" if invocation.get("full_controls") else "")
-            + " \\",
-            "  --graph-dir outputs/brainlab/malecns_v1 "
-            "--connectome-dir connectome_data/malecns_v1",
+            reproduce["command"],
             "```",
             "",
+            "It reproduces these numbers only against the same code, data and dynamics:",
+            "",
+        ]
+        code = reproduce.get("code") or {}
+        lines.append(
+            f"- code: commit `{code.get('commit')}`"
+            + (" (working tree had uncommitted changes)" if code.get("dirty") else "")
+            + f", neurofly_body {code.get('neurofly_body_version')}"
+        )
+        for group in ("data", "dynamics"):
+            for key, value in (reproduce.get(group) or {}).items():
+                lines.append(f"- {group}: `{key}` = `{value}`")
+        lines += [
+            "",
             "Each intact or output-disconnected condition directory can also be re-run "
-            "standalone with `python -m neurofly_body replay-check <condition dir> "
-            "--output <fresh-dir>`.",
+            f"standalone with `NEUROFLY_BRAIN_BACKEND={backend_name} python -m neurofly_body "
+            "replay-check <condition dir> --output <fresh-dir>`.",
         ]
     lines += [
         "",
@@ -662,6 +769,125 @@ def _markdown(receipt: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+# Environment variables that change the model while the server still reports
+# the base dynamics pin.  The baseline verdict refuses them rather than
+# silently becoming a sensitivity variant.  NEUROFLY_LIF_DYNAMICS is accepted
+# only when it says v3, which the verdict pins explicitly anyway.
+REFUSED_ENVIRONMENT = (
+    "NEUROFLY_LIF_E_INH_MV",      # declared E_inh sensitivity variant (EINH_SENSITIVITY.md)
+    "NEUROFLY_LIF_DYNAMICS",      # process-wide dynamics selection
+    "NEUROFLY_GRADED_POLICY",     # graded-release class list (v4/v5)
+    "NEUROFLY_CUDA_IMPL",         # forces one CUDA implementation
+)
+BRAIN_BACKENDS = ("auto", "cpu", "cuda")
+
+# How the reproduce command names the graph and neuron-table directories.
+#  * inside the repository: ``<repo>/<relative path>``; the verdict CLI maps the
+#    ``<repo>`` prefix back to the checkout it runs from (neurofly.privacy).
+#  * anywhere else: the documented environment variable, as a shell expansion
+#    that stops with a message if it is unset.  The private location is never
+#    written; the graph is identified by its sha256, which every run verifies.
+LOCATION_ENV = {"graph-dir": "NEUROFLY_GRAPH_DIR", "connectome-dir": "NEUROFLY_CONNECTOME_DIR"}
+
+
+def refuse_unsupported_environment(environ: Any = None) -> None:
+    """Stop before any work if the environment would change the baseline model."""
+    environ = os.environ if environ is None else environ
+    problems = []
+    for name in REFUSED_ENVIRONMENT:
+        value = environ.get(name)
+        if value in (None, ""):
+            continue
+        if name == "NEUROFLY_LIF_DYNAMICS" and value == "v3":
+            continue
+        problems.append(f"{name}={value}")
+    backend = environ.get("NEUROFLY_BRAIN_BACKEND")
+    if backend not in (None, "") and backend not in BRAIN_BACKENDS:
+        problems.append(f"NEUROFLY_BRAIN_BACKEND={backend}")
+    if problems:
+        raise SystemExit(
+            "verdict refuses to run: the baseline verdict uses the clean v3 model, and "
+            + ", ".join(problems)
+            + " would change it while the receipt still reported the base v3 pin. "
+            "Unset it (NEUROFLY_BRAIN_BACKEND may be auto, cpu or cuda)."
+        )
+
+
+def portable_location(path: Any, flag: str) -> str:
+    """The shell-ready, portable form of a directory the run actually used."""
+    from neurofly.privacy import REPO_ROOT
+
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    for root in {Path(os.path.abspath(REPO_ROOT)), Path(REPO_ROOT).resolve()}:
+        try:
+            relative = absolute.relative_to(root)
+        except ValueError:
+            continue
+        return shlex.quote("<repo>" if str(relative) == "." else f"<repo>/{relative.as_posix()}")
+    env = LOCATION_ENV[flag]
+    return f'"${{{env}:?set {env} to the directory with the pinned files}}"'
+
+
+def restore_location(value: Any) -> Path | None:
+    """Map a ``<repo>/...`` argument back to this checkout (the CLI side of the convention)."""
+    if value is None:
+        return None
+    from neurofly.privacy import restore_local
+
+    restored = restore_local(os.fspath(value))
+    return None if restored is None else Path(restored)
+
+
+def _exact(value: float) -> str:
+    """A float that parses back to the identical value (``repr`` is round-trip safe)."""
+    return repr(float(value))
+
+
+def reproduce_command(invocation: dict[str, Any], brain_backend: str) -> str:
+    """The complete command that reproduces a verdict, backend pinned.
+
+    Every parameter is written out, defaults included, so a later change of a
+    default cannot silently change what the command runs.  Floats are written
+    with ``repr``, which round-trips exactly.  The backend is the one that
+    actually ran (``status["brain_backend"]``), never ``auto``: CPU and CUDA
+    diverge, so an unpinned backend cannot reproduce the numbers.  The graph
+    and neuron-table directories are the ones the server actually loaded, in
+    the portable form of :func:`portable_location`.
+    """
+    parts = [f"NEUROFLY_BRAIN_BACKEND={shlex.quote(str(brain_backend))}",
+             "python", "-m", "neurofly_body", "verdict", "--output", "'<fresh-dir>'"]
+
+    def option(name: str, value: Any) -> None:
+        text = _exact(value) if isinstance(value, float) else str(value)
+        parts.extend([f"--{name}", shlex.quote(text)])
+
+    option("duration", float(invocation["duration_s"]))
+    parts.append("--seeds")
+    parts.extend(str(int(seed)) for seed in invocation["seeds"])
+    option("angular-velocity", float(invocation["angular_velocity_rad_s"]))
+    option("contrast", float(invocation["contrast"]))
+    option("neural-dt-ms", float(invocation["neural_dt_ms"]))
+    option("physics-dt-s", float(invocation["physics_dt_s"]))
+    option("warmup-s", float(invocation["warmup_s"]))
+    option("decoder", invocation["decoder"])
+    option("decoder-tau-ms", float(invocation["decoder_tau_ms"]))
+    option("max-cpg-drive", float(invocation["max_cpg_drive"]))
+    option("p9-gain-per-hz", float(invocation["p9_gain_per_hz"]))
+    option("dna02-stride-k-per-hz", float(invocation["dna02_stride_k_per_hz"]))
+    option("mdn-gain-per-hz", float(invocation["mdn_gain_per_hz"]))
+    option("cpg-gain-per-hz", float(invocation["cpg_gain_per_hz"]))
+    if invocation.get("full_controls"):
+        parts.append("--full-controls")
+    if invocation.get("reuse_check", True):
+        option("reuse-check-duration", float(invocation["reuse_check_duration_s"]))
+    else:
+        parts.append("--no-reuse-check")
+    # Already shell-ready (portable_location); never re-quoted.
+    parts.extend(["--graph-dir", invocation["graph_dir"]])
+    parts.extend(["--connectome-dir", invocation["connectome_dir"]])
+    return " ".join(parts)
 
 
 def make_decoder(args: Any) -> DNCommandDecoder | DNa02CPGDecoder:
@@ -749,6 +975,9 @@ def run_verdict(args: Any) -> int:
     from .cli import _check_output_dir
 
     started = time.perf_counter()
+    refuse_unsupported_environment()
+    args.graph_dir = restore_location(args.graph_dir)
+    args.connectome_dir = restore_location(args.connectome_dir)
     output_root = _check_output_dir(args.output).resolve()
     seeds = list(dict.fromkeys(int(seed) for seed in args.seeds))
     conditions = plan(seeds, float(args.angular_velocity), bool(args.full_controls))
@@ -773,8 +1002,10 @@ def run_verdict(args: Any) -> int:
     body = FlyGymBody(physics_dt_s=args.physics_dt_s, warmup_s=args.warmup_s)
     equivalence_note = (
         "each condition sets the server's optomotor_seed to its own seed before "
-        "the reset, so a condition is equivalent to a standalone "
-        "`run --seed <seed>` on a freshly loaded server"
+        "the reset, as a standalone `run --seed <seed>` on a freshly loaded server "
+        "does. Equivalence to such a run is not established for every condition: it "
+        "is checked only for the condition the reuse check repeats, and for any "
+        "condition directory re-run with `replay-check`"
     )
     outcomes: dict[str, Outcome] = {}
     control_notes: list[str] = []
@@ -813,6 +1044,50 @@ def run_verdict(args: Any) -> int:
 
     judgement = judge(outcomes, seeds, YAW_PASS_THRESHOLD_RAD, reuse_check)
     status = neural.get_status()
+    from brainlab.graph_identity import active_e_inh_mV
+
+    if active_e_inh_mV() is not None:  # pragma: no cover - refused before the load
+        raise SystemExit("an E_inh override appeared during the run; the receipt is not written")
+
+    invocation = {
+        "duration_s": float(args.duration),
+        "seeds": seeds,
+        "angular_velocity_rad_s": float(args.angular_velocity),
+        "full_controls": bool(args.full_controls),
+        "reuse_check": bool(args.reuse_check),
+        "reuse_check_duration_s": float(args.reuse_check_duration),
+        "decoder": args.decoder,
+        "contrast": args.contrast,
+        "neural_dt_ms": args.neural_dt_ms,
+        "physics_dt_s": args.physics_dt_s,
+        "warmup_s": args.warmup_s,
+        "decoder_tau_ms": args.decoder_tau_ms,
+        "max_cpg_drive": args.max_cpg_drive,
+        "p9_gain_per_hz": args.p9_gain_per_hz,
+        "dna02_stride_k_per_hz": args.dna02_stride_k_per_hz,
+        "mdn_gain_per_hz": args.mdn_gain_per_hz,
+        "cpg_gain_per_hz": args.cpg_gain_per_hz,
+        # The directories the server actually loaded (argument, environment or
+        # default), in the portable form the CLI resolves.
+        "graph_dir": portable_location(neural.graph_dir, "graph-dir"),
+        "connectome_dir": portable_location(neural.connectome_dir, "connectome-dir"),
+        "graph_dir_source": str(neural.graph_dir_source),
+    }
+    brain_backend = str(status.get("brain_backend"))
+    from provenance import source_revision
+
+    revision = source_revision()
+    reproduce = {
+        "brain_backend": brain_backend,
+        "brain_backend_requested": os.environ.get("NEUROFLY_BRAIN_BACKEND") or "auto",
+        "refused_environment": list(REFUSED_ENVIRONMENT),
+        "command": reproduce_command(invocation, brain_backend),
+        # What the command must run against to reproduce the numbers.
+        "code": {"commit": revision.get("commit"), "dirty": revision.get("dirty"),
+                 "neurofly_body_version": __version__},
+        "data": {key: status.get(key) for key in REPRODUCE_DATA_IDS},
+        "dynamics": {key: status.get(key) for key in REPRODUCE_DYNAMICS_IDS},
+    }
     receipt = {
         "schema": "neurofly-embodied-verdict-v2",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -820,23 +1095,8 @@ def run_verdict(args: Any) -> int:
         "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
         "output_dir": str(output_root),
         "decoder": decoder_description,
-        "invocation": {
-            "duration_s": float(args.duration),
-            "seeds": seeds,
-            "angular_velocity_rad_s": float(args.angular_velocity),
-            "full_controls": bool(args.full_controls),
-            "decoder": args.decoder,
-            "contrast": args.contrast,
-            "neural_dt_ms": args.neural_dt_ms,
-            "physics_dt_s": args.physics_dt_s,
-            "warmup_s": args.warmup_s,
-            "decoder_tau_ms": args.decoder_tau_ms,
-            "max_cpg_drive": args.max_cpg_drive,
-            "p9_gain_per_hz": args.p9_gain_per_hz,
-            "dna02_stride_k_per_hz": args.dna02_stride_k_per_hz,
-            "mdn_gain_per_hz": args.mdn_gain_per_hz,
-            "cpg_gain_per_hz": args.cpg_gain_per_hz,
-        },
+        "invocation": invocation,
+        "reproduce": reproduce,
         "provenance": {"python": sys.version.split()[0], "platform": platform.machine()},
         "neural_backend": {
             key: value
@@ -861,15 +1121,22 @@ def run_verdict(args: Any) -> int:
         "reuse_check": reuse_check,
         "seed_handling": equivalence_note,
         "interpretation": interpretation(
-            str(args.decoder), judgement, outcomes, float(args.duration)
+            str(args.decoder), judgement, outcomes, float(args.duration), brain_backend
         ),
         "wall_time_s": time.perf_counter() - started,
     }
+    # Both files are meant to be published: the whole receipt goes through the
+    # established sanitiser, so no absolute local path (the output directory,
+    # a graph location, a path inside a note) reaches them.  The local paths
+    # are printed to the console below and nowhere else.
+    from neurofly.privacy import redact_local, redact_text
+
     (output_root / "verdict.json").write_text(
-        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(redact_local(receipt), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    (output_root / "verdict.md").write_text(_markdown(receipt), encoding="utf-8")
+    (output_root / "verdict.md").write_text(redact_text(_markdown(receipt)), encoding="utf-8")
     print(json.dumps(receipt["judgement"], indent=2, sort_keys=True))
+    print(f"\nreproduce (brain backend pinned):\n  {reproduce['command']}")
     print(f"\nreceipt: {output_root / 'verdict.md'}")
     return 0 if judgement["verdict"] == "PASS" else 1
 
@@ -877,11 +1144,13 @@ def run_verdict(args: Any) -> int:
 def _reuse_check(
     args: Any, first: Condition, output_root: Path, neural: Any, body: Any
 ) -> dict[str, Any]:
-    """Prove the reused graph and body reset completely between conditions.
+    """Compare a fresh run with the same run on the reused graph and body.
 
-    The first condition ran on a freshly built server and body.  Re-running its
-    opening steps now, after every other condition, must reproduce the same
-    telemetry bytes; if any state survived a reset it cannot.
+    The first condition ran on a freshly built server and body.  Re-running it
+    now, after every other condition, must reproduce the same telemetry bytes.
+    The claim is scoped to the window compared: only a full-duration repeat
+    (``covers_full_condition``) is the comparability control the verdict
+    requires; a shorter window is a smoke comparison.
 
     A prefix comparison is valid because no telemetry record depends on the
     run's duration or invocation: each record holds only that step's simulated
@@ -907,11 +1176,16 @@ def _reuse_check(
         invocation={"verdict_condition": "_reuse-check"},
         close_body=False,
     )
-    records = int(summary["records"])
-    original = (output_root / first.name / "telemetry.jsonl").read_text(
+    original_all = (output_root / first.name / "telemetry.jsonl").read_text(
         encoding="utf-8"
-    ).splitlines()[:records]
-    repeat = (run_dir / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    ).splitlines()
+    repeat_all = (run_dir / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    condition_records = len(original_all)
+    # A repeat longer than the condition is compared over the condition only.
+    records = min(int(summary["records"]), condition_records)
+    original = original_all[:records]
+    repeat = repeat_all[:records]
+    covers_full_condition = records >= condition_records
     identical = original == repeat
     first_difference = next(
         (
@@ -921,14 +1195,27 @@ def _reuse_check(
         ),
         None,
     )
-    preamble = (
-        f"re-ran the opening {records} records of `{first.name}` from the reused "
-        "graph and body after every other condition and got "
+    window = (
+        f"all {records} records ({duration:g} s, the whole condition)"
+        if covers_full_condition
+        else f"the opening {records} of {condition_records} records ({duration:g} s)"
     )
-    if identical:
+    preamble = (
+        f"re-ran {window} of `{first.name}` from the reused graph and body after "
+        "every other condition and got "
+    )
+    if identical and covers_full_condition:
         note = preamble + (
-            "byte-identical telemetry, so the resets are complete and the "
-            "conditions are comparable"
+            "byte-identical telemetry to the fresh run. No telemetry difference was "
+            "observed over this one full-duration repeat. It does not compare internal "
+            "state that the telemetry does not record, and it does not repeat the other "
+            "seeds or conditions. It is the comparability check the verdict requires"
+        )
+    elif identical:
+        note = preamble + (
+            "byte-identical telemetry over that window only. This is a smoke "
+            "comparison, not proof of a complete reset: state that shows up later "
+            "in a run would not be seen, so comparability is UNVERIFIED"
         )
     else:
         note = preamble + (
@@ -939,6 +1226,9 @@ def _reuse_check(
         "ran": True,
         "bit_identical": identical,
         "records_compared": records,
+        "condition_records": condition_records,
+        "covers_full_condition": covers_full_condition,
+        "duration_s": duration,
         "repeated_condition": first.name,
         "first_differing_record": first_difference,
         "note": note,

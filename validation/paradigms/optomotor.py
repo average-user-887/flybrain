@@ -83,6 +83,7 @@ def shuffled_shared(shared, seed: int):
         graph_sha256=digest.hexdigest(), neuron_map_path=base.neuron_map_path,
         neuron_map_sha256=base.neuron_map_sha256, io_map_sha256=base.io_map_sha256, neurons=base.neurons,
         edges=base.edges, ids_sha256=base.ids_sha256,
+        neuron_map_content_sha256=getattr(base, "neuron_map_content_sha256", None),
         label='CONTROL GRAPH: degree-preserving shuffle of the run graph; not the released wiring')
     return SharedGraph(arrays, identity, getattr(shared, 'io_map', {}))
 

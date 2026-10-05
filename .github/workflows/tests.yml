@@ -38,17 +38,8 @@ jobs:
           NUMBA_CACHE_DIR: ${{ runner.temp }}/numba-cache
         run: python -m pytest -q -p no:cacheprovider tests/
 
-      - name: Release hygiene grep (no private infrastructure)
-        run: |
-          set -euo pipefail
-          # Fail if LAN/overlay addresses, SSH key names or container ids reappear
-          # in shipped files. Directories with archived upstream material are excluded.
-          if grep -rnIE \
-               --exclude-dir=.git --exclude-dir=.venv --exclude-dir=upstream \
-               --exclude-dir=runs --exclude-dir=outputs --exclude-dir=connectome_data \
-               --exclude-dir=licenses --exclude-dir=experiment_data --exclude-dir=.github \
-               -e '192\.168\.[0-9]+\.[0-9]+' -e '<redacted-key>' -e '<redacted-id>' \
-               . ; then
-            echo "Private infrastructure references found (see docs/RELEASE_AUDIT.md)." >&2
-            exit 1
-          fi
+      - name: Release hygiene guard (no personal or private-infrastructure data)
+        # Private IPs, home/share/agent-scratch paths, non-noreply e-mail addresses,
+        # machine hostnames and known private tokens. Allow-list:
+        # scripts/private_infra_allowlist.txt. Its own test: tests/test_private_infra_guard.py.
+        run: bash scripts/check_private_infra.sh

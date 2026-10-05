@@ -7,7 +7,66 @@ never edited.
 
 ---
 
-## 2026-10-05 (latest) — Personal data in git history: no rewrite
+## 2026-10-05 (later still) — Isolated AMD GPU acceleration lane. **Supersedes the AMD GPU deferral in `docs/DIRECTION_2026-10-05.md`.**
+
+The owner assigned the Claude worker on the AMD Steam Deck to implement AMD GPU
+acceleration. Earlier the same day, the direction document had deferred an AMD GPU
+port; this decision replaces that deferral. The entry headed "(latest)" below is
+older than this one and is left unedited, per the rule above.
+
+Conditions set by the owner:
+
+- **Isolation.** The work happens on a separate branch that does not interfere with
+  `master`.
+- **Merge gate.** Merging requires **both** the Codex review approval **and** the
+  independent Antigravity audit approval.
+
+Codex implementation scope under the owner's delegation (these are not the owner's own
+words; changing them requires Codex review, not a new owner decision):
+
+- The branch records its base commit. It must not touch the integration candidate or
+  any default backend.
+- Each approval is tied to the exact candidate commit. A later substantive change voids
+  an approval until it is re-reviewed.
+- **Recommended first target:** the existing fixed-weight v3 LIF stepping path, with the
+  same equations, topology, weights, units and inputs.
+- **Refusal:** unsupported dynamics or plasticity must refuse, or fall back visibly
+  under a documented policy.
+- **Comparisons:**
+  - Numerical comparison criteria are registered before the final comparison.
+  - Gains, wiring and tolerances are never adjusted to obtain a pass.
+  - GPU execution and useful acceleration are reported as separate findings; a result
+    that does not accelerate is reported as such.
+- **Dependencies:**
+  - GPU dependencies are optional, and the backend is chosen explicitly.
+  - An unavailable device gives a safe error.
+  - The CPU and NVIDIA paths are preserved.
+  - No system driver or kernel changes are part of any automatic rollout.
+
+The owner's standing scientific rules (entries below) apply unchanged. The main repair
+work (audits A–F) continues independently. This decision approves no biological
+approximation, invented connection or adapter-computed behaviour.
+
+---
+
+## 2026-10-05 (latest) — Project leadership delegation
+
+The owner delegated **project direction and scope** to a separate Codex agent, and kept
+a Claude agent responsible for day-to-day implementation, worker coordination and
+assembling integration candidates.
+- **Codex** reviews each candidate independently before master integration,
+  deployment or release.
+- **The owner's earlier rulings** in this file stay binding on both agents.
+- **Codex's engineering direction and acceptance gates** are recorded separately in
+  `docs/DIRECTION_2026-10-05.md`. They are implementation decisions under this
+  delegation, not owner rulings on new scientific assumptions.
+
+Release status following this delegation: v0.4 is on **HOLD** until the acceptance gates
+in that direction document pass.
+
+---
+
+## 2026-10-05 — Personal data in git history: no rewrite
 
 **Context.** An external audit on 5 October 2026 found personal data in the public
 repository. The orchestrator verified it.
@@ -33,6 +92,30 @@ on GitHub, and existing clones keep their copies.
 - the current tree is sanitised, and a guard blocks reintroduction.
 
 Approved by the owner on 5 October 2026 ("no rewrite, email privacy is on").
+
+**Factual note (5 October 2026), added after the ruling; the ruling text above is
+unchanged.** The figure of 105 commit messages with session links was the count when
+the audit was taken, and commits published since then have added to it. Recounts with
+their exact scopes:
+
+- **`master` at `713ba82`** (its full ancestry): 244 commits; 145 of them carry a
+  session link in the commit message; 223 fail at least one commit-metadata rule
+  (message, author or committer) of the metadata guard under review.
+- **Range `5c54b03..713ba82`**: 61 commits, 44 with a session link in the message.
+- **All refs, from the independent Codex remote privacy audit of 5 October 2026**
+  (52 live branch heads, `master` at `713ba82`): 153 reachable commit bodies contain
+  a session link, and 17 of these are outside the ancestry of `69e52db`. There are
+  128 reachable commits with author/committer identity findings, all inside that
+  ancestry.
+
+The two sets of counts differ because they cover different scopes: `master` alone
+versus every commit reachable from any live branch. Neither supersedes the other.
+
+The ruling covers **not rewriting** history. It does not approve the links published
+on or after 5 October 2026, and it does not accept them after the fact. Those links
+remain an **unresolved exposure** under the no-rewrite constraint. A clean current
+tree and a commit-metadata guard prevent new exposure; they do not erase what has
+already been published.
 
 ---
 

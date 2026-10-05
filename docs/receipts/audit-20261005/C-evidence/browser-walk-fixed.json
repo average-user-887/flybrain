@@ -1,0 +1,1696 @@
+[
+ {
+  "assay": "open-arena",
+  "samples": [
+   {
+    "pktStep": 1316,
+    "fly": [
+     5.77,
+     -17.82,
+     1.78
+    ],
+    "spikes": 6750,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "38\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "26 / 120 (22%)",
+    "card": "0. Open Arena Foraging BASELINE Budick & Dickinson (2006) Mode: Multi-Modal Free FlightActive",
+    "achieved": "0.17x",
+    "activity": "ENS0.00ascending_neuron3.28cb_efferent0.00cb_endocrine0.69cb_intrinsic8.68cb_motor3.74cb_sensory3.23cb_sensory_tbc0.00descending_neuron4.60descending_neuron_tbc0.00efferent_ascending43.75efferent_descending0.00ol_intrinsic0.03ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.02visual_projection0.13visual_projection_tbc0.00vnc_efferent5.32vnc_endocrine25.00vnc_intrinsic1.40vnc_motor7.13vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 1376,
+    "fly": [
+     3.96,
+     -11.91,
+     1.96
+    ],
+    "spikes": 6986,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "87\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "44 / 120 (37%)",
+    "card": "0. Open Arena Foraging BASELINE Budick & Dickinson (2006) Mode: Multi-Modal Free FlightActive",
+    "achieved": "0.14x",
+    "activity": "ENS0.00ascending_neuron2.65cb_efferent0.00cb_endocrine0.69cb_intrinsic9.13cb_motor2.34cb_sensory4.12cb_sensory_tbc0.00descending_neuron4.07descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal2.93visual_projection0.14visual_projection_tbc0.00vnc_efferent1.60vnc_endocrine11.36vnc_intrinsic1.20vnc_motor5.30vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 1451,
+    "fly": [
+     -0.18,
+     -5.49,
+     2.34
+    ],
+    "spikes": 7090,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "79\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "58 / 120 (48%)",
+    "card": "0. Open Arena Foraging BASELINE Budick & Dickinson (2006) Mode: Multi-Modal Free FlightActive",
+    "achieved": "0.15x",
+    "activity": "ENS0.00ascending_neuron3.06cb_efferent0.00cb_endocrine0.69cb_intrinsic9.19cb_motor5.14cb_sensory4.46cb_sensory_tbc0.00descending_neuron5.02descending_neuron_tbc0.00efferent_ascending43.75efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.00visual_projection0.10visual_projection_tbc0.00vnc_efferent10.64vnc_endocrine15.91vnc_intrinsic1.05vnc_motor6.64vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 1529,
+    "fly": [
+     -6.45,
+     -0.56,
+     2.58
+    ],
+    "spikes": 7065,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "25\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "63 / 120 (53%)",
+    "card": "0. Open Arena Foraging BASELINE Budick & Dickinson (2006) Mode: Multi-Modal Free FlightActive",
+    "achieved": "0.16x",
+    "activity": "ENS0.00ascending_neuron2.90cb_efferent0.00cb_endocrine0.69cb_intrinsic9.08cb_motor5.61cb_sensory4.34cb_sensory_tbc0.00descending_neuron4.72descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal2.66visual_projection0.11visual_projection_tbc0.00vnc_efferent7.45vnc_endocrine9.09vnc_intrinsic1.30vnc_motor7.91vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "t-maze",
+  "samples": [
+   {
+    "pktStep": 1583,
+    "fly": [
+     70,
+     55.5,
+     1.57
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "1. T-Maze Conditioning OLFACTION Tully & Quinn (1985) Metric: PI Index0.00",
+    "achieved": "0.51x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 1795,
+    "fly": [
+     70,
+     55.5,
+     1.57
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "1. T-Maze Conditioning OLFACTION Tully & Quinn (1985) Metric: PI Index0.00",
+    "achieved": "0.5x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2058,
+    "fly": [
+     70,
+     55.5,
+     1.57
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "1. T-Maze Conditioning OLFACTION Tully & Quinn (1985) Metric: PI Index0.00",
+    "achieved": "0.48x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2255,
+    "fly": [
+     70,
+     55.5,
+     1.57
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "1. T-Maze Conditioning OLFACTION Tully & Quinn (1985) Metric: PI Index0.00",
+    "achieved": "0.39x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "y-maze",
+  "samples": [
+   {
+    "pktStep": 2301,
+    "fly": [
+     75.64,
+     58.41,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "2. Y-Maze Alternation WORKING MEM Buchanan et al. (PNAS 2015) Metric: SAR Ratio0.00",
+    "achieved": "0.41x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2457,
+    "fly": [
+     95.65,
+     44.74,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "2. Y-Maze Alternation WORKING MEM Buchanan et al. (PNAS 2015) Metric: SAR Ratio0.00",
+    "achieved": "0.36x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2654,
+    "fly": [
+     95.65,
+     44.74,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "2. Y-Maze Alternation WORKING MEM Buchanan et al. (PNAS 2015) Metric: SAR Ratio0.00",
+    "achieved": "0.39x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2852,
+    "fly": [
+     95.65,
+     44.74,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "2. Y-Maze Alternation WORKING MEM Buchanan et al. (PNAS 2015) Metric: SAR Ratio0.00",
+    "achieved": "0.4x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "heat-maze",
+  "samples": [
+   {
+    "pktStep": 2869,
+    "fly": [
+     61.4,
+     59.97,
+     -0.06
+    ],
+    "spikes": 6798,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "45\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "3. Thermal Heat-Maze CX PLACE MEM Ofstad, Zuker & Reiser (Nature 2011) Metric: Escape LatencyNot observed",
+    "achieved": "0.13x",
+    "activity": "ENS0.00ascending_neuron3.14cb_efferent0.00cb_endocrine0.00cb_intrinsic9.03cb_motor5.14cb_sensory1.91cb_sensory_tbc0.00descending_neuron5.29descending_neuron_tbc0.00efferent_ascending31.25efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.35visual_projection0.11visual_projection_tbc0.00vnc_efferent7.45vnc_endocrine27.27vnc_intrinsic1.13vnc_motor7.56vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2914,
+    "fly": [
+     64.3,
+     59.96,
+     0.08
+    ],
+    "spikes": 6400,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "35\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "3. Thermal Heat-Maze CX PLACE MEM Ofstad, Zuker & Reiser (Nature 2011) Metric: Escape LatencyNot observed",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron2.98cb_efferent0.00cb_endocrine0.00cb_intrinsic8.43cb_motor1.87cb_sensory1.90cb_sensory_tbc0.00descending_neuron4.41descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.03ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.73visual_projection0.14visual_projection_tbc0.00vnc_efferent5.32vnc_endocrine25.00vnc_intrinsic1.19vnc_motor7.77vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 2969,
+    "fly": [
+     69.77,
+     60.47,
+     0.08
+    ],
+    "spikes": 6563,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "178\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "3. Thermal Heat-Maze CX PLACE MEM Ofstad, Zuker & Reiser (Nature 2011) Metric: Escape LatencyNot observed",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron3.20cb_efferent0.00cb_endocrine0.69cb_intrinsic8.67cb_motor5.61cb_sensory1.75cb_sensory_tbc0.00descending_neuron4.76descending_neuron_tbc0.00efferent_ascending43.75efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal2.93visual_projection0.15visual_projection_tbc0.00vnc_efferent4.25vnc_endocrine0.00vnc_intrinsic1.40vnc_motor5.79vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3025,
+    "fly": [
+     75.51,
+     61.3,
+     0.2
+    ],
+    "spikes": 6536,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "-43\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "3. Thermal Heat-Maze CX PLACE MEM Ofstad, Zuker & Reiser (Nature 2011) Metric: Escape LatencyNot observed",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron2.44cb_efferent0.00cb_endocrine0.69cb_intrinsic8.95cb_motor3.74cb_sensory1.75cb_sensory_tbc0.00descending_neuron4.53descending_neuron_tbc0.00efferent_ascending43.75efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.55visual_projection0.10visual_projection_tbc0.00vnc_efferent2.66vnc_endocrine4.54vnc_intrinsic0.86vnc_motor4.31vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "buridan",
+  "samples": [
+   {
+    "pktStep": 3058,
+    "fly": [
+     75,
+     60,
+     0
+    ],
+    "spikes": 136,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "4. Buridan's Paradigm VISION G\u00f6tz (1980); Colomb (2012) Metric: Centrophobism0.00",
+    "achieved": "0.31x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.21cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3195,
+    "fly": [
+     108.5,
+     60,
+     0
+    ],
+    "spikes": 136,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "4. Buridan's Paradigm VISION G\u00f6tz (1980); Colomb (2012) Metric: Centrophobism0.70",
+    "achieved": "0.34x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.21cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3373,
+    "fly": [
+     108.5,
+     60,
+     0
+    ],
+    "spikes": 136,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "4. Buridan's Paradigm VISION G\u00f6tz (1980); Colomb (2012) Metric: Centrophobism0.86",
+    "achieved": "0.35x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.21cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3550,
+    "fly": [
+     108.5,
+     60,
+     0
+    ],
+    "spikes": 69,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "4. Buridan's Paradigm VISION G\u00f6tz (1980); Colomb (2012) Metric: Centrophobism0.90",
+    "achieved": "0.35x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.10cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "visual-operant",
+  "samples": [
+   {
+    "pktStep": 3595,
+    "fly": [
+     40,
+     40,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "5. Visual Operant Torque OPERANT Wolf & Heisenberg (1991) Metric: Learning Index LI1.00",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3734,
+    "fly": [
+     40,
+     40,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "5. Visual Operant Torque OPERANT Wolf & Heisenberg (1991) Metric: Learning Index LI1.00",
+    "achieved": "0.41x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 3935,
+    "fly": [
+     40,
+     40,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "5. Visual Operant Torque OPERANT Wolf & Heisenberg (1991) Metric: Learning Index LI1.00",
+    "achieved": "0.4x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4129,
+    "fly": [
+     40,
+     40,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "5. Visual Operant Torque OPERANT Wolf & Heisenberg (1991) Metric: Learning Index LI1.00",
+    "achieved": "0.39x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "wind-tunnel",
+  "samples": [
+   {
+    "pktStep": 4148,
+    "fly": [
+     21,
+     30,
+     0.02
+    ],
+    "spikes": 6723,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "90\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "6. Wind Tunnel Plume SURGE-CAST Alvarez-Salvado et al. (2018) Metric: Upwind Progress0.90 mm",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron3.01cb_efferent0.00cb_endocrine0.00cb_intrinsic8.86cb_motor5.61cb_sensory1.89cb_sensory_tbc0.00descending_neuron4.87descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.03ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.00visual_projection0.14visual_projection_tbc0.00vnc_efferent5.85vnc_endocrine15.91vnc_intrinsic1.25vnc_motor7.77vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4191,
+    "fly": [
+     24.08,
+     30.28,
+     0.18
+    ],
+    "spikes": 6301,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "12.5",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "86\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "6. Wind Tunnel Plume SURGE-CAST Alvarez-Salvado et al. (2018) Metric: Upwind Progress3.99 mm",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron2.71cb_efferent0.00cb_endocrine0.00cb_intrinsic8.39cb_motor7.94cb_sensory2.04cb_sensory_tbc0.00descending_neuron5.10descending_neuron_tbc0.00efferent_ascending31.25efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.29visual_projection0.12visual_projection_tbc0.00vnc_efferent3.19vnc_endocrine6.82vnc_intrinsic1.03vnc_motor6.43vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4245,
+    "fly": [
+     27.77,
+     31.19,
+     0.36
+    ],
+    "spikes": 6737,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "61\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "6. Wind Tunnel Plume SURGE-CAST Alvarez-Salvado et al. (2018) Metric: Upwind Progress7.67 mm",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron3.41cb_efferent0.00cb_endocrine0.00cb_intrinsic8.57cb_motor6.08cb_sensory1.77cb_sensory_tbc0.00descending_neuron5.25descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.11visual_projection0.15visual_projection_tbc0.00vnc_efferent7.98vnc_endocrine6.82vnc_intrinsic1.85vnc_motor12.08vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4300,
+    "fly": [
+     31.16,
+     32.66,
+     0.46
+    ],
+    "spikes": 6057,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "-77\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "6. Wind Tunnel Plume SURGE-CAST Alvarez-Salvado et al. (2018) Metric: Upwind Progress11.07 mm",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron2.57cb_efferent0.00cb_endocrine0.69cb_intrinsic8.28cb_motor2.34cb_sensory1.47cb_sensory_tbc0.00descending_neuron4.19descending_neuron_tbc0.00efferent_ascending43.75efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.98visual_projection0.09visual_projection_tbc0.00vnc_efferent2.66vnc_endocrine27.27vnc_intrinsic0.94vnc_motor4.17vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "looming-escape",
+  "samples": [
+   {
+    "pktStep": 4318,
+    "fly": [
+     43.63,
+     40,
+     0
+    ],
+    "spikes": 4271,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "600.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "ESCAPE",
+    "epgBump": "86\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "7. Looming Giant Fiber EVASION Card & Dickinson (PNAS 2008) Metric: Jump TT Collision260.00 ms",
+    "achieved": "0.16x",
+    "activity": "ENS0.00ascending_neuron5.17cb_efferent0.00cb_endocrine0.69cb_intrinsic2.60cb_motor7.01cb_sensory0.00cb_sensory_tbc0.00descending_neuron8.37descending_neuron_tbc0.00efferent_ascending56.25efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.71visual_projection5.69visual_projection_tbc0.00vnc_efferent5.32vnc_endocrine6.82vnc_intrinsic3.18vnc_motor12.85vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4364,
+    "fly": [
+     46.85,
+     40,
+     0
+    ],
+    "spikes": 5569,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "600.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "ESCAPE",
+    "epgBump": "77\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "7. Looming Giant Fiber EVASION Card & Dickinson (PNAS 2008) Metric: Jump TT Collision260.00 ms",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron5.80cb_efferent0.00cb_endocrine0.69cb_intrinsic3.23cb_motor12.62cb_sensory0.00cb_sensory_tbc0.00descending_neuron10.05descending_neuron_tbc0.00efferent_ascending50.00efferent_descending0.00ol_intrinsic0.04ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal8.62visual_projection7.96visual_projection_tbc0.00vnc_efferent8.51vnc_endocrine15.91vnc_intrinsic4.10vnc_motor17.73vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc1.32"
+   },
+   {
+    "pktStep": 4423,
+    "fly": [
+     50.98,
+     40,
+     0
+    ],
+    "spikes": 5251,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "600.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "ESCAPE",
+    "epgBump": "75\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "7. Looming Giant Fiber EVASION Card & Dickinson (PNAS 2008) Metric: Jump TT Collision260.00 ms",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron5.58cb_efferent0.00cb_endocrine0.00cb_intrinsic2.90cb_motor11.21cb_sensory0.00cb_sensory_tbc0.00descending_neuron9.36descending_neuron_tbc0.00efferent_ascending56.25efferent_descending0.00ol_intrinsic0.04ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal6.22visual_projection7.91visual_projection_tbc0.00vnc_efferent6.38vnc_endocrine11.36vnc_intrinsic3.98vnc_motor17.09vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4483,
+    "fly": [
+     55.18,
+     40,
+     0
+    ],
+    "spikes": 5049,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "600.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "ESCAPE",
+    "epgBump": "-53\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "7. Looming Giant Fiber EVASION Card & Dickinson (PNAS 2008) Metric: Jump TT Collision260.00 ms",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron5.31cb_efferent0.00cb_endocrine0.00cb_intrinsic2.90cb_motor9.81cb_sensory0.00cb_sensory_tbc0.00descending_neuron9.66descending_neuron_tbc0.00efferent_ascending62.50efferent_descending0.00ol_intrinsic0.03ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal5.77visual_projection7.84visual_projection_tbc0.00vnc_efferent5.85vnc_endocrine4.54vnc_intrinsic3.57vnc_motor13.21vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "optomotor",
+  "samples": [
+   {
+    "pktStep": 4494,
+    "fly": [
+     45,
+     45,
+     -0.02
+    ],
+    "spikes": 1656,
+    "dn": {
+     "l": "0.0",
+     "r": "3.3",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer (about 0.1 simulated s per wall s; 0.086 sim s per wall s measured). The daemon runs slower than requested instead of dropping simulation steps. \u00b7 FORWARD DRIVE: no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0",
+    "errorBanner": "",
+    "pktState": "OPTOMOTOR-TETHERED",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "8. Optomotor Drum EFFERENCE COPY G\u00f6tz (1964); Kim et al. (2017) Metric: Optomotor Gain-0.19",
+    "achieved": "0.086x",
+    "activity": "ENS0.00ascending_neuron1.52cb_efferent0.00cb_endocrine0.00cb_intrinsic0.89cb_motor3.27cb_sensory0.00cb_sensory_tbc0.00descending_neuron1.86descending_neuron_tbc0.00efferent_ascending31.25efferent_descending0.00ol_intrinsic0.42ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal1.60visual_projection0.21visual_projection_tbc0.00vnc_efferent4.25vnc_endocrine29.55vnc_intrinsic0.29vnc_motor4.73vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4542,
+    "fly": [
+     45,
+     45,
+     0.11
+    ],
+    "spikes": 1618,
+    "dn": {
+     "l": "16.4",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer (about 0.1 simulated s per wall s; 0.126 sim s per wall s measured). The daemon runs slower than requested instead of dropping simulation steps. \u00b7 FORWARD DRIVE: no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0",
+    "errorBanner": "",
+    "pktState": "OPTOMOTOR-TETHERED",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "8. Optomotor Drum EFFERENCE COPY G\u00f6tz (1964); Kim et al. (2017) Metric: Optomotor Gain0.17",
+    "achieved": "0.13x",
+    "activity": "ENS0.00ascending_neuron1.73cb_efferent0.00cb_endocrine0.00cb_intrinsic0.79cb_motor5.61cb_sensory0.00cb_sensory_tbc0.00descending_neuron2.25descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.36ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal3.55visual_projection0.20visual_projection_tbc0.00vnc_efferent3.72vnc_endocrine2.27vnc_intrinsic0.58vnc_motor6.43vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc1.32"
+   },
+   {
+    "pktStep": 4604,
+    "fly": [
+     45,
+     45,
+     0.21
+    ],
+    "spikes": 1644,
+    "dn": {
+     "l": "7.4",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer (about 0.1 simulated s per wall s; 0.129 sim s per wall s measured). The daemon runs slower than requested instead of dropping simulation steps. \u00b7 FORWARD DRIVE: no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0",
+    "errorBanner": "",
+    "pktState": "OPTOMOTOR-TETHERED",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "8. Optomotor Drum EFFERENCE COPY G\u00f6tz (1964); Kim et al. (2017) Metric: Optomotor Gain0.17",
+    "achieved": "0.13x",
+    "activity": "ENS0.00ascending_neuron1.54cb_efferent0.00cb_endocrine0.00cb_intrinsic0.90cb_motor13.08cb_sensory0.00cb_sensory_tbc0.00descending_neuron2.74descending_neuron_tbc0.00efferent_ascending31.25efferent_descending0.00ol_intrinsic0.38ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.00visual_projection0.19visual_projection_tbc0.00vnc_efferent3.19vnc_endocrine2.27vnc_intrinsic0.29vnc_motor4.17vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4668,
+    "fly": [
+     45,
+     45,
+     0.36
+    ],
+    "spikes": 1730,
+    "dn": {
+     "l": "25.5",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "OPTOMOTOR ON THE GRAPH: 1x real time is unattainable on this computer (about 0.1 simulated s per wall s; 0.123 sim s per wall s measured). The daemon runs slower than requested instead of dropping simulation steps. \u00b7 FORWARD DRIVE: no graph-derived forward drive for this loop (the DNb01/DNp09 tonic drive is engineered assistance and is gated off): the tethered optomotor assay runs at speed 0",
+    "errorBanner": "",
+    "pktState": "OPTOMOTOR-TETHERED",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "8. Optomotor Drum EFFERENCE COPY G\u00f6tz (1964); Kim et al. (2017) Metric: Optomotor Gain0.18",
+    "achieved": "0.12x",
+    "activity": "ENS0.00ascending_neuron1.92cb_efferent0.00cb_endocrine0.00cb_intrinsic0.94cb_motor5.61cb_sensory0.00cb_sensory_tbc0.00descending_neuron1.60descending_neuron_tbc0.00efferent_ascending50.00efferent_descending0.00ol_intrinsic0.38ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal1.51visual_projection0.20visual_projection_tbc0.00vnc_efferent3.19vnc_endocrine2.27vnc_intrinsic0.67vnc_motor5.51vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "gap-crossing",
+  "samples": [
+   {
+    "pktStep": 4705,
+    "fly": [
+     36.5,
+     10,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "9. Gap Crossing Assay MOTOR PLAN Pick & Strauss (2005) Metric: Gap Width3.5 mm \u00b7 APPROACH",
+    "achieved": "0.34x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 4856,
+    "fly": [
+     93.5,
+     10,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "9. Gap Crossing Assay MOTOR PLAN Pick & Strauss (2005) Metric: Gap Width3.5 mm \u00b7 CROSSED",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5057,
+    "fly": [
+     93.5,
+     10,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "9. Gap Crossing Assay MOTOR PLAN Pick & Strauss (2005) Metric: Gap Width3.5 mm \u00b7 CROSSED",
+    "achieved": "0.39x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5258,
+    "fly": [
+     93.5,
+     10,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "9. Gap Crossing Assay MOTOR PLAN Pick & Strauss (2005) Metric: Gap Width3.5 mm \u00b7 CROSSED",
+    "achieved": "0.4x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "circadian-dam",
+  "samples": [
+   {
+    "pktStep": 5302,
+    "fly": [
+     32.5,
+     5,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "10. Circadian DAM Monitor SLEEP/WAKE Konopka & Benzer (1971) Metric: Sleep Minutes0.00 min",
+    "achieved": "0.35x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5455,
+    "fly": [
+     58.5,
+     5,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "10. Circadian DAM Monitor SLEEP/WAKE Konopka & Benzer (1971) Metric: Sleep Minutes0.00 min",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5646,
+    "fly": [
+     58.5,
+     5,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "10. Circadian DAM Monitor SLEEP/WAKE Konopka & Benzer (1971) Metric: Sleep Minutes0.00 min",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5837,
+    "fly": [
+     58.5,
+     5,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "10. Circadian DAM Monitor SLEEP/WAKE Konopka & Benzer (1971) Metric: Sleep Minutes0.00 min",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "courtship",
+  "samples": [
+   {
+    "pktStep": 5855,
+    "fly": [
+     9.99,
+     12.4,
+     -1.53
+    ],
+    "spikes": 5780,
+    "dn": {
+     "l": "50.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "37.5",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "REVERSE",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "11. Courtship Conditioning PHEROMONE Siegel & Hall (1979) Metric: Courtship Index0.00",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron2.55cb_efferent0.00cb_endocrine0.00cb_intrinsic7.63cb_motor3.74cb_sensory1.51cb_sensory_tbc0.00descending_neuron4.41descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.01ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal2.22visual_projection0.13visual_projection_tbc0.00vnc_efferent4.25vnc_endocrine22.73vnc_intrinsic1.16vnc_motor7.13vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5897,
+    "fly": [
+     10.25,
+     9.82,
+     -1.41
+    ],
+    "spikes": 6947,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "32\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "11. Courtship Conditioning PHEROMONE Siegel & Hall (1979) Metric: Courtship Index0.00",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron3.79cb_efferent0.00cb_endocrine0.00cb_intrinsic8.95cb_motor7.01cb_sensory1.67cb_sensory_tbc0.00descending_neuron5.67descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal1.78visual_projection0.13visual_projection_tbc0.00vnc_efferent2.66vnc_endocrine4.54vnc_intrinsic1.79vnc_motor11.30vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 5951,
+    "fly": [
+     11.5,
+     4.57,
+     -1.29
+    ],
+    "spikes": 6083,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "55\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "11. Courtship Conditioning PHEROMONE Siegel & Hall (1979) Metric: Courtship Index0.00",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron3.01cb_efferent0.00cb_endocrine0.00cb_intrinsic8.04cb_motor5.14cb_sensory1.42cb_sensory_tbc0.00descending_neuron4.34descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.17visual_projection0.13visual_projection_tbc0.00vnc_efferent9.04vnc_endocrine20.45vnc_intrinsic1.08vnc_motor7.91vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6005,
+    "fly": [
+     11.87,
+     3.26,
+     -1.31
+    ],
+    "spikes": 6269,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "-17\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "11. Courtship Conditioning PHEROMONE Siegel & Hall (1979) Metric: Courtship Index0.00",
+    "achieved": "0.11x",
+    "activity": "ENS0.00ascending_neuron2.60cb_efferent0.00cb_endocrine0.69cb_intrinsic8.43cb_motor6.08cb_sensory1.41cb_sensory_tbc0.00descending_neuron4.49descending_neuron_tbc0.00efferent_ascending37.50efferent_descending0.00ol_intrinsic0.02ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal4.44visual_projection0.13visual_projection_tbc0.00vnc_efferent5.32vnc_endocrine27.27vnc_intrinsic1.00vnc_motor5.65vnc_sensory0.01vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "labyrinth",
+  "samples": [
+   {
+    "pktStep": 6040,
+    "fly": [
+     23.5,
+     15,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "12. Corridor Labyrinth SLIDING OBSTACLE Biomimetic Complex Maze Metric: Path Tortuosity1.00",
+    "achieved": "0.34x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6189,
+    "fly": [
+     23.5,
+     15,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "12. Corridor Labyrinth SLIDING OBSTACLE Biomimetic Complex Maze Metric: Path Tortuosity1.00",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6375,
+    "fly": [
+     23.5,
+     15,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "12. Corridor Labyrinth SLIDING OBSTACLE Biomimetic Complex Maze Metric: Path Tortuosity1.00",
+    "achieved": "0.35x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6565,
+    "fly": [
+     23.5,
+     15,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "12. Corridor Labyrinth SLIDING OBSTACLE Biomimetic Complex Maze Metric: Path Tortuosity1.00",
+    "achieved": "0.38x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ },
+ {
+  "assay": "multisensory-sandbox",
+  "samples": [
+   {
+    "pktStep": 6607,
+    "fly": [
+     16.5,
+     0,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "13. Multisensory Limb Sandbox BENCHMARK Multi-modal Ingress & Direct 6-Limb Deck Score: Benchmark Index56.2 / 100",
+    "achieved": "0.37x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6750,
+    "fly": [
+     73.49,
+     0,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "13. Multisensory Limb Sandbox BENCHMARK Multi-modal Ingress & Direct 6-Limb Deck Score: Benchmark Index48.6 / 100",
+    "achieved": "0.37x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 6933,
+    "fly": [
+     73.49,
+     0,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "13. Multisensory Limb Sandbox BENCHMARK Multi-modal Ingress & Direct 6-Limb Deck Score: Benchmark Index64.0 / 100",
+    "achieved": "0.36x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   },
+   {
+    "pktStep": 7110,
+    "fly": [
+     73.49,
+     0,
+     0
+    ],
+    "spikes": 2,
+    "dn": {
+     "l": "0.0",
+     "r": "0.0",
+     "dnp09": "0.0",
+     "mdn": "0.0",
+     "gf": "0.0"
+    },
+    "identBackend": "connectome-fixed",
+    "identMotor": "graph",
+    "identAssists": "OFF",
+    "identAssistance": "OFF",
+    "identityBanner": "",
+    "errorBanner": "",
+    "pktState": "GRAPH",
+    "epgBump": "0\u00b0",
+    "compassSource": "CONNECTOME EPG",
+    "kcActive": "0 / 120 (0%)",
+    "card": "13. Multisensory Limb Sandbox BENCHMARK Multi-modal Ingress & Direct 6-Limb Deck Score: Benchmark Index63.7 / 100",
+    "achieved": "0.34x",
+    "activity": "ENS0.00ascending_neuron0.00cb_efferent0.00cb_endocrine0.00cb_intrinsic0.00cb_motor0.00cb_sensory0.00cb_sensory_tbc0.00descending_neuron0.08descending_neuron_tbc0.00efferent_ascending0.00efferent_descending0.00ol_intrinsic0.00ol_sensory0.00sensory_ascending0.00sensory_ascending_tbc0.00sensory_descending0.00visual_centrifugal0.00visual_projection0.00visual_projection_tbc0.00vnc_efferent0.00vnc_endocrine0.00vnc_intrinsic0.00vnc_motor0.00vnc_sensory0.00vnc_sensory_tbc0.00vnc_tbc0.00"
+   }
+  ]
+ }
+]

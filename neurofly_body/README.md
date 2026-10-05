@@ -13,8 +13,8 @@ same decoder would produce the same gap. What distinguishes the neural signal is
 the **stimulus-sign reversal**, and the command that runs it is built in:
 
 ```bash
-python -m neurofly_body verdict --output runs/embodied-verdict \
-  --duration 5 --seeds 0 1 --full-controls \
+NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body verdict --output runs/embodied-verdict \
+  --duration 5 --seeds 0 1 --full-controls --reuse-check-duration 5 \
   --graph-dir outputs/brainlab/malecns_v1 --connectome-dir connectome_data/malecns_v1
 ```
 
@@ -23,23 +23,41 @@ and body, plus a zero-stimulus baseline, the output-disconnected control and two
 rate-matched drive controls. It exits 0 only on PASS: the turn follows the stimulus
 sign in both directions on every seed, with at least 10 DNa02 spikes per reversal
 condition, and the reuse check (the first condition re-run after all the others)
-reproduces the same telemetry bytes. A failed reuse check makes the verdict
-INVALID. It writes `verdict.json` and `verdict.md`. Eight 5 s conditions take
-about 22 minutes on a CPU brain backend.
+reproduces the same telemetry bytes over the whole condition. A failed reuse
+check makes the verdict INVALID. A skipped one (`--no-reuse-check`) or one shorter
+than a condition (the default 0.1 s window is a smoke comparison) makes it
+UNVERIFIED, never PASS or FAIL. Even a full-duration check repeats only the first
+condition, once: it shows no telemetry difference over that repeat, not that all
+internal state was reset or that every condition matches a standalone run. Pin the
+brain backend: the same condition gives different trajectories on CPU and CUDA,
+and whether the two agree as ensembles has not been tested. It writes `verdict.json` and `verdict.md`. Eight
+5 s conditions plus a 5 s reuse check take about 25 minutes on a CPU brain
+backend.
 
-Measured on the CPU backend, with both decoders:
+Measured on the CPU backend, with both decoders, under the current gate. The
+full-duration reuse check was byte-identical over 2,500 of 2,500 records in both
+runs (5 October 2026, commit cd7cf2b):
 
 - **`dn-v2` (the default decoder): FAIL.** The DNa02 left/right asymmetry does
   reverse with the stimulus on both seeds, but DNp09 is all but silent, so there
   is no forward drive for DNa02 to shorten, and MDN spikes drive a small symmetric
-  reverse command. Every condition turns less than 0.04 rad. Receipt:
-  [`docs/receipts/embodied_stimulus_reversal.md`](../docs/receipts/embodied_stimulus_reversal.md).
+  reverse command. Every condition turns less than 0.04 rad. This is a valid
+  negative result. Receipt:
+  [`docs/receipts/embodied_stimulus_reversal_full_reuse_20261005.md`](../docs/receipts/embodied_stimulus_reversal_full_reuse_20261005.md).
 - **`dna02-crossed-v1` (legacy decoder): PASS.** Seed 0 turns +2.607 / -1.195 rad,
   seed 1 +3.107 / -1.017 rad; the turn is absent with the output cut, reverses
-  when the left and right drive channels are exchanged (-2.457 rad), and survives
-  shuffling the drive's time order (+1.966 rad), so what carries it is the mean
-  left/right difference, not the time course. Receipt:
-  [`docs/receipts/embodied_stimulus_reversal_legacy_decoder.md`](../docs/receipts/embodied_stimulus_reversal_legacy_decoder.md).
+  when the left and right drive channels are exchanged (-2.457 rad), and same-sign
+  turning survives the one fixed time permutation of the drive, at a smaller
+  magnitude (+2.607 -> +1.966 rad); one permutation does not show that the time
+  course is irrelevant. Scope: CPU backend, two seeds, motion sign imposed on
+  T4/T5 by the encoder, engineered decoder. Receipt:
+  [`docs/receipts/embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md`](../docs/receipts/embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md).
+
+The earlier receipts (`embodied_stimulus_reversal.md`,
+`embodied_stimulus_reversal_legacy_decoder.md`) record the same numbers. They are
+kept as historical records with a dated note: their 50-record reuse check makes
+them UNVERIFIED under the current gate, and the legacy one's mean-only shuffle
+reading is not supported.
 
 The legacy decoder makes DNa02 the only source of propulsion, which the literature
 contradicts (see `docs/EMBODIED_MVP.md`), so its PASS is the claim *a DNa02
@@ -115,7 +133,8 @@ The same code, arguments, seed, graph and brain backend give a byte-identical
 `telemetry.jsonl`; check a finished run with
 `python -m neurofly_body replay-check RUN_DIR --output NEW_DIR`. Each intact or
 output-disconnected verdict condition can be replayed the same way. CPU and CUDA
-brains agree statistically, not bit for bit.
+brains give different trajectories for the same run; whether they agree as
+ensembles has not been tested, so replay on the backend that made the run.
 
 Telemetry format 2 keeps the static neural identity block in `manifest.json` and
 writes one `identity_sha256` per record. A format-2 run has a different

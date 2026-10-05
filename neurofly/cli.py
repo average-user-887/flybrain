@@ -2,7 +2,7 @@
 
 Usage:
   neurofly run [daemon options]
-  neurofly full-sim [options]
+  neurofly full-sim              (retired: prints why and exits non-zero)
   neurofly embodied [options]
   neurofly download-data
   neurofly status
@@ -20,7 +20,7 @@ from pathlib import Path
 def cmd_run(args: list[str]) -> int:
     """Run the continuous neurofly daemon / simulation server."""
     import neurofly_daemon
-    sys.argv = [sys.argv[0]] + args
+    sys.argv = ["neurofly run"] + args
     neurofly_daemon.run_daemon()
     return 0
 
@@ -28,15 +28,18 @@ def cmd_run(args: list[str]) -> int:
 def cmd_download_data(args: list[str]) -> int:
     """Download and verify MaleCNS v1.0 connectome source tables."""
     from brainlab import download
+    # Parse first: `download-data --help` (or a bad flag) prints/fails without downloading.
+    download.build_parser().parse_args(args)
     print("[neurofly] Downloading and verifying MaleCNS v1.0 dataset...", flush=True)
-    download.main()
+    download.main(args)
     print("[neurofly] Dataset download and verification complete.", flush=True)
     return 0
 
 
 def cmd_status(args: list[str]) -> int:
     """Report system health, environment dependencies, graph, and body state."""
-    from brainlab.graph_identity import DEFAULT_GRAPH_DIR, DEFAULT_CONNECTOME_DIR, verify_graph, GraphUnavailable
+    argparse.ArgumentParser(prog="neurofly status", description=cmd_status.__doc__).parse_args(args)
+    from brainlab.graph_identity import verify_graph, GraphUnavailable
     print("=" * 60)
     print(" Project NeuroFly — System Status")
     print("=" * 60)
@@ -56,11 +59,28 @@ def cmd_status(args: list[str]) -> int:
     try:
         identity = verify_graph()
         print(f" [Connectome] MaleCNS v1.0: {identity.neurons:,} neurons, {identity.edges:,} synapses")
-        print(f"              Graph SHA-256: {identity.graph_sha256[:16]}... (VERIFIED)")
+        print(f"              Graph content: {identity.graph_content_sha256[:16]}... (VERIFIED)")
+        print(f"              Neuron map content: {identity.neuron_map_content_sha256[:16]}... (VERIFIED)")
+        print(f"              Graph identity: {identity.graph_sha256[:16]}...")
     except GraphUnavailable as e:
         print(f" [Connectome] MaleCNS graph unavailable: {e}")
 
-    # 3. Plasticity Circuit
+    # 3. Where a connectome brain would compute (the daemon prints the same at startup)
+    try:
+        from brainlab.brain import gpu_name, resolve_backend
+        from brainlab.gpu_probe import explain
+        from brainlab.graph_identity import active_dynamics_version
+        dynamics = active_dynamics_version()
+        device = resolve_backend(dynamics)
+        reason = explain(dynamics)[1]
+        if device == "cuda":
+            print(f" [Compute] Brain backend: CUDA ({gpu_name() or 'unknown GPU'}) for LIF {dynamics}")
+        else:
+            print(f" [Compute] Brain backend: CPU for LIF {dynamics} (GPU not used: {reason})")
+    except Exception as e:
+        print(f" [Compute] Brain backend unknown: {type(e).__name__}: {e}")
+
+    # 4. Plasticity Circuit
     try:
         from brainlab.io_map import resolve_visual_heading_io
         vh = resolve_visual_heading_io()
@@ -78,11 +98,27 @@ def cmd_embodied(args: list[str]) -> int:
     return body_cli.main(args)
 
 
+FULL_SIM_RETIRED = """\
+neurofly full-sim is RETIRED and no longer runs. It was not a full connectome
+simulation: the brain received empty sensory input (Arena.get_sensory_inputs does
+not exist, so every step fed it {}), and its motor output was overwritten by the
+modular controller inside arena.step.
+
+Use instead:
+  neurofly run --backend connectome-fixed --paradigm optomotor   dashboard on :8769
+  neurofly record --backend connectome-fixed --paradigm optomotor --seconds 30 --out run
+  neurofly validate run <spec> --out <new dir>    preregistered validation specs
+
+Last historical commit and details: docs/RETIREMENT_INDEX.md
+"""
+
+
 def cmd_full_sim(args: list[str]) -> int:
-    """Run unified full-connectome multi-task simulation across paradigms."""
-    from experiments.full_connectome_simulation import main as sim_main
-    sys.argv = [sys.argv[0]] + args
-    return sim_main()
+    """Retired: explain why and exit non-zero (docs/RETIREMENT_INDEX.md)."""
+    argparse.ArgumentParser(prog="neurofly full-sim", description=FULL_SIM_RETIRED,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_known_args(args)
+    print(FULL_SIM_RETIRED, file=sys.stderr, end="")
+    return 2
 
 
 def cmd_validate(args: list[str]) -> int:
@@ -99,6 +135,7 @@ def cmd_record(args: list[str]) -> int:
 
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
+    argparse.ArgumentParser(prog="neurofly capability", description=cmd_capability.__doc__).parse_args(args)
     matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
     if matrix_path.is_file():
         print(matrix_path.read_text(encoding="utf-8"))
@@ -116,10 +153,11 @@ def main(argv: list[str] | None = None) -> int:
         prog="neurofly",
         description="Project NeuroFly: Whole-Brain Connectome Coupled to Embodied Biomechanics",
     )
+    parser.add_argument("--version", action="store_true", help="Print the NeuroFly version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
-    subparsers.add_parser("full-sim", help="Run unified life-long multi-task simulation across 14 paradigms")
+    subparsers.add_parser("full-sim", help="RETIRED: not a full connectome simulation; prints why and exits")
     subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
     subparsers.add_parser("status", help="Print system health, dependencies, and graph verification")
@@ -150,6 +188,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_validate(rest)
     elif cmd == "record":
         return cmd_record(rest)
+    elif cmd == "--version":
+        from neurofly import __version__
+        print(f"neurofly {__version__}")
+        return 0
     elif cmd in ("-h", "--help"):
         parser.print_help()
         return 0

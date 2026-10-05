@@ -31,7 +31,6 @@ import hashlib
 import json
 import math
 import os
-import platform
 import resource
 import sys
 import time
@@ -46,13 +45,22 @@ sys.path.insert(0, str(ROOT))
 # manifest's dynamics block and controller version are resolved at import time.
 _pre = argparse.ArgumentParser(add_help=False)
 _pre.add_argument('--dynamics', default='v1')
-os.environ['NEUROFLY_LIF_DYNAMICS'] = _pre.parse_known_args()[0].dynamics
+_pre.add_argument('--e-inh', default=None)
+_pre_args = _pre.parse_known_args()[0]
+os.environ['NEUROFLY_LIF_DYNAMICS'] = _pre_args.dynamics
+if _pre_args.e_inh is not None:
+    # Declared E_inh sensitivity variant (docs/EINH_SENSITIVITY.md).  Set before
+    # the brainlab import for the same reason --dynamics is: the identity of the
+    # run is resolved at import time.  Unset leaves the declared v2/v3 value.
+    os.environ['NEUROFLY_LIF_E_INH_MV'] = str(float(_pre_args.e_inh))
 
 from brainlab.graph_identity import (DYNAMICS_VERSIONS, GraphIdentity,  # noqa: E402
-                                     active_dynamics_version, dynamics_pin, sha256_json)
+                                     active_dynamics_version, active_e_inh_mV, dynamics_pin,
+                                     dynamics_variant, dynamics_variant_pin, sha256_json)
 from brainlab.io_map import (DNa02YawDecoder, OptomotorEncoder, OptomotorLoop,  # noqa: E402
                              resolve_optomotor_io)
 from experiment_registry import ExperimentRegistry, SharedGraph  # noqa: E402
+from neurofly.privacy import host_description, portable_path, redact_local  # noqa: E402
 
 PREREG = ROOT / 'docs/wp5_optomotor_prereg.json'
 GRAPH_CONDITIONS = ('intact', 'dna02_silenced', 'sham_no_input', 'shuffled_graph')
@@ -124,7 +132,7 @@ def run_graph_condition(shared, io, condition, seed, prereg, root, blocks=None, 
     ckpt = registry.checkpoint(world_state=dict(condition=condition, seed=seed, t_ms=loop.t_ms, last_yaw=yaw))
     instance.manifest.write(registry.instance_dir(instance.instance_id) / 'manifest.json')
     run = dict(condition=condition, seed=seed, instance_id=instance.instance_id, run_id=instance.manifest.run_id,
-               checkpoint=str(ckpt), wall_s=wall, sim_ms=sim_ms, rss_mib=rss_mib(),
+               checkpoint=portable_path(ckpt), wall_s=wall, sim_ms=sim_ms, rss_mib=rss_mib(),
                manifest_identity=instance.manifest.identity())
     instance.release()
     registry.active = None
@@ -245,11 +253,18 @@ def main():
                         help='EXPLORATORY: direction-negated schedule, seeds 0-2, not part of the verdict')
     parser.add_argument('--dynamics', default='v1', choices=('v1', 'v2', 'v3'),
                         help='declared LIF dynamics version (docs/LIF_DYNAMICS_SPEC.md); default v1')
+    parser.add_argument('--e-inh', default=None,
+                        help='v2/v3 only: declared inhibitory-reversal variant in mV '
+                             '(docs/EINH_SENSITIVITY.md). Each value is a labelled variant with '
+                             'its own pin; the base version and its pin are unchanged. Under v3 '
+                             'the inhibitory conductance quantum follows it by the spec §6.2 rule.')
     parser.add_argument('--unclear-mode', default='excitatory',
                         choices=('excitatory', 'zero', 'exclude'),
                         help="v3 only: declared treatment of the 'unclear' neurons (spec §6.3.2)")
     args = parser.parse_args()
     assert args.dynamics == active_dynamics_version()   # set before the brainlab import
+    expected_e_inh = None if args.e_inh is None else float(args.e_inh)
+    assert expected_e_inh == active_e_inh_mV()         # set before the brainlab import
     raw = PREREG.read_bytes()
     prereg = json.loads(raw)
     prereg['_sha256'] = hashlib.sha256(raw).hexdigest()
@@ -270,12 +285,19 @@ def main():
             {k: policy_report[k] for k in ('policy', 'unclear_mode', 'edges_zeroed',
                                            'neurons_modulatory', 'graph_sha256')}), flush=True)
     io = resolve_optomotor_io()
-    header = dict(started_at=started, host=platform.node(), prereg_sha256=prereg['_sha256'],
+    header = dict(started_at=started, host=host_description(), prereg_sha256=prereg['_sha256'],
                   graph=shared.identity.to_dict(), io_map=io.describe(), graph_load_s=load_s,
                   rss_mib_after_load=rss_mib(),
                   lif_dynamics_version=active_dynamics_version(),
                   lif_dynamics_pin=dynamics_pin(active_dynamics_version()),
                   lif_dynamics=dict(DYNAMICS_VERSIONS[active_dynamics_version()]),
+                  lif_e_inh_mV=active_e_inh_mV(),
+                  lif_dynamics_variant=dynamics_variant(
+                      active_dynamics_version(), active_e_inh_mV())['dynamics_version'],
+                  lif_dynamics_variant_pin=dynamics_variant_pin(
+                      active_dynamics_version(), active_e_inh_mV()),
+                  lif_dynamics_variant_declared=dynamics_variant(
+                      active_dynamics_version(), active_e_inh_mV()),
                   transmitter_policy=policy_report)
 
     if args.pilot:
@@ -288,7 +310,7 @@ def main():
                      sim_s_per_wall_s=run['sim_ms'] / 1000 / run['wall_s'], encoder_rates_hz=enc,
                      projected_confirmatory_wall_min=(len(timeline(stim)) * stim['step_ms'] / run['sim_ms'])
                      * run['wall_s'] * len(prereg['seeds']) * len(GRAPH_CONDITIONS) / 60)
-        (args.out / 'pilot.json').write_text(json.dumps(pilot, indent=2) + '\n')
+        (args.out / 'pilot.json').write_text(json.dumps(redact_local(pilot), indent=2) + '\n')
         print(json.dumps({k: pilot[k] for k in ('run', 'sim_s_per_wall_s', 'encoder_rates_hz',
                                                   'projected_confirmatory_wall_min')}, indent=1))
         return
@@ -309,9 +331,9 @@ def main():
                             wall_s=run['wall_s']))
             print(f'mirror seed {seed}: TI {out[-1]["metrics"]["TI"]:+.3f}', flush=True)
         summary = {k: bootstrap([s['metrics'][k] for s in out]) for k in ('TI', 'A_DNa02', 'dV_DNa02')}
-        (args.out / 'exploratory_mirror.json').write_text(json.dumps(dict(
+        (args.out / 'exploratory_mirror.json').write_text(json.dumps(redact_local(dict(
             header, label='EXPLORATORY - declared after confirmatory results; not part of the verdict',
-            blocks=blocks, summary=summary, seeds=out), indent=2) + '\n')
+            blocks=blocks, summary=summary, seeds=out)), indent=2) + '\n')
         print(json.dumps(summary, indent=1))
         return
 
@@ -324,7 +346,7 @@ def main():
                                                   args.out / f'registry/closed-{mode}/seed-{seed}', closed_loop=mode)
                 m = arrays['block'] >= 0
                 results.append(dict(seed=seed, closed_loop=mode, mean_abs_slip=float(np.abs(arrays['slip'][m]).mean())))
-        (args.out / 'closed_loop.json').write_text(json.dumps(dict(header, results=results), indent=2) + '\n')
+        (args.out / 'closed_loop.json').write_text(json.dumps(redact_local(dict(header, results=results)), indent=2) + '\n')
         print(json.dumps(results, indent=1))
         return
 
@@ -401,7 +423,7 @@ def main():
     result = dict(header, finished_at=time.strftime('%Y-%m-%dT%H:%M:%S%z'), verdict=verdict,
                   summary=summary, paired=paired, motor_dependence=dependence, modular_baseline=modular_baseline(prereg),
                   compute=compute, runs=runs, per_condition=per_condition)
-    (args.out / 'results.json').write_text(json.dumps(result, indent=2) + '\n')
+    (args.out / 'results.json').write_text(json.dumps(redact_local(result), indent=2) + '\n')
     print('VERDICT', verdict)
     print(json.dumps(dict(intact_TI=summary['intact']['TI'], paired_TI={k: v['TI'] for k, v in paired.items()},
                           A_DNa02=summary['intact']['A_DNa02'], dV=summary['intact']['dV_DNa02'],

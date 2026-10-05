@@ -2,8 +2,14 @@
 
 import json
 import math
+import os
+import shlex
+import shutil
+import subprocess
 
 import pytest
+
+from pathlib import Path
 
 from neurofly_body import verdict as V
 from neurofly_body.decoder import DNa02CPGDecoder
@@ -39,6 +45,13 @@ def _outcome(name, seed, omega, spikes_l, spikes_r, yaw, x=3.0, y=4.0, cumulativ
         planar_displacement_mm=math.hypot(x, y),
         extras={"run_dir": name},
     )
+
+
+# A reuse check that ran over a whole condition and matched byte for byte.
+_FULL_CHECK = {
+    "ran": True, "bit_identical": True, "covers_full_condition": True,
+    "records_compared": 2500, "condition_records": 2500, "note": "byte-identical",
+}
 
 
 def _reversal_outcomes(yaw_positive=2.6, yaw_negative=-1.2):
@@ -115,14 +128,14 @@ def test_time_shuffled_control_preserves_each_channel_mean_exactly():
 
 
 def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "PASS"
     assert all(e["turn_follows_stimulus_sign"] for e in judgement["per_seed"])
     assert all(e["dna02_asymmetry_reverses"] for e in judgement["per_seed"])
 
     # A seed that turns the same way under both signs is a failure, however large.
     judgement = V.judge(
-        _reversal_outcomes(yaw_negative=+1.2), [0, 1], V.YAW_PASS_THRESHOLD_RAD
+        _reversal_outcomes(yaw_negative=+1.2), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK
     )
     assert judgement["verdict"] == "FAIL"
 
@@ -131,6 +144,7 @@ def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
         _reversal_outcomes(yaw_positive=0.01, yaw_negative=-0.01),
         [0, 1],
         V.YAW_PASS_THRESHOLD_RAD,
+        _FULL_CHECK,
     )
     assert judgement["verdict"] == "FAIL"
 
@@ -138,7 +152,7 @@ def test_verdict_passes_only_when_both_directions_follow_on_every_seed():
 def test_too_few_spikes_is_inconclusive_not_a_pass():
     outcomes = _reversal_outcomes()
     outcomes["seed1-negative-w"] = _outcome("seed1-negative-w", 1, -4.0, 1, 2, -1.017)
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "INCONCLUSIVE"
     assert "seed1-negative-w" in judgement["reason"]
 
@@ -181,7 +195,7 @@ def test_cumulative_yaw_unwraps_a_turn_past_half_a_revolution(tmp_path):
     outcomes["seed1-positive-w"] = _outcome(
         "seed1-positive-w", 1, 4.0, 31, 0, -3.116, cumulative=+3.168
     )
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     assert judgement["verdict"] == "PASS"
     entry = judgement["per_seed"][1]
     assert entry["cumulative_yaw_positive_w_rad"] == pytest.approx(3.168)
@@ -189,7 +203,7 @@ def test_cumulative_yaw_unwraps_a_turn_past_half_a_revolution(tmp_path):
 
 
 def test_markdown_receipt_states_the_verdict_and_the_limits():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     receipt = {
         "judgement": judgement,
         "created_at": "2026-09-26T00:00:00+00:00",
@@ -345,7 +359,7 @@ def test_control_findings_and_interpretation_come_from_the_numbers():
     assert findings["seed0-drive-time-shuffled"]["turn_survived"] is False
     assert "does not survive" in findings["seed0-drive-time-shuffled"]["reading"]
 
-    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     lines = V.interpretation("dn-v2", judgement, outcomes, 5.0)
     assert any("DNp09" in line for line in lines)
     assert not any("two neurons wide" in line for line in lines)
@@ -354,8 +368,43 @@ def test_control_findings_and_interpretation_come_from_the_numbers():
     assert any("two neurons wide" in line for line in legacy)
 
 
+def test_shuffle_claim_is_scoped_to_one_permutation_and_reports_the_magnitude():
+    outcomes = _reversal_outcomes(yaw_positive=2.607)
+    plan = {c.name: c for c in V.plan([0, 1], 4.0, full_controls=True)}
+    outcomes["seed0-drive-time-shuffled"] = V.Outcome(
+        condition=plan["seed0-drive-time-shuffled"], summary=_summary(9, 10, 1.966),
+        final_yaw_rad=1.966, cumulative_yaw_rad=1.966, planar_displacement_mm=5.0,
+    )
+    (finding,) = V.control_findings(outcomes, V.YAW_PASS_THRESHOLD_RAD)
+    assert finding["turn_survived"] is True
+    reading = finding["reading"]
+    assert "one time permutation" in reading and "2.607 -> 1.966" in reading
+    assert "mean left/right" not in reading
+    _, description = V.build_drive_override("time-shuffled", [(0.1, 0.2)] * 4)
+    assert "cannot show that the time course is irrelevant" in description["note"]
+    assert "depends on the mean" not in description["note"]
+
+
+def test_interpretation_states_the_imposed_t4_t5_input_and_scopes_a_pass():
+    outcomes = _reversal_outcomes()
+    judgement = V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
+    assert judgement["verdict"] == "PASS"
+    lines = V.interpretation("dna02-crossed-v1", judgement, outcomes, 5.0, "cpu")
+    assert any("T4/T5" in line and "imposed" in line and "photoreceptor" in line
+               for line in lines)
+    (scope,) = [line for line in lines if line.startswith("What it establishes")]
+    assert "`cpu` brain backend" in scope and "2 seeds" in scope
+    assert "T4/T5-imposed input" in scope and "engineered decoder" in scope
+    # A failing verdict still states the imposed input, and claims nothing.
+    failing = V.judge(_reversal_outcomes(yaw_positive=0.01), [0, 1],
+                      V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
+    lines = V.interpretation("dn-v2", failing, outcomes, 5.0, "cpu")
+    assert any("T4/T5" in line for line in lines)
+    assert not any(line.startswith("What it establishes") for line in lines)
+
+
 def test_receipt_never_prints_an_absolute_output_path():
-    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD)
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
     receipt = {
         "judgement": judgement,
         "created_at": "2026-10-05T00:00:00+00:00",
@@ -416,12 +465,12 @@ class SeededGraph(FakeGraph):
         return reply
 
 
-def _reuse_setup(tmp_path):
+def _reuse_setup(tmp_path, reuse_duration="0.01"):
     from neurofly_body import cli
 
     args = cli._parser().parse_args(
         ["verdict", "--output", str(tmp_path), "--decoder", "dna02-crossed-v1",
-         "--reuse-check-duration", "0.01"]
+         "--reuse-check-duration", reuse_duration]
     )
     neural, body = SeededGraph(), FakeBody()
     conditions = V.plan([0, 1], 4.0, full_controls=False)
@@ -450,8 +499,338 @@ def test_a_failed_reuse_check_invalidates_the_verdict(tmp_path, monkeypatch):
     judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, check)
     assert judgement["verdict"] == "INVALID"
     assert "INVALID" in V.VERDICTS
-    # A passing or skipped reuse check leaves the verdict to the turns.
-    ok = {"ran": True, "bit_identical": True, "note": "byte-identical"}
-    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, ok)["verdict"] == "PASS"
-    skipped = {"ran": False, "bit_identical": None, "note": "skipped"}
-    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, skipped)["verdict"] == "PASS"
+    assert judgement["turn_outcome"] == "PASS"     # kept, but not the verdict
+    # Only a full-duration passing check leaves the verdict to the turns.
+    assert V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD,
+                   _FULL_CHECK)["verdict"] == "PASS"
+
+
+def _judge(outcomes, check):
+    return V.judge(outcomes, [0, 1], V.YAW_PASS_THRESHOLD_RAD, check)
+
+
+_FAILING = dict(yaw_negative=+1.2)          # seed turns the same way under both signs
+_SHORT_CHECK = {"ran": True, "bit_identical": True, "covers_full_condition": False,
+                "records_compared": 50, "condition_records": 2500, "note": "smoke"}
+_SKIPPED = {"ran": False, "bit_identical": None, "note": "skipped (--no-reuse-check)"}
+_DIVERGED = {"ran": True, "bit_identical": False, "covers_full_condition": True,
+             "note": "DIVERGENT telemetry at record 4"}
+
+
+@pytest.mark.parametrize("check", [_SKIPPED, _SHORT_CHECK, None],
+                         ids=["no-reuse-check", "smoke-window", "no-check-supplied"])
+def test_an_omitted_comparability_control_never_passes(check):
+    """--no-reuse-check, the 0.1 s default window, or no check: UNVERIFIED, not PASS."""
+    judgement = _judge(_reversal_outcomes(), check)
+    assert judgement["verdict"] == "UNVERIFIED"
+    assert judgement["turn_outcome"] == "PASS"
+    assert "unverified" in judgement["reason"]
+    # A FAIL without the control is also UNVERIFIED, with the turns' FAIL kept.
+    failing = _judge(_reversal_outcomes(**_FAILING), check)
+    assert failing["verdict"] == "UNVERIFIED" and failing["turn_outcome"] == "FAIL"
+
+
+def test_every_status_is_distinct():
+    """PASS, a valid FAIL, INCONCLUSIVE, UNVERIFIED and INVALID never collapse."""
+    undersampled = _reversal_outcomes()
+    undersampled["seed1-negative-w"] = _outcome("seed1-negative-w", 1, -4.0, 1, 2, -1.017)
+    statuses = {
+        "PASS": _judge(_reversal_outcomes(), _FULL_CHECK),
+        "FAIL": _judge(_reversal_outcomes(**_FAILING), _FULL_CHECK),
+        "INCONCLUSIVE": _judge(undersampled, _FULL_CHECK),
+        "UNVERIFIED": _judge(_reversal_outcomes(**_FAILING), _SKIPPED),
+        "INVALID": _judge(_reversal_outcomes(**_FAILING), _DIVERGED),
+    }
+    for expected, judgement in statuses.items():
+        assert judgement["verdict"] == expected
+    assert set(statuses) == set(V.VERDICTS)
+    # A valid FAIL is the turns' own result, with nothing qualifying it.
+    assert statuses["FAIL"]["turn_outcome"] == "FAIL"
+    assert statuses["FAIL"]["reason"] == "at least one seed did not turn with the stimulus sign"
+
+
+def test_a_full_duration_reuse_check_covers_the_condition(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.04")
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is True
+    assert check["records_compared"] == check["condition_records"] == 20
+    assert "full-duration" in check["note"]
+    assert _judge(_reversal_outcomes(), check)["verdict"] == "PASS"
+
+
+def test_a_short_reuse_check_is_scoped_to_its_window(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path)
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is False
+    assert check["records_compared"] == 5 and check["condition_records"] == 20
+    assert "smoke comparison, not proof of a complete reset" in check["note"]
+    assert "resets are complete" not in check["note"]
+    assert _judge(_reversal_outcomes(), check)["verdict"] == "UNVERIFIED"
+
+
+def test_a_reuse_check_longer_than_the_condition_compares_the_condition(tmp_path):
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.06")
+    check = V._reuse_check(args, first, tmp_path, neural, body)
+    assert check["bit_identical"] is True and check["covers_full_condition"] is True
+    assert check["records_compared"] == 20
+
+
+def test_generated_prose_claims_only_what_was_measured(tmp_path):
+    """A passing full-duration check is one repeat of one condition, not proof of a
+    full reset; CPU/CUDA ensemble agreement is untested; standalone equivalence is
+    not established per condition."""
+    import inspect
+
+    args, first, neural, body = _reuse_setup(tmp_path, reuse_duration="0.04")
+    note = V._reuse_check(args, first, tmp_path, neural, body)["note"]
+    assert "No telemetry difference was observed over this one full-duration repeat" in note
+    assert "does not repeat the other seeds or conditions" in note
+    assert "no state survived" not in note and "resets are complete" not in note
+    source = inspect.getsource(V)
+    assert "agree statistically" not in source
+    assert "a condition is equivalent to a standalone" not in source
+    assert "ensembles has not been tested" in source
+
+
+def _invocation(**overrides):
+    invocation = {
+        "duration_s": 5.0, "seeds": [0, 1], "angular_velocity_rad_s": 2.5,
+        "full_controls": True, "reuse_check": True, "reuse_check_duration_s": 0.1,
+        "decoder": "dna02-crossed-v1", "contrast": 0.5, "neural_dt_ms": 1.0,
+        "physics_dt_s": 0.0002, "warmup_s": 0.05, "decoder_tau_ms": 50.0,
+        "max_cpg_drive": 1.2, "p9_gain_per_hz": 0.02, "dna02_stride_k_per_hz": 0.01,
+        "mdn_gain_per_hz": 0.02, "cpg_gain_per_hz": 0.07,
+        "graph_dir": "'<repo>/outputs/brainlab/malecns_v1'",
+        "connectome_dir": "'<repo>/connectome_data/malecns_v1'",
+    }
+    invocation.update(overrides)
+    return invocation
+
+
+def test_reproduce_command_pins_the_backend_and_every_parameter():
+    """CPU and CUDA diverge, so `auto` cannot reproduce a receipt."""
+    from neurofly_body import cli
+
+    command = V.reproduce_command(_invocation(), "cpu")
+    assert command.startswith("NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body verdict")
+    for flag in ("--angular-velocity 2.5", "--contrast 0.5", "--neural-dt-ms 1.0",
+                 "--physics-dt-s 0.0002", "--warmup-s 0.05", "--cpg-gain-per-hz 0.07",
+                 "--decoder dna02-crossed-v1", "--decoder-tau-ms 50.0", "--max-cpg-drive 1.2",
+                 "--p9-gain-per-hz 0.02", "--dna02-stride-k-per-hz 0.01",
+                 "--mdn-gain-per-hz 0.02", "--full-controls",
+                 "--reuse-check-duration 0.1", "--seeds 0 1"):
+        assert flag in command
+    # The command parses back to the same parameters.
+    argv = shlex.split(command)[1:]
+    assert argv[:3] == ["python", "-m", "neurofly_body"]
+    args = cli._parser().parse_args(argv[3:])
+    assert (args.angular_velocity, args.contrast, args.neural_dt_ms, args.physics_dt_s,
+            args.cpg_gain_per_hz, args.decoder) == (2.5, 0.5, 1.0, 0.0002, 0.07,
+                                                     "dna02-crossed-v1")
+    skipped = V.reproduce_command(_invocation(reuse_check=False), "cuda")
+    assert skipped.startswith("NEUROFLY_BRAIN_BACKEND=cuda ") and "--no-reuse-check" in skipped
+
+
+def test_markdown_reproduce_section_states_backend_code_data_and_dynamics():
+    judgement = V.judge(_reversal_outcomes(), [0, 1], V.YAW_PASS_THRESHOLD_RAD, _FULL_CHECK)
+    command = V.reproduce_command(_invocation(), "cpu")
+    receipt = {
+        "judgement": judgement, "created_at": "2026-10-05T00:00:00+00:00",
+        "package_version": "0.1.0", "telemetry_format_version": 2,
+        "conditions": [o.row() for o in _reversal_outcomes().values()],
+        "controls": [], "reuse_check": {"note": "byte-identical"}, "interpretation": [],
+        "output_dir": "/tmp/x", "invocation": _invocation(),
+        "reproduce": {
+            "brain_backend": "cpu", "command": command,
+            "code": {"commit": "c" * 40, "dirty": False, "neurofly_body_version": "0.1.0"},
+            "data": {"graph_sha256": "g" * 64},
+            "dynamics": {"lif_dynamics_version": "v3"},
+        },
+    }
+    text = V._markdown(receipt)
+    assert command in text
+    assert "NEUROFLY_BRAIN_BACKEND=cpu python -m neurofly_body replay-check" in text
+    assert "c" * 40 in text and "g" * 64 in text and "`lif_dynamics_version` = `v3`" in text
+
+
+def test_reproduce_command_floats_round_trip_exactly():
+    """Six significant digits turned 0.12345678912345678 into 0.123457."""
+    from neurofly_body import cli
+
+    values = dict(contrast=0.12345678912345678, physics_dt_s=1e-4 / 3,
+                  p9_gain_per_hz=0.1 + 0.2, angular_velocity_rad_s=4.000000000000001)
+    command = V.reproduce_command(_invocation(**values), "cpu")
+    args = cli._parser().parse_args(shlex.split(command)[4:])
+    assert args.contrast == values["contrast"]
+    assert args.physics_dt_s == values["physics_dt_s"]
+    assert args.p9_gain_per_hz == values["p9_gain_per_hz"]
+    assert args.angular_velocity == values["angular_velocity_rad_s"]
+
+
+def _run_from(tmp_path, monkeypatch, path):
+    """A directory the server loaded -> its portable form -> what the CLI resolves."""
+    from neurofly.privacy import REPO_ROOT
+
+    token = V.portable_location(path, "graph-dir")
+    assert str(REPO_ROOT) not in token and "/home/" not in token
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is needed to expand the command as a shell would")
+    out = subprocess.run([bash, "-c", f"printf '%s' {token}"], capture_output=True,
+                         text=True, env={**os.environ, **{"NEUROFLY_GRAPH_DIR": str(path)}})
+    assert out.returncode == 0, out.stderr
+    return token, V.restore_location(out.stdout)
+
+
+def test_reproduce_locations_resolve_to_the_directories_actually_used(tmp_path, monkeypatch):
+    from neurofly.privacy import REPO_ROOT
+
+    inside = REPO_ROOT / "outputs" / "brainlab" / "malecns_v1"
+    token, resolved = _run_from(tmp_path, monkeypatch, inside)
+    assert token == "'<repo>/outputs/brainlab/malecns_v1'"
+    assert resolved == inside
+    # A relative argument is resolved against the working directory first.
+    monkeypatch.chdir(REPO_ROOT)
+    assert V.portable_location("outputs/brainlab/malecns_v1", "graph-dir") == token
+
+    # Outside the repository: never the private path, never a hard-coded
+    # default; the documented environment variable, which must be set.
+    outside = tmp_path / "private-graph-copy"
+    token, resolved = _run_from(tmp_path, monkeypatch, outside)
+    assert str(tmp_path) not in token and "NEUROFLY_GRAPH_DIR" in token
+    assert resolved == outside
+    unset = {k: v for k, v in os.environ.items() if k != "NEUROFLY_GRAPH_DIR"}
+    bash = shutil.which("bash")
+    if bash:
+        out = subprocess.run([bash, "-c", f"printf '%s' {token}"], capture_output=True,
+                             text=True, env=unset)
+        assert out.returncode != 0 and "set NEUROFLY_GRAPH_DIR" in out.stderr
+
+
+def test_the_whole_reproduce_command_runs_through_the_cli(tmp_path, monkeypatch):
+    """Expand the command as bash would, parse it, and resolve the directories."""
+    from neurofly.privacy import REPO_ROOT
+    from neurofly_body import cli
+
+    outside = tmp_path / "neurons"
+    invocation = _invocation(
+        graph_dir=V.portable_location(REPO_ROOT / "outputs/brainlab/malecns_v1", "graph-dir"),
+        connectome_dir=V.portable_location(outside, "connectome-dir"),
+    )
+    command = V.reproduce_command(invocation, "cpu")
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is needed to expand the command as a shell would")
+    script = "set -- " + command.split(" python -m neurofly_body ", 1)[1] + "; printf '%s\\0' \"$@\""
+    out = subprocess.run([bash, "-c", script], capture_output=True, text=True,
+                         env={**os.environ, "NEUROFLY_CONNECTOME_DIR": str(outside)})
+    assert out.returncode == 0, out.stderr
+    argv = out.stdout.split("\0")[:-1]
+    args = cli._parser().parse_args(argv)
+    assert V.restore_location(args.graph_dir) == REPO_ROOT / "outputs/brainlab/malecns_v1"
+    assert V.restore_location(args.connectome_dir) == outside
+    assert args.output == Path("<fresh-dir>")
+
+
+@pytest.mark.parametrize("name, value", [
+    ("NEUROFLY_LIF_E_INH_MV", "-75"),
+    ("NEUROFLY_LIF_DYNAMICS", "v4"),
+    ("NEUROFLY_GRADED_POLICY", "all"),
+    ("NEUROFLY_CUDA_IMPL", "cupy"),
+    ("NEUROFLY_BRAIN_BACKEND", "gpu-please"),
+])
+def test_a_model_override_in_the_environment_is_refused_before_running(
+        tmp_path, monkeypatch, name, value):
+    """E_inh changes Brain under explicit v3 while cosim reports the base v3 pin."""
+    from neurofly_body import cli
+
+    for other in V.REFUSED_ENVIRONMENT + ("NEUROFLY_BRAIN_BACKEND",):
+        monkeypatch.delenv(other, raising=False)
+    monkeypatch.setenv(name, value)
+    output = tmp_path / "verdict"
+    args = cli._parser().parse_args(["verdict", "--output", str(output)])
+    with pytest.raises(SystemExit, match="refuses to run") as caught:
+        V.run_verdict(args)
+    assert f"{name}={value}" in str(caught.value)
+    assert not output.exists()          # nothing ran, nothing was written
+
+
+def test_clean_or_supported_environment_is_accepted(monkeypatch):
+    for other in V.REFUSED_ENVIRONMENT:
+        monkeypatch.delenv(other, raising=False)
+    for backend in ("auto", "cpu", "cuda", ""):
+        V.refuse_unsupported_environment({"NEUROFLY_BRAIN_BACKEND": backend,
+                                          "NEUROFLY_LIF_DYNAMICS": "v3",
+                                          "NEUROFLY_LIF_E_INH_MV": ""})
+
+
+class _ServerLike(SeededGraph):
+    """A fake graph with the attributes run_verdict reads from ConnectomeServer."""
+
+    graph_dir_source = "argument"
+
+    def __init__(self, graph_dir=None, connectome_dir=None, optomotor_seed=0, **_):
+        super().__init__()
+        self.optomotor_seed = optomotor_seed
+        self.graph_dir = Path(graph_dir)
+        self.connectome_dir = Path(connectome_dir)
+
+    def get_status(self):
+        return {**super().get_status(), "brain_backend": "cpu", "num_neurons": 166700,
+                "lif_dynamics_pin": "e" * 64, "controller_version": "brainlab-lif-v3"}
+
+
+class _ClosableBody(FakeBody):
+    def close(self):
+        pass
+
+
+def _strings(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from _strings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _strings(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def test_the_published_receipt_carries_no_private_path_or_session_id(tmp_path, monkeypatch):
+    """verdict.json wrote the absolute output directory before it was sanitised."""
+    import getpass
+
+    import brainlab.cosim_server
+    import neurofly_body.flygym_body
+    from neurofly_body import cli
+
+    for name in V.REFUSED_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NEUROFLY_BRAIN_BACKEND", "cpu")
+    monkeypatch.setattr(brainlab.cosim_server, "ConnectomeServer", _ServerLike)
+    monkeypatch.setattr(neurofly_body.flygym_body, "FlyGymBody",
+                        lambda **_: _ClosableBody())
+    private_graph = tmp_path / "private" / "malecns_v1"
+    output = tmp_path / "out" / "verdict-run"
+    args = cli._parser().parse_args(
+        ["verdict", "--output", str(output), "--decoder", "dna02-crossed-v1",
+         "--duration", "0.04", "--reuse-check-duration", "0.04", "--full-controls",
+         "--graph-dir", str(private_graph), "--connectome-dir", str(tmp_path / "neurons")]
+    )
+    V.run_verdict(args)
+
+    receipt = json.loads((output / "verdict.json").read_text())
+    markdown = (output / "verdict.md").read_text()
+    forbidden = [str(tmp_path), str(Path.home()), "/home/", "/media/", "/mnt/", "/Users/",
+                 "session_", "claude.ai/code"]
+    user = getpass.getuser()
+    for text in [*_strings(receipt), markdown]:
+        for needle in forbidden:
+            assert needle not in text, (needle, text)
+        if len(user) >= 3:
+            assert not any(part == user for part in text.replace("/", " ").split()), text
+    # The receipt is still complete and the command still names its data.
+    assert receipt["judgement"]["verdict"] in V.VERDICTS
+    assert "NEUROFLY_GRAPH_DIR" in receipt["reproduce"]["command"]
+    assert receipt["output_dir"].endswith("verdict-run")

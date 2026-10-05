@@ -66,11 +66,13 @@ except ImportError as e:
 # to the historical behaviour (private LAN mode; see docs/PUBLIC_STREAMING.md
 # and docs/DATA_SCHEMA.md).  They never touch the simulation loop.
 from stream_gateway import MAX_COMMAND_BYTES, StreamGateway, StreamPolicy
+from neurofly import __version__ as NEUROFLY_VERSION
 from learning_recorder import LearningRecorder, RecorderThread, resolve_data_dir
 from experiment_brains import ExperimentBrains
 # Controller identity (WP4).  experiment_registry / brainlab are imported only when
 # a graph backend is selected, so the modular default never touches the graph.
 from provenance import GRAPH_BACKENDS, RunManifest, get_backend, resolve_keep_checkpoints, source_revision
+from neurofly.privacy import redact_local
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
 
@@ -843,6 +845,7 @@ class ContinuousExperimentRunner:
         # Activate the active experiment with the new backend
         self._init_arena(self.active_paradigm_id)
         print(f"[Daemon] Switched controller backend to {self.backend} (graph_mode={self.graph_mode})", flush=True)
+        print(f"[Daemon] Brain compute: {self.compute_info()['detail']}", flush=True)
 
     def _init_arena(self, paradigm_name: str):
         """Activate an experiment's own arena and learned state; never share weights."""
@@ -903,6 +906,37 @@ class ContinuousExperimentRunner:
         return Arena(paradigm=None if paradigm_name == "open-arena" else paradigm_name, brain_type="modular",
                      seed=int(seed), num_flies=1, num_predators=0, fly_ablations=[{"ablate_mb": True}],
                      controller_backend=self.backend, graph_controller=self.graph_controller)
+
+    def compute_info(self) -> Dict[str, Any]:
+        """Where the brain computes: the resolved backend and, on CUDA, the GPU name.
+
+        Plain attribute reads plus a cached device-name query; safe without the lock.
+        """
+        if not self.graph_mode:
+            return {"brain": "modular", "device": "cpu", "gpu": None,
+                    "detail": "hand-built modular controller (Python/numpy on the CPU); "
+                              "no connectome LIF brain is running"}
+        from brainlab.brain import gpu_name, resolve_backend
+        from brainlab.graph_identity import active_dynamics_version
+        dynamics = active_dynamics_version()
+        instance = getattr(self.registry, "active", None)
+        brain = getattr(instance, "brain", None)
+        device = getattr(brain, "backend", None)
+        source = "active brain"
+        if device is None:
+            device = resolve_backend(dynamics)
+            source = "resolved (no brain instance active yet)"
+        note = getattr(brain, "backend_note", "") or ""
+        if "failed" in note:
+            reason = note
+        else:
+            from brainlab.gpu_probe import explain
+            reason = explain(dynamics)[1]
+        info = {"brain": "connectome-lif", "dynamics": dynamics, "device": device,
+                "gpu": gpu_name() if device == "cuda" else None, "source": source, "reason": reason}
+        info["detail"] = (f"LIF {dynamics} on CUDA ({info['gpu'] or 'unknown GPU'})" if device == "cuda"
+                          else f"LIF {dynamics} on the CPU (numba reference kernel); GPU not used: {reason}")
+        return info
 
     def identity(self) -> Dict[str, Any]:
         """Compact run identity carried by every packet, /api/status and each ack."""
@@ -1874,7 +1908,7 @@ class ContinuousExperimentRunner:
             "weights_mean": self.latest_telemetry.get("plasticity", {}).get("mb_weights_mean", 0.5)
         }
         with open(target_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(redact_local(data), f, indent=2)   # no absolute local paths on disk
         if safe_tag == "periodic":
             self._prune_periodic_checkpoints()
         return target_file
@@ -1928,6 +1962,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "paused": self.runner.paused,
             "continuous": self.runner.continuous,
             "service": "Project NeuroFly Continuous Learning Daemon",
+            "version": NEUROFLY_VERSION,
             "uptime_sec": round(uptime, 1),
             "total_steps": self.runner.total_steps,
             "sim_speed": self.runner.sim_speed,
@@ -1949,6 +1984,10 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["motor"] = latest.get("motor")
             payload["controller_fault"] = latest.get("controller_fault")
             payload["backend"] = getattr(self.runner, "backend", "modular")
+            try:
+                payload["compute"] = self.runner.compute_info()
+            except Exception as exc:  # never let the status probe fail on a device query
+                payload["compute"] = {"device": None, "error": f"{type(exc).__name__}: {exc}"}
             payload["controller_id"] = latest.get("controller_id", "modular")
             payload["joint_angles_rad"] = latest.get("joint_angles_rad", [0.0] * 18)
             payload["leg_contacts"] = latest.get("leg_contacts", [False] * 6)
@@ -2290,7 +2329,9 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Project NeuroFly Continuous Headless Learning Daemon")
-    parser.add_argument("--host", default="0.0.0.0", help="Host address to bind HTTP API (default: 0.0.0.0)")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Address to bind the HTTP API (default: 127.0.0.1, this machine only). "
+                             "Use --host 0.0.0.0 to expose it to your local network.")
     parser.add_argument("--port", type=int, default=8769, help="Port to bind HTTP API (default: 8769)")
     parser.add_argument("--paradigm", default="multisensory-sandbox", help="Initial experimental paradigm")
     parser.add_argument("--speed", type=float, default=5.0, help="Initial simulation speed multiplier (default: 5.0x for real connectome)")
@@ -2308,8 +2349,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "controller backend", "Which controller drives the fly (provenance.BACKENDS). Graph backends need the "
         "prepared MaleCNS graph: --graph-dir or NEUROFLY_GRAPH_DIR=/path/to/malecns_v1.")
     backend_group.add_argument("--backend", choices=DAEMON_BACKENDS,
-                               default=os.environ.get("NEUROFLY_BACKEND") or "connectome-fixed",
-                               help="Controller backend (env: NEUROFLY_BACKEND; default connectome-fixed)")
+                               default=os.environ.get("NEUROFLY_BACKEND") or None,
+                               help="Controller backend (env: NEUROFLY_BACKEND). Default: connectome-fixed "
+                                    "when a verified MaleCNS graph is present, otherwise the hand-built "
+                                    "modular controller; the choice and its reason are printed at startup. "
+                                    "An explicit --backend always wins, and a graph backend without a "
+                                    "verified graph is a startup error.")
     backend_group.add_argument("--dynamics", choices=("v1", "v2", "v3"),
                                default=os.environ.get("NEUROFLY_LIF_DYNAMICS") or "v3",
                                help="LIF dynamics of the connectome backends (default: v3, with the v3 "
@@ -2365,8 +2410,31 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def choose_default_backend(args) -> tuple:
+    """(backend, reason) when --backend / NEUROFLY_BACKEND was not given.
+
+    connectome-fixed when the MaleCNS graph verifies, otherwise modular.  A
+    synthetic test graph run implies the graph backend it tests.
+    """
+    if args.backend:
+        return args.backend, "requested with --backend / NEUROFLY_BACKEND"
+    if args.test_synthetic_graph:
+        return "connectome-fixed", "--test-synthetic-graph given (TEST ONLY synthetic graph)"
+    from brainlab.graph_identity import GraphUnavailable, verify_graph
+    try:
+        verify_graph(Path(args.graph_dir) if args.graph_dir else None)
+    except (GraphUnavailable, OSError, ValueError) as exc:
+        return "modular", (
+            "no verified MaleCNS graph found, so running the hand-built modular controller "
+            f"({str(exc).split('. ')[0]}). For the connectome: `neurofly download-data`, then "
+            "`python -m brainlab.connectome` and `python -m brainlab.prepare`, then restart")
+    return "connectome-fixed", "verified MaleCNS graph found (pass --backend modular for the hand-built controller)"
+
+
 def run_daemon():
     args = build_arg_parser().parse_args()
+    args.backend, backend_reason = choose_default_backend(args)
+    print(f"[Daemon] Controller backend: {args.backend} -- {backend_reason}", flush=True)
     # Process-wide, before any Brain or registry manifest is created.
     os.environ["NEUROFLY_LIF_DYNAMICS"] = args.dynamics
 
@@ -2384,8 +2452,8 @@ def run_daemon():
         f.write(str(os.getpid()))
 
     print("===============================================================================")
-    print("PROJECT NEUROFLY — 24/7 CONTINUOUS REMOTE LEARNING DAEMON")
-    print(f"PID: {os.getpid()} | API Port: {args.port} | Speed: {args.speed}x")
+    print(f"PROJECT NEUROFLY {NEUROFLY_VERSION} — 24/7 CONTINUOUS REMOTE LEARNING DAEMON")
+    print(f"PID: {os.getpid()} | API: http://{args.host}:{args.port} | Speed: {args.speed}x")
     print(f"Active Paradigm: {args.paradigm} | LIF dynamics: {args.dynamics}")
     if stream_policy.public:
         mode = "READ-ONLY (no admin token set)" if stream_policy.read_only else "token-gated commands"
@@ -2418,6 +2486,9 @@ def run_daemon():
     ident = runner.identity()
     print(f"[Daemon] Backend: {ident.get('backend')} | label: {ident.get('label')} | "
           f"graph_sha256: {ident.get('graph_sha256')} | synthetic: {ident.get('synthetic')}", flush=True)
+    compute = runner.compute_info()
+    print(f"[Daemon] Brain compute: {compute['detail']} (device={compute['device']}"
+          f"{', gpu=' + compute['gpu'] if compute.get('gpu') else ''})", flush=True)
     if args.record:
         with runner.lock:
             info = runner.start_recording(name=args.record, record_every=args.record_every,

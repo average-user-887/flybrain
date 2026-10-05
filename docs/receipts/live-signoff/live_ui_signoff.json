@@ -2047,47 +2047,47 @@
   },
   "screenshots": [
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/01-initial-load.png",
+      "file": "<repo>/docs/receipts/live-signoff/01-initial-load.png",
       "bytes": 415074
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/02-assay-optomotor.png",
+      "file": "<repo>/docs/receipts/live-signoff/02-assay-optomotor.png",
       "bytes": 389290
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/02-assay-labyrinth.png",
+      "file": "<repo>/docs/receipts/live-signoff/02-assay-labyrinth.png",
       "bytes": 390367
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/03-identity-bar.png",
+      "file": "<repo>/docs/receipts/live-signoff/03-identity-bar.png",
       "bytes": 464884
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/04-after-rapid.png",
+      "file": "<repo>/docs/receipts/live-signoff/04-after-rapid.png",
       "bytes": 421105
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/05-tabA-follows-tabB.png",
+      "file": "<repo>/docs/receipts/live-signoff/05-tabA-follows-tabB.png",
       "bytes": 384855
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/06-speed-100x.png",
+      "file": "<repo>/docs/receipts/live-signoff/06-speed-100x.png",
       "bytes": 397160
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/07-paused.png",
+      "file": "<repo>/docs/receipts/live-signoff/07-paused.png",
       "bytes": 391421
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/08-restored-open-arena-1x.png",
+      "file": "<repo>/docs/receipts/live-signoff/08-restored-open-arena-1x.png",
       "bytes": 421177
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/09-error-state-injected-render-fault.png",
+      "file": "<repo>/docs/receipts/live-signoff/09-error-state-injected-render-fault.png",
       "bytes": 412894
     },
     {
-      "file": "<redacted-path>/Documents/ChatGPT/flybrain/<redacted-path>/docs/receipts/live-signoff/10-final-state-after-signoff.png",
+      "file": "<repo>/docs/receipts/live-signoff/10-final-state-after-signoff.png",
       "bytes": 417551
     }
   ],

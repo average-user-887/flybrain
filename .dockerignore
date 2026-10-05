@@ -1,0 +1,14 @@
+# Keep the build context small: data and run state are mounted, never baked in.
+.git
+.venv
+.claude
+connectome_data/
+outputs/
+runs/
+experiment_data/battery/
+upstream/
+build/
+**/__pycache__
+*.pyc
+.env
+.env.*

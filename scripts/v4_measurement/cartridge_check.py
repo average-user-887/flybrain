@@ -1,9 +1,10 @@
 """Can each R1-R6 be given a retinotopic position from the hex coordinate of its lamina targets?"""
+from _paths import REPO, SCRATCH  # repo root; scratch = $NEUROFLY_V4_SCRATCH or outputs/v4_measurement
 import collections
 import numpy as np
 import pyarrow.feather as f
 
-ROOT = '<redacted-path>/Documents/ChatGPT/flybrain'
+ROOT = str(REPO)
 n = f.read_table(ROOT + '/connectome_data/malecns_v1/normalized/neurons.feather').to_pandas()
 a = f.read_table(ROOT + '/connectome_data/malecns_v1/annotations.feather').to_pandas().drop_duplicates('bodyId')
 j = n.join(a.set_index('bodyId'), on='source_id', rsuffix='_a')

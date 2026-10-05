@@ -47,10 +47,9 @@ THREADS_PER_BLOCK = 256
 
 
 def numba_cuda_available() -> bool:
-    try:
-        return bool(cuda.is_available())
-    except Exception:
-        return False
+    """True only when a numba.cuda kernel really compiles and runs (brainlab.gpu_probe)."""
+    from .gpu_probe import numba_cuda
+    return numba_cuda()[0]
 
 
 _AVAILABLE = None

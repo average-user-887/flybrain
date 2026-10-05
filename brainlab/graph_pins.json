@@ -1,6 +1,8 @@
 {
   "dataset": "MaleCNS v1.0",
   "prepared_by": "brainlab.prepare (synaptic_scale 0.275)",
+  "graph_content_sha256": "531dec8ddc2b1494b930fc3b2326dd352add6d69f5d6d70151725ca92047a4c9",
+  "neuron_map_content_sha256": "6fb892cbb99d416137ca67895fec814879434147e94ccdc91d6f49663a42bf3c",
   "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
   "neuron_map_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
   "ids_sha256": "6b6b40c3bddf84b1281ef0b18db06927c2bf61c5f4cb32a4219ec9b7839dc2e5",
@@ -10,6 +12,14 @@
     "annotations.feather": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
     "neurotransmitters.feather": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
     "edges.feather": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1"
+  },
+  "pin_kinds": {
+    "graph_content_sha256": "REQUIRED. Content fingerprint of outputs/brainlab/malecns_v1/graph.npz, which the user generates with brainlab.prepare. Scheme neurofly-npz-content-v1: sha256 of b'neurofly-npz-content-v1\\0' || u64 member count, then for each member sorted by name (.npy suffix removed): u64-length-prefixed UTF-8 name || u64-length-prefixed numpy little-endian dtype string ('<i8', '<i4', '<f4') || u64 ndim || u64 per dimension || values in C order as fixed-width little-endian bytes (NaN canonicalised). u64 = unsigned 64-bit little-endian. Zip headers (timestamp, host OS, zip64 extras) and the .npy header text are not content. Implemented by brainlab.graph_identity.npz_content_sha256.",
+    "neuron_map_content_sha256": "REQUIRED. Content fingerprint of connectome_data/malecns_v1/normalized/neurons.feather, which the user generates with brainlab.connectome. Scheme neurofly-table-content-v1: sha256 of b'neurofly-table-content-v1\\0' || u64 n_rows || u64 n_columns, then for every column in file order: u64-length-prefixed UTF-8 name || u64-length-prefixed dtype tag ('bool', 'int8'..'uint64', 'float16'..'float64', or 'utf8' for string/large_string/string_view) || n_rows null-mask bytes (1 = null) || values with nulls replaced by zero/empty: bool as n_rows bytes 0/1; integers and floats as fixed-width little-endian (NaN canonicalised); utf8 as n_rows u64 byte lengths followed by the concatenated UTF-8 bytes. Schema metadata (which records the pandas and pyarrow versions), chunking and string offset width are not content; names, order, dtype, nullness and values are. Implemented by brainlab.graph_identity.table_content_sha256.",
+    "graph_sha256": "Reference identifier: sha256 of the reference graph.npz bytes (Linux, numpy 2.x). Carried by every receipt, checkpoint and server status as the graph identity, and reported only after graph_content_sha256 has matched. NOT required of the local file: on Linux the bytes reproduce exactly, but zipfile writes a different host-OS byte on Windows.",
+    "neuron_map_sha256": "LEGACY reference identifier: sha256 of the reference neurons.feather bytes, written by pandas 3.0.5 / pyarrow 25.0.1. NOT required of the local file: pandas records its own version in the feather schema metadata, so pandas 3.0.6 writes the same table as 416b4a36... and pandas 2.2 as aafe71aa.... Verification uses neuron_map_content_sha256.",
+    "ids_sha256": "Content digest of graph.npz ids as little-endian int64 (already content-based).",
+    "source_sha256": "Byte sha256 of the three MaleCNS tables users DOWNLOAD from storage.googleapis.com; the server fixes their bytes, so a byte pin is correct. edges.feather (1 GB) is checked at download (brainlab.download) and not rehashed by verify_graph."
   },
   "evidence": [
     "outputs/rethink-audit/connectome-mapping-receipt.json",

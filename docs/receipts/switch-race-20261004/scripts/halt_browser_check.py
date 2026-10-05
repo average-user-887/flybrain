@@ -6,8 +6,8 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.by import By
 
 D = "http://127.0.0.1:8791"
-FLAG = pathlib.Path("<redacted-path>/tmp/race/inject.flag")
-OUT = pathlib.Path("<redacted-path>/tmp/race/browser/halt-check")
+FLAG = pathlib.Path("<scratch>/race/inject.flag")
+OUT = pathlib.Path("<scratch>/race/browser/halt-check")
 OUT.mkdir(parents=True, exist_ok=True)
 
 

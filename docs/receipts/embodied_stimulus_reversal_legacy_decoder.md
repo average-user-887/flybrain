@@ -2,6 +2,42 @@
      is the command's verdict.md, unedited. Run artefacts were written outside the
      repository and are not committed. -->
 
+> **Status, 5 October 2026: historical receipt, superseded.** This file is kept
+> unchanged below this note. It was generated on the CPU brain backend by the verdict code of commit a877863 on the
+> published branch `claude/embodied-defects-v2` (cherry-picked here as e9fe2ee),
+> before the current comparability gate existed. Its numbers stand as measured. Two
+> things in it are superseded:
+>
+> - **Comparability.** Its reuse check compared only the opening 50 of 2,500
+>   records, and its note "the resets are complete" overstates that. Under the
+>   current gate, a check that short is a smoke comparison, so this receipt's
+>   verdict counts as **UNVERIFIED**, not as a validated result.
+> - **Trajectory digests.** The digests below are not reproducible on current
+>   master. These records omit two per-record identity fields,
+>   `neural.graph_content_sha256` and `neural.neuron_map_content_sha256`; current
+>   records carry `graph_content_sha256: null` and the neuron-map content hash.
+>   With those two fields removed, all 40,000 records of the 16 conditions (both
+>   decoders) are identical to the current rerun. *(Corrected 5 October 2026: an
+>   earlier version of this note named only the neuron-map field and said it had
+>   been recorded as null.)*
+> - **Standalone equivalence.** The line below saying each condition "is
+>   equivalent to a standalone `run --seed <seed>`" is not established for every
+>   condition. Only the repeated condition and conditions re-run with
+>   `replay-check` were checked.
+>
+> - **Interpretation.** The time-shuffled reading below ("it depends on the mean
+>   left/right drive difference, not on the drive's time course") is not
+>   supported. One permutation shows only that same-sign turning survived that
+>   control, with a changed magnitude (|yaw| 2.607 -> 1.966 rad). It does not show
+>   mean-only coding.
+>
+> The current receipt is
+> [`embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md`](embodied_stimulus_reversal_legacy_decoder_full_reuse_20261005.md):
+> a full-duration fresh-versus-reused check (2,500 of 2,500 records,
+> byte-identical) and every number in the table below reproduced exactly. Its
+> verdict is PASS, scoped to the CPU backend, two seeds, motion sign imposed on
+> T4/T5 by the encoder, and an engineered DN-to-CPG decoder.
+
 # Embodied MVP verdict: stimulus-sign reversal
 
 Verdict: **PASS** - turn direction followed the stimulus sign in both directions on all 2 seeds, with |cumulative yaw| > 0.2 rad
