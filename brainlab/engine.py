@@ -446,3 +446,128 @@ def advance_v5(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,ste
                 g[c,i]=0.0
         cursor+=1
     return cursor
+
+
+# ---------------------------------------------------------------------------
+# v6a: v5 plus a declared per-class graded TRANSFER GAIN
+# (docs/LIF_DYNAMICS_SPEC.md §10 and its locked declaration).
+#
+# v4/v5 release r(V) = R_MAX_HZ*(V - E_inh)/(E_exc - E_inh) is a straight line
+# across the whole 70 mV membrane range.  v6a keeps that line's value at a
+# declared ANCHOR potential V_A of each presynaptic graded class (so the tonic
+# release at the anchor -- v4's maintained baseline -- is unchanged) and
+# multiplies its SLOPE by a declared class gain G derived from a measured
+# synaptic voltage gain (brainlab.graded_release):
+#
+#     r(V) = clip( r_v4(V_A) + G * R_MAX_HZ/(E_exc - E_inh) * (V - V_A), 0, R_MAX_HZ )
+#
+# which the kernel evaluates per neuron as
+#
+#     x = (V - rel_v0[i]) * rel_k[i],  clipped to [0, (E_exc - E_inh)*rel_scale]
+#
+# with rel_v0 = V_A - (V_A - E_inh)/G (the release zero) and rel_k = G*rel_scale.
+# With G = 1 every neuron has rel_v0 = E_inh and rel_k = rel_scale exactly, the
+# clip never binds inside the membrane bounds, and the arithmetic is
+# advance_v5's, so v6a with the v5-linear release table is bit-identical to v5
+# (tests/test_release_v6a.py).
+
+
+@njit(**KERNEL_OPTIONS)
+def advance_v6a(ptr,post,weight,v,g,refractory,drive,queue,queue_count,cursor,steps,dt,counts,active,active_flag,nactive,e_inh,g_unit_exc,g_unit_inh,graded,graded_idx,rel_ring,pre_chan,chan_decay,chan_q,rel_v0,rel_k):
+    """v6a: ``advance_v5`` with a per-neuron release zero and slope.
+
+    ``rel_v0[i]`` is the potential at which graded neuron i's release reaches
+    zero and ``rel_k[i]`` its release per mV in events per ``dt``; both come
+    from the declared release table (``brainlab.graded_release``).  Release is
+    clipped to ``[0, R_MAX_HZ*dt/1000]``, the bounds v4 already had.
+    """
+    n_chan=chan_decay.shape[0]
+    delay_slots=queue.shape[0]
+    delay_ticks=int(round(DELAY_MS/dt))
+    refractory_ticks=int(round(REFRACTORY_MS/dt))
+    n_graded=graded_idx.shape[0]
+    rel_scale=R_MAX_HZ*dt*1e-3/(E_EXC_MV-e_inh)
+    rel_max=(E_EXC_MV-e_inh)*rel_scale
+    for step in range(steps):
+        slot=cursor%delay_slots
+        future=(cursor+delay_ticks)%delay_slots
+        # Phase 1: the SPIKING cells of the active set (as v5).
+        for k in range(nactive[0]):
+            i=active[k]
+            if graded[i]!=0: continue
+            if refractory[i]>0: refractory[i]-=1
+            if refractory[i]==0:
+                ge=g[0,i]; gi=g[1,i]
+                for c in range(1,n_chan):
+                    ge+=g[2*c,i]; gi+=g[2*c+1,i]
+                gtot=1.0+ge+gi
+                vinf=(V_REST_MV+ge*E_EXC_MV+gi*e_inh+drive[i])/gtot
+                vi=vinf+(v[i]-vinf)*math.exp(-dt*gtot/TAU_M_MS)
+                if vi<e_inh: vi=e_inh
+                elif vi>E_EXC_MV: vi=E_EXC_MV
+                v[i]=vi
+                for c in range(n_chan):
+                    g[2*c,i]=g[2*c,i]*chan_decay[c]; g[2*c+1,i]=g[2*c+1,i]*chan_decay[c]
+                if vi>V_THRESHOLD_MV:
+                    counts[i]+=1
+                    queue[future,queue_count[future]]=i
+                    queue_count[future]+=1
+        # Phase 1b: the GRADED cells; release through the declared class gain.
+        for k in range(n_graded):
+            i=graded_idx[k]
+            ge=g[0,i]; gi=g[1,i]
+            for c in range(1,n_chan):
+                ge+=g[2*c,i]; gi+=g[2*c+1,i]
+            gtot=1.0+ge+gi
+            vinf=(V_REST_MV+ge*E_EXC_MV+gi*e_inh+drive[i])/gtot
+            vi=vinf+(v[i]-vinf)*math.exp(-dt*gtot/TAU_M_MS)
+            if vi<e_inh: vi=e_inh
+            elif vi>E_EXC_MV: vi=E_EXC_MV
+            v[i]=vi
+            for c in range(n_chan):
+                g[2*c,i]=g[2*c,i]*chan_decay[c]; g[2*c+1,i]=g[2*c+1,i]*chan_decay[c]
+            x=(vi-rel_v0[i])*rel_k[i]
+            if x<0.0: x=0.0
+            elif x>rel_max: x=rel_max
+            rel_ring[future,i]=x
+        # Phase 2: deliver the spikes due this tick (as v5).
+        for q in range(queue_count[slot]):
+            i=queue[slot,q]
+            c=pre_chan[i]
+            qc=chan_q[c]
+            for e in range(ptr[i],ptr[i+1]):
+                j=post[e]
+                if refractory[j]>0: continue
+                w=weight[e]
+                if w>0.0:
+                    g[2*c,j]+=w*g_unit_exc*qc
+                else:
+                    g[2*c+1,j]-=w*g_unit_inh*qc
+                if active_flag[j]==0:
+                    active_flag[j]=1;active[nactive[0]]=j;nactive[0]+=1
+        queue_count[slot]=0
+        # Phase 2b: deliver the graded release due this tick (as v5).
+        for k in range(n_graded):
+            i=graded_idx[k]
+            x=rel_ring[slot,i]
+            if x==0.0: continue
+            rel_ring[slot,i]=0.0
+            c=pre_chan[i]
+            qc=chan_q[c]
+            for e in range(ptr[i],ptr[i+1]):
+                j=post[e]
+                if refractory[j]>0: continue
+                w=weight[e]
+                if w>0.0:
+                    g[2*c,j]+=w*g_unit_exc*qc*x
+                else:
+                    g[2*c+1,j]-=w*g_unit_inh*qc*x
+                if active_flag[j]==0:
+                    active_flag[j]=1;active[nactive[0]]=j;nactive[0]+=1
+        # Phase 3: reset this tick's spikers (as v5).
+        for q in range(queue_count[future]):
+            i=queue[future,q];v[i]=V_RESET_MV;refractory[i]=refractory_ticks
+            for c in range(2*n_chan):
+                g[c,i]=0.0
+        cursor+=1
+    return cursor

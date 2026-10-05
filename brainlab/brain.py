@@ -36,7 +36,7 @@ import os
 import time
 import numpy as np
 from .engine import (E_INH_MV, G_UNIT_EXC_V3, V_REST_MV, advance, advance_v2,
-                     advance_v3, advance_v4, advance_v5)
+                     advance_v3, advance_v4, advance_v5, advance_v6a)
 from .graph_identity import (DYNAMICS_VERSIONS, E_INH_ENV, E_INH_VARIANT_VERSIONS,
                              active_dynamics_version, active_e_inh_mV)
 
@@ -56,7 +56,10 @@ STATE_ARRAYS_V4 = STATE_ARRAYS + ('rel_ring',)
 STATE_SCALARS = ('cursor', 'total_spikes', 'sim_ms')
 # Versions with the v4 hybrid graded/spiking mode.  v5 is v4 plus declared
 # per-receptor-class synaptic kinetics (docs/LIF_DYNAMICS_SPEC.md §9).
-GRADED_VERSIONS = ('v4', 'v5')
+GRADED_VERSIONS = ('v4', 'v5', 'v6a')
+# Versions with v5's per-receptor-class kinetic channels.  v6a is v5 plus a
+# declared per-class graded transfer gain (docs/LIF_DYNAMICS_SPEC.md §10).
+KINETIC_VERSIONS = ('v5', 'v6a')
 
 
 def resolve_backend(dynamics: str, backend=None) -> str:
@@ -133,7 +136,8 @@ class Brain:
         return STATE_ARRAYS_V4 if self.dynamics in GRADED_VERSIONS else STATE_ARRAYS
 
     def __init__(self, path=None, *, arrays=None, validate=True, dynamics=None, e_inh_mV=None,
-                 backend=None, graded_policy=None, kinetics=None, receptor_classes=None):
+                 backend=None, graded_policy=None, kinetics=None, receptor_classes=None,
+                 release=None, release_classes=None):
         """Load a CSR graph from ``path`` (file or file-like) or reuse ``arrays``.
 
         ``arrays`` lets several instances share one immutable graph; pass
@@ -151,6 +155,11 @@ class Brain:
         ``receptor_classes`` optionally gives each neuron's receptor class
         explicitly (synthetic test graphs).  On the real graph the classes are
         resolved from the released transmitter table.
+
+        v6a only: ``release`` names a declared graded release table
+        (``brainlab.graded_release``; default the calibrated primary) and
+        ``release_classes`` optionally gives each neuron's release class
+        explicitly (synthetic test graphs).  ``kinetics`` applies as for v5.
         """
         self._gpu = None
         self.dynamics = dynamics or active_dynamics_version()
@@ -180,7 +189,7 @@ class Brain:
         if arrays is None:
             with np.load(path, allow_pickle=False) as graph:
                 arrays = {name: graph[name] for name, _ in GRAPH_ARRAYS}
-            if self.dynamics in ('v3', 'v4', 'v5'):
+            if self.dynamics in ('v3', 'v4', 'v5', 'v6a'):
                 arrays['weight'] = _v3_policy_weight(arrays)
         for name, dtype in GRAPH_ARRAYS:
             value = arrays[name]
@@ -202,14 +211,14 @@ class Brain:
         # differing shape is what makes checkpoints mutually incompatible.
         # v5: (2K, n) for K kinetic channels (row 2k excitatory, 2k+1 inhibitory).
         self.kinetics_report = None
-        if self.dynamics == 'v5':
+        if self.dynamics in KINETIC_VERSIONS:
             from . import receptor_kinetics as _rk
             self._kin = _rk.resolve(self.n, kinetics=kinetics, receptor_classes=receptor_classes,
                                     dt=.1, required=(self.n == MALECNS_NEURONS))
             self.kinetics_report = self._kin['report']
             g_rows = 2 * len(self._kin['chan_decay'])
         elif kinetics is not None or receptor_classes is not None:
-            raise ValueError('kinetics / receptor_classes apply to LIF dynamics v5 only')
+            raise ValueError('kinetics / receptor_classes apply to LIF dynamics v5 and v6a only')
         else:
             g_rows = 2
         self.g = np.zeros(self.n if self.dynamics == 'v1' else (g_rows, self.n), dtype=np.float32)
@@ -246,6 +255,16 @@ class Brain:
                     self.n, policy=policy, required=(self.n == MALECNS_NEURONS))
             self.graded_idx = np.ascontiguousarray(np.flatnonzero(self.graded), dtype=np.int64)
             self.rel_ring = np.zeros(self.queue.shape, dtype=np.float32)
+        # v6a: the declared per-class release zero and slope (graded cells only).
+        self.release_report = None
+        if self.dynamics == 'v6a':
+            from . import graded_release as _gr
+            self._rel = _gr.resolve(self.n, self.graded, release=release,
+                                    release_classes=release_classes, e_inh=self.e_inh_mV,
+                                    dt=self.dt, required=(self.n == MALECNS_NEURONS))
+            self.release_report = self._rel['report']
+        elif release is not None or release_classes is not None:
+            raise ValueError('release / release_classes apply to LIF dynamics v6a only')
         requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
         self.backend = resolve_backend(self.dynamics, backend)
         self.backend_note = 'requested' if requested != 'auto' else 'auto'
@@ -266,7 +285,21 @@ class Brain:
             log.info('brainlab: LIF %s running on the %s backend', self.dynamics, self.backend.upper())
 
     def _setup_device(self):
-        if self.backend == 'cuda' and self.dynamics == 'v5':
+        if self.backend == 'cuda' and self.dynamics == 'v6a':
+            from .cupy_v6a import CupyV6aState
+            self._gpu = CupyV6aState(self.ptr, self.post, self.weight, n=self.n,
+                                     e_inh=self.e_inh_mV, g_unit_exc=self.g_unit_exc,
+                                     g_unit_inh=self.g_unit_inh, dt=self.dt,
+                                     delay_slots=self.queue.shape[0], graded=self.graded,
+                                     pre_chan=self._kin['pre_chan'],
+                                     chan_decay=self._kin['chan_decay'],
+                                     chan_q=self._kin['chan_q'],
+                                     rel_v0=self._rel['rel_v0'], rel_k=self._rel['rel_k'])
+            self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
+                                   self.queue_count, self.counts, self.active_flag,
+                                   self.rel_ring)
+            self._refresh_weight_view()
+        elif self.backend == 'cuda' and self.dynamics == 'v5':
             from .cupy_v5 import CupyV5State
             self._gpu = CupyV5State(self.ptr, self.post, self.weight, n=self.n,
                                     e_inh=self.e_inh_mV, g_unit_exc=self.g_unit_exc,
@@ -291,7 +324,7 @@ class Brain:
             self._refresh_weight_view()
         elif self.backend == 'cuda':
             if self.dynamics != 'v3':
-                raise ValueError('The CUDA backend implements LIF dynamics v3, v4 and v5 only')
+                raise ValueError('The CUDA backend implements LIF dynamics v3, v4, v5 and v6a only')
             from .cuda_engine import make_state
             self._gpu = make_state(self.ptr, self.post, self.weight, n=self.n,
                                     e_inh=self.e_inh_mV, g_unit_exc=self.g_unit_exc,
@@ -349,8 +382,10 @@ class Brain:
                      sim_ms=float(self.sim_ms), dynamics=self.dynamics)
         if self.dynamics in GRADED_VERSIONS and self.graded_report is not None:
             state['graded_set_sha256'] = self.graded_report['graded_set_sha256']
-        if self.dynamics == 'v5':
+        if self.dynamics in KINETIC_VERSIONS:
             state['kinetics_sha256'] = self.kinetics_report['kinetics_sha256']
+        if self.dynamics == 'v6a':
+            state['release_sha256'] = self.release_report['release_sha256']
         return state
 
     def reset_state(self, v_rest_mV=-52.0):
@@ -379,7 +414,15 @@ class Brain:
                 f'Snapshot was written under LIF dynamics {written_by!r} and this brain runs '
                 f'{self.dynamics!r}. A checkpoint written under a different dynamics version is '
                 'refused, never reinterpreted; see docs/LIF_DYNAMICS_SPEC.md.')
-        if self.dynamics == 'v5':
+        if self.dynamics == 'v6a':
+            written_rel = state.get('release_sha256')
+            if written_rel is not None and written_rel != self.release_report['release_sha256']:
+                raise ValueError(
+                    'Snapshot was written under a different declared graded release table / '
+                    f'class assignment ({written_rel}) and this brain resolved '
+                    f"{self.release_report['release_sha256']}. Refused, never reinterpreted; "
+                    'see docs/LIF_DYNAMICS_SPEC.md §10.')
+        if self.dynamics in KINETIC_VERSIONS:
             written_kin = state.get('kinetics_sha256')
             if written_kin is not None and written_kin != self.kinetics_report['kinetics_sha256']:
                 raise ValueError(
@@ -444,6 +487,14 @@ class Brain:
                 self.refractory, drive, self.queue, self.queue_count, self.cursor,
                 steps, self.dt, self.counts, self.active, self.active_flag, self.nactive,
                 self.e_inh_mV)
+        elif self.dynamics == 'v6a':
+            self.cursor = advance_v6a(self.ptr, self.post, self.weight, self.v, self.g,
+                self.refractory, drive, self.queue, self.queue_count, self.cursor,
+                steps, self.dt, self.counts, self.active, self.active_flag, self.nactive,
+                self.e_inh_mV, self.g_unit_exc, self.g_unit_inh,
+                self.graded, self.graded_idx, self.rel_ring,
+                self._kin['pre_chan'], self._kin['chan_decay'], self._kin['chan_q'],
+                self._rel['rel_v0'], self._rel['rel_k'])
         elif self.dynamics == 'v5':
             self.cursor = advance_v5(self.ptr, self.post, self.weight, self.v, self.g,
                 self.refractory, drive, self.queue, self.queue_count, self.cursor,
@@ -482,9 +533,14 @@ class Brain:
         The graded cells' output quantity, as ``counts`` is the spiking cells'.
         """
         if self.dynamics not in GRADED_VERSIONS:
-            raise ValueError('release_rate_hz applies to LIF dynamics v4 and v5 only')
+            raise ValueError('release_rate_hz applies to LIF dynamics v4, v5 and v6a only')
         if self._gpu is not None:
             return self._gpu.release_rate_hz()
+        if self.dynamics == 'v6a':
+            from .graded_release import release_hz
+            r = release_hz(self.v, self._rel['rel_v0'], self._rel['rel_k'],
+                           e_inh=self.e_inh_mV, dt=self.dt)
+            return np.where(self.graded.astype(bool), r, 0.0).astype(np.float32)
         from .engine import E_EXC_MV, R_MAX_HZ
         r = np.where(self.graded.astype(bool),
                      (self.v - self.e_inh_mV) * (R_MAX_HZ / (E_EXC_MV - self.e_inh_mV)), 0.0)

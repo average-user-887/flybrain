@@ -359,8 +359,62 @@ def _v5_declaration():
 
 LIF_DYNAMICS_V5 = _v5_declaration()
 
+
+def _v6a_declaration():
+    from . import graded_release as _gr
+    d = {k: v for k, v in LIF_DYNAMICS_V5.items()
+         if k not in ('dynamics_version', 'model', 'changes_from_v4', 'unchanged_from_v4',
+                      'known_limitations', 'declaration_lock', 'declaration_sha256',
+                      'biological_validation')}
+    d.update({
+        'dynamics_version': 'v6a',
+        'model': 'v5 (hybrid graded/spiking LIF with per-receptor-class kinetics) plus a DECLARED '
+                 'per-class graded TRANSFER GAIN: the slope of the graded release function at a '
+                 "declared anchor potential of each presynaptic class is the v4 slope times a gain "
+                 'derived from a measured synaptic voltage gain; release keeps v4\'s value at the '
+                 'anchor and v4\'s bounds [0, r_max] (brainlab.engine.advance_v6a, '
+                 'brainlab.cupy_v6a)',
+        'graded_release_tables': {name: {c: dict(v) for c, v in t.items()}
+                                  for name, t in _gr.RELEASE.items()},
+        'graded_release_primary': _gr.RELEASE_PRIMARY,
+        'graded_release_classes': {c: list(t) for c, t in _gr.CLASS_CELL_TYPES.items()},
+        'graded_release_default_class': _gr.CLASS_DEFAULT,
+        'graded_release_function': 'r_c(V) = clip(r_v4(V_A,c) + G_c*r_max/(E_exc-E_inh)*(V-V_A,c), '
+                                   '0, r_max); G_c = 1 is v4/v5 exactly',
+        'graded_release_photoreceptor_derivation': _gr.derive_gain(
+            _gr.MEASURED_GAIN_PHOTORECEPTOR, _gr.W_REF_PHOTORECEPTOR, _gr.ANCHOR_PHOTORECEPTOR_MV),
+        'changes_from_v5': [
+            'the graded release slope of each declared presynaptic class is multiplied by its '
+            'declared gain about its declared anchor; release is clipped to v4\'s own bounds',
+            'snapshots carry release_sha256 and are refused under another release table',
+        ],
+        'unchanged_from_v5': [
+            'every membrane constant, both reversal potentials, both conductance quanta, the '
+            'membrane bounds, the graded class list, the receptor-kinetics tables and quantum',
+            'the release VALUE at each class anchor (v4\'s maintained baseline there)',
+            'with the v5-linear release table, v6a is bit-identical to v5',
+        ],
+        'known_limitations': [
+            'the photoreceptor gain is a cross-species transfer of a blowfly measurement; no '
+            'Drosophila photoreceptor -> LMC voltage gain is published',
+            'every other graded class takes a declared default, not a measurement',
+            'a piecewise-linear release (rectified at 0, saturated at r_max), not a fitted sigmoid',
+            'fixed anchors: no adaptation of the synaptic set point',
+            'no cell-type-specific temporal filtering (that is v6b), no gap junctions',
+        ],
+        'spec': DYNAMICS_SPEC_DOC,
+        'declaration_lock': 'docs/receipts/graded_gain_v6a_declaration.locked.md',
+        'declaration_sha256': '66f9c9eb63ac08040a5a50bcf2d218bcf3465b6f0e4d6ddfd9bdc04a8bb038b7',
+        'biological_validation': 'none; engineering proxy with one synapse class calibrated to a '
+                                 'published (blowfly) voltage gain and a declared default elsewhere',
+    })
+    return d
+
+
+LIF_DYNAMICS_V6A = _v6a_declaration()
+
 DYNAMICS_VERSIONS = {'v1': LIF_DYNAMICS_V1, 'v2': LIF_DYNAMICS_V2, 'v3': LIF_DYNAMICS_V3,
-                     'v4': LIF_DYNAMICS_V4, 'v5': LIF_DYNAMICS_V5}
+                     'v4': LIF_DYNAMICS_V4, 'v5': LIF_DYNAMICS_V5, 'v6a': LIF_DYNAMICS_V6A}
 DYNAMICS_ENV = 'NEUROFLY_LIF_DYNAMICS'
 DEFAULT_DYNAMICS = 'v3'
 E_INH_ENV = 'NEUROFLY_LIF_E_INH_MV'
