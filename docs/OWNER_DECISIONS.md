@@ -7,6 +7,34 @@ never edited.
 
 ---
 
+## 2026-10-05 (later) — The scan stays the scan. **Supersedes Ruling 1 below.**
+
+> "We just need to make sure we're not contaminating the brain scan with our made up
+> connections that make it work. If the scan is incomplete and unfunctional — say so."
+
+- **No invented connections, in any form.** Neither a headline result nor a labelled
+  variant may add, copy, interpolate or "complete" connections that are not in the
+  scan. This withdraws the "completed lamina" variant allowed earlier the same day.
+- **Incompleteness is a result.** Where the scan is incomplete and the circuit does not
+  function on it, the project says so, plainly and prominently. That includes the lamina,
+  where about 55 % of cells have no photoreceptor input. A non-functional result on the
+  real scan is reported as such; it is not repaired.
+- **Ruling 2 (fitting to non-motion recordings, with the tested behaviour held out)
+  is unaffected.** It changes cell properties, not connections.
+
+**Evidence the scan is currently uncontaminated** (checked 5 October 2026 on the
+pinned engine graph `outputs/brainlab/malecns_v1/graph.npz` against the source
+`connectome_data/malecns_v1/normalized/edges.arrow`):
+- The engine has 25,582,938 edges, the same count as the source, and the
+  `(pre, post)` edge set is identical. No edge is added or missing.
+- Every weight is exactly `synapse_count × 0.275`, with its sign from the predicted
+  transmitter: `|weight| / synapse_count` is 0.275000 for every edge.
+- Declared run-time interpretations act on transmission only, never on connectivity,
+  and do not alter the stored graph. The v3 transmitter policy, for example, gives
+  aminergic neurons no fast weight.
+
+---
+
 ## 2026-10-05 — Two edge cases of "the connectome does the work"
 
 **Context.** About 55 % of lamina cells in MaleCNS receive no photoreceptor input,
