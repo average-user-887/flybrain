@@ -3972,6 +3972,9 @@ class DaemonBridgeClient {
                   + 'select an assay or restart the daemon (it resumes from the last checkpoint).';
             this.statusPill.title = `The daemon answers but the simulation is not advancing (step `
                 + `${this.lastStepSeen ?? '?'}, unchanged for ${n} s): ${why}. ${fix}`;
+            // The last frame's achieved speed is history, not the present.
+            const achievedEl = document.getElementById('statAchieved');
+            if (achievedEl) { achievedEl.textContent = '0x'; achievedEl.style.color = '#f87171'; }
         }
         if (state === 'paused') {
             this.statusPill.textContent = `● DAEMON CONNECTED${ro} · PAUSED`;
