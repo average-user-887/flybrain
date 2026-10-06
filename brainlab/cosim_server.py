@@ -212,7 +212,7 @@ class ConnectomeServer:
             self.brain = Brain(self.graph_path, dynamics=self.dynamics)
         self.n_neurons = self.brain.n
         self.n_edges = len(self.brain.post)
-        print(f"[ConnectomeServer] Brain loaded: {self.n_neurons:,} neurons, {self.n_edges:,} synapses.", flush=True)
+        print(f"[ConnectomeServer] Brain loaded: {self.n_neurons:,} neurons, {self.n_edges:,} weighted directed neuron-pair edges.", flush=True)
 
     def _init_synthetic_brain(self):
         """Explicit test option only: a small in-memory graph, never written to disk."""
@@ -230,7 +230,7 @@ class ConnectomeServer:
         self.n_neurons = self.brain.n
         self.n_edges = len(self.brain.post)
         self.dn_indices = io_map
-        print(f"[ConnectomeServer] {SYNTHETIC_LABEL}: {self.n_neurons} neurons, {self.n_edges} synapses.", flush=True)
+        print(f"[ConnectomeServer] {SYNTHETIC_LABEL}: {self.n_neurons} neurons, {self.n_edges} weighted directed neuron-pair edges.", flush=True)
 
     def _load_metadata(self):
         if self.is_synthetic:
