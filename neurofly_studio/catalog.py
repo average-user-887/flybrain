@@ -17,11 +17,15 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Checkout documentation and the canonical wheel resource contain the same matrix.
 MATRIX_PATH = PROJECT_ROOT / "docs" / "CAPABILITY_MATRIX.md"
+if not MATRIX_PATH.is_file():
+    MATRIX_PATH = files("neurofly._docs").joinpath("CAPABILITY_MATRIX.md")
 SPECS_DIR = PROJECT_ROOT / "validation" / "specs"
 
 # Paradigm id in the studio and dashboard -> "paradigm" field of validation specs.

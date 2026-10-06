@@ -4,7 +4,7 @@
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const state = { catalog: null, runs: null, paradigm: null, tab: 'gallery', timer: null };
+    const state = { catalog: null, catalogError: null, runs: null, paradigm: null, tab: 'gallery', timer: null };
 
     async function api(path, options) {
         const response = await fetch(path, options);
@@ -14,6 +14,7 @@
     }
 
     function showError(message) {
+        message = message || state.catalogError;
         const box = $('global-error');
         box.hidden = !message;
         box.textContent = message || '';
@@ -350,7 +351,8 @@
             state.catalog = await api('/api/studio/catalog');
             renderParadigms();
         } catch (err) {
-            showError('Could not load the paradigm catalog: ' + err.message);
+            state.catalogError = 'Could not load the paradigm catalog: ' + err.message;
+            showError(state.catalogError);
         }
         await refreshRuns();
         state.timer = setInterval(() => { if (!document.hidden) refreshRuns(); }, 5000);

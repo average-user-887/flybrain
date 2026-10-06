@@ -158,3 +158,29 @@ print('WHEEL_AMD_LAZY_IMPORT_OK')
     output = _run([sys.executable, '-I', '-S', '-c', bootstrap, str(installed),
                    json.dumps(dependencies)], cwd=scratch, env=env)
     assert 'WHEEL_AMD_LAZY_IMPORT_OK' in output
+
+def test_installed_studio_catalog_uses_canonical_resource_without_checkout_docs(installed_wheel):
+    scratch, installed, dependencies, _, env = installed_wheel
+    from neurofly_studio.catalog import read_matrix
+    expected = read_matrix(ROOT / "docs/CAPABILITY_MATRIX.md")
+    assert not (installed / "docs/CAPABILITY_MATRIX.md").exists()
+    bootstrap = r'''
+import json, pathlib, sys
+installed = pathlib.Path(sys.argv[1]).resolve()
+sys.path[:] = [str(installed)] + json.loads(sys.argv[2]) + [p for p in sys.path if p]
+from neurofly_studio import catalog
+assert pathlib.Path(catalog.__file__).resolve().is_relative_to(installed)
+result = catalog.catalog()
+assert result["schema"] == "neurofly-studio-catalog-v1"
+assert len(result["paradigms"]) == 14
+opto = next(p for p in result["paradigms"] if p["id"] == "optomotor")
+assert opto["buildable"] and len(opto["parameters"]) == 4
+assert opto["explanation"] and "engineered decoder" in opto["explanation"]
+assert not any(n.split(".")[0] in {"cupy", "wgpu", "flygym", "mujoco"} for n in sys.modules)
+print(json.dumps(result))
+'''
+    output = _run([sys.executable, "-I", "-S", "-c", bootstrap, str(installed),
+                   json.dumps(dependencies)], cwd=scratch, env=env)
+    result = json.loads(output)
+    assert [{k: p[k] for k in ("number", "title", "id", "connectome_status", "badge", "receipts")}
+            for p in result["paradigms"]] == expected
