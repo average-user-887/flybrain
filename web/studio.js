@@ -351,7 +351,8 @@
             state.catalog = await api('/api/studio/catalog');
             renderParadigms();
         } catch (err) {
-            state.catalogError = 'Could not load the paradigm catalog: ' + err.message;
+            state.catalogError = 'Could not load the paradigm catalog: ' + err.message
+                + '. Reload the page; if this persists, repair the Studio installation before building.';
             showError(state.catalogError);
         }
         await refreshRuns();
