@@ -82,7 +82,7 @@ function buttons() {
   button.title=!allowed[key]?(reasons[key]||'Unsupported by the active controller.'):'';
  }
  $('trainingExport').disabled=!ownedSnapshot()||busy;
- $('trainingExport').title=ownedSnapshot()?'Export the verified displayed live brain.':'Unavailable: no training snapshot for the displayed owner.';
+ $('trainingExport').title=ownedSnapshot()?'Export a JSON report for the displayed owner, not a restorable graph checkpoint.':'Unavailable: no training snapshot for the displayed owner.';
 }
 function endpoint() { return window.app?.hud?.daemonBridge?.activeUrl; }
 async function request(path, body) {
@@ -213,7 +213,7 @@ async function refresh() {
   const i=data.telemetry?.identity;
   if(data.brain?.brain_id!==owner.brain_id||data.telemetry?.brain_id!==owner.brain_id||data.brain?.paradigm!==owner.identity.assay
    ||ownerFields.some(k=>i?.[k]!==owner.identity[k]))throw new Error('Snapshot does not match the displayed owner; waiting for synchronization.');
-  if(!connected)message('Verified live brain. Commands and exports use this displayed owner.');
+  if(!connected)message('Verified live owner. Commands and report exports use this displayed owner.');
   connected=true;snapshot=data;snapshotOwner=owner;writable=!owner.bridge.readOnly&&trainingWriteAllowed(data.status?.stream);
   const st=data.status||{},live=st.liveness||{},notAdv=st.status==='error'||['stalled','dead'].includes(live.state);
   $('trainingConnection').textContent=(notAdv?'Daemon connected · SIMULATION NOT ADVANCING':st.paused?'Daemon connected · paused':`Live daemon · ${st.sim_speed}×`)+(st.status==='degraded'?` · NOT SAVING: ${st.persistence?.reason||'write failed'}`:'')+(writable?'':' · read only');
