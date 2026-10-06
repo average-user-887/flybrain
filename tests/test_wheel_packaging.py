@@ -1,6 +1,7 @@
 """Exercise noneditable artifacts without checkout or editable-import fallback."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -102,6 +103,37 @@ def test_wheel_contains_all_dashboard_assets(installed_wheel):
         packaged = installed / asset.relative_to(ROOT)
         assert packaged.is_file(), f"Wheel omits {asset.relative_to(ROOT)}"
         assert packaged.read_bytes() == asset.read_bytes()
+
+
+def test_installed_capability_prints_canonical_fourteen_paradigm_matrix(installed_wheel):
+    scratch, installed, dependencies, _, env = installed_wheel
+    canonical = (ROOT / "docs/CAPABILITY_MATRIX.md").read_text(encoding="utf-8")
+    packaged = installed / "neurofly/_docs/CAPABILITY_MATRIX.md"
+    assert packaged.read_bytes() == (ROOT / "docs/CAPABILITY_MATRIX.md").read_bytes()
+    assert sorted(p.name for p in packaged.parent.iterdir()) == ["CAPABILITY_MATRIX.md"]
+    bootstrap = r'''
+import json, pathlib, runpy, sys
+installed = pathlib.Path(sys.argv[1]).resolve()
+sys.path[:] = [str(installed)] + json.loads(sys.argv[2]) + [p for p in sys.path if p]
+sys.argv[:] = ["neurofly", "capability"]
+try:
+    runpy.run_path(str(installed / "bin/neurofly"), run_name="__main__")
+except SystemExit as exc:
+    assert exc.code in (None, 0), exc.code
+assert pathlib.Path(sys.modules["neurofly.cli"].__file__).resolve().is_relative_to(installed)
+assert not any(n.split(".")[0] in {"cupy", "wgpu"} or n.startswith("numba.cuda") for n in sys.modules)
+'''
+    output = _run([sys.executable, "-I", "-S", "-c", bootstrap, str(installed),
+                   json.dumps(dependencies)], cwd=scratch, env=env)
+    (scratch / "capability.log").write_text(output, encoding="utf-8")
+    assert output == canonical + "\n"
+    assert [int(row) for row in re.findall(r"^\| (\d+) \|", output, re.MULTILINE)] == list(range(1, 15))
+
+
+def test_checkout_capability_prints_canonical_matrix(capsys):
+    from neurofly import cli
+    assert cli.main(["capability"]) == 0
+    assert capsys.readouterr().out == (ROOT / "docs/CAPABILITY_MATRIX.md").read_text(encoding="utf-8") + "\n"
 
 
 def test_wheel_contains_frozen_amd_shader_optional_dependency_and_lazy_import(installed_wheel):

@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from importlib.resources import files
 from pathlib import Path
 
 
@@ -171,7 +172,14 @@ def cmd_record(args: list[str]) -> int:
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
     argparse.ArgumentParser(prog="neurofly capability", description=cmd_capability.__doc__).parse_args(args)
-    matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
+    try:
+        matrix_path = files("neurofly._docs").joinpath("CAPABILITY_MATRIX.md")
+    except ModuleNotFoundError as exc:
+        if exc.name != "neurofly._docs":
+            raise
+        # The resource package is mapped from docs by setuptools; a normal
+        # checkout reads that same canonical source before it has been built.
+        matrix_path = Path(__file__).resolve().parents[1] / "docs" / "CAPABILITY_MATRIX.md"
     if matrix_path.is_file():
         print(matrix_path.read_text(encoding="utf-8"))
         return 0

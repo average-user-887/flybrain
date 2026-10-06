@@ -41,7 +41,7 @@ browser-test = ["selenium>=4"]
 neurofly = "neurofly.cli:main"
 
 [tool.setuptools]
-packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms", "web"]
+packages = ["neurofly", "neurofly._docs", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms", "web"]
 py-modules = [
     "arena",
     "assay_controls",
@@ -69,7 +69,12 @@ py-modules = [
     "vision",
 ]
 
+[tool.setuptools.package-dir]
+# Install the canonical matrix as a private resource without a second source copy.
+"neurofly._docs" = "docs"
+
 [tool.setuptools.package-data]
+"neurofly._docs" = ["CAPABILITY_MATRIX.md"]
 web = ["*.html", "*.js", "*.css", "vendor/*.js"]
 brainlab = ["datasets.json", "graph_pins.json", "wgpu_v3_math.wgsl"]
 validation = ["specs/*.json", "specs/sources/*.json"]
