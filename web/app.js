@@ -4221,6 +4221,8 @@ class DaemonBridgeClient {
         const ageEl = document.getElementById('statDataAge');
         if (this.replayMode) {
             if (ageEl) { ageEl.textContent = 'replay'; ageEl.style.color = '#c084fc'; }
+            const stepAgeEl = document.getElementById('statStepAge');
+            if (stepAgeEl) { stepAgeEl.textContent = 'replay'; stepAgeEl.style.color = '#c084fc'; }
             return;
         }
         const age = this.lastValidDataTime ? (performance.now() - this.lastValidDataTime) / 1000 : null;
@@ -4863,6 +4865,7 @@ class DaemonBridgeClient {
         window.dispatchEvent(new Event('neurofly-replay-mode-change'));
         this.resetReplayView();
         this.arena.remoteDriven = false;
+        this.updateFreshness();
         this.initConnection(true);
     }
 

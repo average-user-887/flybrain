@@ -385,6 +385,10 @@
             if (btn) btn.textContent = label;
             const bridge = this.bridge;
             if (!this.rec || !bridge?.replayMode) return;
+            for (const id of ['statDataAge', 'statStepAge']) {
+                const age = $(id);
+                if (age) { age.textContent = 'replay'; age.style.color = '#c084fc'; }
+            }
             const pause = $('btnPauseToggle');
             if (pause) pause.textContent = label;
             const ended = this.playhead >= this.times[this.times.length - 1];

@@ -19,17 +19,19 @@ function harness(){
  const elements=new Map();
  const element=id=>{if(!elements.has(id))elements.set(id,{textContent:'',title:'',parentElement:{title:'Simulation speed the daemon actually achieved (measured), versus the requested speed'},style:{},value:'1',hidden:false,
   options:[.5,1,100].map(value=>({value:String(value)})),querySelectorAll:()=>[],appendChild(option){this.options.push(option);}});return elements.get(id);};
- const context={window:{location:{search:''}},document:{readyState:'loading',activeElement:null,addEventListener(){},getElementById:id=>id==='activityCanvas'||id==='rasterCanvas'?null:element(id),createElement:()=>({dataset:{}})},
+ const context={window:{location:{search:''},dispatchEvent(){}},Event:function(){},document:{readyState:'loading',activeElement:null,addEventListener(){},getElementById:id=>id==='activityCanvas'||id==='rasterCanvas'?null:element(id),createElement:()=>({dataset:{}})},
   requestAnimationFrame:()=>1,cancelAnimationFrame(){},performance:{now:()=>0},console};
  vm.createContext(context);vm.runInContext(replay,context);
  vm.runInContext([declaration('validateRequestedSpeed'),declaration('requestedSpeedText'),declaration('formatSimSpeed')].join('\n'),context);
  const playback=app.includes('    renderPlaybackState(')?method('renderPlaybackState','enterReplay'):
   `renderPlaybackState(pkt) {${app.slice(app.indexOf('            this.arena.paradigmStatus = pkt.error'),app.indexOf('            const panelCaps = graphPanelCapabilities(pkt);'))}}`;
- vm.runInContext(`window.headerMethods={${playback},${method('renderTiming','scheduleReconnect')},${method('speedFeedback','reconcileRequestedSpeed')},${method('reconcileRequestedSpeed','async setSpeed')},${method('async setSpeed','reconcileBackendSelector')}}`,context);
+ vm.runInContext(`window.headerMethods={${playback},${method('renderTiming','scheduleReconnect')},${method('updateFreshness','stepAgeSeconds')},${method('exitReplay','markReadOnly')},${method('speedFeedback','reconcileRequestedSpeed')},${method('reconcileRequestedSpeed','async setSpeed')},${method('async setSpeed','reconcileBackendSelector')}}`,context);
  const methods=context.window.headerMethods;
  const hud={simSpeed:100,speedOptions:[.5,1,100],...methods};
  const bridge={replayMode:true,connected:false,arena:{},hud,renderPlaybackState:methods.renderPlaybackState,renderTiming:methods.renderTiming,
-  handleDaemonPacket(pkt){this.renderPlaybackState(pkt);this.renderTiming(pkt);},resetReplayView(){},exitReplay(){this.replayMode=false;}};
+  updateFreshness:methods.updateFreshness,exitReplay:methods.exitReplay,stepAgeSeconds:()=>.25,updatePersistenceBanner(){},initConnection(){},
+  slowStepSeconds:()=>null,notAdvancing:()=>false,statusPill:{style:{}},staleAfterMs:1000,lastValidDataTime:-100,
+  handleDaemonPacket(pkt){this.renderPlaybackState(pkt);this.renderTiming(pkt);},resetReplayView(){}};
  hud.daemonBridge=bridge;context.window.neuroflyDiagnostics={bridge};
  const player=context.window.neuroflyReplay;
  player.rec={header:{version:1,provenance:{assay:'t-maze',params:{dt_s:.02}},channels:{}},end:{frames_sha256:'abc'},
@@ -91,4 +93,18 @@ test('timing container tooltip follows replay ownership then returns to measured
   timing:{requested_speed:100,achieved_speed:7.5,integration_dt_s:.02,steps_in_frame:1}});
  assert.equal(achieved.textContent,'7.5x');assert.match(achieved.title,/measured 7.5x/);
  assert.match(achieved.parentElement.title,/daemon actually achieved \(measured\)/);
+});
+test('replay owns both age labels immediately and live freshness resumes after exit',()=>{
+ const h=harness(),recording=h.player.rec,before=JSON.stringify(recording.frames);
+ h.element('statStepAge').textContent='paused';h.element('statDataAge').textContent='0.1s';
+ h.player.play();h.player.apply(0);
+ for(const id of ['statDataAge','statStepAge'])assert.equal(h.element(id).textContent,'replay');
+ h.element('statStepAge').textContent='paused';h.bridge.updateFreshness();assert.equal(h.element('statStepAge').textContent,'replay');
+ h.player.pause();h.player.seekFraction(1);assert.equal(h.element('statStepAge').textContent,'replay');
+ h.bridge.lastValidDataTime=-100; // Fake wall clock0: a frame arrived100ms ago.
+ h.player.exit();assert.equal(h.element('statStepAge').textContent,'--');assert.equal(h.element('statDataAge').textContent,'0.1s (frozen)');
+ h.bridge.connected=true;h.bridge.daemonPaused=false;h.bridge.updateFreshness();
+ assert.equal(h.element('statStepAge').textContent,'0.3s');assert.equal(h.element('statDataAge').textContent,'0.1s');
+ h.bridge.daemonPaused=true;h.bridge.updateFreshness();assert.equal(h.element('statStepAge').textContent,'paused');
+ assert.equal(JSON.stringify(recording.frames),before);
 });
