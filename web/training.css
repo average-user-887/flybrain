@@ -23,7 +23,126 @@ body { overflow: auto; }
 .training-bar-fill { height: 100%; background: var(--cyan-glow); }
 .training-panel details > summary { color: var(--cyan-glow); font-size: 11px; cursor: pointer; }
 
-/* Keep the established three columns reachable in smaller app panels. */
-.instrument-container { min-width: 1080px; grid-template-columns: minmax(230px,.8fr) minmax(450px,1.6fr) minmax(340px,1.1fr); }
-.bottom-stage-panel { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 180px; }
+/* Keep all three panels within the viewport; compact layouts move the tools
+   below the arena instead of forcing horizontal page scrolling. */
+.instrument-container {
+    min-width: 0;
+    grid-template-columns: 240px minmax(0,1fr) 340px;
+    height: auto;
+    min-height: max(640px, calc(100vh - 20px));
+}
+.instrument-container > *, .instrument-container .panel { min-width: 0; }
+.catalog-column { height: max(640px, calc(100vh - 20px)); }
+.catalog-scroll { min-height: 0; }
+.hud-column { height: auto; }
+.stage-column { height: auto; min-height: calc(100vh - 20px); }
+.top-navbar > *, .navbar-actions > *, .speed-control-wrap {
+    min-width: 0;
+    max-width: 100%;
+}
+.speed-control-wrap { flex-wrap: wrap; }
+.speed-select { min-width: 0; max-width: 100%; }
+.speed-control-wrap[title="Select Controller Backend"] .speed-select { flex: 1 1 180px; }
+.badge, #identityBar, #arenaRunState, [role="alert"], .hud-column {
+    overflow-wrap: anywhere;
+}
+.exp-card-header, .exp-card-metric, .sub-header, .hud-card-header {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.exp-card-title { flex: 1 1 110px; }
+.panel-title { min-width: 0; }
+.arena-wrapper {
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.arena-overlay-tools {
+    position: static;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    background: rgba(15,23,42,.88);
+    border-bottom: 1px solid var(--border-dim);
+}
+.arena-drawing-surface {
+    position: relative;
+    flex: 0 0 clamp(320px, 48vh, 520px);
+    min-height: 320px;
+    overflow: hidden;
+}
+#viewport3DContainer {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+}
+#viewport3DCanvas { width: 100%; height: 100%; display: block; }
+.viewport-3d-status {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    background: rgba(15,23,42,.88);
+    border-top: 1px solid rgba(56,189,248,.3);
+    font-size: 10px;
+    color: #94a3b8;
+}
+.viewport-3d-status[hidden] { display: none; }
+.arena-legend {
+    position: static;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border-width: 1px 0 0;
+    border-radius: 0;
+}
+.bottom-stage-panel {
+    height: auto;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+}
+.telemetry-export-box { grid-column: 1 / -1; }
+.telemetry-export-box .nav-btn { align-self: flex-start; max-width: 100%; }
 .scope-box, .learning-curve-box { min-width: 0; }
+
+@media (min-width: 1500px) {
+    .bottom-stage-panel { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 180px; }
+    .telemetry-export-box { grid-column: auto; }
+    .telemetry-export-box .nav-btn { align-self: stretch; }
+}
+
+@media (max-width: 1179px) {
+    .instrument-container { grid-template-columns: 220px minmax(0,1fr); }
+    .catalog-column {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        position: sticky;
+        top: 10px;
+        align-self: start;
+    }
+    .stage-column { grid-column: 2; grid-row: 1; }
+    .hud-column { grid-column: 2; grid-row: 2; }
+}
+
+@media (max-width: 719px) {
+    .instrument-container { grid-template-columns: minmax(0,1fr); }
+    .stage-column { grid-column: 1; grid-row: 1; min-height: 0; }
+    .catalog-column {
+        grid-column: 1;
+        grid-row: 2;
+        position: static;
+        height: 520px;
+    }
+    .hud-column { grid-column: 1; grid-row: 3; }
+    .arena-drawing-surface { flex-basis: 320px; }
+    .top-navbar { padding: 8px 10px; }
+    .navbar-stats { gap: 6px 10px; }
+    .bottom-stage-panel { grid-template-columns: minmax(0,1fr); }
+    .telemetry-export-box { grid-column: auto; }
+    .joint-angles-box { grid-template-columns: minmax(0,1fr); }
+    .training-bar { grid-template-columns: minmax(0,110px) minmax(0,1fr) 50px; }
+}

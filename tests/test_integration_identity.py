@@ -18,6 +18,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 import numpy as np
+from tests.transition_control_helpers import transition_command
 import pytest
 
 import experiment_registry
@@ -104,7 +105,7 @@ def test_graph_backend_identity_and_ack_after_ready(tmp_path):
     assert before['motor']['motor_source'] == 'graph-unmapped-io' and before['motor']['motor_source_normal'] is False
     assert before['motor']['motor_assists_enabled'] is False and before['fly']['speed'] == 0.0
 
-    result = runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': 't-maze'})
+    result = transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 't-maze'})
     ack = result['ack']
     assert result['status'] == 'ok' and ack['identity']['assay'] == 't-maze'
     assert ack['identity']['activation'] == ident['activation'] + 1
@@ -122,7 +123,7 @@ def test_stale_identity_packets_are_rejected_after_switch_ack(tmp_path):
     with runner.lock:
         runner.step_once()
     old = json.loads(runner._publish_snapshot().data)
-    ack = runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': 'buridan'})['ack']
+    ack = transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'buridan'})['ack']
     with runner.lock:
         runner.step_once()
     new = json.loads(runner._publish_snapshot().data)
@@ -263,10 +264,10 @@ def test_graph_switch_restores_world_and_checkpoint_has_world_state(tmp_path):
             runner.step_once()
     pose = (runner.arena.fly.pos.x, runner.arena.fly.pos.y, runner.arena.time_step)
     instance_id = runner.registry.active.instance_id
-    runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': 'y-maze'})
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'y-maze'})
     # A fresh process sees the t-maze world only through the checkpoint.
     runner._graph_arenas.clear()
-    runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': 't-maze'})
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 't-maze'})
     assert runner.registry.active.instance_id == instance_id
     assert (runner.arena.fly.pos.x, runner.arena.fly.pos.y, runner.arena.time_step) == pose
     saved = json.loads(runner.save_checkpoint('t').read_text())

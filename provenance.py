@@ -28,6 +28,69 @@ from neurofly.privacy import host_description, portable_path, redact_local
 ROOT = Path(__file__).resolve().parent
 MANIFEST_SCHEMA = 'neurofly.run-manifest.v1'
 
+# Canonical identity of the graph-to-arena input/output method.  The serialized
+# bytes are immutable so callers cannot mutate the object after its hash is
+# computed.  CARD-02B stores this declaration in a new linked run manifest;
+# CARD-02A publishes the version/hash with each graph reply.
+GRAPH_IO_VERSION = 'graph-arena-io-v2-unassisted'
+_GRAPH_IO_CONFIG = {
+    'schema': 'neurofly.graph-io.v2',
+    'version': GRAPH_IO_VERSION,
+    'engineered_assistance': {'enabled': False, 'applied': []},
+    'decoders': {
+        'forward': 'min(35, max(0, 1.5*DNp09_hz + 0.4*DNb01_hz)) mm/s',
+        'yaw': '0.02*(DNa02_L_hz - DNa02_R_hz) rad/s',
+        'reverse': 'MDN_hz > 20 -> -15 mm/s',
+        'escape_raw': 'DNp01 spike -> 35 mm/s, state ESCAPE',
+        'escape_applied': 'arena primitive -> 3.5 mm/s for 0.2 s',
+        'empty_pool_numeric_input_hz': 0.0,
+    },
+    'input_probes': [
+        {'name': 'orn_food', 'cell_types': ['ORN_DM1'], 'entry_stage': 'peripheral receptor',
+         'stimulus': 'mean_a | odor_conc | odor_a', 'formula': 'min(40, 35*stimulus)',
+         'threshold': '> 0.001', 'status': 'unverified'},
+        {'name': 'orn_danger', 'cell_types': ['ORN_DA2'], 'entry_stage': 'peripheral receptor',
+         'stimulus': 'mean_b | odor_b', 'formula': 'min(45, 40*stimulus)',
+         'threshold': '> 0.001', 'status': 'unverified'},
+        {'name': 'photoreceptor_l', 'cell_types': ['R1-R6 left'], 'entry_stage': 'photoreceptor',
+         'stimulus': 'retina_photoreceptors_l', 'formula': '20*mean(stimulus)*contrast',
+         'threshold': None, 'status': 'unverified'},
+        {'name': 'photoreceptor_r', 'cell_types': ['R1-R6 right'], 'entry_stage': 'photoreceptor',
+         'stimulus': 'retina_photoreceptors_r', 'formula': '20*mean(stimulus)*contrast',
+         'threshold': None, 'status': 'unverified'},
+        {'name': 'looming', 'cell_types': ['LC4', 'LPLC2'],
+         'entry_stage': 'visual projection neuron; bypasses retina and optic lobe',
+         'stimulus': 'looming_detected | looming_theta', 'formula': 'min(55, 15 + 40*theta_rad)',
+         'threshold': 'looming_detected or theta_rad > 0.15', 'status': 'unverified'},
+        {'name': 'courtship_cva', 'cell_types': ['ORN_DA1'], 'entry_stage': 'peripheral receptor',
+         'stimulus': 'cva_concentration | cva_odor', 'formula': 'min(35, 30*stimulus)',
+         'threshold': '> 0.001', 'status': 'unverified'},
+        {'name': 'jon_wind', 'cell_types': ['JO-* (first 50)'], 'entry_stage': 'peripheral receptor',
+         'stimulus': 'wind_speed_mm_s', 'formula': 'min(35, 0.15*wind_speed_mm_s)',
+         'threshold': '> 3 mm/s', 'status': 'unverified'},
+        {'name': 'thermo', 'cell_types': ['thermosensory'], 'entry_stage': 'peripheral receptor',
+         'stimulus': 'temperature_degC', 'formula': 'min(40, 2.5*abs(temperature_degC - 24))',
+         'threshold': 'abs(temperature_degC - 24) > 2 degC', 'status': 'unverified'},
+        {'name': 'optomotor', 'cell_types': ['T4', 'T5'],
+         'entry_stage': 'motion detector; direction imposed by encoder',
+         'stimulus': 'retinal_slip_rad_s, contrast', 'formula': 'WP5 OptomotorEncoder (I/O-map pinned)',
+         'threshold': None, 'status': 'verified-provisional-input-imposed'},
+    ],
+    'removed_undisclosed_drive': ['DNb01 +12 tonic current', '+5 mm/s forward floor',
+                                   'ER contrast constant', 'EL +18 tonic current'],
+}
+GRAPH_IO_CONFIG_JSON = json.dumps(_GRAPH_IO_CONFIG, sort_keys=True, separators=(',', ':'),
+                                  ensure_ascii=True)
+GRAPH_IO_SHA256 = hashlib.sha256(GRAPH_IO_CONFIG_JSON.encode()).hexdigest()
+
+
+def graph_io_declaration(*, include_config: bool = False) -> dict:
+    """Versioned, hashable declaration of the effective graph arena I/O method."""
+    out = {'version': GRAPH_IO_VERSION, 'sha256': GRAPH_IO_SHA256}
+    if include_config:
+        out['config'] = json.loads(GRAPH_IO_CONFIG_JSON)
+    return out
+
 
 @dataclass(frozen=True)
 class BackendSpec:
@@ -45,15 +108,18 @@ BACKENDS: Dict[str, BackendSpec] = {spec.name: spec for spec in (
                 'modular-mb-v1', ('experiment_brains.py', 'circuit.py', 'arena.py'),
                 'Hand-built modular controller with explicit assay reflexes. Not the connectome.'),
     BackendSpec('connectome-fixed', True, True, 'none (fixed released-graph weights)',
-                'brainlab-lif-v1', ('brainlab/engine.py', 'brainlab/brain.py'),
+                'brainlab-lif-v1', ('brainlab/engine.py', 'brainlab/brain.py', 'neurofly_daemon.py',
+                                    'arena.py', 'provenance.py'),
                 'Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.'),
     BackendSpec('connectome-plastic', True, True,
                 'declared plastic edge subset: sparse weight deltas + rule state per instance',
-                'brainlab-lif-plastic-v1', ('brainlab/engine.py', 'brainlab/brain.py', 'experiment_registry.py'),
+                'brainlab-lif-plastic-v1', ('brainlab/engine.py', 'brainlab/brain.py', 'experiment_registry.py',
+                                            'neurofly_daemon.py', 'arena.py', 'provenance.py'),
                 'Full graph with internal plasticity restricted to a declared edge subset and rule.'),
     BackendSpec('connectome-with-trained-readout', True, True,
                 'external readout weights (brainlab.learning.Readout); graph weights fixed',
-                'brainlab-lif-readout-v1', ('brainlab/engine.py', 'brainlab/brain.py', 'brainlab/learning.py'),
+                'brainlab-lif-readout-v1', ('brainlab/engine.py', 'brainlab/brain.py', 'brainlab/learning.py',
+                                            'neurofly_daemon.py', 'arena.py', 'provenance.py'),
                 'Fixed full graph plus an externally trained decoder. Decoder learning, not synaptic learning.'),
     BackendSpec('bridge-surrogate', False, False, 'modular MB inside ConnectomeBridge',
                 'connectome-bridge-surrogate-v1', ('connectome_bridge.py',),
@@ -172,6 +238,8 @@ class RunManifest:
     intervention_schedule: List[dict] = field(default_factory=list)
     events: List[dict] = field(default_factory=list)
     parent_run_id: Optional[str] = None
+    graph_io: Optional[dict] = None
+    lineage: Optional[dict] = None
     created_at: float = field(default_factory=time.time)
     # Non-identifying hardware/software description (neurofly.privacy.host_description).
     # Manifests written before October 2026 hold a string here; both shapes are read.
@@ -182,6 +250,7 @@ class RunManifest:
                graph: Optional[dict], dynamics: dict, learned_parameter_locations: Dict[str, str],
                rng: Optional[np.random.Generator] = None, test_mode: bool = False,
                intervention_schedule: Optional[List[dict]] = None, parent_run_id: Optional[str] = None,
+               graph_io: Optional[dict] = None, lineage: Optional[dict] = None,
                source: Optional[dict] = None) -> 'RunManifest':
         spec = get_backend(backend, scientific=not test_mode, allow_test=test_mode)
         synthetic = bool(graph and graph.get('synthetic'))
@@ -200,7 +269,9 @@ class RunManifest:
                    synthetic=synthetic, test_mode=test_mode,
                    label=label, source=source if source is not None else source_revision(files=spec.source_files),
                    rng_initial_state=rng_state(rng) if rng is not None else None,
-                   intervention_schedule=list(intervention_schedule or []), parent_run_id=parent_run_id)
+                   intervention_schedule=copy.deepcopy(intervention_schedule or []),
+                   parent_run_id=parent_run_id, graph_io=copy.deepcopy(graph_io),
+                   lineage=copy.deepcopy(lineage))
 
     def record_event(self, kind: str, *, step: Optional[int] = None, **fields) -> dict:
         """Reset, fallback, disconnect, restore and intervention events. Never dropped."""
@@ -214,7 +285,8 @@ class RunManifest:
         return dict(run_id=self.run_id, instance_id=self.instance_id, assay=self.assay,
                     backend=self.backend, controller_version=self.controller_version,
                     graph_sha256=graph.get('graph_sha256'), neuron_map_sha256=graph.get('neuron_map_sha256'),
-                    io_map_sha256=graph.get('io_map_sha256'), synthetic=self.synthetic,
+                    io_map_sha256=graph.get('io_map_sha256'), graph_io=copy.deepcopy(self.graph_io),
+                    synthetic=self.synthetic,
                     test_mode=self.test_mode, label=self.label)
 
     def to_dict(self) -> dict:

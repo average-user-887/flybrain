@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -29,6 +29,106 @@ from .interfaces import BodyBackend, NeuralBackend
 # Neural reply fields that measure the host, not the simulation.  They go to
 # timing.jsonl so telemetry.jsonl depends only on the seed, config and code.
 WALL_CLOCK_FIELDS = ("elapsed_ms",)
+
+# Telemetry format 2 (D7).  Format 1 re-serialised the whole static neural
+# identity block into every 2 ms record: about 2.1 kB of the 8.1 kB record, or
+# 1.0 MB of every 4.0 MB simulated second, repeating 500 times per second what
+# the manifest already states once.  Format 2 keeps that block in
+# manifest.json under ``telemetry_identity.values`` and writes a single
+# ``identity_sha256`` per record instead.
+#
+# This is a deliberate, documented format break: a format-2 run has a
+# different ``trajectory_sha256`` from the format-1 run of the same seed and
+# arguments.  Replay is unaffected, because ``replay-check`` compares two runs
+# made by the same code.  Format-1 hashes recorded in older receipts are not
+# comparable with format-2 hashes.
+TELEMETRY_FORMAT_VERSION = 2
+
+# The static identity fields of ``ConnectomeServer.identity_fields()``.  A
+# backend that does not report one simply has it absent from both blocks.
+NEURAL_IDENTITY_FIELDS = (
+    "backend",
+    "brain_backend",
+    "controller_version",
+    "engineered_assistance_enabled",
+    "graph_sha256",
+    "io_map_sha256",
+    "label",
+    "lif_dynamics_pin",
+    "lif_dynamics_version",
+    "neuron_map_sha256",
+    "optomotor_io_map_sha256",
+    "sensory_map_sha256",
+    "synthetic",
+    "transmitter_policy",
+    "transmitter_policy_report",
+    "locomotion_dn_map_sha256",
+    "silence",
+    "leg_load_afferent_map_sha256",
+)
+
+
+# D5: below this many DNa02 spikes across the whole run the turning component
+# of the motor command is built from single-digit spike counts and no
+# conclusion about turning survives.
+MIN_USEFUL_DNA02_SPIKES = 10
+
+# D1: fraction of the decoder cap below which applied drive is the leaky
+# integrator's ringdown rather than a command the body can act on.
+DRIVE_REPORTING_FRACTION_OF_MAX = 0.01
+
+
+def _sample_size_limitations(decoder_name: str) -> list[str]:
+    """D4/D5: what the motor command is built from, per decoder."""
+    if decoder_name == "dna02-crossed-v1":
+        return [
+            "The whole motor command derives from two single neurons out of 166,700 "
+            "(one DNa02 per side), so summary.json dna02_spike_count is the run's real "
+            "sample size.",
+            "At zero stimulus both DNa02 neurons still fire spontaneously and the fly "
+            "still walks. The decoder has no tonic term, but the system does have a "
+            "spontaneous walking drive from graph baseline activity.",
+        ]
+    if decoder_name == "dn-v2":
+        return [
+            "The whole motor command derives from a handful of descending neurons "
+            "(DNp09, DNa02, MDN and the giant fiber, per side), so summary.json "
+            "decoder_input_spikes is the run's real sample size; forward drive comes "
+            "from DNp09 and the turn from the DNa02 asymmetry (dna02_spike_count).",
+        ]
+    return []
+
+
+def _identity_digest(identity: dict[str, Any]) -> str:
+    """SHA-256 of the canonical JSON of the hoisted identity block."""
+    return hashlib.sha256(
+        json.dumps(_to_builtin(identity), sort_keys=True, allow_nan=False).encode("utf-8")
+    ).hexdigest()
+
+
+def _split_identity(reply: dict[str, Any]) -> dict[str, Any]:
+    """Remove the static identity fields from ``reply`` and return them."""
+    return {name: reply.pop(name) for name in NEURAL_IDENTITY_FIELDS if name in reply}
+
+
+# The command paths a run can take to the body.  ``intact`` is the only one in
+# which what reaches the CPG is the decoder's own output; the other two are
+# controls and say so in every artefact they write.
+MODES = {
+    "intact": "the decoder's own command reaches the FlyGym CPG",
+    "output-disconnected": (
+        "output-path control: the same graph, feedback and decoder run, and the "
+        "command reaching the CPG is replaced by exact zeros"
+    ),
+    "drive-rate-matched-control": (
+        "rate-matched control: the command reaching the CPG is a supplied "
+        "rearrangement of a recorded intact drive sequence, so its per-channel "
+        "mean is preserved and its neural content is not"
+    ),
+}
+
+# Controls need an explicit drive supplier; ``intact`` must not have one.
+MODES_REQUIRING_DRIVE_OVERRIDE = frozenset({"drive-rate-matched-control"})
 
 
 @dataclass(frozen=True)
@@ -52,8 +152,8 @@ class EmbodiedConfig:
     leg_load_feedback: bool = False
 
     def validated(self) -> "EmbodiedConfig":
-        if self.mode not in {"intact", "output-disconnected"}:
-            raise ValueError("mode must be 'intact' or 'output-disconnected'")
+        if self.mode not in MODES:
+            raise ValueError("mode must be one of " + ", ".join(sorted(MODES)))
         finite = (
             self.duration_s,
             self.neural_dt_ms,
@@ -212,6 +312,9 @@ def run_embodied(
     *,
     decoder: DNCommandDecoder | DNa02CPGDecoder | None = None,
     invocation: dict[str, Any] | None = None,
+    drive_override: Callable[[int, tuple[float, float]], tuple[float, float]] | None = None,
+    drive_override_description: dict[str, Any] | None = None,
+    close_body: bool = True,
 ) -> dict[str, Any]:
     """Run a coupled experiment and return the written summary.
 
@@ -222,8 +325,24 @@ def run_embodied(
     config and brain backend give a byte-identical file; its SHA-256 is the
     run's ``trajectory_sha256``.  Wall-clock measurements go to ``timing.jsonl``.
     ``invocation`` (the CLI arguments) is stored so ``replay-check`` can re-run it.
+
+    ``drive_override`` supplies the command that reaches the body in place of the
+    decoder's own output.  It is how a rate-matched control is built, so it is
+    only accepted for the modes in ``MODES_REQUIRING_DRIVE_OVERRIDE``, never for
+    ``intact``: a run whose body did not receive the decoder's output must never
+    be able to call itself intact.
+
+    ``close_body=False`` leaves the body open for the caller, which is how the
+    ``verdict`` subcommand runs several conditions on one loaded graph and body.
     """
     config = config.validated()
+    if config.mode in MODES_REQUIRING_DRIVE_OVERRIDE and drive_override is None:
+        raise ValueError(f"mode {config.mode!r} requires a drive_override")
+    if config.mode not in MODES_REQUIRING_DRIVE_OVERRIDE and drive_override is not None:
+        raise ValueError(
+            f"a drive_override may not be used with mode {config.mode!r}; use one of "
+            + ", ".join(sorted(MODES_REQUIRING_DRIVE_OVERRIDE))
+        )
     decoder = decoder or DNCommandDecoder()
     substeps = int(round((config.neural_dt_ms / 1000.0) / config.physics_dt_s))
     n_steps = int(round(config.duration_s / (config.neural_dt_ms / 1000.0)))
@@ -240,8 +359,16 @@ def run_embodied(
     total_spikes = 0
     silenced_spikes = 0
     driven_steps = 0
+    driven_steps_above_floor = 0
+    input_spikes: dict[str, int] = {}
+    applied_drive_sum_l = 0.0
+    applied_drive_sum_r = 0.0
+    drive_floor = DRIVE_REPORTING_FRACTION_OF_MAX * float(decoder.max_drive)
+    count_input_spikes = getattr(decoder, "input_spikes", None)
     decoded_steps = 0
     events: list[dict[str, Any]] = []
+    neural_identity: dict[str, Any] | None = None
+    identity_sha256 = ""
     last_record: dict[str, Any] | None = None
     recorder = None
     executor = None
@@ -267,7 +394,8 @@ def run_embodied(
         decoder.reset()
 
         manifest = {
-            "schema": "neurofly-embodied-run-v1",
+            "schema": "neurofly-embodied-run-v2",
+            "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
             "status": "running",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "package_version": __version__,
@@ -284,6 +412,32 @@ def run_embodied(
                              f"(zeros until then){'; graph and body steps run concurrently' if config.pipeline else ''}"),
                 "motor_delay_ms": config.motor_delay_steps * config.neural_dt_ms,
             },
+            # D2.  Three rate conventions coexist in a telemetry record and only
+            # one of them can be read against the WP5 acceptance bands.
+            "rate_conventions": {
+                "applies_to": (
+                    "the connectome controller; the modular controller has no spiking "
+                    "neurons and its records carry none of these fields"
+                ),
+                "integer_counts": (
+                    "neural.dna02_spikes_l/r are integer spikes of one DNa02 neuron per "
+                    "side per neural bin; neural.locomotion_dn.<population>_spikes are "
+                    "integer spikes of each dn-v2 input population per bin"
+                ),
+                "bin_rates": (
+                    "neural.dna02_bin_rate_l/r_hz, the legacy neural.dna02_rate_l/r and "
+                    "neural.locomotion_dn.<population>_rate_hz divide a count by the bin "
+                    "duration (per neuron for locomotion_dn), so a 2 ms bin quantizes one "
+                    "neuron's rate to multiples of 500 Hz"
+                ),
+                "wp5_comparable_field": (
+                    "only a rate filtered across bins is comparable with the WP5 DNa02 "
+                    "acceptance bands (< 20 Hz): motor.decoder.filtered_rates_hz under "
+                    "dn-v2, motor.decoder.filtered_rate_l_hz / filtered_rate_r_hz under "
+                    "dna02-crossed-v1; the bin rates are not, and neither is dna02_diff"
+                ),
+                "sample_size_field": "summary.json decoder_input_spikes and dna02_spike_count",
+            },
             "sensory_feedback": {
                 "equation": "retinal_slip_rad_s = world_angular_velocity_rad_s - body_yaw_velocity_rad_s",
                 "contrast": config.contrast,
@@ -296,13 +450,46 @@ def run_embodied(
             "body_backend": _to_builtin(body.describe()),
             "decoder": decoder.describe(),
             "control": {
+                "mode": config.mode,
+                "modes": dict(MODES),
+                "drive_override": _to_builtin(drive_override_description or {}),
                 "intact": "decoded command reaches FlyGym CPG",
                 "output-disconnected": "same graph and feedback run, decoded command replaced by [0,0]",
+                "what_it_controls_for": (
+                    "the output path only: it zeroes the CPG magnitude command and "
+                    "nothing else. It is not a biological lesion, and it does not "
+                    "distinguish the neural signal from any other signal of the same "
+                    "size. The stimulus-sign reversal does that; see the verdict "
+                    "subcommand."
+                ),
+                "still_active_in_the_control": (
+                    "the graph, the sensory feedback, the decoder, and FlyGym's own "
+                    "leg-retraction, stumbling and adhesion machinery"
+                ),
             },
             "determinism": {
                 "trajectory_sha256": "SHA-256 of telemetry.jsonl; set when the run completes",
                 "excluded_wall_clock_fields": list(WALL_CLOCK_FIELDS),
                 "replay_requires": "same code, config, seed, graph and brain_backend",
+                "format_break": (
+                    "telemetry format 2 hoists the static neural identity block out of "
+                    "every record (see telemetry_identity), so trajectory_sha256 differs "
+                    "from a format-1 run of the same seed and arguments; format-1 hashes "
+                    "in older receipts are not comparable"
+                ),
+            },
+            "telemetry_identity": {
+                "hoisted_fields": list(NEURAL_IDENTITY_FIELDS),
+                "per_record_field": "identity_sha256",
+                "digest": "sha256 of the canonical JSON of telemetry_identity.values",
+                "note": (
+                    "these neural-reply fields are constant for the whole run, so they "
+                    "are recorded here once instead of in all "
+                    f"{n_steps} telemetry records; the runner fails the run if the "
+                    "backend's identity changes mid-run"
+                ),
+                "identity_sha256": None,
+                "values": None,
             },
             "invocation": _to_builtin(invocation or {}),
             "provenance": {
@@ -317,6 +504,25 @@ def run_embodied(
                 "The model does not establish full behavioral reproduction.",
                 "Passive v3 graph activity may yield sparse or zero DNa02 spikes.",
                 "Contact force and torque values remain in raw MuJoCo model units.",
+                # D3
+                "FlyGym's stock leg-retraction and stumbling corrections and its "
+                "phase-driven tarsal adhesion stay ACTIVE IN BOTH MODES, including "
+                "when the decoded CPG command is exactly [0,0]: only the CPG "
+                "magnitude is zeroed, not the body controller. They are what moves "
+                "the joints of the output-disconnected control. Their per-step "
+                "values are in telemetry body.flygym_corrections and "
+                "body.cpg_phases_rad.",
+                "engineered_assistance_enabled=false in neural_backend refers to the "
+                "graph's injected currents only. It says nothing about the body: the "
+                "FlyGym controller's own corrections above are always on.",
+                # D4
+                "output-disconnected is an OUTPUT-PATH control, not a biological "
+                "lesion, and on its own it shows only that the FlyGym CPG moves the "
+                "body when driven and not when it is not. Noise, a constant or a sine "
+                "through the same decoder would produce the same gap. The claim that "
+                "the NEURAL signal drives the body rests on the stimulus-sign "
+                "reversal; run `python -m neurofly_body verdict`.",
+                *_sample_size_limitations(decoder.name),
             ],
         }
         output.set_manifest(manifest)
@@ -376,6 +582,20 @@ def run_embodied(
                 )
             previous_neural_ms = neural_ms
 
+            step_identity = _split_identity(reply)
+            if neural_identity is None:
+                neural_identity = step_identity
+                identity_sha256 = _identity_digest(step_identity)
+                manifest["telemetry_identity"]["identity_sha256"] = identity_sha256
+                manifest["telemetry_identity"]["values"] = _to_builtin(step_identity)
+                output.set_manifest(manifest)
+            elif step_identity != neural_identity:
+                raise RuntimeError(
+                    "neural backend identity changed mid-run; the hoisted "
+                    "telemetry_identity block would no longer describe every record"
+                )
+            reply["identity_sha256"] = identity_sha256
+
             decoded = decoder.decode_reply(reply, config.neural_dt_ms)
             decoded_command = (
                 float(decoded["left_cpg_drive"]),
@@ -385,9 +605,16 @@ def run_embodied(
                 decoded_steps += 1
             for event in decoded["events"]:
                 events.append({"step": step_index + 1, **event})
-            connected_command = (
-                (0.0, 0.0) if config.mode == "output-disconnected" else decoded_command
-            )
+            if config.mode == "output-disconnected":
+                connected_command = (0.0, 0.0)
+                applied_drive_source = "zeroed by the output-disconnected control"
+            elif drive_override is not None:
+                supplied = drive_override(step_index, decoded_command)
+                connected_command = (float(supplied[0]), float(supplied[1]))
+                applied_drive_source = f"supplied by the {config.mode} control"
+            else:
+                connected_command = decoded_command
+                applied_drive_source = "the decoder's own output"
             if delay:
                 pending.append(connected_command)
                 applied_command = body_command
@@ -395,6 +622,13 @@ def run_embodied(
                 applied_command = connected_command
             if applied_command != (0.0, 0.0):
                 driven_steps += 1
+            if max(abs(applied_command[0]), abs(applied_command[1])) > drive_floor:
+                driven_steps_above_floor += 1
+            applied_drive_sum_l += applied_command[0]
+            applied_drive_sum_r += applied_command[1]
+            if count_input_spikes is not None:
+                for name, count in count_input_spikes(reply, config.neural_dt_ms).items():
+                    input_spikes[name] = input_spikes.get(name, 0) + int(count)
             if body_future is not None:
                 raw_obs, body_future = body_future.result(), None
             else:
@@ -415,7 +649,7 @@ def run_embodied(
             if "silenced" in reply:
                 silenced_spikes += int(reply["silenced"]["spikes"])
             last_record = {
-                "schema": "neurofly-embodied-step-v1",
+                "schema": "neurofly-embodied-step-v2",
                 "step": step_index + 1,
                 "run_time_s": (step_index + 1) * config.neural_dt_ms / 1000.0,
                 "sensory": {
@@ -430,6 +664,7 @@ def run_embodied(
                     "decoder": decoded,
                     "decoded_cpg_drive": list(decoded_command),
                     "applied_cpg_drive": list(applied_command),
+                    "applied_drive_source": applied_drive_source,
                     "output_connected": config.mode == "intact",
                     **({"delay_steps": delay} if delay else {}),
                 },
@@ -444,17 +679,59 @@ def run_embodied(
 
         if hasattr(body, "save_video"):
             body.save_video()  # type: ignore[attr-defined]
+        has_dna02 = "DNa02_L" in input_spikes or "DNa02_R" in input_spikes
+        dna02_l = input_spikes.get("DNa02_L", 0) if has_dna02 else None
+        dna02_r = input_spikes.get("DNa02_R", 0) if has_dna02 else None
+        dna02_count = dna02_l + dna02_r if has_dna02 else None
         summary = {
-            "schema": "neurofly-embodied-summary-v1",
+            "schema": "neurofly-embodied-summary-v2",
+            "telemetry_format_version": TELEMETRY_FORMAT_VERSION,
             "status": "complete",
             "mode": config.mode,
             "records": n_steps,
             "duration_s": config.duration_s,
             "wall_time_s": time.perf_counter() - started,
             "total_graph_spikes": total_spikes,
+            # D1.  ``steps_with_nonzero_applied_drive`` is kept for continuity but
+            # is not a measure of sustained neural drive: the decoder's 50 ms
+            # leaky integrator keeps a float above zero for hundreds of steps
+            # after a handful of spikes, so it approaches ``records`` whenever any
+            # spike occurs at all.  The fields after it are the honest ones.
             "steps_with_nonzero_applied_drive": driven_steps,
             "steps_with_nonzero_decoded_drive": decoded_steps,
-            "any_neural_motor_output": decoded_steps > 0,
+            "steps_with_applied_drive_above_1pct_of_max": driven_steps_above_floor,
+            "mean_applied_drive_l": applied_drive_sum_l / n_steps,
+            "mean_applied_drive_r": applied_drive_sum_r / n_steps,
+            "max_cpg_drive": float(decoder.max_drive),
+            # D5.  The motor command derives from these few descending neurons, so
+            # their spike counts are the run's real sample size.
+            "decoder_input_spikes": dict(sorted(input_spikes.items())),
+            "total_dna02_spikes_l": dna02_l,
+            "total_dna02_spikes_r": dna02_r,
+            "dna02_spike_count": dna02_count,
+            "dna02_spike_count_warning": (
+                None
+                if dna02_count is None or dna02_count >= MIN_USEFUL_DNA02_SPIKES
+                else (
+                    f"only {dna02_count} DNa02 spikes in {config.duration_s} s "
+                    f"(threshold {MIN_USEFUL_DNA02_SPIKES}): the turning component of the "
+                    "motor command is built from single-digit spike counts and this run "
+                    "is too short to support any conclusion about turning; the documented "
+                    "example duration is 5 s"
+                )
+            ),
+            "applied_drive_metrics_note": (
+                "steps_with_nonzero_applied_drive counts the decoder's leaky-integrator "
+                "ringdown and is not sustained neural drive; read "
+                "steps_with_applied_drive_above_1pct_of_max, mean_applied_drive_* and "
+                "decoder_input_spikes instead"
+            ),
+            # D8.  The decoder runs in every mode; whether its output reached the
+            # body is what the output-disconnected control changes.
+            "decoder_produced_output": decoded_steps > 0,
+            "motor_output_reached_body": bool(
+                config.mode == "intact" and drive_override is None and driven_steps > 0
+            ),
             "decoder": decoder.name,
             "motor_events": events,
             "final_thorax": None if last_record is None else last_record["body"]["thorax"],
@@ -481,7 +758,7 @@ def run_embodied(
     except BaseException as error:
         if not output.manifest:
             output.manifest = {
-                "schema": "neurofly-embodied-run-v1",
+                "schema": "neurofly-embodied-run-v2",
                 "status": "running",
                 "config": _to_builtin(asdict(config)),
                 "traceback": traceback.format_exc(),
@@ -494,4 +771,5 @@ def run_embodied(
         if executor is not None:
             executor.shutdown(wait=True)    # never close the body under a running step
         output.close()
-        body.close()
+        if close_body:
+            body.close()

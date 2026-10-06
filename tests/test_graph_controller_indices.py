@@ -6,6 +6,9 @@ on.  A synthetic test graph run beside real annotations then received real-graph
 indices (index 1398 on a 64-neuron brain).  These tests pin the fix: every resolved
 index is below the running brain's neuron count, whatever annotations exist on disk.
 """
+from types import SimpleNamespace
+
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.feather as feather
@@ -50,6 +53,38 @@ def test_synthetic_graph_ignores_real_annotations_on_disk(tmp_path, monkeypatch)
     # Stepping a looming stimulus through it must not index outside the brain.
     out = controller(fly=runner.arena.fly, sensory={"looming_theta": 2.5, "looming_detected": True}, dt=0.02)
     assert out["motor_source"] == "graph"
+    assert out["epg_available"] is False
+    assert out["epg_resolved_count"] == 0
+    assert "synthetic" in out["epg_unavailable"]
+
+
+def test_resolved_silent_epg_is_available_zero(tmp_path, monkeypatch):
+    runner = ContinuousExperimentRunner(initial_paradigm="looming-escape", sim_speed=1,
+                                        checkpoint_interval=3600, output_dir=tmp_path / "out",
+                                        backend="connectome-fixed", test_synthetic_graph=True)
+    controller = runner.graph_controller
+    instance = runner.registry.active
+    controller.epg_indices = [0]
+    monkeypatch.setattr(instance, "step", lambda currents, step_ms:
+                        SimpleNamespace(counts=np.zeros(instance.brain.n, dtype=np.int64)))
+    out = controller(fly=runner.arena.fly, sensory={}, dt=0.02)
+    assert out["epg_available"] is True
+    assert out["epg_resolved_count"] == 1
+    assert out["epg_wedges"] == [0.0] * 16
+    assert out["epg_bump_phase"] == 0.0
+
+
+def test_halted_graph_declares_dn_and_epg_unavailable(tmp_path):
+    runner = ContinuousExperimentRunner(initial_paradigm="looming-escape", sim_speed=1,
+                                        checkpoint_interval=3600, output_dir=tmp_path / "out",
+                                        backend="connectome-fixed", test_synthetic_graph=True)
+    controller = runner.graph_controller
+    runner.registry.active = None
+    out = controller(fly=runner.arena.fly, sensory={}, dt=0.02)
+    assert out["motor_source"] == "halted-no-instance"
+    assert all(value is None for value in out["dn_rates"].values())
+    assert set(out["dn_rates"]) == set(out["dn_unavailable"])
+    assert out["epg_available"] is False
 
 
 def test_real_graph_indices_fit_the_loaded_brain(tmp_path):

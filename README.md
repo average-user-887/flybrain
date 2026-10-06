@@ -158,7 +158,8 @@ Then open `http://localhost:8769` to see the fly, watch premotor firing rates, a
 
 - **Network exposure:** the daemon currently listens on all network interfaces (`--host 0.0.0.0`) unless you pass `--host`. Pass `--host 127.0.0.1`, as above, to keep it on your own machine; its command interface has no password.
 - **Port:** `--port` changes it (default 8769). To point a dashboard page at a particular daemon, add `?daemon=http://host:port` to the page URL.
-- **Dynamics:** the connectome backends run **v3** by default. `--dynamics v1` or `v2` (or `NEUROFLY_LIF_DYNAMICS`) selects an older model; v4 and v5 are library-only. Saved brains never cross versions: v1 brains stay in `outputs/registry/`, v3 brains in `outputs/registry-v3/`.
+- **Dynamics:** the connectome backends run **v3** by default. `--dynamics v1` or `v2` (or `NEUROFLY_LIF_DYNAMICS`) selects an older neuron model; v4 and v5 are library-only. These are scientific model versions, not application releases. Compatible saved brains carry forward across app upgrades without retraining. Different dynamics retain separate stores (`registry/` for v1, `registry-v3/` for v3); do not rename a store to force compatibility.
+- **Retained learning:** use the same explicit `--output-dir` and `--data-dir` after installing a new app version. Keep these directories outside replaceable checkouts. Checkpoints, learned parameters and historical records have different compatibility requirements; see [Carrying learning across releases](docs/TRAINING_CONTINUITY.md).
 
 ---
 

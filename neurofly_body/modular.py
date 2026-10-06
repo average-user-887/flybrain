@@ -91,6 +91,9 @@ class ModularCommandDecoder:
     def reset(self) -> None:
         pass
 
+    def input_spikes(self, reply: dict, dt_ms: float) -> dict[str, int]:
+        return {}   # no spiking neurons, so no sample-size count
+
     def decode_reply(self, reply: dict, dt_ms: float) -> dict:
         command = reply["modular_command"]
         cap = self.max_drive

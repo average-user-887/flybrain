@@ -1,0 +1,391 @@
+{
+ "kind": "silent-freeze-browser-check",
+ "started_at": "2026-10-05T17:10:03+00:00",
+ "daemon_port": 8861,
+ "web_port": 8860,
+ "checks": {
+  "a_healthy_live": true,
+  "a_step_advancing": true,
+  "a_step_age_resets": true,
+  "a_no_banner": true,
+  "a_result_valid": true,
+  "b_red_stopped_pill": true,
+  "b_banner_stopped_incomplete": true,
+  "b_never_live": true,
+  "b_step_frozen": true,
+  "b_status": true,
+  "b_new_tab_during_fault_shows_stopped": true,
+  "b_reselect_while_full_stays_stopped": true,
+  "c_live_and_advancing": true,
+  "c_incomplete_banner_retained": true,
+  "c_status_records_recovery": true,
+  "d_compute_halt_pill": true,
+  "d_status_compute": true,
+  "d_recovers_after_reselect": true,
+  "e_slow_cpu_never_not_advancing": true,
+  "e_slow_cpu_seen_slow": true,
+  "e_slow_cpu_steps_advance": true,
+  "f_slow_then_not_advancing": true,
+  "f_recovers_when_step_returns": true,
+  "g_red_pill_within_threshold": true,
+  "g_never_live_while_dead": true,
+  "g_step_frozen": true,
+  "g_status_dead": true,
+  "g_new_tab_while_dead_shows_not_advancing": true,
+  "g_reselect_restarts_and_live": true,
+  "i_pause_shows_paused_never_not_advancing": true,
+  "i_resume_live": true,
+  "i_halt_shown": true,
+  "i_transport_loss_shows_disconnected": true,
+  "i_reconnect_into_fault_shows_halt": true,
+  "i_recovery_live": true,
+  "scientific_no_page_errors": true,
+  "h_exploratory_shown": true,
+  "h_banner_not_saving": true,
+  "h_steps_still_advance": true,
+  "h_pill_live_exploratory": true,
+  "h_status_degraded_incomplete": true,
+  "h_new_tab_while_degraded_shows_it": true,
+  "exploratory_no_page_errors": true
+ },
+ "timings_s": {
+  "b_stopped_after": 2.85,
+  "f_red_after": 12.06,
+  "g_red_after": 1.28,
+  "i_disconnected_after": 20.19,
+  "i_reconnected_after": 3.85
+ },
+ "samples": {
+  "a_healthy": [
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 213,
+    "liveness": "advancing",
+    "validity": "valid_so_far",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 255,
+    "liveness": "advancing",
+    "validity": "valid_so_far",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 296,
+    "liveness": "advancing",
+    "validity": "valid_so_far",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 334,
+    "liveness": "advancing",
+    "validity": "valid_so_far",
+    "banner": ""
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 375,
+    "liveness": "advancing",
+    "validity": "valid_so_far",
+    "banner": ""
+   }
+  ],
+  "b_required_save_failed": [
+   {
+    "pill": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+    "stepAge": "0.0s",
+    "lastStep": 535,
+    "liveness": "halted",
+    "validity": "incomplete",
+    "banner": "STOPPED \u00b7 RESULT INCOMPLETE: a required save failed (disk full) at step 535. The last good checkpoint and the in-memory state are kept. Free disk space, then select the assay: it saves first and resumes only if that works."
+   },
+   {
+    "pill": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+    "stepAge": "0.9s",
+    "lastStep": 535,
+    "liveness": "halted",
+    "validity": "incomplete",
+    "banner": "STOPPED \u00b7 RESULT INCOMPLETE: a required save failed (disk full) at step 535. The last good checkpoint and the in-memory state are kept. Free disk space, then select the assay: it saves first and resumes only if that works."
+   },
+   {
+    "pill": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+    "stepAge": "1.9s",
+    "lastStep": 535,
+    "liveness": "halted",
+    "validity": "incomplete",
+    "banner": "STOPPED \u00b7 RESULT INCOMPLETE: a required save failed (disk full) at step 535. The last good checkpoint and the in-memory state are kept. Free disk space, then select the assay: it saves first and resumes only if that works."
+   },
+   {
+    "pill": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+    "stepAge": "3.0s",
+    "lastStep": 535,
+    "liveness": "halted",
+    "validity": "incomplete",
+    "banner": "STOPPED \u00b7 RESULT INCOMPLETE: a required save failed (disk full) at step 535. The last good checkpoint and the in-memory state are kept. Free disk space, then select the assay: it saves first and resumes only if that works."
+   }
+  ],
+  "c_recovered": [
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 545,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 1 failure(s); the last at step 535 (required_save_failed, recovered at step 535). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 587,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 1 failure(s); the last at step 535 (required_save_failed, recovered at step 535). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 628,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 1 failure(s); the last at step 535 (required_save_failed, recovered at step 535). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 668,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 1 failure(s); the last at step 535 (required_save_failed, recovered at step 535). The failure stays on the run's record."
+   }
+  ],
+  "e_slow_cpu": [
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.0s",
+    "lastStep": 726,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.8s",
+    "lastStep": 727,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "1.8s",
+    "lastStep": 727,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "2.8s",
+    "lastStep": 727,
+    "liveness": "slow",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.8s",
+    "lastStep": 728,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "1.9s",
+    "lastStep": 728,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "2.9s",
+    "lastStep": 728,
+    "liveness": "slow",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.8s",
+    "lastStep": 729,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "1.9s",
+    "lastStep": 729,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "2.9s",
+    "lastStep": 729,
+    "liveness": "slow",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.8s",
+    "lastStep": 730,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "1.8s",
+    "lastStep": 730,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "2.8s",
+    "lastStep": 730,
+    "liveness": "slow",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "0.8s",
+    "lastStep": 731,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "1.8s",
+    "lastStep": 731,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON",
+    "stepAge": "2.8s",
+    "lastStep": 731,
+    "liveness": "slow",
+    "validity": "incomplete",
+    "banner": "RESULT INCOMPLETE: this run had 2 failure(s); the last at step 719 (halted_device, recovered at step 719). The failure stays on the run's record."
+   }
+  ],
+  "h_exploratory_disk_full": [
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 171,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 213,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 254,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 296,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 338,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   },
+   {
+    "pill": "\u25cf LIVE DAEMON \u00b7 EXPLORATORY",
+    "stepAge": "0.0s",
+    "lastStep": 381,
+    "liveness": "advancing",
+    "validity": "incomplete",
+    "banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE."
+   }
+  ]
+ },
+ "screenshots": [
+  "a-healthy-live.png",
+  "b-required-save-failed-stopped.png",
+  "b-new-tab-opened-during-fault.png",
+  "c-recovered-result-incomplete.png",
+  "d-cuda-error-compute-halt.png",
+  "f-hung-step-not-advancing.png",
+  "g-thread-dead-not-advancing.png",
+  "g-new-tab-opened-while-dead.png",
+  "i-transport-loss-disconnected.png",
+  "i-reconnected-into-halt.png",
+  "h-exploratory-not-saving.png",
+  "h-new-tab-opened-while-degraded.png"
+ ],
+ "pills": {
+  "b": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+  "b_new_tab": "\u25cf SIMULATION STOPPED \u00b7 NOT SAVED",
+  "d": "\u25cf SIMULATION HALTED \u00b7 GPU/COMPUTE ERROR",
+  "f": "\u25cf SIMULATION NOT ADVANCING \u00b7 12s",
+  "g": "\u25cf SIMULATION NOT ADVANCING \u00b7 1s",
+  "g_new_tab": "\u25cf SIMULATION NOT ADVANCING \u00b7 0s",
+  "i_paused": "\u25cf DAEMON CONNECTED \u00b7 PAUSED",
+  "i_transport_loss": "\u25cb DISCONNECTED \u00b7 FROZEN VIEW",
+  "i_reconnected": "\u25cf SIMULATION HALTED \u00b7 ERROR"
+ },
+ "browser": {
+  "name": "firefox",
+  "version": "157.0",
+  "headless": true
+ },
+ "b_banner": "STOPPED \u00b7 RESULT INCOMPLETE: a required save failed (disk full) at step 535. The last good checkpoint and the in-memory state are kept. Free disk space, then select the assay: it saves first and resumes only if that works.",
+ "c_banner": "RESULT INCOMPLETE: this run had 1 failure(s); the last at step 535 (required_save_failed, recovered at step 535). The failure stays on the run's record.",
+ "d_banner": "HALTED \u00b7 RESULT INCOMPLETE: GPU/compute error at step 719 (cudaErrorLaunchFailure: unspecified launch failure). Nothing is saved over the last good checkpoint. Select an assay to rebuild, or restart the daemon.",
+ "scientific_final_errors": [],
+ "daemon_exit_codes": {
+  "scientific": 0,
+  "exploratory": 0
+ },
+ "h_banner": "EXPLORATORY \u00b7 NOT SAVING: disk full (last saved not yet in this run). The run continues unsaved; the gap is recorded and this run is marked INCOMPLETE.",
+ "finished_at": "2026-10-05T17:12:23+00:00",
+ "pass": true
+}

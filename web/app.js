@@ -537,6 +537,59 @@ class HoledRegion {
 // 3. SCIENTIFIC BIO-ARENA & PARADIGM BATTERY CONTROLLER
 // =============================================================================
 
+// A display projection, not a scientific measurement producer. Remote values
+// come only from the accepted packet for the currently selected sandbox assay.
+function sandboxScoreView(arena) {
+    const unavailable = 'Unavailable';
+    const names = {
+        composite: ['composite_benchmark_score', 'compositeScore'],
+        coordination: ['locomotor_coordination_index', 'coordinationScore'],
+        sensory: ['multisensory_integration_score', 'sensoryIntegrationScore'],
+        efficiency: ['biomechanical_efficiency', 'efficiencyScore'],
+        smoothness: ['kinematic_smoothness', 'smoothnessScore'],
+    };
+    const sandbox = arena?.activeParadigmId === 'multisensory-sandbox';
+    const packet = arena?.remotePacket;
+    const remote = sandbox && arena.remoteDriven && !arena.awaitingDaemon
+        && packet?.paradigm === 'multisensory-sandbox';
+    const preview = sandbox && !arena.remoteDriven && !arena.awaitingDaemon && !packet;
+    const source = remote ? (packet.timing?.replay ? 'Recording' : 'Daemon')
+        : preview ? 'Local preview' : unavailable;
+    const raw = {};
+    const text = {};
+    for (const [key, [remoteKey, localKey]] of Object.entries(names)) {
+        const value = remote ? packet.metrics?.[remoteKey]
+            : preview ? arena.paradigmState?.[localKey] : null;
+        raw[key] = Number.isFinite(value) ? value : null;
+        text[key] = raw[key] === null ? unavailable : key === 'composite'
+            ? `${raw[key].toFixed(1)} / 100` : `${(raw[key] * 100).toFixed(1)}%`;
+    }
+    return {raw, text, source,
+        label: 'Sandbox heuristic body proxy',
+        note: sandbox ? `${source} · heuristic body proxy; not learned biological validation.`
+            : 'Unavailable for this assay · sandbox heuristic body proxy.',
+        catalog: raw.composite === null ? unavailable
+            : `${text.composite} · ${preview ? 'preview proxy' : 'body proxy'}`};
+}
+
+function renderSandboxScorecard(arena, doc) {
+    const score = sandboxScoreView(arena);
+    if ((arena.remoteDriven || arena.awaitingDaemon) && arena.getObservationDisplay
+            && arena.getObservationDisplay().live.state !== 'available') {
+        for (const key of Object.keys(score.text)) score.text[key] = 'Unavailable';
+        score.note = 'Heuristic body proxy unavailable · ' + arena.getObservationDisplay().transportLabel;
+    }
+    const fields = {deckCompositeScore: 'composite', deckCoordScore: 'coordination',
+        deckSensoryScore: 'sensory', deckEfficacyScore: 'efficiency', deckSmoothScore: 'smoothness'};
+    for (const [id, field] of Object.entries(fields)) {
+        const el = doc.getElementById(id);
+        if (el) { el.textContent = score.text[field]; el.title = score.note; }
+    }
+    const source = doc.getElementById('deckScorecardSource');
+    if (source) source.textContent = score.note;
+    return score;
+}
+
 class ScientificBioArena {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -544,6 +597,10 @@ class ScientificBioArena {
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => this.resize());
+            this.resizeObserver.observe(this.canvas);
+        }
 
         this.activeParadigmId = 'open-arena';
         // Illustrative local preview only: the wall-avoidance reflex is an engineered
@@ -613,6 +670,7 @@ class ScientificBioArena {
 
     resize() {
         const rect = this.canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
         this.canvas.width = rect.width * (window.devicePixelRatio || 1);
         this.canvas.height = rect.height * (window.devicePixelRatio || 1);
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -652,7 +710,11 @@ class ScientificBioArena {
             const mouseY = e.clientY - rect.top;
             const worldPos = this.screenToWorld(mouseX, mouseY);
 
-            if (this.remoteDriven || this.awaitingDaemon) {
+            const capabilities = arenaToolCapabilities(this, window.hud?.daemonBridge);
+            if (!capabilities.tools[this.toolMode]?.enabled) {
+                this.toolMode = 'select';window.hud?.reconcileToolCapabilities?.();return;
+            }
+            if (capabilities.remote) {
                 if (this.toolMode === 'select') return;
                 const packet=this.remotePacket, bridge=window.hud?.daemonBridge;
                 if (!packet || packet.paradigm!=='open-arena' || !bridge?.connected) return;
@@ -675,9 +737,42 @@ class ScientificBioArena {
                 });
             } else if (this.toolMode === 'wind') {
                 const angle = Math.atan2(worldPos.y, worldPos.x);
+                this.cancelPreviewGust?.();
                 this.windVector = [-Math.cos(angle) * 15.0, -Math.sin(angle) * 15.0];
             }
         });
+    }
+
+    isStandalonePreview() {
+        const bridge = window.hud?.daemonBridge;
+        return !this.remoteDriven && !this.awaitingDaemon && !bridge?.connected
+            && !bridge?.replayMode && !bridge?.switchPending;
+    }
+
+    cancelPreviewGust(restore = false) {
+        const gust = this.previewGust;
+        if (!gust) return;
+        clearTimeout(gust.timer);
+        this.previewGust = null;
+        if (restore && this.isStandalonePreview() && this.paradigmState === gust.owner
+                && this.activeParadigmId === gust.assay && this.windVector === gust.vector
+                && Object.is(this.windVector[0], gust.applied[0]) && Object.is(this.windVector[1], gust.applied[1])) {
+            this.windVector = gust.prior;
+        }
+    }
+
+    startPreviewGust(kind = 'axial') {
+        if (!this.isStandalonePreview() || !['axial', 'crosswind'].includes(kind)) return;
+        this.cancelPreviewGust(true);
+        const vector = kind === 'crosswind'
+            ? [this.windVector[0], (Math.random() - 0.5) * 30.0] : [-35, 0];
+        const gust = {owner: this.paradigmState, assay: this.activeParadigmId,
+            prior: [...this.windVector], vector, applied: [...vector]};
+        this.windVector = gust.vector;
+        this.previewGust = gust;
+        gust.timer = setTimeout(() => {
+            if (this.previewGust === gust) this.cancelPreviewGust(true);
+        }, kind === 'crosswind' ? 2500 : 2000);
     }
 
     setLesion(type) {
@@ -689,6 +784,7 @@ class ScientificBioArena {
     }
 
     initParadigm(paradigmId) {
+        this.cancelPreviewGust?.(true);
         // Never render a new scene using the previous assay's telemetry schema.
         if (this.remotePacket && this.remotePacket.paradigm !== paradigmId) {
             this.remotePacket = null;
@@ -1085,13 +1181,6 @@ class ScientificBioArena {
                         R3: { ctr: 0, fti: 80, tita: 35 }
                     },
                     cuticularLoads: { L1: 1.85, L2: 0, L3: 1.85, R1: 0, R2: 1.85, R3: 0 },
-                    manualActive: false,
-                    overrideDna02: 0.0,
-                    overrideThrust: 0.0,
-                    overrideMdn: 0.0,
-                    overrideGf: false,
-                    overrideWings: 0.0,
-                    overrideLegs: {},
                     coordinationScore: 0.94,
                     sensoryIntegrationScore: 0.88,
                     efficiencyScore: 0.82,
@@ -1135,6 +1224,8 @@ class ScientificBioArena {
     }
 
     resetTrial(advanceTrial = true, keepMemory = true) {
+        if(window.hud?.daemonBridge?.replayMode)return;
+        this.cancelPreviewGust?.(true);
         if (this.remoteDriven) {
             window.hud?.daemonBridge?.sendCommand('reset_trial', {advance: advanceTrial, keep_memory: keepMemory});
             return;
@@ -1318,6 +1409,7 @@ class ScientificBioArena {
     }
 
     getRawTrialMetric() {
+        if (this.remoteDriven || this.awaitingDaemon) return this.getCanonicalMetricInfo().rawValue;
         const pid = this.activeParadigmId;
         const p = this.paradigmState || {};
         if (pid === 'heat-maze') return p.escapeLatencyMs ? (p.escapeLatencyMs / 1000) : 25.0;
@@ -1332,7 +1424,7 @@ class ScientificBioArena {
         if (pid === 'circadian-dam') return p.totalSleepMin || 0.0;
         if (pid === 'courtship') return p.courtshipIndex || 0.0;
         if (pid === 'labyrinth') return p.timeToGoalMs ? (p.timeToGoalMs / 1000) : 35.0;
-        if (pid === 'multisensory-sandbox') return p.compositeScore || 0.0;
+        if (pid === 'multisensory-sandbox') return sandboxScoreView(this).raw.composite;
         return this.mb.netValence;
     }
 
@@ -1953,27 +2045,10 @@ class ScientificBioArena {
                 if (odorA > 0.5 && p.temp < 25.0) rewardSignal = 1.0;
                 if (p.temp > 35.0 || odorB > 0.5) punishmentSignal = 1.0;
 
-                if (p.manualActive) {
-                    if (Math.abs(p.overrideDna02) > 0.05) {
-                        this.dn.dna02Diff = p.overrideDna02 * 60.0;
-                    }
-                    if (p.overrideThrust > 0.05) {
-                        this.dn.dnp09 = p.overrideThrust * 65.0;
-                    }
-                    if (p.overrideMdn > 0.05) {
-                        this.dn.mdn = p.overrideMdn * 50.0;
-                    }
-                    if (p.overrideGf) {
-                        this.dn.escapeActive = true;
-                        this.dn.escapeTimer = 0.4;
-                        p.overrideGf = false;
-                    }
-                }
-
                 // When the daemon streams this paradigm its kinematics and benchmark metrics
                 // are mirrored into paradigmState by DaemonBridgeClient; do not overwrite them.
                 if (this.remoteDriven) {
-                    this.paradigmStatus = `LIVE DAEMON BENCHMARK: ${(p.compositeScore || 0).toFixed(1)} / 100`;
+                    this.paradigmStatus = `${sandboxScoreView(this).text.composite} · daemon body proxy`;
                     break;
                 }
 
@@ -2007,7 +2082,7 @@ class ScientificBioArena {
                 p.smoothnessScore = 0.92;
                 p.compositeScore = (0.30 * p.coordinationScore + 0.25 * p.sensoryIntegrationScore + 0.25 * p.efficiencyScore + 0.20 * p.smoothnessScore) * 100.0;
 
-                this.paradigmStatus = p.manualActive ? 'MANUAL NEURO-STIMULATION ACTIVE' : `BENCHMARK SCORE: ${p.compositeScore.toFixed(1)} / 100`;
+                this.paradigmStatus = `LOCAL PREVIEW BODY PROXY: ${p.compositeScore.toFixed(1)} / 100`;
                 break;
             }
         }
@@ -2512,17 +2587,33 @@ class ScientificBioArena {
     }
 
     getCanonicalMetricInfo() {
-        if (this.remoteDriven && this.remotePacket) {
-            const keys = {'t-maze':'performance_index','y-maze':'spontaneous_alternation_rate',
-                'heat-maze':'escape_latency_ms','buridan':'centrophobism_index','visual-operant':'operant_learning_index',
-                'wind-tunnel':'upwind_progress_mm','looming-escape':'time_to_collision_at_jump_ms','optomotor':'optomotor_gain',
-                'gap-crossing':'crossing_success','circadian-dam':'total_sleep_minutes','courtship':'courtship_index',
-                'labyrinth':'path_tortuosity','multisensory-sandbox':'composite_benchmark_score'};
-            const key=keys[this.activeParadigmId],value=key ? this.remotePacket.metrics?.[key] : this.remotePacket.neural?.net_valence;
-            const units={'escape_latency_ms':' ms','time_to_collision_at_jump_ms':' ms','upwind_progress_mm':' mm','total_sleep_minutes':' min','composite_benchmark_score':' /100'};
-            const rawValue=typeof value==='boolean'?Number(value):Number.isFinite(value)?value:null;
-            if(this.activeParadigmId==='gap-crossing') return {label:'Gap width / outcome',rawValue,unit:'crossed 0/1',value:`${this.remotePacket.metrics?.gap_width_mm ?? '—'} mm · ${value?'CROSSED':this.remotePacket.metrics?.decision_outcome||'APPROACH'}`,sub:'Daemon measurement'};
-            return {label:key ? key.replace(/_/g,' ') : 'Odor value',rawValue,unit:units[key]||'',value:rawValue!==null?rawValue.toFixed(2)+(units[key]||''):'Not observed',sub:'Daemon measurement'};
+        if (this.remoteDriven || this.awaitingDaemon) {
+            return window.NeuroFlyObservationRenderer.primary(this.getObservationDisplay());
+        }
+        const preview = this.getPreviewMetricInfo();
+        return {...preview, label: preview.label + ' · local preview', sub: 'Preview output · ' + (preview.sub || '')};
+    }
+
+    getObservationDisplay() {
+        const bridge = window.hud?.daemonBridge;
+        const options = {connected: !!bridge?.connected || !!bridge?.replayMode,
+            pending: !!bridge?.switchPending, assay: this.activeParadigmId,
+            replay: !!bridge?.replayMode || !!this.remotePacket?.timing?.replay,
+            validityUpdate: bridge?.observationValidityUpdate || null};
+        const key = JSON.stringify(options);
+        if (this.observationPacket !== this.remotePacket || this.observationOptions !== key) {
+            this.observationPacket = this.remotePacket;
+            this.observationOptions = key;
+            this.observationDisplay = window.NeuroFlyObservationRenderer.view(this.remotePacket, options);
+        }
+        return this.observationDisplay;
+    }
+
+    getPreviewMetricInfo() {
+        if (this.activeParadigmId === 'multisensory-sandbox') {
+            const score = sandboxScoreView(this);
+            return {label: score.label + ' · ' + score.source, rawValue: score.raw.composite,
+                unit: ' /100', value: score.text.composite, sub: score.note};
         }
         const p = this.paradigmState;
         switch (this.activeParadigmId) {
@@ -2558,7 +2649,7 @@ class ScientificBioArena {
                 };
             case 'visual-operant':
                 return {
-                    label: 'Learning Index (LI)',
+                    label: 'Occupancy index',
                     value: ((p.learningIndex || 0) >= 0 ? '+' : '') + (p.learningIndex || 0).toFixed(2),
                     sub: `Safe: ${((p.timeSafeMs / Math.max(1, p.timeSafeMs + p.timePunishedMs)) * 100).toFixed(0)}%`
                 };
@@ -2604,12 +2695,6 @@ class ScientificBioArena {
                     label: 'Path Tortuosity',
                     value: (p.tortuosity || 1.0).toFixed(2),
                     sub: `Hits: ${p.wallCollisions} | Goal: ${p.goalReached ? 'REACHED' : 'SEARCH'}`
-                };
-            case 'multisensory-sandbox':
-                return {
-                    label: 'Benchmark Score',
-                    value: (p.compositeScore || 0).toFixed(1) + ' / 100',
-                    sub: `Coord: ${((p.coordinationScore || 0) * 100).toFixed(0)}% | Sensory: ${((p.sensoryIntegrationScore || 0) * 100).toFixed(0)}%`
                 };
             default:
                 return { label: 'Canonical Metric', value: '0.00', sub: 'Standard' };
@@ -3278,7 +3363,7 @@ const EXPERIMENT_GUIDES = {
         ],
         params: [
             { key: 'predatorSpeed', label: 'Predator Speed', min: 10, max: 60, step: 5, val: 25, unit: 'mm/s', desc: 'Linear velocity of approaching predatory mantids. Faster speeds challenge Giant Fiber optical expansion detection.', apply: (a, v) => { a.predators.forEach(p => { const sp = Math.hypot(p.vx, p.vy) || 1; p.vx = (p.vx / sp) * v; p.vy = (p.vy / sp) * v; }); } },
-            { key: 'windVelocity', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Ambient airflow velocity sensed by Johnston’s organ, driving upwind anemotactic course correction.', apply: (a, v) => { a.windVector = [-v, 0]; } }
+            { key: 'windVelocity', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Ambient airflow velocity sensed by Johnston’s organ, driving upwind anemotactic course correction.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } }
         ]
     },
     't-maze': {
@@ -3290,9 +3375,7 @@ const EXPERIMENT_GUIDES = {
             "Right Arm dispenses aversive Odor B (CS-) paired with red pulsing electroshock.",
             "Watch anti-Hebbian depression shift net behavioral valence from 0.00 toward +1.00."
         ],
-        params: [
-            { key: 'shockPulse', label: 'Shock Voltage', min: 0, max: 100, step: 10, val: 60, unit: 'V', desc: 'Aversive electric grid voltage in CS- arm. Regulates PPL1 dopaminergic punishment spike rate and rate of learning.', apply: (a, v) => { a.paradigmState.shockPulse = v / 100; } }
-        ]
+        params: []
     },
     'y-maze': {
         title: "Y-Maze Spontaneous Alternation",
@@ -3303,9 +3386,7 @@ const EXPERIMENT_GUIDES = {
             "Look for high Spontaneous Alternation Rate (SAR > 0.60) across consecutive choices.",
             "DNa02 premotor firing asymmetry sets individual fly idiosyncratic turn handedness."
         ],
-        params: [
-            { key: 'turnBias', label: 'Premotor Turn Bias', min: -20, max: 20, step: 2, val: 0, unit: 'Hz', desc: 'Injected bilateral current asymmetry between left and right DNa02 descending neurons, inducing turn handedness.', apply: (a, v) => { a.dn.dna02Diff += v; } }
-        ]
+        params: []
     },
     'heat-maze': {
         title: "Thermal Heat-Maze Place Learning",
@@ -3317,7 +3398,6 @@ const EXPERIMENT_GUIDES = {
             "Stepping onto the cool tile triggers an immediate PAM pain-relief reward burst!"
         ],
         params: [
-            { key: 'floorTemp', label: 'Floor Temperature', min: 28, max: 42, step: 0.5, val: 36.5, unit: '°C', desc: 'Floor bath temperature. Above 36°C, TrpA1 heat receptors drive intense escape toward cool refuge.', apply: (a, v) => { a.paradigmState.temp = v; } },
             { key: 'refugeRadius', label: 'Refuge Radius', min: 6, max: 15, step: 1, val: 9, unit: 'mm', desc: 'Target cool tile radius. Smaller targets require tighter landmark triangulation by the Central Complex.', apply: (a, v) => { a.paradigmState.refugeRadius = v; } }
         ]
     },
@@ -3331,7 +3411,7 @@ const EXPERIMENT_GUIDES = {
             "Notice the fly avoids the open center (centrophobism index CI > 0.70)."
         ],
         params: [
-            { key: 'platformRadius', label: 'Platform Radius', min: 35, max: 60, step: 5, val: 50, unit: 'mm', desc: 'Radius of illuminated circular stage. Regulates centrophobism arena area and travel distance.', apply: (a, v) => { a.paradigmState.platformRadius = v; } }
+            { key: 'platformRadius', label: 'Platform drawing radius (preview)', min: 35, max: 60, step: 5, val: 50, unit: 'mm', desc: 'Changes the 2D preview disk drawing only; containment and locomotion remain unchanged.', apply: (a, v) => { a.paradigmState.platformRadius = v; } }
         ]
     },
     'visual-operant': {
@@ -3341,7 +3421,7 @@ const EXPERIMENT_GUIDES = {
             "A tethered fly controls a 360° panoramic pattern drum via its own yaw torque.",
             "Facing the inverted 'T' triggers an intense infrared laser heating pulse.",
             "Facing the upright 'T' is safe.",
-            "Watch fly learn to exert corrective yaw torque to stabilize arena in safe quadrants!"
+            "Watch yaw torque and safe-zone occupancy; pattern-specific learned memory is not implemented."
         ],
         params: [
             { key: 'couplingGain', label: 'Yaw Coupling Gain', min: 50, max: 200, step: 10, val: 120, unit: '°/s', desc: 'Closed-loop coupling gain between flight yaw torque and drum rotation. Higher values make steering more responsive.', apply: (a, v) => { a.paradigmState.couplingGain = v; } }
@@ -3355,9 +3435,7 @@ const EXPERIMENT_GUIDES = {
             "Upon contacting an odor filament (plume ON), fly UPWIND SURGES (DNp09 active).",
             "When plume is lost (plume OFF), fly executes CROSSWIND CASTING zigzags (DNa02)!"
         ],
-        params: [
-            { key: 'windVelocity', label: 'Wind Velocity', min: 10, max: 50, step: 5, val: 25, unit: 'mm/s', desc: 'Downwind carrier velocity. Sensed by Johnston’s organ, dictating surge vs cast transitions.', apply: (a, v) => { a.paradigmState.windFlow = [-v, 0]; } }
-        ]
+        params: []
     },
     'looming-escape': {
         title: "Visual Looming Giant Fiber Escape",
@@ -3379,9 +3457,7 @@ const EXPERIMENT_GUIDES = {
             "T4/T5 motion cells drive Lobula Plate Tangential Cells (HS/VS) compensatory turning.",
             "When fly makes a voluntary saccade, an ascending efference copy shunts >80% of retinal slip!"
         ],
-        params: [
-            { key: 'drumSpeed', label: 'Grating Velocity', min: -60, max: 60, step: 5, val: 30, unit: '°/s', desc: 'Rotational speed of surrounding drum. Drives wide-field optic flow in Lobula Plate Tangential Cells.', apply: (a, v) => { a.paradigmState.drumSpeedDegS = v; } }
-        ]
+        params: []
     },
     'gap-crossing': {
         title: "Gap Crossing & Spatial Motor Planning",
@@ -3403,9 +3479,7 @@ const EXPERIMENT_GUIDES = {
             "Fly shuttles between sucrose food plug and cotton stopper.",
             "Watch morning and evening anticipation peaks followed by consolidated sleep bouts (>= 5 min)."
         ],
-        params: [
-            { key: 'dayNight', label: 'Day / Night Light', min: 0, max: 1, step: 1, val: 1, unit: ' (0=DD, 1=LD)', desc: '12:12 Light:Dark (LD) photoperiod vs Constant Darkness (DD). Lights-on triggers circadian morning peak.', apply: (a, v) => { a.paradigmState.isLightsOn = (v === 1); } }
-        ]
+        params: []
     },
     'courtship': {
         title: "Courtship Conditioning & Pheromone Memory",
@@ -3415,9 +3489,7 @@ const EXPERIMENT_GUIDES = {
             "Male extends unilateral wing to vibrate courtship song (P1 neurons active).",
             "Mated female emits anti-aphrodisiac cVA and kicks, delivering aversive dopaminergic conditioning."
         ],
-        params: [
-            { key: 'femaleMated', label: 'Female Mated State', min: 0, max: 1, step: 1, val: 0, unit: ' (0=Virgin, 1=Mated)', desc: 'Female state: 0=Virgin (receptive, aphrodisiac), 1=Mated (aversive cVA, rejection kicks training male to suppress song).', apply: (a, v) => { a.paradigmState.isFemaleVirgin = (v === 0); } }
-        ]
+        params: []
     },
     'labyrinth': {
         title: "Corridor Obstacle Labyrinth",
@@ -3437,11 +3509,11 @@ const EXPERIMENT_GUIDES = {
         whatToWatch: [
             "Full multi-sensory cue integration: Food Odor A, Repellent Odor B, cVA Pheromone, Thermal Gradient, and Vector Wind.",
             "Inspect 6 articulated tripod legs with real-time Coxa, Femur, and Tibia joint angle flexions.",
-            "Toggle between Autonomous Connectome Mode and Direct Neuro-Stimulation / Limb Override Deck.",
-            "Evaluate composite benchmark score across Coordination, Sensory Integration, Smoothness, and Efficiency."
+            "Use explicitly labeled local preview cadence, GF escape, and wind gust controls in the Limb & Preview Controls deck.",
+            "Inspect a heuristic body proxy across Coordination, Sensory Alignment, Smoothness, and Efficiency; this aggregate does not validate learned biology."
         ],
         params: [
-            { key: 'windMagnitude', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Continuous vector wind speed modulating Johnston’s organ antennal load and upwind anemotaxis drive.', apply: (a, v) => { a.windVector = [-v, 0]; } },
+            { key: 'windMagnitude', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Continuous vector wind speed modulating Johnston’s organ antennal load and upwind anemotaxis drive.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } },
             { key: 'hotspotTemp', label: 'Hotspot Temp', min: 28, max: 45, step: 1, val: 38.5, unit: '°C', desc: 'Peak temperature of the localized thermal emitter. Tests thermotactic avoidance vs food attraction.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotspotTemp = v; } },
             { key: 'cpgBaseFreq', label: 'CPG Cadence', min: 3, max: 14, step: 0.5, val: 8.5, unit: 'Hz', desc: 'Kuramoto Central Pattern Generator base tripod cadence modulating 6-leg stepping frequency.', apply: (a, v) => { a.cpg.baseFreq = v; } }
         ]
@@ -3493,6 +3565,77 @@ function formatSimSpeed(x) {
 }
 window.neuroflyFormatSimSpeed = formatSimSpeed;
 
+function validateRequestedSpeed(raw) {
+    if (raw === '' || raw === null || raw === undefined) {
+        return {ok:false, message:'Enter a speed from 0.1x through 100x.'};
+    }
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return {ok:false, message:'Speed must be a finite number.'};
+    if (value < 0.1 || value > 100) return {ok:false, message:'Speed must be between 0.1x and 100x.'};
+    return {ok:true, value};
+}
+
+function requestedSpeedText(value) {
+    return `${Number(value)}x`;
+}
+
+function deliveryBuildState(pageBuild, delivery) {
+    const local = !pageBuild || pageBuild === '__NEUROFLY_WEB_BUILD__';
+    const daemonBuild = typeof delivery?.web_build === 'string' ? delivery.web_build : null;
+    return {page: local ? 'local source' : pageBuild, daemon: daemonBuild,
+            stale: !local && !!daemonBuild && pageBuild !== daemonBuild};
+}
+
+window.neuroflyValidateRequestedSpeed = validateRequestedSpeed;
+window.neuroflyDeliveryBuildState = deliveryBuildState;
+
+const ARENA_TOOL_IDS = ['toolSelect', 'toolFood', 'toolAlarm', 'toolPredator', 'toolWind'];
+function arenaToolCapabilities(arena, bridge) {
+    const replay = !!bridge?.replayMode || !!arena?.remotePacket?.timing?.replay;
+    const remote = replay || !!bridge?.connected || !!arena?.remoteDriven || !!arena?.awaitingDaemon;
+    const open = !replay && !!bridge?.connected && !bridge.readOnly && !bridge.switchPending
+        && !!arena?.remoteDriven && !arena?.awaitingDaemon
+        && arena.activeParadigmId === 'open-arena' && arena.remotePacket?.paradigm === 'open-arena';
+    const reason = replay ? 'Replay is read-only.' : !bridge?.connected ? 'Connect to the live daemon first.'
+        : bridge.readOnly ? 'This daemon is read-only.' : bridge.switchPending ? 'Wait for the switch acknowledgement.'
+        : 'Spatial food and alarm placement is available only in the connected Open Arena.';
+    const tool = (enabled, label, title) => ({enabled, label, title});
+    return {remote, replay, previewAssist: !remote,
+        help: remote ? 'Food/alarm: connected Open Arena only. Threat placement unavailable live. Wind: use Airflow in Assay Tools & Levers.'
+            : 'Standalone preview tools. Wind clicks set 15 mm/s toward the arena origin; no drag control.',
+        tools: {
+            select: tool(true, 'Neutral selection', 'Neutral pointer; clicking places no stimulus.'),
+            food: tool(!remote || open, 'Drop Food (Odor A)', remote ? (open ? 'Place food in the connected Open Arena.' : reason) : 'Place food in the standalone preview.'),
+            alarm: tool(!remote || open, 'Alarm Pheromone (Odor B)', remote ? (open ? 'Place alarm odor in the connected Open Arena.' : reason) : 'Place alarm odor in the standalone preview.'),
+            predator: tool(!remote, remote ? 'Threat unavailable (live/replay)' : 'Deploy preview threat', 'Connected threat placement is not implemented; standalone preview only.'),
+            wind: tool(!remote, remote ? 'Wind: use Airflow control' : 'Click to set preview wind (15 mm/s)', remote ? 'Spatial wind placement is unsupported. Use connected Airflow in Assay Tools & Levers.' : 'Click to set preview wind at 15 mm/s toward the arena origin.'),
+        }};
+}
+window.neuroflyArenaToolCapabilities = arenaToolCapabilities;
+
+const SELECTABLE_BACKENDS = ['modular', 'connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout'];
+function verifiedBackendIdentity(identity) {
+    return !!identity && SELECTABLE_BACKENDS.includes(identity.backend)
+        && ['run_id', 'instance_id', 'daemon_run_id'].every(key => typeof identity[key] === 'string' && identity[key].length > 0)
+        && Number.isInteger(identity.activation) && identity.activation >= 0;
+}
+function backendSelectorState(arena, bridge, waiting = false) {
+    const pkt = arena?.remotePacket;
+    const current = verifiedBackendIdentity(pkt?.identity) && pkt.identity.daemon_run_id === pkt.run_id
+        ? pkt.identity : null;
+    const ack = bridge?.lastBackendAck?.identity;
+    const identity = !bridge?.replayMode && !pkt?.timing?.replay && current && verifiedBackendIdentity(ack) && ack.daemon_run_id === current.daemon_run_id
+        && ack.activation >= current.activation ? ack : current;
+    let reason = '';
+    if (bridge?.replayMode || pkt?.timing?.replay) reason = 'Replay is read-only; exit replay to change the controller.';
+    else if (!bridge?.connected || !bridge?.activeUrl) reason = 'Connect to the live daemon to change the controller.';
+    else if (bridge.readOnly) reason = 'This daemon is read-only.';
+    else if (arena?.awaitingDaemon || !arena?.remoteDriven || !identity) reason = 'Waiting for a verified live controller identity.';
+    else if (waiting || bridge.switchPending) reason = 'Waiting for the final switch acknowledgement.';
+    return {backend: identity?.backend || '', identity, reason, allowed: !reason};
+}
+window.neuroflyBackendSelectorState = backendSelectorState;
+
 function identityRejection(pkt, ack) {
     const want = ack?.identity, got = pkt?.identity;
     if (!want || !got) return null;
@@ -3522,6 +3665,60 @@ const MOTOR_SOURCE_NOTES = {
 // section 7). The daemon runs slower than requested; it never drops simulation steps.
 const GRAPH_BACKENDS = ['connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout'];
 const OPTOMOTOR_SIM_S_PER_WALL_S = 0.1;
+
+/** Derive display/control capabilities only from the active packet and measured probes. */
+function graphPanelCapabilities(pkt = {}) {
+    const identity = pkt.identity || {};
+    const backend = String(identity.backend || pkt.backend || 'modular');
+    const graph = GRAPH_BACKENDS.includes(backend);
+    const wp6 = pkt.plasticity?.wp6 || pkt.connectome?.wp6;
+    const wp6Measured = graph && backend === 'connectome-plastic' && wp6
+        && Number.isInteger(wp6.n_edges) && wp6.n_edges > 0
+        && Number.isFinite(wp6.mean_delta) && Number.isFinite(wp6.max_delta);
+    const epgWedges = pkt.neural?.epg_wedges;
+    // The dedicated optomotor loop currently publishes a zero-filled placeholder;
+    // the general graph path computes wedges from resolved EPG neuron counts.
+    const epgMeasured = graph && pkt.connectome?.epg_available === true
+        && Array.isArray(epgWedges) && epgWedges.length === 16
+        && epgWedges.every(Number.isFinite) && Number.isFinite(pkt.connectome?.epg_bump_phase);
+    const label = identity.label || backend;
+    const modularReason = graph
+        ? `Unavailable: the 120-KC modular mushroom body is not the controller of this ${label} run.`
+        : '';
+    return {
+        backend, label, graph, modularMemory: !graph,
+        wp6Measured: !!wp6Measured, epgMeasured,
+        learningControl: !graph || !!wp6Measured,
+        teach: !graph, reverse: !graph, probe: !graph,
+        saveCheckpoint: true,
+        modularReason,
+        gaitLabel: graph ? 'Body gait proxy · model-derived from streamed pose' : 'Kuramoto tripod gait · modular model',
+    };
+}
+window.neuroflyGraphPanelCapabilities = graphPanelCapabilities;
+
+/** Keep legacy modular assay claims from being presented as graph-controller facts. */
+function assayLimitationForController(pkt = {}) {
+    const limitation = String(pkt.live_assay?.limitation || 'No assay limitation was declared.');
+    return graphPanelCapabilities(pkt).graph
+        ? `Legacy modular assay note (not a graph measurement or capability): ${limitation}`
+        : limitation;
+}
+window.neuroflyAssayLimitationForController = assayLimitationForController;
+
+/** Select DN display evidence without promoting pose-derived compatibility values. */
+function graphDnReadout(pkt = {}, capabilities = graphPanelCapabilities(pkt)) {
+    if (capabilities.graph) {
+        const rates = pkt.connectome?.dn_rates;
+        return {
+            rates: rates || {},
+            unavailable: pkt.connectome?.dn_unavailable || {},
+            missingReason: rates ? null : 'No graph-controller DN measurement was streamed for this step.'
+        };
+    }
+    return {rates: pkt.dn_rates || pkt.descending?.dn_rates || null, unavailable: {}, missingReason: null};
+}
+window.neuroflyGraphDnReadout = graphDnReadout;
 
 /** Identity bar + conspicuous banner for synthetic/test runs, abnormal motor sources and faults. */
 function renderIdentity(pkt) {
@@ -3667,9 +3864,24 @@ class DaemonBridgeClient {
         // Commands the daemon answered "queued" (a long step was running): resolved when
         // their acknowledgement arrives in a stream frame (``command_acks``).
         this.pendingCommands = new Map();
+        this.commandAckCache = new Map(); // SSE may beat the HTTP queued reply.
         this.commandAckTimeoutMs = 120000;
         this.lastHeartbeat = null;          // {step_in_progress_s, last_step_wall_s, at}
         this.daemonHalt = null;             // {error, detail} while a step error halts the daemon
+        // Page watchdog (audit F, F4): when the step last INCREASED, independent of
+        // whether frames keep arriving.  A dead simulation thread behind a live HTTP
+        // server shows old frames forever; only the step age tells it apart.
+        this.lastStepAdvanceTime = 0;
+        this.lastStepSeen = null;
+        this.stepKey = null;
+        this.daemonLiveness = null;         // {state, last_advance_age_s, ...} from frames/heartbeats
+        this.daemonPersistence = null;      // {state, reason, last_ok_save_age_s, ...}
+        this.daemonRecordingError = null;
+        this.daemonValidity = null;         // result_validity: {state, mode, incidents, other_runs_incomplete}
+        this.observationValidityUpdate = null; // owner-qualified downgrade; never a simulated frame
+        this.daemonMode = null;             // "scientific" | "exploratory"
+        this.daemonPaused = false;
+        this.daemonError = null;            // status error text (dead/stalled) from heartbeats
         this.rejectedIdentityPackets = 0;
         this.lastIdentityRejection = null;
         this.manifest = null;               // full run manifest (GET /api/manifest), for exports
@@ -3678,6 +3890,8 @@ class DaemonBridgeClient {
 
         this.addressBadge = document.getElementById('daemonAddress');
         this.offeredUrl = null;   // a daemon that answered but was not chosen for this page
+        const reloadBuild = document.getElementById('btnReloadBuild');
+        if (reloadBuild) reloadBuild.addEventListener('click', () => window.location.reload());
         if (this.statusPill) {
             this.statusPill.addEventListener('click', () => {
                 // Clicking a found-but-unchosen daemon is the explicit choice: record it in
@@ -3761,7 +3975,11 @@ class DaemonBridgeClient {
             const res = await fetch(`${url}/api/status`, {method: 'GET', signal: AbortSignal.timeout(4000)});
             if (!res.ok) return null;
             const status = await res.json();
-            return status && status.status === 'online' ? status : null;
+            // A daemon that answers is connected to, whatever its health: a halted,
+            // stalled, dead-loop or not-saving daemon must be SHOWN as such (the pill and
+            // banner say so), never hidden behind "disconnected" or the local preview.
+            const known = ['online', 'degraded', 'error'];
+            return status && known.includes(status.status) && Number.isFinite(status.total_steps) ? status : null;
         } catch (e) {
             return null;
         }
@@ -3791,6 +4009,54 @@ class DaemonBridgeClient {
             badge.title = 'Not connected to a daemon. Start one with `neurofly run` and open the URL it prints, '
                 + 'or add ?daemon=http://host:port to this page.';
         }
+    }
+
+    renderDeliveryIdentity(status) {
+        const meta = document.querySelector('meta[name="neurofly-web-build"]');
+        const state = deliveryBuildState(meta?.content, status?.delivery);
+        const revision = status?.delivery?.revision || 'unavailable';
+        const dirty = status?.delivery?.source_dirty === true ? '+dirty' : '';
+        const badge = document.getElementById('deliveryBadge');
+        if (badge) {
+            badge.textContent = `page ${state.page} · daemon ${revision}${dirty}`;
+            badge.title = `Page build ${state.page}; daemon web build ${state.daemon || 'not reported'}; daemon revision ${revision}${dirty}`;
+            badge.style.color = state.stale ? '#fbbf24' : '#94a3b8';
+        }
+        const compute = status?.compute || {};
+        const device = document.getElementById('identDevice');
+        if (device) {
+            const deviceName = compute.device || 'unknown';
+            device.textContent = compute.gpu ? `${deviceName} · ${compute.gpu}` : deviceName;
+            device.title = compute.detail || compute.error || `Daemon compute device: ${deviceName}`;
+            device.style.color = compute.error ? '#f87171' : '#e2e8f0';
+        }
+        const banner = document.getElementById('deliveryBanner');
+        const text = document.getElementById('deliveryBannerText');
+        if (banner && text) {
+            text.textContent = state.stale
+                ? `STALE DASHBOARD ASSETS: this tab has page build ${state.page}, while daemon ${revision} serves ${state.daemon}. Reload this page; the daemon run, brain, assay, pause state and requested speed stay unchanged.`
+                : '';
+            banner.style.display = state.stale ? 'flex' : 'none';
+        }
+        return state;
+    }
+
+    renderTiming(source) {
+        if (Number.isFinite(source?.sim_speed)) this.hud.reconcileRequestedSpeed(source.sim_speed);
+        const achievedEl = document.getElementById('statAchieved');
+        const timing = source?.timing;
+        if (!achievedEl || !timing || !Number.isFinite(timing.achieved_speed)) {
+            if (achievedEl) achievedEl.textContent = '--';
+            return;
+        }
+        achievedEl.textContent = source.paused ? 'paused' : formatSimSpeed(timing.achieved_speed);
+        achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
+        const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
+        achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x `
+            + `(= ${timing.achieved_speed} simulated seconds per wall-clock second); `
+            + `fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame`
+            + (timing.last_step_wall_s > 0.5 ? `; one step takes about ${timing.last_step_wall_s.toFixed(1)} s of wall time` : '') + '.'
+            + (timing.overloaded ? ' This computer cannot run the requested speed; the daemon runs slower instead of skipping steps.' : '') + dropped;
     }
 
     scheduleReconnect() {
@@ -3834,14 +4100,34 @@ class DaemonBridgeClient {
     }
 
     onDaemonConnected(status) {
+        this.arena.cancelPreviewGust?.(true);
         this.connected = true;
         this.readOnly = false;
         this.reconnectDelayMs = 4000;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = null;
+        this.lastBackendAck = null;
         this.lastTrailStep = -1;
         this.showingStale = false;
         this.freshnessState = 'live';
+        // Start the step clock from the status probe; a frozen daemon is then caught
+        // even if it never sends a frame with a newer step.
+        this.stepKey = null;
+        this.lastStepSeen = null;
+        this.noteStep(status.total_steps, 'probe');
+        this.daemonLiveness = status.liveness ? {...status.liveness, at: performance.now()} : null;
+        this.daemonPersistence = status.persistence || null;
+        this.daemonRecordingError = status.recording_error || null;
+        this.daemonValidity = status.result_validity || null;
+        this.observationValidityUpdate = status.observation_validity_update || null;
+        this.daemonMode = status.mode || null;
+        this.daemonPaused = !!status.paused;
+        this.daemonError = status.error || null;
+        this.renderDeliveryIdentity(status);
+        this.renderTiming(status);
+        // Connecting during a fault: start from the daemon's own account of it.
+        this.daemonHalt = status.halted ? {error: status.error || 'unknown error', detail: status.error_detail || null}
+            : null;
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
@@ -3867,6 +4153,9 @@ class DaemonBridgeClient {
         if (status.public === true || status.read_only === true
                 || status.stream?.read_only || status.stream?.commands_require_token) this.markReadOnly();
         this.arena.awaitingDaemon = true; // First telemetry frame supplies the authoritative pose.
+        // The probe already tells us about a pause, halt or dead loop. Apply it
+        // before the first paint instead of briefly advertising a fault as LIVE.
+        this.updateFreshness();
         this.startStreaming();
     }
 
@@ -3881,6 +4170,10 @@ class DaemonBridgeClient {
         // last frame remain on screen instead of switching to local preview values.
         this.arena.awaitingDaemon = !!this.activeUrl;
         if (!this.activeUrl) this.arena.remoteDriven = false;
+        if (!this.arena.awaitingDaemon && !this.arena.remoteDriven) {
+            const label = document.getElementById('arenaRunState');
+            if (label) label.textContent = 'Standalone preview · local engine';
+        }
         if (this.statusPill) {
             this.statusPill.textContent = this.arena.awaitingDaemon ? '○ DISCONNECTED · FROZEN VIEW'
                 : this.offeredUrl ? '○ LOCAL ENGINE · DAEMON FOUND, CLICK TO CONNECT' : '○ LOCAL ENGINE';
@@ -3915,17 +4208,56 @@ class DaemonBridgeClient {
             ageEl.textContent = age === null ? '--' : `${age < 10 ? age.toFixed(1) : Math.round(age)}s${this.connected ? '' : ' (frozen)'}`;
             ageEl.style.color = age === null ? '' : (!this.connected ? '#f87171' : age * 1000 > this.staleAfterMs ? '#fbbf24' : '#4ade80');
         }
-        if (!this.connected || !this.statusPill || age === null) return;
-        const stale = age * 1000 > this.staleAfterMs;
+        const stepAge = this.stepAgeSeconds();
+        const stepAgeEl = document.getElementById('statStepAge');
+        this.updatePersistenceBanner();
+        if (!this.connected || !this.statusPill || (age === null && stepAge === null)) {
+            if (stepAgeEl && !this.connected) { stepAgeEl.textContent = '--'; stepAgeEl.style.color = ''; }
+            return;
+        }
+        const stale = age !== null && age * 1000 > this.staleAfterMs;
         // Old data while the daemon reports a step still running is a slow computer,
         // not a lost connection: say so instead of "stale".
-        const slowStep = stale ? this.slowStepSeconds() : null;
+        const slowStep = this.slowStepSeconds();
         const halt = this.daemonHalt;
-        const state = halt ? 'error' : slowStep !== null ? 'slow' : stale ? 'stale' : 'live';
+        const stopped = this.notAdvancing(stepAge, slowStep);
+        const paused = this.daemonPaused || this.daemonLiveness?.state === 'paused';
+        const state = stopped ? 'stopped' : halt ? 'error' : (stale && slowStep !== null) ? 'slow'
+            : paused ? 'paused' : stale ? 'stale' : 'live';
+        if (stepAgeEl) {
+            stepAgeEl.textContent = stepAge === null ? '--' : paused && !stopped ? 'paused'
+                : `${stepAge < 10 ? stepAge.toFixed(1) : Math.round(stepAge)}s`;
+            stepAgeEl.style.color = stopped || halt ? '#f87171' : paused ? '#94a3b8'
+                : stepAge !== null && stepAge > 3 ? '#fbbf24' : '#4ade80';
+        }
         const ro = this.readOnly ? ' (READ-ONLY)' : '';
+        if (state === 'stopped') {
+            // Never LIVE while the step does not advance (audit F, the "static page").
+            const n = Math.round(stepAge ?? this.daemonLiveness?.last_advance_age_s ?? 0);
+            const live = this.daemonLiveness;
+            this.statusPill.textContent = `● SIMULATION NOT ADVANCING${ro} · ${n}s`;
+            const why = this.daemonError || halt?.error || (live?.state === 'dead'
+                ? 'the simulation thread in the daemon has stopped' : `no new step for ${n} s`);
+            const fix = live?.state === 'dead'
+                ? 'Select an assay to rebuild and restart the simulation, or restart the daemon.'
+                : 'Not paused and not halted, yet the step counter has not moved. If it does not recover, '
+                  + 'select an assay or restart the daemon (it resumes from the last checkpoint).';
+            this.statusPill.title = `The daemon answers but the simulation is not advancing (step `
+                + `${this.lastStepSeen ?? '?'}, unchanged for ${n} s): ${why}. ${fix}`;
+            // The last frame's achieved speed is history, not the present.
+            const achievedEl = document.getElementById('statAchieved');
+            if (achievedEl) { achievedEl.textContent = '0x'; achievedEl.style.color = '#f87171'; }
+        }
+        if (state === 'paused') {
+            this.statusPill.textContent = `● DAEMON CONNECTED${ro} · PAUSED`;
+            this.statusPill.title = 'The daemon is connected and paused: the simulation does not advance until you resume it.';
+        }
         if (state === 'error') {
             // Connected and fresh, but the simulation does not advance: never show LIVE.
-            this.statusPill.textContent = `● SIMULATION HALTED${ro} · ERROR`;
+            const cls = halt.detail?.failure_class;
+            this.statusPill.textContent = cls === 'compute' ? `● SIMULATION HALTED${ro} · GPU/COMPUTE ERROR`
+                : (cls === 'persistence' && halt.detail?.channel) ? `● SIMULATION STOPPED${ro} · NOT SAVED`
+                : `● SIMULATION HALTED${ro} · ERROR`;
             this.statusPill.title = `The daemon is connected but the simulation is halted and not advancing: `
                 + `${halt.error}` + (halt.detail?.paradigm ? ` (assay ${halt.detail.paradigm}, step ${halt.detail.step}). ` : '. ')
                 + (halt.detail?.recover || 'Select an assay to rebuild the controller and resume.');
@@ -3937,18 +4269,122 @@ class DaemonBridgeClient {
                 + `This computer runs the simulation slower than real time; no steps are skipped.`;
             if (ageEl) ageEl.style.color = '#38bdf8';
         }
-        if (state === this.freshnessState && state !== 'slow' && state !== 'error') return;
+        const liveText = `● LIVE DAEMON${ro}${this.daemonMode === 'exploratory' ? ' · EXPLORATORY' : ''}`;
+        if (state === this.freshnessState && !['slow', 'error', 'stopped', 'stale'].includes(state)
+                && !(state === 'live' && this.statusPill.textContent !== liveText)) return;
         this.freshnessState = state;
         this.showingStale = state === 'stale';
-        if (state === 'live' || state === 'stale') {
-            this.statusPill.textContent = stale ? `● LIVE DAEMON${ro} · STALE DATA` : `● LIVE DAEMON${ro}`;
+        if (state === 'live') {
+            this.statusPill.textContent = liveText;
             if (this.connectedPillTitle && !this.readOnly) this.statusPill.title = this.connectedPillTitle;
         }
+        if (state === 'stale') {
+            // Connected, but no new frame: not "LIVE" (the step may not be advancing).
+            this.statusPill.textContent = `● DAEMON CONNECTED${ro} · NO NEW DATA ${Math.round(age)}s`;
+            this.statusPill.title = `The daemon is connected but has sent no new frame for ${Math.round(age)} s. `
+                + `The last step seen is ${this.lastStepSeen ?? '?'}.`;
+        }
         const color = {live: ['#4ade80', '#22c55e'], stale: ['#fbbf24', '#f59e0b'], slow: ['#38bdf8', '#0ea5e9'],
-                       error: ['#f87171', '#ef4444']}[state];
-        this.statusPill.style.background = state === 'error' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(34, 197, 94, 0.25)';
+                       error: ['#f87171', '#ef4444'], stopped: ['#f87171', '#ef4444'],
+                       paused: ['#cbd5e1', '#64748b']}[state];
+        this.statusPill.style.background = (state === 'error' || state === 'stopped') ? 'rgba(239, 68, 68, 0.25)'
+            : state === 'paused' ? 'rgba(148, 163, 184, 0.18)' : 'rgba(34, 197, 94, 0.25)';
         this.statusPill.style.color = color[0];
         this.statusPill.style.border = `1px solid ${color[1]}`;
+    }
+
+    /** Seconds since the daemon's step last increased (frames, heartbeats or status), else null. */
+    stepAgeSeconds() {
+        return this.lastStepAdvanceTime ? (performance.now() - this.lastStepAdvanceTime) / 1000 : null;
+    }
+
+    /** Record a step reported by the daemon; the clock restarts only when it increases
+     *  (or the run/assay changes), never merely because a frame arrived. */
+    noteStep(step, key) {
+        if (!Number.isFinite(step)) return;
+        // A new run, assay or activation starts a new step context (the counter may
+        // even go down after a daemon restart); the status probe has no context.
+        const newContext = !!(key && this.stepKey && key !== 'probe' && this.stepKey !== 'probe'
+                              && key !== this.stepKey);
+        if (newContext || this.lastStepSeen === null || step > this.lastStepSeen) {
+            this.lastStepAdvanceTime = performance.now();
+            this.lastStepSeen = step;
+        }
+        if (key !== 'probe' || this.stepKey === null) this.stepKey = key;
+    }
+
+    /** F4: the simulation is not advancing.  The daemon says so (stalled/dead), or,
+     *  as a fallback for daemons without a watchdog, the step has not increased for
+     *  max(10 s, 20 steps at the requested speed) while not paused, halted or slow. */
+    notAdvancing(stepAge, slowStep) {
+        const live = this.daemonLiveness;
+        if (live && (live.state === 'stalled' || live.state === 'dead')) return true;
+        if (stepAge === null || this.daemonHalt || this.daemonPaused || slowStep !== null) return false;
+        if (live && ['paused', 'halted', 'slow'].includes(live.state)) return false;
+        const speed = Number(this.lastOrderedPacket?.sim_speed) || 1;
+        const threshold = Math.max(10, 20 * 0.02 / Math.max(speed, 1e-3), 3 * (this.lastHeartbeat?.last_step_wall_s || 0));
+        return stepAge > threshold;
+    }
+
+    /** Save-policy banner (Codex direction, decision 3):
+     *  - red "STOPPED · RESULT INCOMPLETE" when a required save stopped the run (scientific mode);
+     *  - amber "EXPLORATORY · NOT SAVING" while an exploratory run continues unsaved;
+     *  - amber "NOT SAVING" for a diagnostic log only;
+     *  - amber "RESULT INCOMPLETE" after recovery: the failure stays on the run's record. */
+    updatePersistenceBanner() {
+        const el = document.getElementById('persistenceBanner');
+        if (!el) return;
+        const p = this.connected ? this.daemonPersistence : null;
+        const rec = this.connected ? this.daemonRecordingError : null;
+        const v = this.connected ? this.daemonValidity : null;
+        const halt = this.daemonHalt;
+        const incidents = v?.incidents || [];
+        const incomplete = v?.state === 'incomplete';
+        const earlier = (v?.other_runs_incomplete || []).length;
+        const ago = (s) => s === null || s === undefined ? 'not yet in this run'
+            : s < 90 ? `${Math.round(s)} s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${(s / 3600).toFixed(1)} h ago`;
+        const reason = p && p.ok === false ? (p.state === 'disk_low' ? 'disk almost full' : (p.reason || 'write failed')) : null;
+        let text = null, red = false;
+        if (halt && halt.detail?.failure_class === 'persistence' && halt.detail?.channel) {
+            red = true;
+            text = halt.detail.channel === 'recording'
+                ? `STOPPED · RESULT INCOMPLETE: requested recording failed at step ${halt.detail.step}. `
+                    + (halt.detail.recover || 'Repair storage and restart with a new recording name using the same saved-brain output directory. The failed prefix is kept.')
+                : `STOPPED · RESULT INCOMPLETE: a required save failed (${reason || halt.detail.channel}) at step `
+                    + `${halt.detail.step}. The last good checkpoint and the in-memory state are kept. Free disk space, `
+                    + `then select the assay: it saves first and resumes only if that works.`;
+        } else if (halt && halt.detail?.failure_class === 'compute') {
+            red = true;
+            text = `HALTED · RESULT INCOMPLETE: GPU/compute error at step ${halt.detail.step} (${halt.error}). `
+                + `Nothing is saved over the last good checkpoint. Select an assay to rebuild, or restart the daemon.`;
+        } else if (reason && this.daemonMode === 'exploratory' && Object.values(p.failing || {}).some(c => c.required)) {
+            text = `EXPLORATORY · NOT SAVING: ${reason} (last saved ${ago(p.last_ok_save_age_s)}). The run continues `
+                + `unsaved; the gap is recorded and this run is marked INCOMPLETE.`;
+        } else if (rec) {
+            text = `RECORDING INVALID: ${rec.message || 'the recording stopped'}`;
+        } else if (reason) {
+            text = Object.values(p.failing || {}).some(c => c.required)
+                ? `REQUIRED SAVE UNRESOLVED: ${reason}. Check the current recording and recovery status.`
+                : `NOT SAVING (diagnostic log only): ${reason}. The scientific record is unaffected.`;
+        } else if (incomplete) {
+            const last = incidents[incidents.length - 1] || {};
+            text = `RESULT INCOMPLETE: this run had ${incidents.length} failure(s); the last at step ${last.step} `
+                + `(${last.reason}${last.recovered_at && Number.isSafeInteger(last.recovered_step) && last.recovered_step >= 0 ? ', recovered at step ' + last.recovered_step : ''}). `
+                + `The failure stays on the run's record.`;
+        } else if (earlier) {
+            text = `${earlier} earlier run(s) in this daemon are marked INCOMPLETE (see /api/status result_validity).`;
+        }
+        if (!text) {
+            if (el.style.display !== 'none') { el.style.display = 'none'; el.textContent = ''; }
+            return;
+        }
+        el.textContent = text;
+        el.title = [p?.summary, rec?.message, ...incidents.map(i => `${i.reason} @ step ${i.step}: ${i.error || ''}`)]
+            .filter(Boolean).join(' | ');
+        el.style.background = red ? 'rgba(239,68,68,0.16)' : 'rgba(245,158,11,0.18)';
+        el.style.color = red ? '#fca5a5' : '#fbbf24';
+        el.style.borderBottom = red ? '1px solid #7f1d1d' : '1px solid #b45309';
+        el.style.display = 'block';
     }
 
     /** Seconds the daemon's current step has run, from a recent heartbeat, else null. */
@@ -3961,26 +4397,68 @@ class DaemonBridgeClient {
 
     /** Resolve commands answered "queued" once their acknowledgement is in a frame. */
     resolveCommandAcks(acks) {
-        if (!Array.isArray(acks) || !this.pendingCommands.size) return;
+        if (!Array.isArray(acks)) return;
         for (const ack of acks) {
-            const pending = ack && this.pendingCommands.get(ack.command_id);
+            if (!ack?.command_id || !['ok', 'error'].includes(ack.status)) continue;
+            this.commandAckCache.set(ack.command_id, ack);
+            while (this.commandAckCache.size > 50) this.commandAckCache.delete(this.commandAckCache.keys().next().value);
+            const pending = this.pendingCommands.get(ack.command_id);
             if (pending) pending.resolve(ack);
+            this.hud?.backendCommandAck?.(ack);
         }
     }
 
-    /** Wait for the stream to carry the acknowledgement of a queued command. */
+    /** Wait for a final acknowledgement; queued is never an applied result. */
     awaitCommandAck(commandId) {
+        if (this.commandAckCache.has(commandId)) {
+            const ack = this.commandAckCache.get(commandId);
+            this.commandAckCache.delete(commandId);
+            return Promise.resolve(ack);
+        }
         return new Promise((resolve) => {
             const done = (value) => {
                 clearTimeout(timer);
                 this.pendingCommands.delete(commandId);
+                this.commandAckCache.delete(commandId);
                 resolve(value);
             };
-            const timer = setTimeout(() => done({status: 'error', command_id: commandId,
-                message: 'No acknowledgement from the daemon yet; the command is still queued behind a slow step.'}),
+            const timer = setTimeout(() => done({status: 'error', command_id: commandId, timed_out: true,
+                message: 'Timed out waiting for the final acknowledgement; the command outcome is unknown.'}),
                 this.commandAckTimeoutMs);
             this.pendingCommands.set(commandId, {resolve: done});
         });
+    }
+
+    acceptsHeartbeatOwner(beat) {
+        const packet = this.lastOrderedPacket || this.arena.remotePacket;
+        if (this.replayMode || this.switchPending || packet?.identity?.assay !== this.arena.activeParadigmId
+                || (Object.prototype.hasOwnProperty.call(beat?.identity || {}, 'brain_id')
+                    && beat.identity.brain_id !== beat.brain_id)
+                || !window.NeuroFlyObservationRenderer.matchesObservationOwner(packet,
+                    {...beat?.identity, brain_id: beat?.brain_id}, beat?.segment_id)
+                || (beat.result_validity && beat.result_validity.run_id !== beat.identity.run_id)) return false;
+        for (const ack of [this.lastSwitchAck, this.lastBackendAck, this.lastAck]) {
+            if (identityRejection({identity: beat.identity, run_id: beat.identity.daemon_run_id}, ack)) return false;
+        }
+        return true;
+    }
+
+    applyObservationValidityUpdate(update) {
+        const packet = this.lastOrderedPacket || this.arena.remotePacket;
+        if (this.replayMode || this.switchPending || packet?.identity?.assay !== this.arena.activeParadigmId
+                || !window.NeuroFlyObservationRenderer.matchesValidityUpdate(packet, update)) return false;
+        for (const ack of [this.lastSwitchAck, this.lastBackendAck, this.lastAck]) {
+            if (identityRejection({identity: update.identity, run_id: update.identity.daemon_run_id}, ack)) return false;
+        }
+        this.observationValidityUpdate = JSON.parse(JSON.stringify(update));
+        return true;
+    }
+
+    reconcileObservationValidityUpdate(packet) {
+        if (this.observationValidityUpdate
+                && !window.NeuroFlyObservationRenderer.matchesValidityUpdate(packet, this.observationValidityUpdate)) {
+            this.observationValidityUpdate = null;
+        }
     }
 
     startStreaming() {
@@ -3993,8 +4471,26 @@ class DaemonBridgeClient {
             // Liveness without new data (paused or slow daemon): keeps the stream open.
             this.eventSource.addEventListener('heartbeat', (event) => {
                 this.lastPacketTime = performance.now();
-                try { this.lastHeartbeat = {...JSON.parse(event.data), at: this.lastPacketTime}; }
-                catch (e) { this.lastHeartbeat = null; }
+                let beat;
+                try { beat = {...JSON.parse(event.data), at: this.lastPacketTime}; }
+                catch (e) { this.lastHeartbeat = null; return; }
+                if (beat.identity && !this.acceptsHeartbeatOwner(beat)) return;
+                this.lastHeartbeat = beat;
+                if (beat && beat.liveness) {
+                    // Qualified heartbeats are fenced before any owner health is
+                    // applied. Legacy liveness-only messages cannot change metrics.
+                    // F3/F4: heartbeats say whether the simulation advances even when no
+                    // frame is published (a dead loop publishes nothing).
+                    this.noteStep(beat.step, this.stepKey);
+                    this.daemonLiveness = {...beat.liveness, at: this.lastPacketTime};
+                    this.daemonPersistence = beat.persistence || null;
+                    this.daemonPaused = !!beat.paused;
+                    this.daemonError = beat.error || null;
+                    if (beat.result_validity) this.daemonValidity = beat.result_validity;
+                    if (beat.mode) this.daemonMode = beat.mode;
+                    this.applyObservationValidityUpdate(beat.observation_validity_update);
+                    this.updateFreshness();
+                }
             });
             this.eventSource.addEventListener('stream', (event) => {
                 this.lastPacketTime = performance.now();
@@ -4068,11 +4564,25 @@ class DaemonBridgeClient {
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = pkt;
+        this.reconcileObservationValidityUpdate(pkt);
         // A step error halts the daemon (nothing advances) until a switch rebuilds it.
         // Frames still arrive, so without this the pill would read LIVE over a frozen run.
         const halt = (pkt.halted || pkt.error) ? {error: pkt.error || 'unknown error', detail: pkt.error_detail || null} : null;
         const haltChanged = (halt?.error || null) !== (this.daemonHalt?.error || null);
         this.daemonHalt = halt;
+        // Page watchdog (F4): the step clock moves only when the step increases.
+        const advanced = step !== null && (this.lastStepSeen === null || step > this.lastStepSeen);
+        this.noteStep(step, `${pkt.run_id}|${pkt.paradigm}|${pkt.identity?.activation ?? ''}`);
+        this.daemonPaused = !!pkt.paused;
+        // A new stream first replays the last published frame.  Its liveness is history:
+        // it must not overwrite a "dead"/"stalled" report unless the step has moved since.
+        const reportedStopped = ['dead', 'stalled'].includes(this.daemonLiveness?.state);
+        if (pkt.liveness && (advanced || !reportedStopped)) this.daemonLiveness = {...pkt.liveness, at: performance.now()};
+        this.daemonPersistence = pkt.persistence || null;
+        this.daemonRecordingError = pkt.recording_error || null;
+        if (pkt.result_validity) this.daemonValidity = pkt.result_validity;
+        if (pkt.mode) this.daemonMode = pkt.mode;
+        this.daemonError = pkt.error || null;
         renderIdentity(pkt);
         if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 
@@ -4107,29 +4617,19 @@ class DaemonBridgeClient {
             this.arena.paradigmStatus = pkt.error ? `SIMULATION ERROR: ${pkt.error}` : pkt.paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
             const phaseLabel = document.getElementById('arenaRunState');
             if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
-            this.hud.simSpeed = pkt.sim_speed;
-            document.getElementById('statSpeed').textContent = `${pkt.sim_speed}x`;
-            const achievedEl = document.getElementById('statAchieved');
-            const timing = pkt.timing;
-            if (achievedEl && timing && Number.isFinite(timing.achieved_speed)) {
-                achievedEl.textContent = pkt.paused ? 'paused' : formatSimSpeed(timing.achieved_speed);
-                achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
-                const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
-                achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x `
-                    + `(= ${timing.achieved_speed} simulated seconds per wall-clock second); `
-                    + `fixed dt ${timing.integration_dt_s} s; ${timing.steps_in_frame ?? '?'} steps in this frame`
-                    + (timing.last_step_wall_s > 0.5 ? `; one step takes about ${timing.last_step_wall_s.toFixed(1)} s of wall time` : '') + '.'
-                    + (timing.overloaded ? ' This computer cannot run the requested speed; the daemon runs slower instead of skipping steps.' : '') + dropped;
-            } else if (achievedEl) {
-                achievedEl.textContent = '--';
-            }
-            document.getElementById('btnSpeedToggle').textContent = `Speed: ${pkt.sim_speed}x`;
-            document.getElementById('selectSpeed').value = String(pkt.sim_speed);
+            this.renderTiming(pkt);
             const pause = document.getElementById('btnPauseToggle');
             pause.textContent = pkt.paused ? 'Resume' : 'Pause';
-            this.arena.mb.kcFiring = pkt.neural?.kc_hz || this.arena.mb.kcFiring;
-            if (Number.isFinite(pkt.neural?.net_valence)) this.arena.mb.netValence = pkt.neural.net_valence;
-            this.arena.mb.pamRate = pkt.neural?.pam_trace || 0;
+            const panelCaps = graphPanelCapabilities(pkt);
+            // The daemon retains a modular helper brain during graph runs, but it is
+            // not the selected controller. Never copy those helper values into the
+            // visible graph readouts.
+            if (panelCaps.modularMemory) {
+                this.arena.mb.kcFiring = pkt.neural?.kc_hz || this.arena.mb.kcFiring;
+                if (Number.isFinite(pkt.neural?.net_valence)) this.arena.mb.netValence = pkt.neural.net_valence;
+                this.arena.mb.pamRate = Number.isFinite(pkt.neural?.pam_trace) ? pkt.neural.pam_trace : 0;
+                this.arena.mb.ppl1Rate = Number.isFinite(pkt.neural?.ppl1_trace) ? pkt.neural.ppl1_trace : 0;
+            }
             if (pkt.neural?.epg_wedges && Array.isArray(pkt.neural.epg_wedges) && pkt.neural.epg_wedges.length > 0) {
                 this.arena.cx.setRealEpgProfile(pkt.neural.epg_wedges);
             } else {
@@ -4162,7 +4662,7 @@ class DaemonBridgeClient {
                 this.lastRecordedStep = pkt.step; this.lastRecordedSegment = segment;
             }
             const off = daemonFrameOffset(pkt);
-            const state = this.arena.paradigmState, m = pkt.metrics || {}, stimulus = pkt.stimuli || {}, assay = pkt.assay_state || {};
+            const state = this.arena.paradigmState, m = graphPanelCapabilities(pkt).graph ? {} : (pkt.metrics || {}), stimulus = pkt.stimuli || {}, assay = pkt.assay_state || {};
             if (state) {
                 const fields = {performance_index:'performanceIndex',spontaneous_alternation_rate:'sar',
                     escape_latency_ms:'escapeLatencyMs',centrophobism_index:'centrophobism',operant_learning_index:'learningIndex',
@@ -4282,16 +4782,16 @@ class DaemonBridgeClient {
         if (pkt.metrics && poseMatch && this.arena.activeParadigmId === 'multisensory-sandbox') {
             const m = pkt.metrics;
             const p = this.arena.paradigmState;
-            const num = (v, fallback) => Number.isFinite(v) ? v : fallback;
+            const num = (v) => Number.isFinite(v) ? v : null;
             if (p) {
-                p.compositeScore = num(m.composite_benchmark_score, p.compositeScore);
-                p.coordinationScore = num(m.locomotor_coordination_index, p.coordinationScore);
-                p.sensoryIntegrationScore = num(m.multisensory_integration_score, p.sensoryIntegrationScore);
-                p.efficiencyScore = num(m.biomechanical_efficiency, p.efficiencyScore);
-                p.smoothnessScore = num(m.kinematic_smoothness, p.smoothnessScore);
-                p.wallCollisions = num(m.wall_collisions, p.wallCollisions);
-                p.totalDistance = num(m.total_distance_mm, p.totalDistance);
-                p.totalEnergy = num(m.total_energy_atp, p.totalEnergy);
+                p.compositeScore = num(m.composite_benchmark_score);
+                p.coordinationScore = num(m.locomotor_coordination_index);
+                p.sensoryIntegrationScore = num(m.multisensory_integration_score);
+                p.efficiencyScore = num(m.biomechanical_efficiency);
+                p.smoothnessScore = num(m.kinematic_smoothness);
+                p.wallCollisions = Number.isFinite(m.wall_collisions) ? m.wall_collisions : p.wallCollisions;
+                p.totalDistance = Number.isFinite(m.total_distance_mm) ? m.total_distance_mm : p.totalDistance;
+                p.totalEnergy = Number.isFinite(m.total_energy_atp) ? m.total_energy_atp : p.totalEnergy;
             }
         }
         // Per-region activity and spike raster panel (web/replay.js), live and replay alike.
@@ -4303,7 +4803,9 @@ class DaemonBridgeClient {
      * Frames then enter through handleDaemonPacket exactly like SSE frames.
      */
     enterReplay(label) {
+        this.arena.cancelPreviewGust?.(true);
         this.replayMode = true;
+        window.dispatchEvent(new Event('neurofly-replay-mode-change'));
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
         if (this.eventSource) {
             this.eventSource.onerror = null;
@@ -4325,6 +4827,7 @@ class DaemonBridgeClient {
     /** Forget ordering state so a seek (including backwards) applies the next frame. */
     resetReplayView() {
         this.lastOrderedPacket = null;
+        this.observationValidityUpdate = null;
         this.lastSwitchAck = null;
         this.lastTrailStep = -1;
         this.arena.remoteSegment = null;
@@ -4334,6 +4837,7 @@ class DaemonBridgeClient {
     exitReplay() {
         if (!this.replayMode) return;
         this.replayMode = false;
+        window.dispatchEvent(new Event('neurofly-replay-mode-change'));
         this.resetReplayView();
         this.arena.remoteDriven = false;
         this.initConnection(true);
@@ -4388,9 +4892,10 @@ class DaemonBridgeClient {
         if (label) label.textContent = `${action.replaceAll('_', ' ')} queued: applied when the current simulation step finishes`;
     }
 
-    async sendCommand(action, params = {}) {
+    async sendCommand(action, params = {}, onQueued = null) {
         if (!this.connected || !this.activeUrl || this.readOnly) return null;
-        if (action === 'switch_paradigm') this.switchPending = true;
+        const switching = ['switch_paradigm', 'switch_backend'].includes(action);
+        if (switching) this.switchPending = true;
         try {
             const res = await fetch(`${this.activeUrl}/api/command`, {
                 method: 'POST',
@@ -4400,14 +4905,20 @@ class DaemonBridgeClient {
             });
             if (res.status === 403) {
                 this.markReadOnly();
-                return null;
+                return {status:'error', applied:false, message:'This dashboard is read-only; the command was not applied.'};
             }
-            if (res.ok) {
-                let data=await res.json();
+            let data;
+            try { data = await res.json(); }
+            catch (e) {
+                if (['TimeoutError', 'AbortError'].includes(e?.name)) throw e;
+                data = {status:'error', message:`Daemon returned HTTP ${res.status} without a JSON acknowledgement.`};
+            }
+            if (res.ok || data) {
                 // A long step was running: the command is queued and applied at the next
                 // step boundary; its acknowledgement arrives in the stream.
                 if (data.status === 'queued' && data.command_id) {
-                    this.commandQueuedNotice(action);
+                    if (onQueued) onQueued(data);
+                    else this.commandQueuedNotice(action);
                     data = await this.awaitCommandAck(data.command_id);
                 }
                 if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
@@ -4415,12 +4926,17 @@ class DaemonBridgeClient {
                 if (data.ack) this.lastAck = {...data.ack, action};
                 // A switch is acknowledged only after the target's brain and world are
                 // ready; from now on older-identity packets are rejected.
-                if (action === 'switch_paradigm' && data.status === 'ok' && data.ack?.identity) this.lastSwitchAck = data.ack;
+                if (switching && data.status === 'ok' && data.ack?.applied === true && data.ack?.identity) this.lastSwitchAck = data.ack;
+                if (action === 'switch_backend' && data.ack?.identity) this.lastBackendAck = data.ack;
                 return data;
             }
         } catch (e) {
             console.warn('[DaemonBridge] sendCommand error:', e);
-        } finally { if (action === 'switch_paradigm') this.switchPending = false; }
+            return {status:'error', timed_out:['TimeoutError', 'AbortError'].includes(e?.name),
+                message:['TimeoutError', 'AbortError'].includes(e?.name)
+                    ? 'The command request timed out; its outcome is unknown.'
+                    : 'The command request failed; no final acknowledgement was received.'};
+        } finally { if (switching) this.switchPending = false; }
         return null;
     }
 }
@@ -4436,8 +4952,8 @@ const ASSAY_CONFIGS = {
         badge: 'FORAGING & TAXIS',
         ref: 'Budick & Dickinson (2006) Animal Behaviour / Spatial Dispersal',
         sliders: [
-            { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Elastic boundary force pushing fly inward from perimeter boundaries to prevent boundary-sticking.', apply: (a, v) => { a.wallRepulsion = v; } },
-            { key: 'windStrength', label: 'Wind Vector Speed', min: 0.0, max: 40.0, step: 2.0, val: 15.0, unit: ' mm/s', desc: 'Global environmental wind vector speed sensed by Johnston’s organ mechanoreceptors.', apply: (a, v) => { a.windVector[0] = -v; } }
+            { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Gain of existing anticipatory wall-avoidance steering in the local preview.', apply: (a, v) => { a.wallRepulsion = v; } },
+            { key: 'windStrength', label: 'Wind Vector Speed', min: 0.0, max: 40.0, step: 2.0, val: 15.0, unit: ' mm/s', desc: 'Global environmental wind vector speed sensed by Johnston’s organ mechanoreceptors.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector[0] = -v; } }
         ],
         actions: [
             { label: 'Drop Food Pellet', class: 'primary', handler: (a, h) => { a.spawnFoodNearFly(); } },
@@ -4471,26 +4987,13 @@ const ASSAY_CONFIGS = {
         title: 'T-Maze Associative Conditioning',
         badge: 'TULLY-QUINN (1985)',
         ref: 'Tully & Quinn (1985) Science / Pavlovian Olfactory Memory',
-        sliders: [
-            { key: 'shockVoltage', label: 'Grid Shock Amplitude', min: 10, max: 100, step: 5, val: 60, unit: ' V', desc: 'Electric grid voltage in CS- arm. Sets PPL1 dopaminergic punishment spike rate during associative training.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.shockVoltage = v; } },
-            { key: 'vacuumAirflow', label: 'Vacuum Airflow Velocity', min: 2, max: 25, step: 1, val: 12, unit: ' cm/s', desc: 'Aspirated vacuum laminar flow pulling odors down each arm into the central elevator.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.vacuumFlow = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Deliver Shock Pulse (PPL1)', class: 'danger', handler: (a, h) => {
-                a.mb.stepPlasticity(0.0, 1.0, 5.0);
-                if (a.paradigmState) a.paradigmState.shockPulse = 1.0;
-                if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'thermal_flash', value: 40.0 });
-            } },
-            { label: 'Invert CS+/CS- Arms', class: 'primary', handler: (a, h) => {
-                if (a.paradigmState) {
-                    a.paradigmState.csPlusArm = (a.paradigmState.csPlusArm === 'arm_a' ? 'arm_b' : 'arm_a');
-                }
-            } },
-            { label: 'Reset MB Synapses', class: '', handler: (a, h) => { a.mb.reset(false); } }
+            { label: 'Reset preview MB memory', class: '', handler: (a, h) => { a.mb.reset(false); } }
         ],
         metrics: [
             { label: 'Performance Index (PI)', get: (a) => `${(a.paradigmState && a.paradigmState.performanceIndex !== undefined ? a.paradigmState.performanceIndex : 0.0).toFixed(2)}` },
-            { label: 'Shock Arm (CS+)', get: (a) => `${a.paradigmState ? (a.paradigmState.csPlusArm === 'arm_a' ? 'ARM A (OCT)' : 'ARM B (MCH)') : '--'}` },
+            { label: 'Preview reinforcement arms', get: () => 'A reward / B punishment' },
             { label: 'Total Choices', get: (a) => `${a.paradigmState && a.paradigmState.choiceCounts ? (a.paradigmState.choiceCounts.arm_a + a.paradigmState.choiceCounts.arm_b) : 0}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
@@ -4513,14 +5016,9 @@ const ASSAY_CONFIGS = {
         title: 'Y-Maze Spontaneous Alternation & Handedness',
         badge: 'BUCHANAN ET AL. (NATURE 2015)',
         ref: 'Buchanan et al. (Nature 2015) Individual Idiosyncratic Handedness',
-        sliders: [
-            { key: 'handednessBias', label: 'Individual Handedness Perturbation', min: -1.0, max: 1.0, step: 0.1, val: 0.0, unit: ' bias', desc: 'Injected bilateral bias into DNa02 premotor steering circuit, skewing spontaneous left/right turning.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.bias = v; } },
-            { key: 'choiceHesitation', label: 'Hub Decision Delay', min: 0.1, max: 2.0, step: 0.1, val: 0.4, unit: ' s', desc: 'Bifurcation decision pause duration in the central choice hub before entering an arm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.delay = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Gate Left Arm', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gateLeft = !a.paradigmState.gateLeft; } },
-            { label: 'Gate Right Arm', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gateRight = !a.paradigmState.gateRight; } },
-            { label: 'Clear Turn History', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.turnDirections = []; a.paradigmState.armSequence = []; } } }
+            { label: 'Clear choice history (keeps last SAR)', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.turnDirections = []; a.paradigmState.armSequence = []; } } }
         ],
         metrics: [
             { label: 'Alternation Rate (SAR)', get: (a) => `${((a.paradigmState && a.paradigmState.sar !== undefined ? a.paradigmState.sar : 0.67) * 100).toFixed(1)}%` },
@@ -4561,12 +5059,7 @@ const ASSAY_CONFIGS = {
                     const choice = angles[Math.floor(Math.random() * angles.length)];
                     a.paradigmState.refugePos = [60.0 + Math.cos(choice) * 28.0, 60.0 + Math.sin(choice) * 28.0];
                 }
-            } },
-            { label: 'Thermal Shock Flash (42°C)', class: 'danger', handler: (a, h) => {
-                a.mb.stepPlasticity(0.0, 1.0, 6.0);
-                if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'thermal_flash', value: 42.0 });
-            } },
-            { label: 'Reset Spatial Map', class: '', handler: (a, h) => { a.cx.headingBump = 0; } }
+            } }
         ],
         metrics: [
             { label: 'Escape Latency', get: (a) => `${(a.paradigmState && a.paradigmState.escapeLatencyMs ? a.paradigmState.escapeLatencyMs / 1000 : a.paradigmElapsedSec).toFixed(1)}s` },
@@ -4598,13 +5091,8 @@ const ASSAY_CONFIGS = {
         title: 'Buridan Landmark Fixation & Centrophobism',
         badge: 'GÖTZ (1980)',
         ref: 'Götz (1980) / Strauss (1997) Stripe Fixation & Water Moat',
-        sliders: [
-            { key: 'stripeWidth', label: 'Stripe Angular Width', min: 5, max: 30, step: 1, val: 12, unit: ' °', desc: 'Angular visual width of opposing high-contrast vertical black stripes on illuminated arena wall.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.stripeWidth = v; } },
-            { key: 'moatRepulsion', label: 'Moat Barrier Repulsion', min: 0.5, max: 3.0, step: 0.2, val: 1.5, unit: ' x', desc: 'Aversive water moat boundary repulsion force preventing fly from tumbling into surrounding liquid.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.moatRepulsion = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Invert Contrast (Dark/Light)', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.inverted = !a.paradigmState.inverted; } },
-            { label: 'Rotate Stripes (90°)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.stripeAngle = (a.paradigmState.stripeAngle || 0) + Math.PI / 2; } },
             { label: 'Reset Platform Transits', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.stripeCrossings = 0; } }
         ],
         metrics: [
@@ -4615,7 +5103,7 @@ const ASSAY_CONFIGS = {
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
             ctx.font = '9px monospace';
-            ctx.fillText('Stripe Heading Polar Distribution (0° & 180°)', 8, 14);
+            ctx.fillText('Current preview heading relative to stripes', 8, 14);
             const cx = w / 2, cy = h / 2 + 6, r = 38;
             ctx.strokeStyle = 'rgba(255,255,255,0.15)';
             ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
@@ -4630,27 +5118,23 @@ const ASSAY_CONFIGS = {
         }
     },
     'visual-operant': {
+        illustrativeChart: true,
         title: 'Operant Flight Simulator (Drum & Laser)',
         badge: 'WOLF & HEISENBERG (1991)',
         ref: 'Wolf & Heisenberg (1991) J. Comp. Physiol. Operant Conditioning',
-        sliders: [
-            { key: 'laserPower', label: 'Laser Punishment Power', min: 10, max: 100, step: 5, val: 50, unit: ' mW', desc: 'Infrared heating laser punishment power (mW) aimed at tethered thorax when facing conditioned pattern.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.laserPower = v; } },
-            { key: 'drumFriction', label: 'Virtual Yaw Inertia', min: 0.5, max: 2.5, step: 0.1, val: 1.0, unit: ' x', desc: 'Virtual yaw inertia / rotational damping of surrounding 360° visual pattern drum.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.torqueGain = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Invert Heat Sectors (Reversal)', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.invertSectors = !a.paradigmState.invertSectors; } },
-            { label: 'Laser Beam Pulse', class: 'danger', handler: (a, h) => { a.mb.stepPlasticity(0.0, 1.0, 4.0); } },
-            { label: 'Reset Quadrant Timers', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.timeSafeMs = 0; a.paradigmState.timePunishedMs = 0; } } }
+            { label: 'Clear preview sector counters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.timeSafeMs = 0; a.paradigmState.timePunishedMs = 0; } } }
         ],
         metrics: [
-            { label: 'Operant PI', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.learningIndex) ? a.paradigmState.learningIndex : 0).toFixed(2)}` },
+            { label: 'Occupancy index (preview)', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.learningIndex) ? a.paradigmState.learningIndex : 0).toFixed(2)}` },
             { label: 'Current Sector', get: (a) => `${a.paradigmState && a.paradigmState.laserActive ? 'PUNISHED (LASER ON)' : 'SAFE SECTOR'}` },
             { label: 'Laser Cumulative', get: (a) => `${((a.paradigmState && a.paradigmState.timePunishedMs) ? a.paradigmState.timePunishedMs / 1000 : 0.0).toFixed(1)}s` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#f43f5e';
             ctx.font = '9px monospace';
-            ctx.fillText('Operant Quadrants (4 Sectors: Safe vs Laser)', 8, 14);
+            ctx.fillText('Illustrative sector diagram — not measured', 8, 14);
             const cx = w / 2, cy = h / 2 + 6, r = 36;
             ctx.fillStyle = 'rgba(244, 63, 94, 0.3)';
             ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, 0, Math.PI / 2); ctx.fill();
@@ -4662,27 +5146,29 @@ const ASSAY_CONFIGS = {
         }
     },
     'wind-tunnel': {
+        illustrativeChart: true,
+        controlNote: 'Wind vector speed and gust affect the drawing/readout; plume transport and steering remain fixed in this preview.',
         title: 'Anemotaxic Plume Tracking (Surge & Cast)',
         badge: 'ALVAREZ-SALVADO & DEMIR',
         ref: 'Alvarez-Salvado (2018) / Demir (2020) Odor Plume Navigation',
         sliders: [
-            { key: 'windVelocity', label: 'Laminar Airflow Speed', min: 5, max: 40, step: 1, val: 18, unit: ' cm/s', desc: 'Laminar carrier airflow speed channeling upstream odor plume pulses toward downwind fly.', apply: (a, v) => { a.windVector[0] = -v; } },
+            { key: 'windVelocity', label: 'Preview wind vector speed', min: 5, max: 40, step: 1, val: 18, unit: ' mm/s', desc: 'Sets the displayed wind vector and wind-speed readout; plume transport and steering use the existing fixed preview model.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector[0] = -v; } },
             { key: 'plumeWidth', label: 'Gaussian Plume Width', min: 6, max: 30, step: 1, val: 14, unit: ' mm', desc: 'Gaussian width of intermittent odor plume filaments dictating surge vs casting transitions.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.filamentSigma = v / 4.0; } }
         ],
         actions: [
             { label: 'Shift Plume Source', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.nozzlePos[1] = 30.0 + (Math.random() - 0.5) * 30.0; } },
-            { label: 'Turbulent Crosswind Gust', class: 'danger', handler: (a, h) => { a.windVector[1] = (Math.random() - 0.5) * 30.0; setTimeout(() => { a.windVector[1] = 0.0; }, 2500); } },
-            { label: 'Reset Surge/Cast Filters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.surgeSteps = 0; a.paradigmState.castSteps = 0; } } }
+            { label: 'Turbulent Crosswind Gust', class: 'danger', handler: (a, h) => a.startPreviewGust('crosswind') },
+            { label: 'Clear preview surge/cast counters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.surgeSteps = 0; a.paradigmState.castSteps = 0; } } }
         ],
         metrics: [
             { label: 'Surge/Cast Ratio', get: (a) => { const p = a.paradigmState || {}; return p.castSteps > 0 ? `${(p.surgeSteps / p.castSteps).toFixed(2)}x` : '0.00x'; } },
             { label: 'Upwind Progress', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.upwindProgress) ? a.paradigmState.upwindProgress : 0).toFixed(1)} mm` },
-            { label: 'Antenna Wind Deflection', get: (a) => `${(Math.hypot(a.windVector[0], a.windVector[1]) * 0.12).toFixed(1)} μN` }
+            { label: 'Preview wind vector speed', get: (a) => `${Math.hypot(a.windVector[0], a.windVector[1]).toFixed(1)} mm/s` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
             ctx.font = '9px monospace';
-            ctx.fillText('Surge (Upwind) vs Cast (Crosswind) Vectors', 8, 14);
+            ctx.fillText('Illustrative surge/cast diagram — not measured', 8, 14);
             const cx = w / 2, cy = h / 2 + 6;
             ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.moveTo(cx - 50, cy); ctx.lineTo(cx + 50, cy); ctx.stroke();
@@ -4694,31 +5180,23 @@ const ASSAY_CONFIGS = {
         }
     },
     'looming-escape': {
+        illustrativeChart: true,
         title: 'Predator Looming Escape (Giant Fiber)',
         badge: 'CARD & DICKINSON (2008)',
         ref: 'Card & Dickinson (2008) PNAS Looming Visual Escape & Takeoff',
-        sliders: [
-            { key: 'lvRatio', label: 'Looming Size/Speed (l/v ratio)', min: 10, max: 100, step: 5, val: 40, unit: ' ms', desc: 'Size-to-approach speed ratio (l/v in ms). Smaller values model high-velocity predatory strikes.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.lv = v; } },
-            { key: 'gfThreshold', label: 'Giant Fiber Spike Threshold', min: 0.4, max: 0.95, step: 0.05, val: 0.65, unit: ' Vm', desc: 'Giant Fiber axon threshold membrane potential triggering all-or-none escape jump takeoff.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gfThresh = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Trigger Looming Disc', class: 'danger', handler: (a, h) => {
-                a.dn.escapeActive = true;
-                a.fly.speed = 35.0;
-                if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'gf_looming', value: 1.0 });
-            } },
-            { label: 'Direct Giant Fiber Spike', class: 'primary', handler: (a, h) => { a.dn.escapeActive = true; } },
-            { label: 'Reset Escape Posture', class: '', handler: (a, h) => { a.dn.escapeActive = false; } }
+            { label: 'Clear preview escape flag', class: '', handler: (a, h) => { a.dn.escapeActive = false; } }
         ],
         metrics: [
-            { label: 'GF Depolarization', get: (a) => `${a.dn.escapeActive ? '100% [SPIKE]' : '12% [SUBTHRESHOLD]'}` },
-            { label: 'Escape Jump Angle', get: (a) => `${((a.fly.heading * 180) / Math.PI).toFixed(0)}°` },
-            { label: 'Takeoff Velocity', get: (a) => `${a.fly.speed.toFixed(1)} mm/s` }
+            { label: 'Preview escape state', get: (a) => a.dn.escapeActive ? 'ACTIVE' : 'INACTIVE' },
+            { label: 'Current preview heading', get: (a) => `${((a.fly.heading * 180) / Math.PI).toFixed(0)}°` },
+            { label: 'Current preview speed', get: (a) => `${a.fly.speed.toFixed(1)} mm/s` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#f43f5e';
             ctx.font = '9px monospace';
-            ctx.fillText('Angular Subtense theta(t) & GF Spike Threshold', 8, 14);
+            ctx.fillText('Illustrative looming curve — not measured', 8, 14);
             ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2.0;
             ctx.beginPath();
             for (let i = 0; i < 60; i++) {
@@ -4734,27 +5212,26 @@ const ASSAY_CONFIGS = {
         }
     },
     'optomotor': {
+        illustrativeChart: true,
         title: 'Optomotor Gaze Stabilization & Saccades',
         badge: 'GÖTZ (1964) / KIM (2017)',
         ref: 'Götz (1964) Kybernetik / Kim et al. (Cell 2017) Saccadic Efference Copy',
         sliders: [
-            { key: 'patternSpeed', label: 'Grating Velocity (omega)', min: -120, max: 120, step: 10, val: 30, unit: ' °/s', desc: 'Angular velocity of surrounding high-contrast vertical grating drum driving wide-field optic flow.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = v; } },
-            { key: 'spatialPeriod', label: 'Grating Spatial Wavelength', min: 10, max: 60, step: 5, val: 30, unit: ' °', desc: 'Grating angular wavelength. Shorter periods test spatial resolution limits of compound eyes.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.wavelength = v; } }
+            { key: 'patternSpeed', label: 'Preview grating velocity', min: -120, max: 120, step: 10, val: 30, unit: ' °/s', desc: 'Sets preview drum rotation and the existing slip proxy; not a measured visual response.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = v; } }
         ],
         actions: [
             { label: 'Invert Grating Direction', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = -(a.paradigmState.drumVelocityDegS || 30); } },
-            { label: 'Toggle Efference Copy', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.efferenceCopy = !a.paradigmState.efferenceCopy; } },
-            { label: 'Zero Contrast (Uniform)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.contrast = (a.paradigmState.contrast === 0 ? 0.9 : 0); } }
+            { label: 'Toggle preview grating drawing', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.contrast = (a.paradigmState.contrast === 0 ? 0.9 : 0); } }
         ],
         metrics: [
-            { label: 'Optomotor Yaw Torque', get: (a) => `${(a.dn.dna02Diff).toFixed(2)} rad/s` },
+            { label: 'Preview descending steering drive', get: (a) => `${(a.dn.dna02Diff).toFixed(2)}` },
             { label: 'Retinal Slip Rate', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.effectiveSlip) ? a.paradigmState.effectiveSlip : 0).toFixed(1)} °/s` },
-            { label: 'Closed-Loop Gain', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.gain) ? a.paradigmState.gain : 0.88).toFixed(2)}` }
+            { label: 'Assumed preview gain', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.gain) ? a.paradigmState.gain : 0.88).toFixed(2)}` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
             ctx.font = '9px monospace';
-            ctx.fillText('Optomotor Yaw Response Curve vs Grating Speed', 8, 14);
+            ctx.fillText('Illustrative response curve — not measured', 8, 14);
             const cx = w / 2, cy = h / 2 + 6;
             ctx.strokeStyle = 'rgba(255,255,255,0.1)';
             ctx.beginPath(); ctx.moveTo(20, cy); ctx.lineTo(w - 20, cy); ctx.stroke();
@@ -4771,15 +5248,14 @@ const ASSAY_CONFIGS = {
         }
     },
     'gap-crossing': {
+        illustrativeChart: true,
         title: 'Spatial Planning & Gap Crossing',
         badge: 'PICK & STRAUSS (2005)',
         ref: 'Pick & Strauss (Nature 2005) / Triphan (2010) Gap Crossing Spatial Planning',
         sliders: [
-            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.5, unit: ' mm', desc: 'Physical chasm width. Fly will probe with forelegs and attempt crossing if <= 3.8mm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidthMm = v; } },
-            { key: 'clawAdhesion', label: 'Tarsal Claw Friction', min: 0.5, max: 2.0, step: 0.1, val: 1.2, unit: ' x', desc: 'Tarsal claw cuticular friction coefficient against runway substrate edge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.friction = v; } }
+            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.5, unit: ' mm', desc: 'Physical chasm width. Fly will probe with forelegs and attempt crossing if <= 3.8mm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidthMm = v; } }
         ],
         actions: [
-            { label: 'Extend Foreleg Probe', class: 'primary', handler: (a, h) => { if (a.cpg) a.cpg.steppingFreq = 4.0; } },
             { label: 'Widen Gap (+0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidthMm = Math.min(5.0, (a.paradigmState.gapWidthMm || 3.5) + 0.5); } },
             { label: 'Narrow Gap (-0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidthMm = Math.max(1.5, (a.paradigmState.gapWidthMm || 3.5) - 0.5); } }
         ],
@@ -4791,7 +5267,7 @@ const ASSAY_CONFIGS = {
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#4ade80';
             ctx.font = '9px monospace';
-            ctx.fillText('Psychometric Curve: Crossing Probability vs Gap (mm)', 8, 14);
+            ctx.fillText('Illustrative gap curve — not measured', 8, 14);
             ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2.0;
             ctx.beginPath();
             for (let i = 0; i < 40; i++) {
@@ -4805,17 +5281,14 @@ const ASSAY_CONFIGS = {
         }
     },
     'circadian-dam': {
+        illustrativeChart: true,
         title: 'DAM Locomotor Sleep/Wake Monitor',
         badge: 'KONOPKA & ALLADA',
         ref: 'Konopka & Benzer (1971) / Allada (2010) DAM Sleep & Circadian Biology',
-        sliders: [
-            { key: 'incubatorTemp', label: 'Incubator Temperature', min: 18, max: 32, step: 1, val: 25, unit: ' °C', desc: 'Incubator ambient temperature (°C) modulating TRPA1 / circadian clock cycling speed.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.temp = v; } },
-            { key: 'circadianSpeed', label: 'Time Dilation (1h = sec)', min: 1, max: 60, step: 5, val: 12, unit: ' x', desc: 'Time acceleration factor (1 hour = N seconds) for rapid multi-day sleep/wake analysis.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.dilation = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Toggle Light/Dark Phase', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.isDark = !a.paradigmState.isDark; } },
-            { label: 'Trigger Arousal Tap', class: 'danger', handler: (a, h) => { a.fly.speed = 12.0; } },
-            { label: 'Clear DAM Activity Logs', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.beamCrossings = 0; a.paradigmState.totalSleepMin = 0; a.paradigmState.sleepBouts = 0; } } }
+            { label: 'Set preview speed to 12 mm/s', class: 'danger', handler: (a, h) => { a.fly.speed = 12.0; } },
+            { label: 'Clear preview activity counters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.beamCrossings = 0; a.paradigmState.totalSleepMin = 0; a.paradigmState.sleepBouts = 0; } } }
         ],
         metrics: [
             // The DAM assay runs at 1 sim second = 2 fly-minutes (see step()).
@@ -4826,7 +5299,7 @@ const ASSAY_CONFIGS = {
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#fbbf24';
             ctx.font = '9px monospace';
-            ctx.fillText('24-Hour Binned Double-Plotted Actogram', 8, 14);
+            ctx.fillText('Illustrative activity curve — not measured', 8, 14);
             const barW = (w - 30) / 24;
             for (let i = 0; i < 24; i++) {
                 const act = Math.sin((i / 24) * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5;
@@ -4837,17 +5310,13 @@ const ASSAY_CONFIGS = {
         }
     },
     'courtship': {
+        illustrativeChart: true,
         title: 'Courtship Conditioning & Song',
         badge: 'SIEGEL & HALL (1979)',
         ref: 'Siegel & Hall (1979) PNAS / Keleman (Nature 2007) Courtship Plasticity',
-        sliders: [
-            { key: 'cvaLevel', label: 'cVA Pheromone Level', min: 0.0, max: 1.0, step: 0.05, val: 0.65, unit: ' cVA', desc: 'Anti-aphrodisiac cis-vaccenyl acetate (cVA) pheromone concentration driving courtship suppression.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.cva = v; } },
-            { key: 'femaleSpeed', label: 'Target Female Walking Speed', min: 0, max: 15, step: 1, val: 5, unit: ' mm/s', desc: 'Target decoy/female locomotion speed in circular courtship observation chamber.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.femaleSpeed = v; } }
-        ],
+        sliders: [],
         actions: [
-            { label: 'Trigger Wing Vibration (Song)', class: 'primary', handler: (a, h) => { a.mb.stepPlasticity(1.0, 0.0, 3.0); } },
-            { label: 'Toggle Female Receptivity', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.receptive = !a.paradigmState.receptive; } },
-            { label: 'Reset Courtship Suppression', class: '', handler: (a, h) => { a.mb.reset(false); } }
+            { label: 'Reset preview MB memory', class: '', handler: (a, h) => { a.mb.reset(false); } }
         ],
         metrics: [
             { label: 'Courtship Index (CI)', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.courtshipIndex) ? a.paradigmState.courtshipIndex : 0).toFixed(2)}` },
@@ -4857,7 +5326,7 @@ const ASSAY_CONFIGS = {
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#f43f5e';
             ctx.font = '9px monospace';
-            ctx.fillText('Courtship Index CI Decay Curve (Suppression)', 8, 14);
+            ctx.fillText('Illustrative decay curve — not measured', 8, 14);
             ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2.0;
             ctx.beginPath();
             for (let i = 0; i < 40; i++) {
@@ -4874,11 +5343,9 @@ const ASSAY_CONFIGS = {
         badge: 'SPATIAL DECISION NETWORK',
         ref: 'Continuous Sliding Collision Physics & Multi-Junction Maze',
         sliders: [
-            { key: 'wallFriction', label: 'Wall Coulomb Friction', min: 0.0, max: 0.8, step: 0.05, val: 0.5, unit: '', desc: 'Coulomb crawling friction coefficient along corridor walls during sliding contacts.', apply: (a, v) => { (a.currentWalls || []).forEach(w => { w.friction = v; }); } },
-            { key: 'exitOdor', label: 'Goal Exit Odor Emission', min: 0.5, max: 3.0, step: 0.2, val: 1.8, unit: ' x', desc: 'Sucrose food volatile emission strength emanating from terminal goal chamber.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.exitOdor = v; } }
+            { key: 'wallFriction', label: 'Wall Coulomb Friction', min: 0.0, max: 0.8, step: 0.05, val: 0.5, unit: '', desc: 'Coulomb crawling friction coefficient along corridor walls during sliding contacts.', apply: (a, v) => { (a.currentWalls || []).forEach(w => { w.friction = v; }); } }
         ],
         actions: [
-            { label: 'Bait Exit Chamber', class: 'primary', handler: (a, h) => { a.spawnFoodNearFly(); } },
             { label: 'Return to Maze Start', class: 'danger', handler: (a, h) => { a.resetTrial(false, true); } },
             { label: 'Clear Maze Trail', class: '', handler: (a, h) => { a.fly.trail = []; } }
         ],
@@ -4902,27 +5369,30 @@ const ASSAY_CONFIGS = {
         }
     },
     'multisensory-sandbox': {
-        title: 'Whole-Body Embodied Multisensory Benchmark',
-        badge: 'INTEGRATED BENCHMARK',
+        title: 'Multisensory Sandbox · Heuristic Body Proxy',
+        badge: 'BODY PROXY',
         ref: 'Simultaneous Visual, Thermal, Olfactory, Wind & Articulated Kinematics',
         sliders: [
             { key: 'cpgCadence', label: 'Kuramoto CPG Base Cadence', min: 3.0, max: 14.0, step: 0.5, val: 8.0, unit: ' Hz', desc: 'Kuramoto tripod gait base stepping frequency coordinating 6 articulated limb phases.', apply: (a, v) => { a.cpg.baseFreq = v; } },
             { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Gain of the anticipatory wall-avoidance steering (antennal proximity whiskers) that turns the fly away from walls and pillars.', apply: (a, v) => { a.wallRepulsion = v; } }
         ],
         actions: [
-            { label: 'Optogenetic DNa02 Turn', class: 'primary', handler: (a, h) => { a.fly.heading += 0.4; if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'optogenetic_dna02', value: 0.4 }); } },
-            { label: 'Trigger Thermal Flash', class: 'danger', handler: (a, h) => { a.mb.stepPlasticity(0, 1, 5); if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'thermal_flash', value: 40.0 }); } },
-            { label: 'Sugar Odor Puff', class: 'primary', handler: (a, h) => { a.mb.stepPlasticity(1, 0, 4); if (h.daemonBridge) h.daemonBridge.sendCommand('inject_stimulus', { type: 'odor_puff', value: 1.0 }); } }
+            { label: 'Rotate preview fly', class: 'primary', handler: (a) => { if (a.isStandalonePreview()) a.fly.heading += 0.4; } }
         ],
         metrics: [
-            { label: 'Composite Score', get: (a) => `${(a.paradigmState && Number.isFinite(a.paradigmState.compositeScore) ? a.paradigmState.compositeScore : 0).toFixed(1)} / 100` },
-            { label: 'Tripod Coordination', get: (a) => `${((a.paradigmState && a.paradigmState.coordinationScore) || 0) * 100 | 0}%` },
-            { label: 'Sensory Alignment', get: (a) => `${(((a.paradigmState && a.paradigmState.sensoryIntegrationScore) || 0) * 100).toFixed(1)}%` }
+            { label: 'Heuristic Composite', get: (a) => sandboxScoreView(a).catalog },
+            { label: 'Tripod Coordination Proxy', get: (a) => sandboxScoreView(a).text.coordination },
+            { label: 'Sensory Alignment Proxy', get: (a) => sandboxScoreView(a).text.sensory }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
             ctx.fillStyle = '#38bdf8';
             ctx.font = '9px monospace';
-            ctx.fillText('4-Quadrant Benchmark Radar (Coord / Sens / Effic / Smooth)', 8, 14);
+            ctx.fillText('Heuristic Body Proxy (Coord / Sens / Effic / Smooth)', 8, 14);
+            const score = sandboxScoreView(a);
+            if (['coordination', 'sensory', 'efficiency', 'smoothness'].some(key => score.raw[key] === null)) {
+                ctx.fillText('Unavailable: no complete current sandbox proxy', 8, h / 2);
+                return;
+            }
             const cx = w / 2, cy = h / 2 + 8, r = 36;
             ctx.strokeStyle = 'rgba(255,255,255,0.15)';
             ctx.beginPath();
@@ -4933,10 +5403,10 @@ const ASSAY_CONFIGS = {
             ctx.strokeStyle = '#38bdf8';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(cx, cy - r * 0.95);
-            ctx.lineTo(cx + r * 0.90, cy);
-            ctx.lineTo(cx, cy + r * 0.88);
-            ctx.lineTo(cx - r * 0.92, cy);
+            ctx.moveTo(cx, cy - r * score.raw.coordination);
+            ctx.lineTo(cx + r * score.raw.sensory, cy);
+            ctx.lineTo(cx, cy + r * score.raw.efficiency);
+            ctx.lineTo(cx - r * score.raw.smoothness, cy);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -4984,13 +5454,6 @@ const LESION_INFO = {
         mechanism: 'Silences Johnston’s organ chordotonal neurons in the second antennal segment (pedicel), abolishing wind drag and acoustic vibration transduction.',
         expectedDeficit: 'Loss of wind anemotaxis and courtship hearing: Fails upwind surge-and-cast flight in wind tunnel, fails courtship song recognition, disorients in airflow.',
         color: '#a78bfa'
-    },
-    'DELTA_OFF': {
-        name: 'ΔOFF T5 Motion Detector Silencing',
-        driver: 'T5-split-GAL4 > UAS-Kir2.1 / dark-edge motion blind',
-        mechanism: 'Silences T5 columnar neurons in the optic lobe medulla/lobula, which compute elementary motion detection for moving dark edges (OFF pathway).',
-        expectedDeficit: 'Loss of dark-edge optomotor gaze stabilization: Fly fails to compensate for rotating dark stripes, causing severe heading drift during visual flow.',
-        color: '#38bdf8'
     }
 };
 
@@ -4998,8 +5461,8 @@ class ScientificHUD {
     constructor(arena) {
         this.arena = arena;
         this.simSpeed = 1.0;
-        this.speedOptions = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 0.5];
-        this.speedIdx = 0;
+        this.speedOptions = [0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 50.0, 100.0];
+        this.speedIdx = 1;
 
         this.kcCanvas = document.getElementById('kcCanvas');
         this.kcCtx = this.kcCanvas ? this.kcCanvas.getContext('2d') : null;
@@ -5033,26 +5496,139 @@ class ScientificHUD {
         this.daemonBridge = new DaemonBridgeClient(this.arena, this);
     }
 
-    setSpeed(speed) {
-        const num = Math.max(0.1, Math.min(100.0, Number(speed) || 1.0));
+    speedFeedback(message, error = false) {
+        const el = document.getElementById('speedFeedback');
+        if (!el) return;
+        el.textContent = message || '';
+        el.style.color = error ? '#f87171' : '#4ade80';
+    }
+
+    reconcileRequestedSpeed(speed) {
+        const checked = validateRequestedSpeed(speed);
+        if (!checked.ok) return false;
+        const num = checked.value;
         this.simSpeed = num;
         const matchedIdx = this.speedOptions.indexOf(num);
-        this.speedIdx = matchedIdx !== -1 ? matchedIdx : 0;
+        if (matchedIdx !== -1) this.speedIdx = matchedIdx;
+        else {
+            const next = this.speedOptions.findIndex(value => value > num);
+            this.speedIdx = next === -1 ? this.speedOptions.length - 1 : Math.max(0, next - 1);
+        }
+        const shown = requestedSpeedText(num);
 
         const btnSpeed = document.getElementById('btnSpeedToggle');
-        if (btnSpeed) btnSpeed.textContent = `Speed: ${this.simSpeed}x`;
+        if (btnSpeed) btnSpeed.textContent = `Speed: ${shown}`;
 
         const statSpeed = document.getElementById('statSpeed');
-        if (statSpeed) statSpeed.textContent = `${this.simSpeed}x`;
+        if (statSpeed) statSpeed.textContent = shown;
 
         const selSpeed = document.getElementById('selectSpeed');
-        if (selSpeed) selSpeed.value = String(this.simSpeed);
+        if (selSpeed) {
+            for (const old of [...selSpeed.querySelectorAll('option[data-current-custom]')]) old.remove();
+            let option = [...selSpeed.options].find(item => Number(item.value) === num);
+            if (!option) {
+                option = document.createElement('option');
+                option.value = String(num);
+                option.textContent = `${shown} (custom)`;
+                option.dataset.currentCustom = 'true';
+                selSpeed.appendChild(option);
+            }
+            selSpeed.value = option.value;
+        }
+        const custom = document.getElementById('customSpeed');
+        if (custom && document.activeElement !== custom) custom.value = String(num);
+        return true;
+    }
+
+    async setSpeed(speed) {
+        const checked = validateRequestedSpeed(speed);
+        if (!checked.ok) {
+            this.speedFeedback(checked.message, true);
+            this.reconcileRequestedSpeed(this.simSpeed);
+            return false;
+        }
+        const requested = checked.value;
 
         if (this.daemonBridge?.replayMode) {
-            window.neuroflyReplay?.setSpeed(this.simSpeed);
+            window.neuroflyReplay?.setSpeed(requested);
+            this.reconcileRequestedSpeed(requested);
+            this.speedFeedback(`Replay speed set to ${requestedSpeedText(requested)}.`);
         } else if (this.daemonBridge && this.daemonBridge.connected) {
-            this.daemonBridge.sendCommand('set_speed', { speed: this.simSpeed });
+            const result = await this.daemonBridge.sendCommand('set_speed', {speed:requested});
+            if (!result || result.status !== 'ok' || !Number.isFinite(result.sim_speed)) {
+                this.speedFeedback(result?.message || 'The daemon did not acknowledge the speed; it was not changed.', true);
+                this.reconcileRequestedSpeed(this.simSpeed);
+                return false;
+            }
+            this.reconcileRequestedSpeed(result.sim_speed);
+            this.speedFeedback(`Requested speed set to ${requestedSpeedText(result.sim_speed)}.`);
+        } else {
+            this.reconcileRequestedSpeed(requested);
+            this.speedFeedback(`Local preview speed set to ${requestedSpeedText(requested)}.`);
         }
+        return true;
+    }
+
+    reconcileBackendSelector() {
+        const state = backendSelectorState(this.arena, this.daemonBridge, this.backendCommandWaiting);
+        const select = document.getElementById('selectBackend');
+        if (select) {
+            select.disabled = !state.allowed;
+            select.value = state.backend;
+            select.title = state.reason || 'Request a controller backend; only the daemon can apply it.';
+        }
+        const status = document.getElementById('backendCommandStatus');
+        if (status) {
+            const text = [this.backendCommandText, state.reason].filter(Boolean).join(' · ')
+                || `Current controller: ${state.backend}.`;
+            if (status.textContent !== text) status.textContent = text;
+            status.style.color = this.backendCommandError ? '#fca5a5' : '#94a3b8';
+        }
+        return state;
+    }
+
+    finishBackendCommand(result, target) {
+        const sameDaemon = verifiedBackendIdentity(result?.ack?.identity)
+            && result.ack.identity.daemon_run_id === this.backendCommand?.daemonRunId
+            && this.daemonBridge.activeUrl === this.backendCommand?.url;
+        const applied = sameDaemon && result?.status === 'ok' && result.ack?.applied === true
+            && result.ack.identity.backend === target;
+        if (sameDaemon) this.daemonBridge.lastBackendAck = result.ack;
+        if (applied) this.daemonBridge.lastSwitchAck = result.ack;
+        this.backendCommandWaiting = result?.status === 'queued' || (!!result?.timed_out && !!result.command_id);
+        this.backendCommandError = !applied;
+        if (applied) this.backendCommandText = `Applied controller ${target} at step ${Number.isInteger(result.ack.applied_step) && result.ack.applied_step >= 0 ? result.ack.applied_step : 'unreported'}.`;
+        else if (result?.timed_out) this.backendCommandText = `Controller ${target}: ${result.message}`;
+        else if ((result?.ack?.applied === false || result?.applied === false) && result.status !== 'queued')
+            this.backendCommandText = `Controller ${target} refused: ${result.message || 'the daemon did not apply the request'}.`;
+        else this.backendCommandText = `Controller ${target} not confirmed: ${result?.message || 'no final applied acknowledgement received'}.`;
+        this.reconcileBackendSelector();
+        return applied;
+    }
+
+    backendCommandAck(ack) {
+        if (ack?.command_id !== this.backendCommand?.commandId) return;
+        this.finishBackendCommand(ack, this.backendCommand.target);
+    }
+
+    async setBackend(target) {
+        const state = this.reconcileBackendSelector();
+        if (!state.allowed || !SELECTABLE_BACKENDS.includes(target)) {
+            this.backendCommandText = `Controller change refused: ${state.reason || 'unknown backend'}`;
+            this.backendCommandError = true;
+            this.reconcileBackendSelector();
+            return false;
+        }
+        this.backendCommand = {target, commandId: null, daemonRunId: state.identity.daemon_run_id, url: this.daemonBridge.activeUrl};
+        this.backendCommandWaiting = true;this.backendCommandError = false;
+        this.backendCommandText = `Requesting controller ${target}; awaiting a final acknowledgement.`;
+        this.reconcileBackendSelector();
+        const result = await this.daemonBridge.sendCommand('switch_backend', {backend: target}, queued => {
+            this.backendCommand.commandId = queued.command_id;
+            this.backendCommandText = `Controller ${target} queued; not yet applied.`;
+            this.reconcileBackendSelector();
+        });
+        return this.finishBackendCommand(result, target);
     }
 
     setupCatalogEvents() {
@@ -5104,8 +5680,8 @@ class ScientificHUD {
             if (guideContent) guideContent.style.display = (activeTab === tabGuide) ? 'block' : 'none';
             if (assayToolsPanel) {
                 assayToolsPanel.style.display = (activeTab === tabAssayTools) ? 'flex' : 'none';
-                if (activeTab === tabAssayTools && this.activeAssayUpdater) {
-                    this.activeAssayUpdater();
+                if (activeTab === tabAssayTools) {
+                    this.updateAssayTools();
                 }
             }
             if (limbPanel) limbPanel.style.display = (activeTab === tabLimbDeck) ? 'flex' : 'none';
@@ -5118,108 +5694,22 @@ class ScientificHUD {
     }
 
     setupNeuroStimControls() {
-        const btnToggle = document.getElementById('btnToggleManualControl');
-        const lblMode = document.getElementById('labelControlMode');
-
-        if (btnToggle) {
-            btnToggle.addEventListener('click', () => {
-                const p = this.arena.paradigmState;
-                if (!p) return;
-                p.manualActive = !p.manualActive;
-                if (p.manualActive) {
-                    btnToggle.textContent = 'Disable Manual Stim';
-                    btnToggle.classList.remove('primary');
-                    if (lblMode) {
-                        lblMode.textContent = 'DIRECT NEURO-STIMULATION';
-                        lblMode.style.color = '#fbbf24';
-                    }
-                } else {
-                    btnToggle.textContent = 'Enable Manual Stim';
-                    btnToggle.classList.add('primary');
-                    if (lblMode) {
-                        lblMode.textContent = 'AUTONOMOUS BRAIN';
-                        lblMode.style.color = '#4ade80';
-                    }
-                }
-            });
-        }
-
-        // Sliders
-        const sDna02 = document.getElementById('sliderStimDna02');
-        const sThrust = document.getElementById('sliderStimThrust');
-        const sMdn = document.getElementById('sliderStimMdn');
         const sCpg = document.getElementById('sliderStimCpg');
-        const sWing = document.getElementById('sliderStimWing');
-
-        if (sDna02) {
-            sDna02.addEventListener('input', (e) => {
-                const v = parseFloat(e.target.value);
-                document.getElementById('valStimDna02').textContent = v.toFixed(2);
-                if (this.arena.paradigmState) this.arena.paradigmState.overrideDna02 = v;
-            });
-        }
-        if (sThrust) {
-            sThrust.addEventListener('input', (e) => {
-                const v = parseFloat(e.target.value);
-                document.getElementById('valStimThrust').textContent = v.toFixed(0);
-                if (this.arena.paradigmState) this.arena.paradigmState.overrideThrust = v / 100.0;
-            });
-        }
-        if (sMdn) {
-            sMdn.addEventListener('input', (e) => {
-                const v = parseFloat(e.target.value);
-                document.getElementById('valStimMdn').textContent = v.toFixed(0);
-                if (this.arena.paradigmState) this.arena.paradigmState.overrideMdn = v / 100.0;
-            });
-        }
-        if (sCpg) {
-            sCpg.addEventListener('input', (e) => {
-                const v = parseFloat(e.target.value);
-                document.getElementById('valStimCpg').textContent = v.toFixed(1);
-                this.arena.cpg.baseFreq = v;
-            });
-        }
-        if (sWing) {
-            sWing.addEventListener('input', (e) => {
-                const v = parseFloat(e.target.value);
-                document.getElementById('valStimWing').textContent = v.toFixed(0);
-                if (this.arena.paradigmState) this.arena.paradigmState.overrideWings = v;
-            });
-        }
-
-        // Sensory Flash triggers
+        if (sCpg) sCpg.addEventListener('input', (e) => {
+            if (!this.arena.isStandalonePreview()) return;
+            const v = parseFloat(e.target.value);
+            document.getElementById('valStimCpg').textContent = v.toFixed(1);
+            this.arena.cpg.baseFreq = v;
+        });
         const bGf = document.getElementById('btnFlareGf');
-        const bHeat = document.getElementById('btnFlareHeat');
-        const bOdor = document.getElementById('btnFlareOdor');
+        if (bGf) bGf.addEventListener('click', () => {
+            if (!this.arena.isStandalonePreview()) return;
+            this.arena.dn.dnp01Gf += 1;
+            this.arena.dn.escapeActive = true;
+            this.arena.dn.escapeTimer = 0.40;
+        });
         const bWind = document.getElementById('btnFlareWind');
-
-        if (bGf) {
-            bGf.addEventListener('click', () => {
-                this.arena.dn.dnp01Gf += 1;
-                this.arena.dn.escapeActive = true;
-                this.arena.dn.escapeTimer = 0.40;
-            });
-        }
-        if (bHeat) {
-            bHeat.addEventListener('click', () => {
-                if (this.arena.paradigmState) {
-                    this.arena.paradigmState.temp = 40.0;
-                    this.arena.mb.stepPlasticity(0.0, 1.0, 1.0, 0.2);
-                }
-            });
-        }
-        if (bOdor) {
-            bOdor.addEventListener('click', () => {
-                this.arena.mb.stepPlasticity(1.0, 0.0, 1.0, 0.2);
-                this.arena.dn.dnp09 = 65.0;
-            });
-        }
-        if (bWind) {
-            bWind.addEventListener('click', () => {
-                this.arena.windVector = [-35.0, 0.0];
-                setTimeout(() => { this.arena.windVector = [-15.0, 0.0]; }, 2000);
-            });
-        }
+        if (bWind) bWind.addEventListener('click', () => this.arena.startPreviewGust());
     }
 
     updateActiveCard(activePid) {
@@ -5266,11 +5756,11 @@ class ScientificHUD {
                     slider.addEventListener('input', (e) => {
                         const val = parseFloat(e.target.value);
                         document.getElementById(`val_${p.key}`).textContent = val;
-                        p.apply(this.arena, val);
+                        if (this.arena.isStandalonePreview()) p.apply(this.arena, val);
                     });
                 });
             } else {
-                container.innerHTML = '<div style="font-size:9.5px; color:#94a3b8; font-style:italic;">Standard autonomous parameters active.</div>';
+                container.innerHTML = '<div style="font-size:9.5px; color:#94a3b8; font-style:italic;">Local preview: no supported adjustable parameters.</div>';
             }
         }
     }
@@ -5281,8 +5771,7 @@ class ScientificHUD {
             { id: 'btnLesionMB', type: 'DELTA_MB', label: 'ΔMB (KENYON)' },
             { id: 'btnLesionCX', type: 'DELTA_CX', label: 'ΔCX (COMPASS)' },
             { id: 'btnLesionGF', type: 'DELTA_GF', label: 'ΔGF (ESCAPE)' },
-            { id: 'btnLesionJO', type: 'DELTA_JO', label: 'ΔJO (WIND)' },
-            { id: 'btnLesionOFF', type: 'DELTA_OFF', label: 'ΔOFF (T5)' }
+            { id: 'btnLesionJO', type: 'DELTA_JO', label: 'ΔJO (WIND)' }
         ];
 
         const updateLesionCard = (type) => {
@@ -5353,7 +5842,7 @@ class ScientificHUD {
     setupControlBarEvents() {
         const btnReset = document.getElementById('btnResetTrial');
         if (btnReset) {
-            btnReset.addEventListener('click', () => this.arena.resetTrial());
+            btnReset.addEventListener('click', () => {if(!this.daemonBridge?.replayMode)this.arena.resetTrial();});
         }
 
         const btnSpeed = document.getElementById('btnSpeedToggle');
@@ -5367,29 +5856,21 @@ class ScientificHUD {
         const selSpeed = document.getElementById('selectSpeed');
         if (selSpeed) {
             selSpeed.addEventListener('change', (e) => {
-                this.setSpeed(parseFloat(e.target.value));
+                this.setSpeed(e.target.value);
             });
         }
 
+        const customSpeed = document.getElementById('customSpeed');
+        const applyCustomSpeed = () => this.setSpeed(customSpeed?.value ?? '');
+        const btnApplyCustomSpeed = document.getElementById('btnApplyCustomSpeed');
+        if (btnApplyCustomSpeed) btnApplyCustomSpeed.addEventListener('click', applyCustomSpeed);
+        if (customSpeed) customSpeed.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') applyCustomSpeed();
+        });
+
         const selBackend = document.getElementById('selectBackend');
-        if (selBackend) {
-            selBackend.addEventListener('change', async (e) => {
-                const target = e.target.value;
-                if (this.daemonBridge && this.daemonBridge.connected) {
-                    await this.daemonBridge.sendCommand('switch_backend', { backend: target });
-                } else {
-                    try {
-                        await fetch('/api/controller', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ backend: target })
-                        });
-                    } catch (err) {
-                        console.error('Failed to switch controller backend:', err);
-                    }
-                }
-            });
-        }
+        if (selBackend) selBackend.addEventListener('change', e => this.setBackend(e.target.value));
+        this.reconcileBackendSelector();
 
         const btnDlCsv = document.getElementById('btnDownloadCsv');
         if (btnDlCsv) {
@@ -5411,21 +5892,49 @@ class ScientificHUD {
         }
     }
 
+    reconcileToolCapabilities() {
+        const caps = arenaToolCapabilities(this.arena, this.daemonBridge);
+        if (this.arena.isStandalonePreview && !this.arena.isStandalonePreview()) this.arena.cancelPreviewGust?.();
+        if (!caps.tools[this.arena.toolMode]?.enabled) this.arena.toolMode = 'select';
+        for (const id of ARENA_TOOL_IDS) {
+            const button = document.getElementById(id), mode = id.replace('tool', '').toLowerCase();
+            if (!button) continue;
+            const spec = caps.tools[mode];button.disabled = !spec.enabled;button.title = spec.title;
+            if (button.textContent !== spec.label) button.textContent = spec.label;
+            const selected = mode === this.arena.toolMode;
+            button.classList.toggle('active', selected);button.setAttribute('aria-pressed', String(selected));
+        }
+        const help = document.getElementById('arenaToolHelp');
+        if (help && help.textContent !== caps.help) help.textContent = caps.help;
+        const assist = document.getElementById('previewWallAssist');
+        if (assist) {
+            assist.disabled = !caps.previewAssist;assist.checked = !!this.arena.previewWallAssist;
+            assist.title = caps.previewAssist ? 'Standalone preview wall-reflex assist; does not control the daemon.' : 'Preview-only assist is unavailable during live, waiting, disconnected remote view or replay.';
+        }
+        const label = document.getElementById('previewWallAssistLabel');
+        if (label) {
+            label.classList.toggle('preview-control-unavailable', !caps.previewAssist);
+            label.title = assist?.title || '';
+        }
+        const note = document.getElementById('previewWallAssistNote');
+        if (note) note.textContent = caps.previewAssist ? 'Standalone preview only' : 'Unavailable in live/replay';
+        return caps;
+    }
+
     setupToolEvents() {
-        const tools = ['toolSelect', 'toolFood', 'toolAlarm', 'toolPredator', 'toolWind'];
-        tools.forEach((id) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    tools.forEach((t) => {
-                        const b = document.getElementById(t);
-                        if (b) b.classList.remove('active');
-                    });
-                    btn.classList.add('active');
-                    this.arena.toolMode = id.replace('tool', '').toLowerCase();
-                });
-            }
+        ARENA_TOOL_IDS.forEach(id => {
+            document.getElementById(id)?.addEventListener('click', () => {
+                const mode = id.replace('tool', '').toLowerCase();
+                if (!this.reconcileToolCapabilities().tools[mode]?.enabled) return;
+                this.arena.toolMode = mode;this.reconcileToolCapabilities();
+            });
         });
+        document.getElementById('previewWallAssist')?.addEventListener('change', event => {
+            if (arenaToolCapabilities(this.arena, this.daemonBridge).previewAssist)
+                this.arena.previewWallAssist = event.target.checked;
+            this.reconcileToolCapabilities();
+        });
+        this.reconcileToolCapabilities();
     }
 
     renderAssayTools(pid) {
@@ -5438,12 +5947,21 @@ class ScientificHUD {
             window.mountLiveAssay(this, panel);
             return;
         }
+        if (this.arena.remoteDriven || this.arena.awaitingDaemon) {
+            panel.replaceChildren();
+            const measurements = document.createElement('div');
+            measurements.id = 'liveMetrics';
+            panel.appendChild(measurements);
+            this.activeAssayUpdater = null;
+            this.renderObservationPanels();
+            return;
+        }
         const spec = ASSAY_CONFIGS[pid] || ASSAY_CONFIGS['open-arena'];
         panel.innerHTML = `
             <!-- Assay Header Card -->
             <div class="hud-card" style="margin-bottom:2px;">
                 <div class="hud-card-header">
-                    <span style="color:#38bdf8; font-weight:800;">${spec.title}</span>
+                    <span style="color:#38bdf8; font-weight:800;">${spec.title} · local preview</span>
                     <span class="badge badge-amber">${spec.badge}</span>
                 </div>
                 <div style="font-size:9px; color:#94a3b8; font-style:italic; line-height:1.3; margin-top:2px;">
@@ -5451,11 +5969,13 @@ class ScientificHUD {
                 </div>
             </div>
 
+            <div class="slider-desc">Only implemented local preview controls are shown; unsupported interventions are unavailable. ${spec.controlNote || ''}</div>
+
             <!-- Assay Specific Parameters -->
             <div class="hud-card">
                 <div class="hud-card-header">
-                    <span>Assay Parameters</span>
-                    <span style="color:#cbd5e1; font-size:8.5px;">LIVE TUNING</span>
+                    <span>Local preview parameters</span>
+                    <span style="color:#cbd5e1; font-size:8.5px;">PREVIEW ONLY</span>
                 </div>
                 <div id="assaySlidersContainer">
                     ${(spec.sliders || []).map(s => `
@@ -5467,15 +5987,15 @@ class ScientificHUD {
                             <input type="range" id="assay_slider_${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.val}">
                             ${s.desc ? `<div class="slider-desc" style="font-size:8.5px; color:#94a3b8; margin-top:3px; line-height:1.25;">${s.desc}</div>` : ''}
                         </div>
-                    `).join('')}
+                    `).join('') || '<div class="slider-desc">No supported adjustable local preview parameters.</div>'}
                 </div>
             </div>
 
             <!-- Assay Levers & Interventions -->
             <div class="hud-card">
                 <div class="hud-card-header">
-                    <span>Assay Levers & Interventions</span>
-                    <span style="color:#fbbf24; font-size:8.5px;">COMMAND DISPATCH</span>
+                    <span>Local preview actions</span>
+                    <span style="color:#fbbf24; font-size:8.5px;">PREVIEW ONLY</span>
                 </div>
                 <div class="stim-btn-row" id="assayActionsContainer" style="display:flex; flex-wrap:wrap; gap:5px;">
                     ${(spec.actions || []).map((act, idx) => `
@@ -5487,8 +6007,8 @@ class ScientificHUD {
             <!-- Assay Live Scientific Metrics -->
             <div class="hud-card">
                 <div class="hud-card-header">
-                    <span>Live Assay Readouts</span>
-                    <span style="color:#4ade80; font-size:8.5px;">TELEMETRY</span>
+                    <span>Local preview readouts</span>
+                    <span style="color:#4ade80; font-size:8.5px;">PREVIEW STATE</span>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;" id="assayMetricsGrid">
                     ${(spec.metrics || []).map((m, idx) => `
@@ -5503,8 +6023,8 @@ class ScientificHUD {
             <!-- Domain-Specific Learning & Performance Chart -->
             <div class="hud-card">
                 <div class="hud-card-header">
-                    <span>Domain Performance Analyzer</span>
-                    <span style="color:#c084fc; font-size:8.5px;">LIVE GRAPH</span>
+                    <span>${spec.illustrativeChart ? 'Illustrative static diagram · not measurements' : 'Local preview state chart'}</span>
+                    <span style="color:#c084fc; font-size:8.5px;">${spec.illustrativeChart ? 'ILLUSTRATION' : 'PREVIEW ONLY'}</span>
                 </div>
                 <canvas id="assayChartCanvas" width="380" height="110" style="width:100%; height:110px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.06); border-radius:4px;"></canvas>
             </div>
@@ -5518,10 +6038,8 @@ class ScientificHUD {
                     const val = parseFloat(e.target.value);
                     const valEl = panel.querySelector(`#assay_val_${s.key}`);
                     if (valEl) valEl.textContent = val;
+                    if (!this.arena.isStandalonePreview()) return;
                     if (s.apply) s.apply(this.arena, val);
-                    if (this.daemonBridge && this.daemonBridge.connected) {
-                        this.daemonBridge.sendCommand('set_param', { name: s.key, value: val });
-                    }
                 });
             }
         });
@@ -5531,6 +6049,7 @@ class ScientificHUD {
             const btnEl = panel.querySelector(`#assay_btn_${idx}`);
             if (btnEl) {
                 btnEl.addEventListener('click', () => {
+                    if (!this.arena.isStandalonePreview()) return;
                     if (act.handler) act.handler(this.arena, this);
                 });
             }
@@ -5556,11 +6075,37 @@ class ScientificHUD {
         };
     }
 
-    updateAssayTools() {
-        if ((!this.liveAssayMounted || this.liveAssayParadigm !== this.arena.remotePacket?.paradigm) && this.arena.remoteDriven && this.arena.remotePacket?.live_assay) this.renderAssayTools(this.arena.activeParadigmId);
-        if (this.activeAssayUpdater) {
-            this.activeAssayUpdater();
+    renderObservationPanels() {
+        const measurements = document.getElementById('liveMetrics');
+        if (!measurements) return;
+        const display = this.arena.getObservationDisplay();
+        if (this.renderedObservationDisplay === display && this.renderedObservationHost === measurements) return;
+        this.renderedObservationDisplay = display;
+        this.renderedObservationHost = measurements;
+        window.NeuroFlyObservationRenderer.render(measurements, display);
+        if (this.arena.activeParadigmId === 'multisensory-sandbox') {
+            const proxy = document.createElement('p');
+            const score = sandboxScoreView(this.arena);
+            proxy.textContent = 'Heuristic body proxy · ' + (display.live.state === 'available' ? score.text.composite : 'Unavailable') + ' · ' + score.note;
+            measurements.appendChild(proxy);
         }
+    }
+
+    updateAssayTools() {
+        if ((this.arena.remoteDriven || this.arena.awaitingDaemon) && !document.getElementById('liveMetrics'))
+            this.renderAssayTools(this.arena.activeParadigmId);
+        if ((!this.liveAssayMounted || this.liveAssayParadigm !== this.arena.remotePacket?.paradigm) && this.arena.remoteDriven && this.arena.remotePacket?.live_assay) this.renderAssayTools(this.arena.activeParadigmId);
+        if (this.arena.remoteDriven || this.arena.awaitingDaemon) {
+            const display = this.arena.getObservationDisplay();
+            const updateKey = JSON.stringify([this.daemonBridge.connected, this.daemonBridge.readOnly,
+                this.daemonBridge.switchPending, document.getElementById('assayToolsPanel')?.style.display]);
+            if (this.lastAssayDisplay !== display || this.lastAssayUpdateKey !== updateKey) {
+                this.lastAssayDisplay = display;
+                this.lastAssayUpdateKey = updateKey;
+                if (this.activeAssayUpdater) this.activeAssayUpdater();
+                this.renderObservationPanels();
+            }
+        } else if (this.activeAssayUpdater) this.activeAssayUpdater();
     }
 
     downloadCsv() {
@@ -5586,7 +6131,7 @@ class ScientificHUD {
     downloadJson() {
         const data = {
             metadata: {
-                project: 'Project NeuroFly — compact modular model',
+                project: `Project NeuroFly — ${this.arena.remotePacket?.identity?.label || this.arena.remotePacket?.identity?.backend || 'compact modular model'}`,
                 dataSource: this.arena.remoteDriven ? 'daemon' : 'local_preview',
                 trajectoryRule: 'Never connect positions across segment boundaries. REST, pauses, teaching and errors are explicit.',
                 activeParadigm: this.arena.activeParadigmId,
@@ -5604,7 +6149,7 @@ class ScientificHUD {
             manifest: this.arena.remoteDriven && this.daemonBridge?.manifest?.run_id === this.arena.remotePacket?.identity?.run_id
                 ? this.daemonBridge.manifest : null,
             motor: this.arena.remoteDriven ? (this.arena.remotePacket?.motor || null) : {previewWallAssist: !!this.arena.previewWallAssist},
-            canonicalMetrics: this.arena.remoteDriven ? this.arena.remotePacket?.metrics : this.arena.getParadigmMetrics(),
+            canonicalMetrics: this.arena.remoteDriven || this.arena.awaitingDaemon ? this.arena.getObservationDisplay() : this.arena.getParadigmMetrics(),
             telemetrySampleCount: this.arena.telemetryBuffer ? this.arena.telemetryBuffer.length : 0,
             telemetry: (this.arena.telemetryBuffer || []).slice(-500)
         };
@@ -5661,7 +6206,7 @@ class ScientificHUD {
 
     renderLearningCurve() {
         if (!this.curveCanvas || !this.curveCtx) return;
-        if (this.arena.remoteDriven) { this.renderLiveOutcome(); return; }
+        if (this.arena.remoteDriven || this.arena.awaitingDaemon) { this.renderLiveOutcome(); return; }
         const w = this.curveWidth || this.curveCanvas.clientWidth || 300;
         const h = this.curveHeight || this.curveCanvas.clientHeight || 105;
         const ctx = this.curveCtx;
@@ -5749,10 +6294,10 @@ class ScientificHUD {
 
     renderLiveOutcome() {
         const t=this.arena.remotePacket, metric=this.arena.getCanonicalMetricInfo();
-        if(this.liveOutcomeSegment!==t.segment_id){
-            this.liveOutcomeSegment=t.segment_id;this.liveOutcomeHistory=[];this.liveOutcomeStep=null;
+        if(this.liveOutcomeSegment!==metric.contextKey){
+            this.liveOutcomeSegment=metric.contextKey;this.liveOutcomeHistory=[];this.liveOutcomeStep=null;
         }
-        if(this.liveOutcomeStep!==t.step){
+        if(t && this.liveOutcomeStep!==t.step){
             this.liveOutcomeHistory.push({time:t.sim_time_s,value:metric.rawValue});
             this.liveOutcomeHistory=this.liveOutcomeHistory.slice(-300);this.liveOutcomeStep=t.step;
         }
@@ -5760,8 +6305,8 @@ class ScientificHUD {
         ctx.clearRect(0,0,w,h);
         const rows=this.liveOutcomeHistory, values=rows.map(r=>r.value).filter(Number.isFinite);
         ctx.fillStyle='#94a3b8';ctx.font='8px monospace';ctx.textAlign='center';
-        ctx.fillText('Repeated measures · sim s',w/2,10);
-        if(!values.length){ctx.fillText('Outcome not observed',w/2,h/2);return;}
+        ctx.fillText('Live provisional · '+metric.unit+' · sim s',w/2,10);
+        if(!values.length){ctx.fillText(metric.value+' · '+metric.sub,w/2,h/2);return;}
         let lo=Math.min(...values),hi=Math.max(...values);
         const pad=Math.max((hi-lo)*.1,.05);lo-=pad;hi+=pad;
         const left=38,right=w-8,top=23,bottom=h-18;
@@ -5778,13 +6323,63 @@ class ScientificHUD {
         ctx.textAlign='right';ctx.fillText(end.toFixed(1),right,h-4);
     }
 
+    updateCardMetric(metric) {
+        // Inactive cards have no current observation or mode-specific metric.
+        document.querySelectorAll('[id^="cardMetric"]').forEach(el => {
+            el.textContent = 'Not selected';
+            const row = el.parentElement;
+            const label = row?.querySelector('[data-card-metric-label]');
+            if (label) label.textContent = 'Metric:';
+            if (row) {
+                row.title = 'No current metric · assay not selected';
+                row.setAttribute('aria-label', row.title);
+            }
+        });
+        const activeCardMetricEl = {
+            'open-arena': 'cardMetricOpenArena',
+            't-maze': 'cardMetricTMaze',
+            'y-maze': 'cardMetricYMaze',
+            'heat-maze': 'cardMetricHeatMaze',
+            'buridan': 'cardMetricBuridan',
+            'visual-operant': 'cardMetricVisOperant',
+            'wind-tunnel': 'cardMetricWindTunnel',
+            'looming-escape': 'cardMetricLooming',
+            'optomotor': 'cardMetricOptomotor',
+            'gap-crossing': 'cardMetricGapCrossing',
+            'circadian-dam': 'cardMetricCircadian',
+            'courtship': 'cardMetricCourtship',
+            'labyrinth': 'cardMetricLabyrinth',
+            'multisensory-sandbox': 'cardMetricMultisensory'
+        }[this.arena.activeParadigmId];
+        if (!activeCardMetricEl) return;
+        const el = document.getElementById(activeCardMetricEl);
+        if (!el) return;
+        // Canonical value already carries its formatted unit/status; do not
+        // reformat, append a second unit or infer a value from another mode.
+        el.textContent = metric.value;
+        const row = el.parentElement;
+        const label = row?.querySelector('[data-card-metric-label]');
+        if (label) label.textContent = 'Metric: ' + metric.label;
+        if (row) {
+            const unit = metric.unit ? ' · unit: ' + metric.unit.trim() : '';
+            const raw = Number.isFinite(metric.rawValue)
+                ? ' · Raw value: ' + (Object.is(metric.rawValue, -0) ? '-0' : String(metric.rawValue)) + unit : '';
+            row.title = metric.label + ': ' + metric.value + unit + (metric.sub ? ' · ' + metric.sub : '') + raw;
+            row.setAttribute('aria-label', row.title);
+        }
+    }
+
     update() {
+        window.neuroflyTrainingOwnerReconcile?.();
+        const reset=document.getElementById('btnResetTrial');
+        if(reset){reset.disabled=!!this.daemonBridge?.replayMode;reset.title=reset.disabled?'Replay is read only. Exit replay to reset a live or preview trial.':'';}
+        this.reconcileBackendSelector();
+        this.reconcileToolCapabilities();
         if (this.arena.remoteDriven && this.arena.remotePacket?.live_assay) {
             const t=this.arena.remotePacket;
             const watch=document.getElementById('guideWhatToWatch');
-            if(watch)watch.textContent=t.live_assay.limitation+' Use Assay Tools & Levers for connected controls and measured motor responses.';
-            const open=t.paradigm==='open-arena';
-            ['toolFood','toolAlarm','toolWind','toolPredator'].forEach(id=>{const e=document.getElementById(id);if(e){e.disabled=!open||id==='toolPredator'||this.daemonBridge.readOnly;e.title=e.disabled?'Not available in this live assay':'Place a real stimulus in the daemon arena';}});
+            if(watch)watch.textContent=assayLimitationForController(t)
+                +' Use Assay Tools & Levers for connected controls and measured motor responses.';
             document.querySelectorAll('#paramControlsBox input,#limbDeckPanel input,#limbDeckPanel button,[id^="btnLesion"]').forEach(e=>{e.disabled=true;e.title='Standalone preview control. Use the connected controls in Assay Tools & Levers.';});
         }
         const simTimeEl = document.getElementById('statSimTime');
@@ -5803,31 +6398,49 @@ class ScientificHUD {
         const mLabelEl = document.getElementById('paradigmMetricLabel');
         const mValEl = document.getElementById('paradigmMetricValue');
         if (mLabelEl) mLabelEl.textContent = metric.label;
-        if (mValEl) mValEl.textContent = metric.value;
-
-        // Update live card badge in left sidebar
-        const activeCardMetricEl = {
-            't-maze': 'cardMetricTMaze',
-            'y-maze': 'cardMetricYMaze',
-            'heat-maze': 'cardMetricHeatMaze',
-            'buridan': 'cardMetricBuridan',
-            'visual-operant': 'cardMetricVisOperant',
-            'wind-tunnel': 'cardMetricWindTunnel',
-            'looming-escape': 'cardMetricLooming',
-            'optomotor': 'cardMetricOptomotor',
-            'gap-crossing': 'cardMetricGapCrossing',
-            'circadian-dam': 'cardMetricCircadian',
-            'courtship': 'cardMetricCourtship',
-            'labyrinth': 'cardMetricLabyrinth',
-            'multisensory-sandbox': 'cardMetricMultisensory'
-        }[this.arena.activeParadigmId];
-
-        if (activeCardMetricEl) {
-            const el = document.getElementById(activeCardMetricEl);
-            if (el) el.textContent = metric.value;
+        if (mValEl) {
+            mValEl.textContent = metric.value;
+            mValEl.title = Number.isFinite(metric.rawValue)
+                ? 'Raw value: ' + (Object.is(metric.rawValue, -0) ? '-0' : String(metric.rawValue)) + (metric.unit ? ' ' + metric.unit.trim() : '') : '';
+            mValEl.setAttribute('aria-label', metric.value + (mValEl.title ? ' · ' + mValEl.title : ''));
         }
 
-        // Dopamine readouts
+        this.updateCardMetric(metric);
+        const observationDisplay = (this.arena.remoteDriven || this.arena.awaitingDaemon) ? this.arena.getObservationDisplay() : null;
+        const watchTyped = document.getElementById('guideWhatToWatch');
+        if (watchTyped && observationDisplay) watchTyped.textContent = assayLimitationForController(this.arena.remotePacket || {})
+            + ' ' + metric.label + ': ' + metric.value + '. ' + metric.sub + '. See separate live and saved observations in Assay Tools & Levers.';
+
+        const panelCaps = this.arena.remoteDriven
+            ? graphPanelCapabilities(this.arena.remotePacket || {})
+            : graphPanelCapabilities({identity:{backend:'modular', label:'Standalone modular preview'}});
+        const mbTitle = document.getElementById('mushroomBodyPanelTitle');
+        const mbReason = document.getElementById('mushroomBodyPanelReason');
+        if (mbTitle) mbTitle.textContent = panelCaps.modularMemory
+            ? '[1] Mushroom Body (120 KCs · modular controller)'
+            : `[1] Mushroom Body · unavailable for ${panelCaps.label}`;
+        if (mbReason) {
+            mbReason.textContent = panelCaps.modularMemory
+                ? 'Measured from the active modular controller.' : panelCaps.modularReason;
+            mbReason.style.color = panelCaps.modularMemory ? '#94a3b8' : '#fbbf24';
+        }
+        const lesionDescription = document.getElementById('lesionCardDesc');
+        if (lesionDescription) {
+            lesionDescription.textContent = panelCaps.graph
+                ? `${panelCaps.label} is the active controller. The genotype buttons are standalone modular-preview controls and cannot alter this graph run.`
+                : 'Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.';
+        }
+        const guideRef = document.getElementById('guideRef');
+        if (guideRef) {
+            const guide = EXPERIMENT_GUIDES[this.arena.activeParadigmId] || EXPERIMENT_GUIDES['open-arena'];
+            const modelVersion = this.arena.remotePacket?.live_assay?.model_version || 'server assay implementation not declared';
+            guideRef.textContent = panelCaps.graph
+                ? `${panelCaps.label} · ${modelVersion} · modular lesion and memory descriptions do not apply to this controller.`
+                : guide.ref;
+        }
+
+        // Dopamine readouts. Graph packets also contain the retained modular helper
+        // brain, so these values are unavailable for graph-controller interpretation.
         const pamHz = this.arena.mb.pamRate;
         const ppl1Hz = this.arena.mb.ppl1Rate;
         const pamRateEl = document.getElementById('paradigmPamRate');
@@ -5835,14 +6448,18 @@ class ScientificHUD {
         const pamFillEl = document.getElementById('paradigmPamFill');
         const ppl1FillEl = document.getElementById('paradigmPpl1Fill');
 
-        if (pamRateEl) pamRateEl.textContent = pamHz.toFixed(1) + ' Hz';
-        if (ppl1RateEl) ppl1RateEl.textContent = ppl1Hz.toFixed(1) + ' Hz';
-        if (pamFillEl) pamFillEl.style.width = `${Math.min(100, (pamHz / 40.0) * 100)}%`;
-        if (ppl1FillEl) ppl1FillEl.style.width = `${Math.min(100, (ppl1Hz / 40.0) * 100)}%`;
+        if (pamRateEl) pamRateEl.textContent = panelCaps.modularMemory ? pamHz.toFixed(1) + ' Hz' : 'Unavailable';
+        if (ppl1RateEl) ppl1RateEl.textContent = panelCaps.modularMemory ? ppl1Hz.toFixed(1) + ' Hz' : 'Unavailable';
+        if (pamFillEl) pamFillEl.style.width = panelCaps.modularMemory ? `${Math.min(100, (pamHz / 40.0) * 100)}%` : '0%';
+        if (ppl1FillEl) ppl1FillEl.style.width = panelCaps.modularMemory ? `${Math.min(100, (ppl1Hz / 40.0) * 100)}%` : '0%';
 
         const dStateEl = document.getElementById('valDopamineState');
         if (dStateEl) {
-            if (pamHz > 5.0) {
+            dStateEl.title = panelCaps.modularReason;
+            if (!panelCaps.modularMemory) {
+                dStateEl.textContent = 'UNAVAILABLE · MODULAR MB NOT CONTROLLER';
+                dStateEl.style.color = '#94a3b8';
+            } else if (pamHz > 5.0) {
                 dStateEl.textContent = 'PAM REWARD BURST';
                 dStateEl.style.color = '#f59e0b';
             } else if (ppl1Hz > 5.0) {
@@ -5857,20 +6474,29 @@ class ScientificHUD {
         // MB and KC Matrix
         const activeKcs = Array.from(this.arena.mb.kcFiring).filter(r => r > 0).length;
         const kcActiveEl = document.getElementById('valKcActive');
-        if (kcActiveEl) kcActiveEl.textContent = `${activeKcs} / 120 (${((activeKcs / 120) * 100).toFixed(0)}%)`;
+        if (kcActiveEl) {
+            kcActiveEl.textContent = panelCaps.modularMemory
+                ? `${activeKcs} / 120 (${((activeKcs / 120) * 100).toFixed(0)}%)` : 'Unavailable';
+            kcActiveEl.title = panelCaps.modularReason;
+        }
 
         const valence = this.arena.mb.netValence;
         const valNetEl = document.getElementById('valNetValence');
         const needleEl = document.getElementById('valNeedle');
         const curPiEl = document.getElementById('currentPiVal');
-        if (valNetEl) valNetEl.textContent = (valence >= 0 ? '+' : '') + valence.toFixed(2);
+        if (valNetEl) {
+            valNetEl.textContent = panelCaps.modularMemory ? (valence >= 0 ? '+' : '') + valence.toFixed(2) : 'Unavailable';
+            valNetEl.title = panelCaps.modularReason;
+        }
         if (needleEl) {
             // The gauge saturates at its endpoints; the numeric readout stays raw.
+            needleEl.style.display = panelCaps.modularMemory ? 'block' : 'none';
             needleEl.style.left = `${((Math.max(-1, Math.min(1, valence)) + 1) / 2) * 100}%`;
-            needleEl.title = `Raw valence: ${valence.toFixed(4)} (gauge spans -1 to +1)`;
+            needleEl.title = panelCaps.modularMemory
+                ? `Raw valence: ${valence.toFixed(4)} (gauge spans -1 to +1)` : panelCaps.modularReason;
         }
         if (curPiEl) curPiEl.textContent = (valence >= 0 ? '+' : '') + valence.toFixed(2);
-        this.renderKcMatrix();
+        this.renderKcMatrix(panelCaps);
         this.renderLearningCurve();
         if (this.arena.remoteDriven && curPiEl) curPiEl.textContent = metric.value;
 
@@ -5882,12 +6508,17 @@ class ScientificHUD {
         const antennaDeflectEl = document.getElementById('valAntennaDeflect');
 
         if (compassHeadingEl) compassHeadingEl.textContent = `${((this.arena.fly.heading * 180) / Math.PI).toFixed(1)}°`;
-        if (headingBumpEl) headingBumpEl.textContent = `${((this.arena.cx.headingBump * 180) / Math.PI).toFixed(0)}°`;
+        if (headingBumpEl) {
+            headingBumpEl.textContent = !panelCaps.graph || panelCaps.epgMeasured
+                ? `${((this.arena.cx.headingBump * 180) / Math.PI).toFixed(0)}°` : 'Unavailable';
+            headingBumpEl.title = panelCaps.graph && !panelCaps.epgMeasured
+                ? 'No finite 16-wedge EPG measurement and bump phase were streamed for this graph step.' : '';
+        }
         const windGlobal = Math.atan2(-this.arena.windVector[1], -this.arena.windVector[0]);
         if (upwindAngleEl) upwindAngleEl.textContent = `${((windGlobal * 180) / Math.PI).toFixed(0)}°`;
         if (pfl3ErrorEl) pfl3ErrorEl.textContent = this.arena.remoteDriven ? 'Not streamed' : (this.arena.cx.pfl3ErrorR - this.arena.cx.pfl3ErrorL).toFixed(2);
         if (antennaDeflectEl) antennaDeflectEl.textContent = this.arena.remoteDriven ? 'Not streamed' : `${(Math.hypot(this.arena.windVector[0], this.arena.windVector[1]) * 0.12).toFixed(1)} μN`;
-        this.renderCompass();
+        this.renderCompass(panelCaps);
 
         // Oscilloscope Channels
         const scopeKey=this.arena.remoteDriven ? `${this.arena.remoteSegment}:${this.arena.stepCount}` : null;
@@ -5904,25 +6535,21 @@ class ScientificHUD {
 
         // CPG Tripod Gait
         const cpgFreqEl = document.getElementById('valCpgFreq');
-        if (cpgFreqEl) cpgFreqEl.textContent = this.arena.cpg.steppingFreq.toFixed(1) + ' Hz';
+        if (cpgFreqEl) {
+            const cadence = this.arena.remotePacket?.biomechanics?.cadence_hz;
+            cpgFreqEl.textContent = panelCaps.graph
+                ? (Number.isFinite(cadence) ? `${cadence.toFixed(1)} Hz · proxy` : 'Unavailable')
+                : this.arena.cpg.steppingFreq.toFixed(1) + ' Hz';
+            cpgFreqEl.title = panelCaps.graph
+                ? 'Model-derived body cadence from the streamed biomechanics channel; not a measured connectome CPG readout.' : '';
+        }
+        const gaitHeading = document.getElementById('gaitPanelTitle');
+        if (gaitHeading) gaitHeading.textContent = `[3] ${panelCaps.gaitLabel}`;
 
-        // Update Benchmark Scorecard if in multisensory-sandbox
+        // Clear sandbox-only displays on every frame, including after assay switches.
+        renderSandboxScorecard(this.arena, document);
         const p = this.arena.paradigmState;
         if (p && this.arena.activeParadigmId === 'multisensory-sandbox') {
-            const compEl = document.getElementById('deckCompositeScore');
-            const coordEl = document.getElementById('deckCoordScore');
-            const sensEl = document.getElementById('deckSensoryScore');
-            const effEl = document.getElementById('deckEfficacyScore');
-            const smoothEl = document.getElementById('deckSmoothScore');
-            const cardMetricEl = document.getElementById('cardMetricMultisensory');
-
-            if (compEl) compEl.textContent = `${(p.compositeScore || 0).toFixed(1)} / 100`;
-            if (coordEl) coordEl.textContent = `${((p.coordinationScore || 0) * 100).toFixed(1)}%`;
-            if (sensEl) sensEl.textContent = `${((p.sensoryIntegrationScore || 0) * 100).toFixed(1)}%`;
-            if (effEl) effEl.textContent = `${((p.efficiencyScore || 0) * 100).toFixed(1)}%`;
-            if (smoothEl) smoothEl.textContent = `${((p.smoothnessScore || 0) * 100).toFixed(1)}%`;
-            if (cardMetricEl) cardMetricEl.textContent = `${(p.compositeScore || 0).toFixed(1)} / 100`;
-
             const jointBox = document.getElementById('jointAnglesBox');
             if (jointBox) {
                 const ja = (p && p.jointAngles) ? p.jointAngles : (this.arena.remotePacket?.biomechanics?.joint_angles);
@@ -5960,7 +6587,12 @@ class ScientificHUD {
 
     updatePremotorHUD() {
         const pkt = this.arena.remotePacket || {};
-        const dn = pkt.dn_rates || pkt.descending?.dn_rates || {
+        const capabilities = graphPanelCapabilities(pkt);
+        const graphDn = graphDnReadout(pkt, capabilities);
+        // Graph readouts must come from the graph controller's own nested payload.
+        // The top-level values can be pose-derived compatibility data and are not
+        // evidence that a graph DN population was resolved.
+        const dn = graphDn.rates || {
             dna02_l: Math.max(0, -this.arena.fly.yawRate * 8.0),
             dna02_r: Math.max(0, this.arena.fly.yawRate * 8.0),
             dnp09: Math.max(0, this.arena.fly.speed * 2.5),
@@ -5971,47 +6603,46 @@ class ScientificHUD {
         const backendName = String(pkt.identity?.backend || rawCtrl || 'modular').toLowerCase();
         const isPlastic = backendName.includes('plastic');
         const isConn = backendName.includes('connectome');
-
-        // Keep backend selector in sync
-        const selBackend = document.getElementById('selectBackend');
-        if (selBackend && pkt.identity?.backend && document.activeElement !== selBackend) {
-            selBackend.value = pkt.identity.backend;
-            selBackend.style.color = isPlastic ? '#c084fc' : isConn ? '#22c55e' : '#38bdf8';
-        }
+        const displayLabel = capabilities.label || backendName;
 
         const badge = document.getElementById('controllerBadge');
         if (badge) {
-            badge.textContent = isPlastic ? 'CONNECTOME PLASTIC (WP6)' : isConn ? 'CONNECTOME v3 FIXED' : 'MODULAR';
+            badge.textContent = displayLabel.toUpperCase();
             badge.className = isPlastic ? 'badge badge-purple' : isConn ? 'badge badge-green' : 'badge badge-cyan';
         }
         const v3dTag = document.getElementById('v3dControllerTag');
         if (v3dTag) {
-            v3dTag.textContent = isPlastic ? 'CONNECTOME PLASTIC (WP6)' : isConn ? 'CONNECTOME v3 FIXED' : 'MODULAR';
+            v3dTag.textContent = displayLabel.toUpperCase();
             v3dTag.style.color = isPlastic ? '#c084fc' : isConn ? '#22c55e' : '#38bdf8';
         }
         const compassSource = document.getElementById('valCompassSource');
         if (compassSource) {
-            compassSource.textContent = isPlastic ? 'CONNECTOME WP6' : isConn ? 'CONNECTOME EPG' : 'MODULAR';
+            compassSource.textContent = isConn
+                ? (capabilities.epgMeasured ? `${displayLabel} · EPG measured` : `${displayLabel} · EPG unavailable`)
+                : displayLabel;
             compassSource.className = isPlastic ? 'badge badge-purple' : isConn ? 'badge badge-green' : 'badge badge-cyan';
         }
 
         const epgBumpEl = document.getElementById('valEpgBump');
         if (epgBumpEl) {
-            if (isConn && (pkt.neural?.epg_wedges || pkt.connectome?.epg_bump_phase !== undefined)) {
+            if (capabilities.epgMeasured) {
                 const deg = Math.round(this.arena.cx.headingBump * 180 / Math.PI);
                 epgBumpEl.textContent = `${deg}°`;
                 epgBumpEl.style.color = '#22c55e';
             } else {
-                epgBumpEl.textContent = '--';
+                epgBumpEl.textContent = 'Unavailable';
                 epgBumpEl.style.color = '#94a3b8';
+                epgBumpEl.title = isConn
+                    ? 'No finite 16-wedge EPG measurement and bump phase were streamed for this graph step.'
+                    : 'EPG connectome readout applies only when a graph controller streams it.';
             }
         }
 
         const wp6Block = document.getElementById('wp6PlasticityBlock');
         if (wp6Block) {
-            wp6Block.style.display = isPlastic ? 'block' : 'none';
+            wp6Block.style.display = capabilities.wp6Measured ? 'block' : 'none';
         }
-        if (isPlastic) {
+        if (capabilities.wp6Measured) {
             const wp6 = pkt.plasticity?.wp6 || pkt.connectome?.wp6 || {};
             const meanDelta = Number.isFinite(wp6.mean_delta) ? wp6.mean_delta : 0.0;
             const maxDelta = Number.isFinite(wp6.max_delta) ? wp6.max_delta : Math.abs(meanDelta);
@@ -6028,22 +6659,36 @@ class ScientificHUD {
             if (maxDeltaEl) maxDeltaEl.textContent = maxDelta.toFixed(4);
         }
 
-        const setMeter = (valId, barId, val, maxVal) => {
+        const unavailable = graphDn.unavailable;
+        const graphMissingReason = graphDn.missingReason;
+        const setMeter = (valId, barId, val, maxVal, reason = null) => {
             const vEl = document.getElementById(valId);
             const bEl = document.getElementById(barId);
-            const num = Number.isFinite(val) ? val : 0;
-            if (vEl) vEl.textContent = num.toFixed(1);
+            const available = !reason && Number.isFinite(val);
+            const num = available ? val : null;
+            if (vEl) {
+                vEl.textContent = available ? num.toFixed(1) : 'Unavailable';
+                vEl.title = available ? 'Measured rate streamed by the active controller.'
+                    : (reason || 'No finite rate was streamed by the active controller.');
+            }
             if (bEl) {
-                const pct = Math.min(100, Math.max(0, (num / maxVal) * 100));
+                const pct = available ? Math.min(100, Math.max(0, (num / maxVal) * 100)) : 0;
                 bEl.style.width = pct + '%';
             }
         };
 
-        setMeter('hudDna02L', 'barDna02L', dn.dna02_l, 20.0);
-        setMeter('hudDna02R', 'barDna02R', dn.dna02_r, 20.0);
-        setMeter('hudDnp09', 'barDnp09', dn.dnp09, 40.0);
-        setMeter('hudMdn', 'barMdn', dn.mdn, 30.0);
-        setMeter('hudGf', 'barGf', dn.gf, 60.0);
+        setMeter('hudDna02L', 'barDna02L', dn.dna02_l, 20.0, graphMissingReason || unavailable.dna02_l);
+        setMeter('hudDna02R', 'barDna02R', dn.dna02_r, 20.0, graphMissingReason || unavailable.dna02_r);
+        setMeter('hudDnp09', 'barDnp09', dn.dnp09, 40.0, graphMissingReason || unavailable.dnp09);
+        setMeter('hudMdn', 'barMdn', dn.mdn, 30.0, graphMissingReason || unavailable.mdn);
+        setMeter('hudGf', 'barGf', dn.gf, 60.0, graphMissingReason || unavailable.gf || unavailable.dnp01);
+
+        const gaitName = document.getElementById('cpgGaitName');
+        if (gaitName) {
+            gaitName.textContent = capabilities.graph ? 'MODEL-DERIVED BODY PHASE' : 'KURAMOTO TRIPOD GAIT';
+            gaitName.title = capabilities.graph
+                ? 'Phase labels come from the streamed body model, not a connectome CPG measurement.' : '';
+        }
 
         const legStates = this.arena.cpg.legStates || {};
         const legs = ['L1', 'L2', 'L3', 'R1', 'R2', 'R3'];
@@ -6058,11 +6703,20 @@ class ScientificHUD {
         });
     }
 
-    renderKcMatrix() {
+    renderKcMatrix(capabilities = graphPanelCapabilities({identity:{backend:'modular'}})) {
         if (!this.kcCanvas || !this.kcCtx) return;
         const w = this.kcCanvas.width;
         const h = this.kcCanvas.height;
         this.kcCtx.clearRect(0, 0, w, h);
+
+        if (!capabilities.modularMemory) {
+            this.kcCtx.fillStyle = '#94a3b8';
+            this.kcCtx.font = '11px monospace';
+            this.kcCtx.textAlign = 'center';
+            this.kcCtx.fillText('Unavailable — modular KC activity is not this controller', w / 2, h / 2);
+            this.kcCtx.textAlign = 'start';
+            return;
+        }
 
         const cols = 24, rows = 5;
         const cellW = w / cols, cellH = h / rows;
@@ -6084,7 +6738,7 @@ class ScientificHUD {
         this.kcCtx.shadowBlur = 0;
     }
 
-    renderCompass() {
+    renderCompass(capabilities = graphPanelCapabilities({identity:{backend:'modular'}})) {
         if (!this.compassCanvas || !this.compassCtx) return;
         const w = this.compassCanvas.width;
         const h = this.compassCanvas.height;
@@ -6096,7 +6750,7 @@ class ScientificHUD {
         for (let i = 0; i < 16; i++) {
             const a1 = -Math.PI + (i * 2 * Math.PI) / 16;
             const a2 = a1 + (2 * Math.PI) / 16;
-            const act = this.arena.cx.bumpProfile[i];
+            const act = capabilities.graph && !capabilities.epgMeasured ? 0 : this.arena.cx.bumpProfile[i];
 
             this.compassCtx.fillStyle = `rgba(56, 189, 248, ${0.12 + act * 0.80})`;
             this.compassCtx.beginPath();
@@ -6120,9 +6774,7 @@ class ScientificHUD {
         }
 
         // Decoded EPG Bump needle (cyan, representing connectome bump phase)
-        const isConn = this.arena.remotePacket?.controller_id?.includes('connectome')
-                       || this.arena.remotePacket?.identity?.backend?.includes('connectome')
-                       || this.arena.remotePacket?.neural?.epg_wedges;
+        const isConn = capabilities.graph && capabilities.epgMeasured;
         if (isConn) {
             this.compassCtx.strokeStyle = '#22c55e';
             this.compassCtx.lineWidth = 2.0;
@@ -6201,11 +6853,6 @@ window.addEventListener('load', () => {
     document.getElementById('btnErrorResume')?.addEventListener('click', () => NeuroflyErrors.resume());
     try {
         startNeuroflyApp();
-        const previewAssist = document.getElementById('previewWallAssist');
-        if (previewAssist && window.arena) {
-            previewAssist.checked = !!window.arena.previewWallAssist;
-            previewAssist.addEventListener('change', () => { window.arena.previewWallAssist = previewAssist.checked; });
-        }
     } catch (e) {
         // Startup failed: say so with context instead of leaving a blank or half-built page.
         NeuroflyErrors.report('startup', e);
@@ -6216,14 +6863,188 @@ window.addEventListener('load', () => {
 // Phase 3 Step 3.2: Three.js 3D Articulated Viewport
 // =========================================================================
 
+function orbitFrameValues(cameraPosition, controlTarget, flyPosition, preferredOffset = null) {
+    const finiteVector = (v) => v && [v.x, v.y, v.z].every(Number.isFinite);
+    if (!finiteVector(cameraPosition) || !finiteVector(controlTarget) || !finiteVector(flyPosition)) return null;
+    const offset = finiteVector(preferredOffset) ? preferredOffset : {
+        x: cameraPosition.x - controlTarget.x,
+        y: cameraPosition.y - controlTarget.y,
+        z: cameraPosition.z - controlTarget.z
+    };
+    return {
+        target: {x: flyPosition.x, y: flyPosition.y, z: flyPosition.z},
+        camera: {
+            x: flyPosition.x + offset.x,
+            y: flyPosition.y + offset.y,
+            z: flyPosition.z + offset.z
+        },
+        offset: {x: offset.x, y: offset.y, z: offset.z}
+    };
+}
+window.neuroflyOrbitFrameValues = orbitFrameValues;
+
+function arenaPointFor3D(x, y, bounds) {
+    if (![x, y, bounds?.minX, bounds?.maxX, bounds?.minY, bounds?.maxY].every(Number.isFinite)
+            || bounds.maxX <= bounds.minX || bounds.maxY <= bounds.minY) return null;
+    return {
+        x: x - (bounds.minX + bounds.maxX) / 2,
+        y: y - (bounds.minY + bounds.maxY) / 2
+    };
+}
+
+function assayGeometry3DDescriptor(arena) {
+    const pid = arena?.activeParadigmId || '';
+    const packet = arena?.remotePacket;
+    const packetPid = (packet?.paradigm || '').toLowerCase().replace(/_/g, '-');
+    const streamed = packet?.scene?.geometry;
+    const streamCurrent = !!packet && packetPid === pid;
+    const streamValid = streamCurrent && streamed?.schema === 'neurofly.assay-geometry.v1'
+        && streamed.source === 'python-arena' && streamed.coordinate_frame === 'arena-mm';
+    let bounds = null;
+    let boundsSource = 'browser preview configuration';
+    let offset = [0, 0];
+    if (streamValid && Array.isArray(streamed.bounds) && streamed.bounds.length === 4
+            && streamed.bounds.every(Number.isFinite)) {
+        offset = daemonFrameOffset(packet);
+        bounds = {
+            minX: streamed.bounds[0] + offset[0], maxX: streamed.bounds[2] + offset[0],
+            minY: streamed.bounds[1] + offset[1], maxY: streamed.bounds[3] + offset[1]
+        };
+        boundsSource = 'Python arena telemetry';
+    } else if (!packet && !arena?.awaitingDaemon && !arena?.remoteDriven && arena?.worldBounds) {
+        bounds = {...arena.worldBounds};
+    }
+    const validBounds = [bounds?.minX, bounds?.maxX, bounds?.minY, bounds?.maxY].every(Number.isFinite)
+        && bounds.maxX > bounds.minX && bounds.maxY > bounds.minY;
+    if (!validBounds) {
+        return {key: JSON.stringify([pid, 'unavailable']), paradigm: pid, available: false,
+            status: streamCurrent
+                ? '3D assay geometry unavailable · current daemon supplied no valid geometry contract'
+                : '3D assay geometry unavailable · awaiting current assay geometry telemetry'};
+    }
+    const walls = [];
+    const rawWalls = streamValid ? streamed.walls : (arena.currentWalls || []);
+    if (!Array.isArray(rawWalls)) {
+        return {key: JSON.stringify([pid, 'unavailable-walls']), paradigm: pid, available: false,
+            status: '3D assay geometry unavailable · wall collection is malformed'};
+    }
+    for (const wall of rawWalls) {
+        const values = [wall?.p1?.[0] + offset[0], wall?.p1?.[1] + offset[1],
+            wall?.p2?.[0] + offset[0], wall?.p2?.[1] + offset[1]];
+        if (!values.every(Number.isFinite)) {
+            return {key: JSON.stringify([pid, 'unavailable-wall-values']), paradigm: pid, available: false,
+                status: '3D assay geometry unavailable · wall endpoint is nonfinite'};
+        }
+        const p1 = arenaPointFor3D(values[0], values[1], bounds);
+        const p2 = arenaPointFor3D(values[2], values[3], bounds);
+        if (!p1 || !p2 || Math.hypot(p2.x - p1.x, p2.y - p1.y) <= 1e-9) {
+            return {key: JSON.stringify([pid, 'unavailable-wall-segment']), paradigm: pid, available: false,
+                status: '3D assay geometry unavailable · wall segment is degenerate'};
+        }
+        walls.push({p1, p2});
+    }
+    const width = bounds.maxX - bounds.minX;
+    const depth = bounds.maxY - bounds.minY;
+    let rawSurfaces = streamValid ? streamed.surfaces : null;
+    let surfaceNote = streamValid ? 'Python arena physical surfaces' : 'browser preview extent';
+    if (!rawSurfaces && pid === 'gap-crossing' && Number.isFinite(arena.paradigmState?.gapWidthMm)) {
+        const gapStart = 45.0;
+        const gapEnd = gapStart + arena.paradigmState.gapWidthMm;
+        rawSurfaces = [
+            {shape:'rectangle', bounds:[0.0, 7.0, gapStart, 13.0]},
+            {shape:'rectangle', bounds:[gapEnd, 7.0, 100.0, 13.0]}
+        ];
+        surfaceNote = `two browser preview track platforms with ${arena.paradigmState.gapWidthMm} mm gap`;
+    } else if (!rawSurfaces && pid === 'circadian-dam') {
+        rawSurfaces = Array.from({length: 16}, (_, i) => (
+            {shape:'rectangle', bounds:[0.0, i * 10.0, 65.0, (i + 1) * 10.0]}));
+        surfaceNote = '16 browser preview DAM tube extents';
+    }
+    if (!rawSurfaces) rawSurfaces = [{shape:'rectangle', bounds:[bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]}];
+    if (!Array.isArray(rawSurfaces)) {
+        return {key: JSON.stringify([pid, 'unavailable-surfaces']), paradigm: pid, available: false,
+            status: '3D assay geometry unavailable · surface collection is malformed'};
+    }
+    const surfaces = [];
+    for (const surface of rawSurfaces) {
+        if (surface?.shape === 'rectangle' && Array.isArray(surface.bounds) && surface.bounds.length === 4
+                && surface.bounds.every(Number.isFinite)) {
+            surfaces.push({shape:'rectangle', minX:surface.bounds[0] + offset[0],
+                minY:surface.bounds[1] + offset[1], maxX:surface.bounds[2] + offset[0],
+                maxY:surface.bounds[3] + offset[1], role:surface.role || null});
+        } else if (surface?.shape === 'circle' && Array.isArray(surface.center)
+                && surface.center.length === 2 && surface.center.every(Number.isFinite)
+                && Number.isFinite(surface.radius) && surface.radius > 0) {
+            surfaces.push({shape:'circle', center:{x:surface.center[0] + offset[0],
+                y:surface.center[1] + offset[1]}, radius:surface.radius, role:surface.role || null});
+        } else {
+            return {key: JSON.stringify([pid, 'unavailable-surface-values']), paradigm: pid, available: false,
+                status: '3D assay geometry unavailable · physical surface is malformed'};
+        }
+    }
+    if (!surfaces.length) {
+        return {key: JSON.stringify([pid, 'unavailable-empty-surfaces']), paradigm: pid, available: false,
+            status: '3D assay geometry unavailable · no finite physical surfaces supplied'};
+    }
+    let outline = null;
+    const containment = streamValid ? streamed.containment : null;
+    if (containment?.kind === 'circle' && Array.isArray(containment.center)
+            && containment.center.length === 2 && containment.center.every(Number.isFinite)
+            && Number.isFinite(containment.radius) && containment.radius > 0) {
+        outline = {shape:'circle', center:{x:containment.center[0] + offset[0],
+            y:containment.center[1] + offset[1]}, radius:containment.radius};
+    }
+    const kind = streamValid ? (walls.length ? 'python-wall-segments' : 'python-containment')
+        : (walls.length ? 'browser-preview-wall-segments' : 'browser-preview-bounds');
+    const canonical = {pid, bounds, walls, surfaces, outline, kind};
+    return {
+        key: JSON.stringify(canonical),
+        paradigm: pid, available: true, bounds, boundsSource, width, depth, walls, surfaces,
+        surfaceNote, kind, outline,
+        status: streamValid
+            ? (walls.length
+                ? `3D assay geometry · Python arena telemetry · ${walls.length} physical wall segments · ${surfaceNote} · illustrative 2 mm wall height`
+                : outline?.shape === 'circle'
+                    ? `3D assay geometry · Python arena telemetry · exact ${outline.radius} mm circular containment · ${surfaceNote}`
+                    : `3D assay geometry · Python arena telemetry · exact bounds and physical surfaces · no wall segments`)
+            : `3D assay geometry · browser preview configuration · ${walls.length} configured wall segments · ${surfaceNote}`
+    };
+}
+
+function disposeThreeTree(root) {
+    if (!root?.traverse) return;
+    root.traverse((object) => {
+        object.geometry?.dispose?.();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) material?.dispose?.();
+    });
+}
+
+window.neuroflyArenaPointFor3D = arenaPointFor3D;
+window.neuroflyAssayGeometry3DDescriptor = assayGeometry3DDescriptor;
+
 class ArticulatedFly3DViewport {
     constructor(canvasId, containerId, arena) {
         this.canvas = document.getElementById(canvasId);
         this.container = document.getElementById(containerId);
+        this.statusPanel = document.getElementById('viewport3DOverlay');
         this.arena = arena;
         this.visible = false;
         this.cameraMode = 'orbit'; // 'orbit' or 'chase'
         this.initialized = false;
+        this.cacheIdentity = null;
+        this.orbitFrameIdentity = null;
+        this.lastPose = null;
+        this.lastHeading = null;
+        this.lastBodyZ = null;
+        this.lastJointAngles = null;
+        this.lastLegContacts = null;
+        this.pendingOrbitFrame = true;
+        this.pendingOrbitOffset = null;
+        this.savedOrbitOffset = null;
+        this.assayGeometryKey = null;
+        this.assayGeometryDescriptor = null;
+        this.assayGeometryGroup = null;
         this.init();
     }
 
@@ -6270,24 +7091,30 @@ class ArticulatedFly3DViewport {
         backLight.position.set(-20, 20, -20);
         this.scene.add(backLight);
 
-        // Ground arena grid floor
-        const grid = new THREE.GridHelper(120, 60, 0x38bdf8, 0x1e293b);
-        grid.position.y = 0;
-        this.scene.add(grid);
-
-        // Arena boundary ring (50mm radius circle)
-        const ringGeo = new THREE.RingGeometry(49.8, 50.2, 64);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = 0.02;
-        this.scene.add(ring);
-
         // Build anatomical fly mesh
         this.buildFlyMesh();
 
+        // Keep missing telemetry visible without throwing away the last valid frame.
+        this.poseStatus = document.createElement('div');
+        this.poseStatus.style.cssText = 'display:none;margin-top:5px;padding:5px 9px;'
+            + 'border:1px solid #f59e0b;border-radius:5px;background:rgba(15,23,42,.9);'
+            + 'color:#fbbf24;font:10px monospace';
+        (this.statusPanel || this.container).appendChild(this.poseStatus);
+
+        this.geometryStatus = document.createElement('div');
+        this.geometryStatus.style.cssText = 'margin-top:5px;padding:5px 9px;'
+            + 'border:1px solid #334155;border-radius:5px;background:rgba(15,23,42,.9);'
+            + 'color:#94a3b8;font:10px monospace';
+        (this.statusPanel || this.container).appendChild(this.geometryStatus);
+        this.updateAssayGeometry();
+        this.updateAssayCues();
+
         // Resize handler
         window.addEventListener('resize', () => this.onResize());
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => this.onResize());
+            this.resizeObserver.observe(this.container);
+        }
 
         this.initialized = true;
     }
@@ -6402,9 +7229,9 @@ class ArticulatedFly3DViewport {
             // Tarsus contact indicator sphere (at tip of tibia)
             const contactGeo = new THREE.SphereGeometry(0.25, 8, 8);
             const contactMat = new THREE.MeshStandardMaterial({
-                color: 0x38bdf8,
-                emissive: 0x38bdf8,
-                emissiveIntensity: 0.6,
+                color: 0x64748b,
+                emissive: 0x334155,
+                emissiveIntensity: 0.15,
                 roughness: 0.3
             });
             const contactMesh = new THREE.Mesh(contactGeo, contactMat);
@@ -6436,20 +7263,29 @@ class ArticulatedFly3DViewport {
     }
 
     setVisible(visible) {
+        const entering = visible && !this.visible;
         this.visible = visible;
         if (this.container) {
             this.container.style.display = visible ? 'block' : 'none';
+        }
+        if (this.statusPanel) {
+            this.statusPanel.hidden = !visible;
         }
         const canvas2d = document.getElementById('arenaCanvas');
         if (canvas2d) {
             canvas2d.style.display = visible ? 'none' : 'block';
         }
         if (visible) {
+            if (entering && this.cameraMode === 'orbit') this.requestOrbitFrame();
             this.onResize();
         }
     }
 
     setCameraMode(mode) {
+        const previousMode = this.cameraMode;
+        if (previousMode === 'orbit' && mode === 'chase') {
+            this.savedOrbitOffset = this.currentOrbitOffset();
+        }
         this.cameraMode = mode;
         const btn = document.getElementById('btnCameraMode');
         if (btn) {
@@ -6458,52 +7294,302 @@ class ArticulatedFly3DViewport {
         if (this.controls) {
             this.controls.enabled = (mode === 'orbit');
         }
+        if (previousMode === 'chase' && mode === 'orbit') {
+            this.requestOrbitFrame(this.savedOrbitOffset);
+        }
+    }
+
+    currentOrbitOffset() {
+        const frame = this.camera && this.controls
+            ? orbitFrameValues(this.camera.position, this.controls.target, this.controls.target)
+            : null;
+        return frame?.offset || null;
+    }
+
+    updateAssayCues() {
+        const helper = window.NeuroFlyAssayCues3D;
+        const geometry = this.assayGeometryDescriptor;
+        if (!helper || !geometry) return;
+        const bridge = window.hud?.daemonBridge;
+        const descriptor = helper.describe(this.arena, geometry, daemonFrameOffset(this.arena.remotePacket || {}), {
+            switchPending: !!bridge?.switchPending,
+            ownerProblem: identityRejection(this.arena.remotePacket, bridge?.lastSwitchAck)
+        });
+        if (!this.cueStatus) {
+            this.cueStatus = document.createElement('div');
+            this.cueStatus.style.cssText = 'margin-top:5px;padding:5px 9px;color:#cbd5e1;font-size:11px';
+            (this.statusPanel || this.container).appendChild(this.cueStatus);
+        }
+        this.cueStatus.textContent = descriptor.status;
+        if (!geometry.available) { if (this.cuePlane) this.cuePlane.visible = false; return; }
+        if (!this.cuePlane) {
+            this.cueCanvas = document.createElement('canvas');
+            this.cueCanvas.width = this.cueCanvas.height = 1024;
+            this.cueTexture = new THREE.CanvasTexture(this.cueCanvas);
+            const material = new THREE.MeshBasicMaterial({map:this.cueTexture,transparent:true,
+                depthWrite:false,side:THREE.DoubleSide});
+            this.cuePlane = new THREE.Mesh(new THREE.PlaneGeometry(1,1),material);
+            this.cuePlane.rotation.x = -Math.PI/2;
+            this.cuePlane.position.y = 0.04;
+            this.scene.add(this.cuePlane);
+        }
+        this.cuePlane.visible = true;
+        this.cuePlane.scale.set(geometry.width,geometry.depth,1);
+        const key=JSON.stringify([this.packetIdentity(this.arena.remotePacket), geometry.bounds,descriptor]);
+        if(key!==this.cueKey) {
+            helper.paint(this.cueCanvas.getContext('2d'),descriptor,geometry);
+            this.cueTexture.needsUpdate=true;this.cueKey=key;
+        }
+    }
+
+    updateAssayGeometry() {
+        const descriptor = assayGeometry3DDescriptor(this.arena);
+        this.assayGeometryDescriptor = descriptor;
+        if (!this.scene || typeof THREE === 'undefined') return false;
+        if (descriptor.key === this.assayGeometryKey) {
+            if (this.geometryStatus) this.geometryStatus.textContent = descriptor.status;
+            return false;
+        }
+        if (this.assayGeometryGroup) {
+            this.scene.remove(this.assayGeometryGroup);
+            disposeThreeTree(this.assayGeometryGroup);
+        }
+        this.assayGeometryKey = descriptor.key;
+        const group = new THREE.Group();
+        group.name = 'assay-geometry-3d';
+        this.assayGeometryGroup = group;
+        this.scene.add(group);
+        if (this.geometryStatus) this.geometryStatus.textContent = descriptor.status;
+        if (!descriptor.available) return true;
+
+        // Floors preserve the Python arena's rectangle/circle primitives. Wall height
+        // and thickness remain illustrative viewing aids around its 2D segments.
+        for (const surface of descriptor.surfaces) {
+            const circle = surface.shape === 'circle';
+            const surfaceCenter = circle
+                ? arenaPointFor3D(surface.center.x, surface.center.y, descriptor.bounds)
+                : arenaPointFor3D((surface.minX + surface.maxX) / 2,
+                    (surface.minY + surface.maxY) / 2, descriptor.bounds);
+            const floorGeometry = circle
+                ? new THREE.CircleGeometry(surface.radius, 64)
+                : new THREE.PlaneGeometry(surface.maxX - surface.minX, surface.maxY - surface.minY);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0b1220, roughness: 0.95, metalness: 0.0, transparent: true, opacity: 0.72,
+                side: THREE.DoubleSide
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(surfaceCenter.x, -0.02, -surfaceCenter.y);
+            group.add(floor);
+        }
+
+        if (descriptor.walls.length) {
+            for (const wall of descriptor.walls) {
+                const dx = wall.p2.x - wall.p1.x;
+                const dy = wall.p2.y - wall.p1.y;
+                const length = Math.hypot(dx, dy);
+                const geometry = new THREE.BoxGeometry(length, 2.0, 0.45);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x38bdf8, emissive: 0x0c4a6e, emissiveIntensity: 0.25,
+                    roughness: 0.65, transparent: true, opacity: 0.72
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set((wall.p1.x + wall.p2.x) / 2, 1.0, -(wall.p1.y + wall.p2.y) / 2);
+                mesh.rotation.y = Math.atan2(dy, dx);
+                group.add(mesh);
+            }
+        } else if (descriptor.outline?.shape === 'circle') {
+            const center = arenaPointFor3D(
+                descriptor.outline.center.x, descriptor.outline.center.y, descriptor.bounds);
+            const points = Array.from({length:64}, (_, i) => {
+                const angle = i * 2 * Math.PI / 64;
+                return new THREE.Vector3(center.x + descriptor.outline.radius * Math.cos(angle), 0.03,
+                    -(center.y + descriptor.outline.radius * Math.sin(angle)));
+            });
+            const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const outlineMaterial = new THREE.LineBasicMaterial({color: 0xf59e0b});
+            group.add(new THREE.LineLoop(outlineGeometry, outlineMaterial));
+        } else {
+            const halfW = descriptor.width / 2;
+            const halfD = descriptor.depth / 2;
+            const points = [
+                new THREE.Vector3(-halfW, 0.03, -halfD), new THREE.Vector3(halfW, 0.03, -halfD),
+                new THREE.Vector3(halfW, 0.03, halfD), new THREE.Vector3(-halfW, 0.03, halfD)
+            ];
+            const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const outlineMaterial = new THREE.LineBasicMaterial({color: 0xf59e0b});
+            group.add(new THREE.LineLoop(outlineGeometry, outlineMaterial));
+        }
+        return true;
+    }
+
+    requestOrbitFrame(offset = null) {
+        this.pendingOrbitFrame = true;
+        this.pendingOrbitOffset = offset;
+    }
+
+    applyPendingOrbitFrame() {
+        if (!this.pendingOrbitFrame || this.cameraMode !== 'orbit' || !this.controls
+                || !this.lastPose || !this.flyGroup) return false;
+        const frame = orbitFrameValues(
+            this.camera.position, this.controls.target, this.flyGroup.position, this.pendingOrbitOffset);
+        if (!frame) return false;
+        this.controls.target.set(frame.target.x, frame.target.y, frame.target.z);
+        this.camera.position.set(frame.camera.x, frame.camera.y, frame.camera.z);
+        this.pendingOrbitFrame = false;
+        this.pendingOrbitOffset = null;
+        return true;
+    }
+
+    packetIdentity(pkt) {
+        const id = pkt?.identity || {};
+        const hasIdentity = pkt?.type === 'telemetry' && (pkt.segment_id || pkt.run_id
+            || id.run_id || id.instance_id || Number.isInteger(id.activation));
+        return hasIdentity
+            ? JSON.stringify([id.run_id || pkt.run_id || '', id.instance_id || '',
+                Number.isInteger(id.activation) ? id.activation : null, pkt.segment_id || ''])
+            : `local:${this.arena.activeParadigmId || ''}`;
+    }
+
+    cameraIdentity(pkt) {
+        const id = pkt?.identity || {};
+        const hasIdentity = pkt?.type === 'telemetry' && (pkt.run_id
+            || id.run_id || id.instance_id || Number.isInteger(id.activation));
+        return hasIdentity
+            ? JSON.stringify([id.run_id || pkt.run_id || '', id.instance_id || '',
+                Number.isInteger(id.activation) ? id.activation : null])
+            : `local:${this.arena.activeParadigmId || ''}`;
+    }
+
+    syncCameraIdentity(pkt) {
+        const identity = this.cameraIdentity(pkt);
+        if (identity === this.orbitFrameIdentity) return false;
+        this.orbitFrameIdentity = identity;
+        this.requestOrbitFrame();
+        return true;
+    }
+
+    resetPoseCache(identity) {
+        this.cacheIdentity = identity;
+        this.lastPose = null;
+        this.lastHeading = null;
+        this.lastBodyZ = null;
+        this.lastJointAngles = null;
+        this.lastLegContacts = null;
+        if (this.flyGroup) {
+            this.flyGroup.position.set(0, 0, 0);
+            this.flyGroup.rotation.set(0, 0, 0);
+        }
+        for (const leg of this.legs || []) {
+            leg.coxa.rotation.y = leg.baseAngle;
+            leg.femur.rotation.z = 0;
+            leg.tibia.rotation.z = 0;
+            leg.contactMat.color.setHex(0x64748b);
+            leg.contactMat.emissive.setHex(0x334155);
+            leg.contactMat.emissiveIntensity = 0.15;
+        }
     }
 
     updatePose() {
         if (!this.initialized || !this.flyGroup) return;
 
         const pkt = this.arena.remotePacket || {};
-        const fly = this.arena.fly;
+        const fly = this.arena.fly || {};
+        this.updateAssayGeometry();
+        this.updateAssayCues();
+        this.syncCameraIdentity(pkt);
+        const identity = this.packetIdentity(pkt);
+        if (identity !== this.cacheIdentity) this.resetPoseCache(identity);
+        const remote = pkt.type === 'telemetry';
+        const currentFrame = !this.arena.awaitingDaemon;
+        const validPosition = currentFrame && Number.isFinite(fly.x) && Number.isFinite(fly.y);
+        const validHeading = currentFrame && Number.isFinite(fly.heading)
+            && (!remote || Number.isFinite(pkt.fly?.heading));
+        const validBodyZ = currentFrame && Array.isArray(pkt.body_position_mm)
+            && pkt.body_position_mm.length >= 3 && pkt.body_position_mm.slice(0, 3).every(Number.isFinite);
+        const validJoints = currentFrame && Array.isArray(pkt.joint_angles_rad)
+            && pkt.joint_angles_rad.length >= 18 && pkt.joint_angles_rad.slice(0, 18).every(Number.isFinite);
+        const validContacts = currentFrame && Array.isArray(pkt.leg_contacts)
+            && pkt.leg_contacts.length >= 6
+            && pkt.leg_contacts.slice(0, 6).every(v => typeof v === 'boolean');
+        if (validPosition) {
+            const point = arenaPointFor3D(fly.x, fly.y, this.assayGeometryDescriptor?.bounds);
+            if (point) this.lastPose = {xMm: point.x, yMm: point.y};
+        }
+        if (validHeading) this.lastHeading = fly.heading;
+        if (validBodyZ) this.lastBodyZ = pkt.body_position_mm[2];
+        if (validJoints) this.lastJointAngles = pkt.joint_angles_rad.slice(0, 18);
+        if (validContacts) this.lastLegContacts = pkt.leg_contacts.slice(0, 6);
 
-        const arenaW = this.arena.width || 100;
-        const arenaH = this.arena.height || 100;
-        const xMm = (fly.pos.x !== undefined ? fly.pos.x : 50) - arenaW / 2;
-        const yMm = (fly.pos.y !== undefined ? fly.pos.y : 50) - arenaH / 2;
-        const zMm = pkt.body_position_mm ? (pkt.body_position_mm[2] || 0.5) : 0.5;
-
+        const channels = [
+            ['XY', validPosition, this.lastPose !== null],
+            ['heading', validHeading, this.lastHeading !== null],
+            ['body height', validBodyZ, this.lastBodyZ !== null],
+            ['joints', validJoints, this.lastJointAngles !== null],
+            ['contacts', validContacts, this.lastLegContacts !== null]
+        ];
+        const held = channels.filter(([, current, cached]) => !current && cached).map(([name]) => name);
+        const unavailable = channels.filter(([, current, cached]) => !current && !cached).map(([name]) => name);
+        if (this.poseStatus) {
+            this.poseStatus.style.display = held.length || unavailable.length ? 'block' : 'none';
+            this.poseStatus.textContent = [
+                held.length ? `HELD: ${held.join(', ')}` : '',
+                unavailable.length ? `UNAVAILABLE: ${unavailable.join(', ')}` : ''
+            ].filter(Boolean).join(' · ');
+        }
+        const dataStatus = document.getElementById('v3dDataStatus');
+        if (dataStatus) {
+            const xyLabel = validPosition ? 'arena XY stream current'
+                : this.lastPose ? 'arena XY stream held' : 'arena XY unavailable';
+            const poseLabel = remote
+                ? `${xyLabel} + ${validBodyZ ? 'body-height model stream current' : this.lastBodyZ !== null ? 'body-height model stream held' : 'illustrative lift'}`
+                : '2D preview pose + illustrative lift';
+            const limbLabel = validJoints ? '18-DOF model stream current'
+                : this.lastJointAngles ? '18-DOF model stream held' : 'joint stream unavailable';
+            const contactLabel = validContacts ? 'contact model stream current'
+                : this.lastLegContacts ? 'contact model stream held' : 'contact stream unavailable (gray)';
+            dataStatus.textContent = `Illustrative 3D view · ${poseLabel} · ${limbLabel} · ${contactLabel} · Drag to Orbit`;
+        }
+        // A missing frame must not replace the last measured pose with made-up
+        // coordinates. If no valid pose has ever arrived, leave the mesh at its
+        // initialized position until the arena supplies one.
+        if (!this.lastPose) return;
+        const {xMm, yMm} = this.lastPose;
+        const zMm = this.lastBodyZ ?? 0.5; // Illustrative lift when no 3D body height was measured.
         this.flyGroup.position.set(xMm, zMm + 1.2, -yMm);
-
-        const heading = fly.heading !== undefined ? fly.heading : 0.0;
-        this.flyGroup.rotation.set(0, -heading + Math.PI / 2, 0);
-
-        const anglesRad = pkt.joint_angles_rad || this.synthesizeAngles();
-        const contacts = pkt.leg_contacts || this.synthesizeContacts();
+        if (this.lastHeading !== null) {
+            this.flyGroup.rotation.set(0, -this.lastHeading + Math.PI / 2, 0);
+        }
+        if (validPosition) this.applyPendingOrbitFrame();
+        const anglesRad = this.lastJointAngles;
+        const contacts = this.lastLegContacts;
 
         for (let i = 0; i < 6; i++) {
             const leg = this.legs[i];
             if (!leg) continue;
 
-            const coxaRad = anglesRad[i * 3 + 0] || 0.0;
-            const femurRad = anglesRad[i * 3 + 1] || 0.0;
-            const tibiaRad = anglesRad[i * 3 + 2] || 1.4;
-
-            leg.coxa.rotation.y = leg.baseAngle + coxaRad * 0.8;
-            leg.femur.rotation.z = leg.side * (0.35 + femurRad * 0.5);
-            leg.tibia.rotation.z = -leg.side * (0.6 + (tibiaRad - 1.4) * 0.6);
-
-            const isStance = !!contacts[i];
-            const targetColor = isStance ? 0x22c55e : 0x38bdf8;
-            leg.contactMat.color.setHex(targetColor);
-            leg.contactMat.emissive.setHex(targetColor);
-            leg.contactMat.emissiveIntensity = isStance ? 0.9 : 0.4;
+            if (anglesRad) {
+                const coxaRad = anglesRad[i * 3 + 0];
+                const femurRad = anglesRad[i * 3 + 1];
+                const tibiaRad = anglesRad[i * 3 + 2];
+                leg.coxa.rotation.y = leg.baseAngle + coxaRad * 0.8;
+                leg.femur.rotation.z = leg.side * (0.35 + femurRad * 0.5);
+                leg.tibia.rotation.z = -leg.side * (0.6 + (tibiaRad - 1.4) * 0.6);
+            }
+            if (contacts) {
+                const isStance = contacts[i];
+                const targetColor = isStance ? 0x22c55e : 0x38bdf8;
+                leg.contactMat.color.setHex(targetColor);
+                leg.contactMat.emissive.setHex(targetColor);
+                leg.contactMat.emissiveIntensity = isStance ? 0.9 : 0.4;
+            }
         }
 
-        if (this.cameraMode === 'chase') {
+        if (this.cameraMode === 'chase' && this.lastHeading !== null) {
             const chaseDist = 20.0;
             const chaseHeight = 10.0;
-            const camX = this.flyGroup.position.x - Math.cos(-heading + Math.PI / 2) * chaseDist;
-            const camZ = this.flyGroup.position.z + Math.sin(-heading + Math.PI / 2) * chaseDist;
+            const camX = this.flyGroup.position.x - Math.cos(-this.lastHeading + Math.PI / 2) * chaseDist;
+            const camZ = this.flyGroup.position.z + Math.sin(-this.lastHeading + Math.PI / 2) * chaseDist;
             const camY = this.flyGroup.position.y + chaseHeight;
 
             this.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
@@ -6511,30 +7597,6 @@ class ArticulatedFly3DViewport {
         } else if (this.controls && this.controls.enabled) {
             this.controls.update();
         }
-    }
-
-    synthesizeAngles() {
-        const t = performance.now() * 0.006;
-        const angles = [];
-        for (let i = 0; i < 6; i++) {
-            const phaseOffset = (i % 2 === 0) ? 0 : Math.PI;
-            const phase = t + phaseOffset;
-            const coxa = Math.sin(phase) * 0.15;
-            const femur = Math.sin(phase) * 0.25;
-            const tibia = 1.4 - Math.cos(phase) * 0.25;
-            angles.push(coxa, femur, tibia);
-        }
-        return angles;
-    }
-
-    synthesizeContacts() {
-        const t = performance.now() * 0.006;
-        const contacts = [];
-        for (let i = 0; i < 6; i++) {
-            const phaseOffset = (i % 2 === 0) ? 0 : Math.PI;
-            contacts.push(Math.sin(t + phaseOffset) >= 0.0);
-        }
-        return contacts;
     }
 
     render() {

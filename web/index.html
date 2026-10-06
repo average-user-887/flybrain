@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="neurofly-web-build" content="__NEUROFLY_WEB_BUILD__">
     <title>NeuroFly — Modular Sensorimotor Instrument</title>
     <style>
         :root {
@@ -260,10 +261,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .navbar-stats {
             display: flex;
+            flex-wrap: wrap;
             gap: 14px;
             font-size: 11px;
             font-family: monospace;
@@ -277,6 +281,7 @@
         .navbar-actions {
             display: flex;
             align-items: center;
+            flex-wrap: wrap;
             gap: 6px;
         }
 
@@ -333,6 +338,9 @@
             box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
         }
 
+        #customSpeed { width: 72px; cursor: text; }
+        #speedFeedback { max-width: 220px; font: 9px monospace; color: #94a3b8; }
+
         .arena-wrapper {
             flex: 1;
             position: relative;
@@ -355,6 +363,8 @@
             top: 10px;
             left: 10px;
             display: flex;
+            flex-wrap: wrap;
+            max-width: calc(100% - 20px);
             gap: 6px;
             z-index: 10;
         }
@@ -377,6 +387,19 @@
             border-color: var(--border-bright);
             color: var(--cyan-glow);
         }
+
+        button:disabled, input:disabled, select:disabled {
+            opacity: 0.45;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+        .tool-btn:disabled, .tool-btn:disabled:hover, .tool-btn:disabled.active {
+            background: rgba(15, 23, 42, 0.85);
+            border-color: #475569;
+            border-style: dashed;
+            color: #64748b;
+        }
+        .preview-control-unavailable { opacity: 0.5; cursor: not-allowed; }
 
         .arena-legend {
             position: absolute;
@@ -933,6 +956,12 @@
         #rasterCanvas[hidden] { display:none; }
         #rasterCanvas { width:100%; height:70px; background:#020617; border-radius:4px; border:1px solid rgba(168,85,247,0.25); display:block; }
         .activity-note { font-size:8.5px; color:var(--text-dim); }
+        .observation-panel { padding: 8px; border: 1px solid #334155; margin: 8px 0; font-size: 10px; overflow-wrap: anywhere; }
+        .observation-panel h4 { color: #38bdf8; margin: 0 0 6px; }
+        .observation-panel p { margin: 5px 0; }
+        .observation-record { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; padding: 5px 0; border-top: 1px solid #334155; }
+        .observation-record small { flex-basis: 100%; color: #94a3b8; }
+        .observation-status { color: #fbbf24; }
     </style>
     <link rel="stylesheet" href="training.css">
 </head>
@@ -959,7 +988,7 @@
                         <span class="badge badge-cyan">BASELINE</span>
                     </div>
                     <div class="exp-card-ref">Budick & Dickinson (2006)</div>
-                    <div class="exp-card-metric"><span>Mode: Multi-Modal Free Flight</span><span>Active</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricOpenArena">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="t-maze">
@@ -968,7 +997,7 @@
                         <span class="badge badge-amber">OLFACTION</span>
                     </div>
                     <div class="exp-card-ref">Tully & Quinn (1985)</div>
-                    <div class="exp-card-metric"><span>Metric: PI Index</span><span id="cardMetricTMaze">+0.00</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricTMaze">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="y-maze">
@@ -977,7 +1006,7 @@
                         <span class="badge badge-cyan">WORKING MEM</span>
                     </div>
                     <div class="exp-card-ref">Buchanan et al. (PNAS 2015)</div>
-                    <div class="exp-card-metric"><span>Metric: SAR Ratio</span><span id="cardMetricYMaze">+0.00</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricYMaze">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="heat-maze">
@@ -986,7 +1015,7 @@
                         <span class="badge badge-purple">CX PLACE MEM</span>
                     </div>
                     <div class="exp-card-ref">Ofstad, Zuker & Reiser (Nature 2011)</div>
-                    <div class="exp-card-metric"><span>Metric: Escape Latency</span><span id="cardMetricHeatMaze">-- ms</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricHeatMaze">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="buridan">
@@ -995,7 +1024,7 @@
                         <span class="badge badge-cyan">VISION</span>
                     </div>
                     <div class="exp-card-ref">Götz (1980); Colomb (2012)</div>
-                    <div class="exp-card-metric"><span>Metric: Centrophobism</span><span id="cardMetricBuridan">--</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricBuridan">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="visual-operant">
@@ -1004,7 +1033,7 @@
                         <span class="badge badge-amber">OPERANT</span>
                     </div>
                     <div class="exp-card-ref">Wolf & Heisenberg (1991)</div>
-                    <div class="exp-card-metric"><span>Metric: Learning Index LI</span><span id="cardMetricVisOperant">--</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricVisOperant">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="wind-tunnel">
@@ -1013,7 +1042,7 @@
                         <span class="badge badge-cyan">SURGE-CAST</span>
                     </div>
                     <div class="exp-card-ref">Alvarez-Salvado et al. (2018)</div>
-                    <div class="exp-card-metric"><span>Metric: Upwind Progress</span><span id="cardMetricWindTunnel">-- mm</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricWindTunnel">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="looming-escape">
@@ -1022,7 +1051,7 @@
                         <span class="badge badge-amber">EVASION</span>
                     </div>
                     <div class="exp-card-ref">Card & Dickinson (PNAS 2008)</div>
-                    <div class="exp-card-metric"><span>Metric: Jump TT Collision</span><span id="cardMetricLooming">-- ms</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricLooming">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="optomotor">
@@ -1031,7 +1060,7 @@
                         <span class="badge badge-cyan">EFFERENCE COPY</span>
                     </div>
                     <div class="exp-card-ref">Götz (1964); Kim et al. (2017)</div>
-                    <div class="exp-card-metric"><span>Metric: Optomotor Gain</span><span id="cardMetricOptomotor">--</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricOptomotor">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="gap-crossing">
@@ -1040,7 +1069,7 @@
                         <span class="badge badge-purple">MOTOR PLAN</span>
                     </div>
                     <div class="exp-card-ref">Pick & Strauss (2005)</div>
-                    <div class="exp-card-metric"><span>Metric: Gap Width</span><span id="cardMetricGapCrossing">3.5 mm</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricGapCrossing">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="circadian-dam">
@@ -1049,7 +1078,7 @@
                         <span class="badge badge-cyan">SLEEP/WAKE</span>
                     </div>
                     <div class="exp-card-ref">Konopka & Benzer (1971)</div>
-                    <div class="exp-card-metric"><span>Metric: Sleep Minutes</span><span id="cardMetricCircadian">0 min</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricCircadian">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="courtship">
@@ -1058,7 +1087,7 @@
                         <span class="badge badge-amber">PHEROMONE</span>
                     </div>
                     <div class="exp-card-ref">Siegel & Hall (1979)</div>
-                    <div class="exp-card-metric"><span>Metric: Courtship Index</span><span id="cardMetricCourtship">-- %</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricCourtship">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="labyrinth">
@@ -1067,7 +1096,7 @@
                         <span class="badge badge-purple">SLIDING OBSTACLE</span>
                     </div>
                     <div class="exp-card-ref">Biomimetic Complex Maze</div>
-                    <div class="exp-card-metric"><span>Metric: Path Tortuosity</span><span id="cardMetricLabyrinth">1.00</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricLabyrinth">Not selected</span></div>
                 </div>
 
                 <div class="experiment-card" data-paradigm="multisensory-sandbox" id="card-multisensory-sandbox">
@@ -1076,7 +1105,7 @@
                         <span class="badge badge-amber">BENCHMARK</span>
                     </div>
                     <div class="exp-card-ref">Multi-modal Ingress & Direct 6-Limb Deck</div>
-                    <div class="exp-card-metric"><span>Score: Benchmark Index</span><span id="cardMetricMultisensory">-- / 100</span></div>
+                    <div class="exp-card-metric"><span data-card-metric-label>Metric:</span><span id="cardMetricMultisensory">Not selected</span></div>
                 </div>
 
             </div>
@@ -1093,7 +1122,6 @@
                     <button class="lesion-btn" id="btnLesionCX">ΔCX (Compass)</button>
                     <button class="lesion-btn" id="btnLesionGF">ΔGF (Escape)</button>
                     <button class="lesion-btn" id="btnLesionJO">ΔJO (Wind)</button>
-                    <button class="lesion-btn" id="btnLesionOFF">ΔOFF (T5)</button>
                 </div>
 
                 <!-- Interactive Genotype Deficit & Biological Driver Card -->
@@ -1122,9 +1150,10 @@
              ============================================================= -->
         <div class="panel stage-column">
             <div class="top-navbar">
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                     <span style="font-weight:800; font-size:15px; color:#38bdf8; letter-spacing:0.5px;">Project NeuroFly</span>
                     <span class="badge badge-cyan" id="appVersionBadge" style="font-weight:800;" title="NeuroFly package version (pyproject.toml); replaced by the connected daemon's version">v0.3.0</span>
+                    <span class="badge" id="deliveryBadge" style="font-weight:700;color:#94a3b8;border:1px solid #334155" title="Dashboard page build and connected daemon source revision">page local source · daemon --</span>
                     <span class="badge badge-purple" id="navbarParadigmBadge">OPEN ARENA</span>
                     <button class="nav-btn" id="researchLink">Training &amp; Data</button>
                     <button class="nav-btn" id="btnReplay" title="Play a recorded run (.nfrec) at 1x in these panels">Replay</button>
@@ -1135,9 +1164,10 @@
                     <span>Sim Time: <b id="statSimTime">0.00s</b></span>
                     <span>Step: <b id="statStep">0</b></span>
                     <span>FPS: <b id="statFps" style="color:#4ade80;">60</b></span>
-                    <span>Speed: <b id="statSpeed">1.0x</b></span>
+                    <span>Requested: <b id="statSpeed">1.0x</b></span>
                     <span title="Simulation speed the daemon actually achieved (measured), versus the requested speed">Achieved: <b id="statAchieved">--</b></span>
                     <span title="Time since the last valid daemon frame was received and applied">Data age: <b id="statDataAge">--</b></span>
+                    <span title="Time since the simulation step counter last increased. Frames can keep arriving while the simulation is stopped; this cannot.">Step age: <b id="statStepAge">--</b></span>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-btn" id="btnPauseToggle">Pause</button>
@@ -1150,19 +1180,26 @@
                             <option value="3">3x</option>
                             <option value="5">5x</option>
                             <option value="10">10x</option>
+                            <option value="15">15x</option>
                             <option value="20">20x</option>
                             <option value="50">50x</option>
                             <option value="100">100x (Max)</option>
                         </select>
+                        <input class="speed-select" id="customSpeed" type="number" min="0.1" max="100" step="any" inputmode="decimal" placeholder="Custom" aria-label="Custom requested speed">
+                        <button class="nav-btn" id="btnApplyCustomSpeed" style="padding:3px 6px" title="Request this exact speed from 0.1x through 100x">Apply</button>
                     </div>
+                    <span id="speedFeedback" role="status" aria-live="polite"></span>
                     <div class="speed-control-wrap" title="Select Controller Backend">
                         <span style="font-size:9.5px;color:#94a3b8;margin:0 4px;">Controller:</span>
-                        <select id="selectBackend" class="speed-select" style="color:#22c55e;">
-                            <option value="connectome-fixed" selected>Connectome v3 Fixed (Real 166.7K)</option>
+                        <select id="selectBackend" class="speed-select" style="color:#22c55e;" disabled aria-label="Controller backend" aria-describedby="backendCommandStatus">
+                            <option value="" selected disabled>Waiting for daemon identity</option>
+                            <option value="connectome-fixed">Connectome v3 Fixed (Real 166.7K)</option>
                             <option value="connectome-plastic">Connectome Plastic (WP6 3,081)</option>
+                            <option value="connectome-with-trained-readout">Fixed graph + external trained readout (no synaptic learning)</option>
                             <option value="modular">Modular (Legacy Heuristic)</option>
                         </select>
                     </div>
+                    <span id="backendCommandStatus" role="status" aria-live="polite" aria-atomic="true" style="font-size:10px;color:#94a3b8;">Waiting for a verified live controller identity.</span>
                     <button class="nav-btn primary" id="btnResetTrial">Reset Trial</button>
                 </div>
             </div>
@@ -1175,6 +1212,7 @@
             </div>
             <div id="identityBar" role="status" style="display:flex;flex-wrap:wrap;gap:4px 12px;padding:3px 12px;color:#94a3b8;font:10px monospace;border-bottom:1px solid #1e293b">
                 <span title="Controller backend of the streamed run (provenance.BACKENDS)">Controller: <b id="identBackend" style="color:#e2e8f0">--</b></span>
+                <span title="Compute device reported by the connected daemon">Device: <b id="identDevice" style="color:#e2e8f0">--</b></span>
                 <span id="identLabel" style="flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
                 <span>Assists: <b id="identAssists">--</b></span>
                 <span title="Which controller produced the current motor command">Motor: <b id="identMotor">--</b></span>
@@ -1182,7 +1220,12 @@
                 <span title="Engineered assistance inside the graph controller (WP5: the direct DNp01 looming injection and the tonic DNb01 walking drive). OFF means nothing but the verified sensory encoder reaches the graph.">Assistance: <b id="identAssistance">--</b></span>
                 <span title="sha256 of the resolved WP5 optomotor IO map (brainlab/io_map.py, docs/WP5_OPTOMOTOR.md); -- when this run has no optomotor mapping">Opto IO map: <b id="identOptoMap">--</b></span>
                 <span id="identRun" style="cursor:help">run --</span>
-                <label title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist</label>
+                <label id="previewWallAssistLabel" title="Local preview only (illustrative, not the daemon): an engineered wall-avoidance reflex turns the preview fly away from walls. Not physics and not the brain."><input type="checkbox" id="previewWallAssist" aria-describedby="previewWallAssistNote" checked style="vertical-align:middle;margin:0 3px 0 0">Preview wall-reflex assist · <span id="previewWallAssistNote">Standalone preview only</span></label>
+            </div>
+            <div id="persistenceBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.18);border-bottom:1px solid #b45309;color:#fbbf24;font:10px monospace;font-weight:700"></div>
+            <div id="deliveryBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.18);border-bottom:1px solid #b45309;color:#fbbf24;font:10px monospace;font-weight:700;align-items:center;gap:8px">
+                <span id="deliveryBannerText" style="flex:1"></span>
+                <button class="nav-btn" id="btnReloadBuild">Reload dashboard</button>
             </div>
             <div id="identityBanner" role="alert" style="display:none;padding:4px 12px;background:rgba(245,158,11,0.14);border-bottom:1px solid #92400e;color:#fcd34d;font:10px monospace;font-weight:700"></div>
             <!-- Run replay (web/replay.js): chooser and transport bar -->
@@ -1192,6 +1235,7 @@
                     <input type="file" id="replayFileInput" accept=".nfrec,application/gzip" hidden>
                     <button class="nav-btn" id="btnReplayChooserClose">Close</button>
                 </div>
+                <p id="replayLoadError" role="alert" hidden style="color:#fca5a5;overflow-wrap:anywhere"></p>
                 <div class="replay-chooser-note">Recordings from the connected daemon (<code>neurofly record</code> or <code>--record</code>):</div>
                 <div id="replayList" class="replay-list"><i>No daemon connected.</i></div>
             </div>
@@ -1212,22 +1256,26 @@
             <!-- Main Canvas Stage -->
             <div class="arena-wrapper">
                 <div class="arena-overlay-tools">
-                    <button class="tool-btn active" id="toolSelect">Inspect Fly</button>
+                    <button class="tool-btn active" id="toolSelect" aria-pressed="true">Neutral selection</button>
                     <button class="tool-btn" id="toolFood">Drop Food (Odor A)</button>
                     <button class="tool-btn" id="toolAlarm">Alarm Pheromone (Odor B)</button>
-                    <button class="tool-btn" id="toolPredator">Deploy Threat</button>
-                    <button class="tool-btn" id="toolWind">Drag Wind</button>
+                    <button class="tool-btn" id="toolPredator">Deploy preview threat</button>
+                    <button class="tool-btn" id="toolWind">Click to set preview wind (15 mm/s)</button>
                     <button class="tool-btn" id="btnToggle3D" style="border-color:#38bdf8;color:#38bdf8;font-weight:700;">View: 2D Arena</button>
                     <button class="tool-btn" id="btnCameraMode" style="display:none;border-color:#818cf8;color:#818cf8;">Cam: Orbit</button>
+                    <p id="arenaToolHelp" role="status" aria-live="polite" style="flex-basis:100%;margin:0;padding:3px 6px;font-size:10px;color:#94a3b8;background:rgba(15,23,42,0.8);pointer-events:none;">Tools wait for current capabilities.</p>
                 </div>
 
-                <canvas id="arenaCanvas"></canvas>
-                <div id="viewport3DContainer" style="display:none; width:100%; height:100%; position:absolute; top:0; left:0; z-index:5;">
-                    <canvas id="viewport3DCanvas" style="width:100%; height:100%; display:block;"></canvas>
-                    <div id="viewport3DOverlay" style="position:absolute; bottom:12px; left:12px; background:rgba(15,23,42,0.88); border:1px solid rgba(56,189,248,0.3); border-radius:6px; padding:6px 12px; font-size:10px; color:#94a3b8; pointer-events:none; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
-                        <span style="color:#38bdf8; font-weight:700;">Three.js 3D Articulated Viewport</span> | <span id="v3dControllerTag" style="color:#22c55e; font-weight:700;">MODULAR</span><br>
-                        18-DOF FlyGym Kinematics &bull; <span style="color:#22c55e;">Green = Stance</span>, <span style="color:#38bdf8;">Blue = Swing</span> &bull; Drag to Orbit
+                <div class="arena-drawing-surface">
+                    <canvas id="arenaCanvas"></canvas>
+                    <div id="viewport3DContainer">
+                        <canvas id="viewport3DCanvas"></canvas>
                     </div>
+                </div>
+
+                <div id="viewport3DOverlay" class="viewport-3d-status" hidden>
+                    <span style="color:#38bdf8; font-weight:700;">Illustrative 3D Articulated Viewport</span> | <span id="v3dControllerTag" style="color:#22c55e; font-weight:700;">MODULAR</span><br>
+                    <span id="v3dDataStatus">Streamed model channel status loads with telemetry &bull; Gray = contact unavailable &bull; Drag to Orbit</span>
                 </div>
 
                 <div class="arena-legend">
@@ -1253,7 +1301,7 @@
                 <div class="learning-curve-box">
                     <div class="sub-header">
                         <span>Selected Assay Outcome</span>
-                        <span>Current value: <b id="currentPiVal" style="color:#38bdf8;">0.00</b></span>
+                        <span>Current value: <b id="currentPiVal" style="color:#38bdf8;">Unavailable</b></span>
                     </div>
                     <canvas id="curveCanvas"></canvas>
                 </div>
@@ -1279,7 +1327,7 @@
             <div class="deck-tabs">
                 <button class="deck-tab-btn active" id="tabGuide">Director's Guide</button>
                 <button class="deck-tab-btn" id="tabAssayTools">Assay Tools & Levers</button>
-                <button class="deck-tab-btn" id="tabLimbDeck">Limb & Neuro-Stim Deck</button>
+                <button class="deck-tab-btn" id="tabLimbDeck">Limb & Preview Controls</button>
                 <button class="deck-tab-btn" id="tabTraining">Training &amp; Data</button>
             </div>
 
@@ -1292,8 +1340,8 @@
                     <div class="training-stats">
                         <span>Completed arena trials<strong id="trainingTrials">—</strong></span>
                         <span>Simulation steps<strong id="trainingSteps">—</strong></span>
-                        <span>Weight change (L2)<strong id="trainingDelta">—</strong></span>
-                        <span>Cue A − B valence<strong id="trainingDiscrimination">—</strong></span>
+                        <span id="trainingDeltaLabel">Weight change (L2)<strong id="trainingDelta">—</strong></span>
+                        <span id="trainingDiscriminationLabel">Cue A − B valence<strong id="trainingDiscrimination">—</strong></span>
                     </div>
                     <div class="training-actions">
                         <button class="nav-btn primary" id="trainingTeach" disabled>Teach A+ / B−</button>
@@ -1314,7 +1362,7 @@
                     <p id="trainingMetric"></p>
                 </section>
                 <section class="hud-card">
-                    <h3>120 KC → 2 output synapses</h3>
+                    <h3 id="trainingWeightsTitle">120 KC → 2 output synapses</h3>
                     <svg id="trainingWeights" viewBox="0 0 560 200" role="img" aria-label="Saved mushroom body weight heatmap"></svg>
                     <p>Blue: below baseline · Amber: above baseline. Hover for exact weights. These are the daemon’s saved weights. The live cue matrix shows its current activity.</p>
                 </section>
@@ -1332,7 +1380,8 @@
                     <details><summary>Recent cohort results &amp; protocol</summary>
                         <p id="researchProtocol"></p>
                         <table><thead><tr><th>Assay / seed / round</th><th>Trained</th><th>Frozen</th></tr></thead><tbody id="researchRows"></tbody></table>
-                        <p><a href="research-status.json" style="color:#38bdf8" download>Download research summary</a> &middot; <a href="research-latest.zip" style="color:#38bdf8" download>Shareable data bundle (ZIP)</a></p>
+                        <p><a id="researchSummaryDownload" aria-disabled="true" tabindex="-1" style="color:#94a3b8;opacity:.55" download>Download research summary</a> &middot; <a id="researchBundleDownload" aria-disabled="true" tabindex="-1" style="color:#94a3b8;opacity:.55" download>Shareable data bundle (ZIP)</a></p>
+                        <p id="researchDownloadStatus" role="status" aria-live="polite">Optional downloads unavailable until verified from the connected daemon.</p>
                     </details>
                 </section>
                 <section class="hud-card"><h3>Independent brain activity</h3><div id="trainingBrains"></div></section>
@@ -1345,24 +1394,16 @@
                 <!-- Populated dynamically by app.js renderAssayTools(paradigmId) -->
             </div>
 
-            <!-- TAB 2: INTERACTIVE LIMB & NEURO-STIMULATION CONTROL DECK -->
+            <!-- TAB 2: LIMB READOUTS & STANDALONE PREVIEW CONTROLS -->
             <div class="limb-deck-panel" id="limbDeckPanel">
                 
-                <!-- Control Mode Banner -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); border:1px solid var(--border-dim); border-radius:6px; padding:6px 10px;">
-                    <div>
-                        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase;">Control Mode</div>
-                        <div id="labelControlMode" style="font-weight:800; font-size:11px; color:#4ade80;">AUTONOMOUS BRAIN</div>
-                    </div>
-                    <button class="nav-btn primary" id="btnToggleManualControl" style="padding:4px 8px; font-size:9.5px;">Enable Manual Stim</button>
-                </div>
-
                 <!-- Benchmark Scorecard -->
                 <div class="hud-card">
                     <div class="hud-card-header">
-                        <span>Benchmark Scorecard</span>
+                        <span>Sandbox Body Proxy</span>
                         <span id="deckCompositeScore" style="color:#38bdf8; font-family:monospace; font-size:12px;">-- / 100</span>
                     </div>
+                    <div id="deckScorecardSource" style="color:#94a3b8;font-size:8.5px;">Unavailable · heuristic body proxy; not learned biological validation.</div>
                     <div class="scorecard-grid">
                         <div class="score-card">
                             <span style="color:#94a3b8; font-size:8.5px;">Tripod Coordination</span>
@@ -1383,64 +1424,30 @@
                     </div>
                 </div>
 
-                <!-- Direct Neuro-Stimulation Sliders -->
+                <!-- Standalone preview cadence -->
                 <div class="hud-card">
                     <div class="hud-card-header">
-                        <span>Direct Premotor Neuro-Stimulation</span>
-                        <span style="color:#fbbf24; font-size:8.5px;">OVERRIDE DECK</span>
+                        <span>Standalone preview cadence</span>
+                        <span style="color:#fbbf24; font-size:8.5px;">PREVIEW ONLY</span>
                     </div>
 
                     <div class="param-slider-row">
                         <div class="slider-header">
-                            <span>DNa02 Steering Yaw (Left ↔ Right)</span>
-                            <span><b id="valStimDna02">0.00</b> rad/s</span>
-                        </div>
-                        <input type="range" id="sliderStimDna02" min="-1.0" max="1.0" step="0.05" value="0">
-                    </div>
-
-                    <div class="param-slider-row">
-                        <div class="slider-header">
-                            <span>DNp09 Pursuit Thrust (Forward)</span>
-                            <span><b id="valStimThrust">0</b> %</span>
-                        </div>
-                        <input type="range" id="sliderStimThrust" min="0" max="100" step="5" value="0">
-                    </div>
-
-                    <div class="param-slider-row">
-                        <div class="slider-header">
-                            <span>MDN Moonwalker Reverse (Backward)</span>
-                            <span><b id="valStimMdn">0</b> %</span>
-                        </div>
-                        <input type="range" id="sliderStimMdn" min="0" max="100" step="5" value="0">
-                    </div>
-
-                    <div class="param-slider-row">
-                        <div class="slider-header">
-                            <span>CPG Cadence Override</span>
+                            <span>Preview CPG Cadence</span>
                             <span><b id="valStimCpg">8.5</b> Hz</span>
                         </div>
                         <input type="range" id="sliderStimCpg" min="3.0" max="14.0" step="0.5" value="8.5">
                     </div>
-
-                    <div class="param-slider-row">
-                        <div class="slider-header">
-                            <span>Wing Extension Angle (Song)</span>
-                            <span><b id="valStimWing">0</b> °</span>
-                        </div>
-                        <input type="range" id="sliderStimWing" min="0" max="90" step="5" value="0">
-                    </div>
                 </div>
 
-                <!-- Sensory Flash Triggers -->
+                <!-- Standalone preview actions -->
                 <div class="hud-card">
                     <div class="hud-card-header">
-                        <span>Instant Sensory Ingress Flares</span>
+                        <span>Standalone preview actions</span>
                     </div>
                     <div class="stim-btn-row">
-                        <button class="stim-btn danger" id="btnFlareGf">Trigger GF Looming</button>
-                        <button class="stim-btn danger" id="btnFlareHeat">Thermal Flash (38°C)</button>
-                        <button class="stim-btn" id="btnFlareOdor">Food Odor Puff</button>
-                        <button class="stim-btn" id="btnFlareWind">Anemotaxic Wind Gust</button>
+                        <button class="stim-btn danger" id="btnFlareGf">Trigger preview GF escape</button>
+                        <button class="stim-btn" id="btnFlareWind">Preview wind gust (2 seconds)</button>
                     </div>
                 </div>
 
@@ -1619,11 +1626,12 @@
             </div> <!-- end guideTabContent -->
 
             <!-- B. Mushroom Body Electrophysiology (120 KCs) -->
-            <div class="hud-card">
+            <div class="hud-card" id="mushroomBodyPanel">
                 <div class="hud-card-header">
-                    <span>[1] Mushroom Body (120 KCs)</span>
+                    <span id="mushroomBodyPanelTitle">[1] Mushroom Body (120 KCs · modular controller)</span>
                     <span id="valKcActive" style="color:var(--cyan-glow); font-family:monospace;">0 / 120</span>
                 </div>
+                <p id="mushroomBodyPanelReason" style="margin:0 0 4px;color:#94a3b8;font-size:9px;">Measured from the active modular controller.</p>
                 <canvas id="kcCanvas"></canvas>
                 <div class="valence-scale">
                     <div class="valence-needle" id="valNeedle"></div>
@@ -1659,7 +1667,7 @@
             <!-- D. Kuramoto-Hopf Tripod Gait CPG -->
             <div class="hud-card">
                 <div class="hud-card-header">
-                    <span>[3] Kuramoto Tripod Gait (ΔΦ = π)</span>
+                    <span id="gaitPanelTitle">[3] Kuramoto tripod gait · modular model</span>
                     <span id="valCpgFreq" style="color:var(--green-glow); font-family:monospace;">8.0 Hz</span>
                 </div>
                 <div class="legs-grid">
@@ -1691,6 +1699,10 @@
     <script src="vendor/three.min.js"></script>
     <script src="vendor/OrbitControls.js"></script>
     <script src="live_assays.js"></script>
+    <script src="metric_records.js"></script>
+    <script src="observation_display.js"></script>
+    <script src="observation_renderer.js"></script>
+    <script src="assay_cues_3d.js"></script>
     <script src="app.js"></script>
     <script src="replay.js"></script>
     <script src="training.js"></script>
@@ -1770,12 +1782,6 @@
                                 <td><i>tilB</i> / <i>nompA</i> / <i>JO-GAL4</i></td>
                                 <td>Johnston's organ antennal mechanoreceptors</td>
                                 <td><b>Loss of anemotaxis & hearing:</b> Fails upwind surge-cast tracking in wind tunnel, deaf to courtship songs.</td>
-                            </tr>
-                            <tr>
-                                <td><b style="color:#38bdf8;">ΔOFF (T5)</b></td>
-                                <td><i>T5-split-GAL4 > UAS-Kir2.1</i></td>
-                                <td>T5 dark-edge motion columnar interneurons</td>
-                                <td><b>Motion blindness to dark edges:</b> Fails optomotor gaze stabilization during dark grating rotation.</td>
                             </tr>
                         </tbody>
                     </table>

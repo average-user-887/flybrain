@@ -30,6 +30,9 @@ test = ["pytest", "brian2"]
 # driver for CUDA 12 or newer, no CUDA toolkit. About 3 GB. Do not add numba-cuda: its
 # 0.30.x releases do not work with numpy 2.5 (the engine detects that and ignores it).
 gpu = ["cupy-cuda12x[ctk]>=13", "scipy"]
+# Optional explicit AMD/Vulkan fixed-v3 compute. CPU/default installations do
+# not import wgpu. Device/runtime acceptance is separate from installation.
+amd = ["wgpu==0.32.0"]
 # Real-browser dashboard checks (scripts/live_ui_signoff.py, tests/test_browser_recovery.py).
 # Also needs Firefox and geckodriver from the system (not installable with pip).
 browser-test = ["selenium>=4"]
@@ -38,7 +41,7 @@ browser-test = ["selenium>=4"]
 neurofly = "neurofly.cli:main"
 
 [tool.setuptools]
-packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms"]
+packages = ["neurofly", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms", "web"]
 py-modules = [
     "arena",
     "assay_controls",
@@ -58,6 +61,8 @@ py-modules = [
     "metabolic",
     "neurofly_daemon",
     "online_metrics",
+    "observation_envelopes",
+    "observation_publication",
     "provenance",
     "stream_gateway",
     "surge_cast",
@@ -65,7 +70,8 @@ py-modules = [
 ]
 
 [tool.setuptools.package-data]
-brainlab = ["datasets.json", "graph_pins.json"]
+web = ["*.html", "*.js", "*.css", "vendor/*.js"]
+brainlab = ["datasets.json", "graph_pins.json", "wgpu_v3_math.wgsl"]
 validation = ["specs/*.json", "specs/sources/*.json"]
 experiments = ["data/*.csv", "data/*.json", "data/*.md"]
 

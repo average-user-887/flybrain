@@ -24,8 +24,10 @@ v3 weights themselves (``SharedGraph.load_for_dynamics``).
 ``backend`` selects where v3 runs: ``'cuda'`` (NVIDIA GPU via
 ``brainlab.cuda_engine``), ``'cpu'`` (the numba reference kernel) or ``'auto'``,
 the default, which uses the GPU for v3 when a CUDA device is usable and the CPU
-otherwise.  ``NEUROFLY_BRAIN_BACKEND`` overrides the default process-wide.  The
-GPU matches the CPU within the model's own float-rounding sensitivity
+otherwise.  Explicit ``'wgpu-amd'`` selects the optional fixed-baseline v3 adapter;
+it is never selected by auto and makes no runtime/performance qualification claim.
+``NEUROFLY_BRAIN_BACKEND`` overrides the default process-wide.  The CUDA path
+matches the CPU within the model's own float-rounding sensitivity
 (``scripts/gpu_parity.py``); v1 and v2 always run on the CPU.  They are not interchangeable and their
 checkpoints are mutually refused: v1's synaptic state array has a different
 shape, and every snapshot carries its dynamics version explicitly.
@@ -60,7 +62,7 @@ GRADED_VERSIONS = ('v4', 'v5')
 
 
 def resolve_backend(dynamics: str, backend=None) -> str:
-    """Where a Brain with these dynamics runs: 'cuda' or 'cpu' (or an explicit request).
+    """Resolve cpu/cuda auto policy, or preserve an explicit backend request.
 
     ``backend`` (else ``NEUROFLY_BRAIN_BACKEND``, else ``'auto'``).  ``'auto'``
     uses the GPU when a usable CUDA build exists for the dynamics: CuPy for the
@@ -129,6 +131,13 @@ def _v3_policy_weight(arrays: dict) -> np.ndarray:
 
 
 class Brain:
+    def compute_identity(self):
+        """Cached identity/health of the actual AMD engine; no device probing."""
+        if self.backend == 'wgpu-amd':
+            return dict(adapter=self._gpu.device_info, state=self._gpu.status,
+                        capabilities=dict(self._gpu.capabilities))
+        return {}
+
     def _state_arrays(self):
         return STATE_ARRAYS_V4 if self.dynamics in GRADED_VERSIONS else STATE_ARRAYS
 
@@ -154,6 +163,9 @@ class Brain:
         """
         self._gpu = None
         self.dynamics = dynamics or active_dynamics_version()
+        requested = backend or os.environ.get('NEUROFLY_BRAIN_BACKEND', 'auto')
+        if requested == 'wgpu-amd' and self.dynamics != 'v3':
+            raise ValueError('The explicit wgpu-amd backend supports baseline v3 only')
         if self.dynamics not in DYNAMICS_VERSIONS:
             raise ValueError(f'Unknown dynamics version {self.dynamics!r}; '
                              f'declared: {sorted(DYNAMICS_VERSIONS)}')
@@ -175,6 +187,8 @@ class Brain:
         # Declared, derived, not fitted (docs/LIF_DYNAMICS_SPEC.md §4.2).
         self.g_unit_exc = float(G_UNIT_EXC_V3)
         self.g_unit_inh = float(1.0 / (V_REST_MV - self.e_inh_mV))
+        if requested == 'wgpu-amd' and (self.e_inh_mV, self.g_unit_exc, self.g_unit_inh) != (-70., 1/52, 1/18):
+            raise ValueError('The explicit wgpu-amd backend supports baseline v3 constants only')
         if (path is None) == (arrays is None):
             raise ValueError('Provide exactly one of path or arrays')
         if arrays is None:
@@ -266,7 +280,11 @@ class Brain:
             log.info('brainlab: LIF %s running on the %s backend', self.dynamics, self.backend.upper())
 
     def _setup_device(self):
-        if self.backend == 'cuda' and self.dynamics == 'v5':
+        if self.backend == 'wgpu-amd':
+            from .amd_state_adapter import AmdV3StateAdapter
+            self._gpu = AmdV3StateAdapter(self.ptr, self.post, self.weight, n=self.n)
+            self._upload_gpu_state()
+        elif self.backend == 'cuda' and self.dynamics == 'v5':
             from .cupy_v5 import CupyV5State
             self._gpu = CupyV5State(self.ptr, self.post, self.weight, n=self.n,
                                     e_inh=self.e_inh_mV, g_unit_exc=self.g_unit_exc,
@@ -301,17 +319,28 @@ class Brain:
                                    self.queue_count, self.counts, self.active_flag)
             self._refresh_weight_view()
         elif self.backend != 'cpu':
-            raise ValueError(f"Unknown brain backend {self.backend!r}; choose 'cpu' or 'cuda'")
+            raise ValueError(f"Unknown brain backend {self.backend!r}; choose 'cpu', 'cuda' or 'wgpu-amd'")
+
+    def compute_capabilities(self):
+        """State/weight facts only; controller learning policy belongs to the registry."""
+        if self.backend == 'wgpu-amd':
+            return dict(self._gpu.capabilities)
+        return dict(dynamics=self.dynamics, weight_mutation=True, full_transient_checkpoint=True)
 
     @property
     def weight(self):
         """Edge weights.  Read-only on the CUDA backend: the device copy is
         authoritative, so change weights by assigning a new array or with
-        ``set_edge_weights`` / ``update_weights`` rather than editing in place."""
+        ``set_edge_weights`` / ``update_weights`` rather than editing in place.
+        AMD weights are detached/read-only and all mutation paths are refused."""
+        if self._gpu is not None and self.backend == 'wgpu-amd':
+            return self._gpu.weight
         return self._weight_view if self._gpu is not None else self._weight
 
     @weight.setter
     def weight(self, value):
+        if self._gpu is not None and self.backend == 'wgpu-amd':
+            self._gpu.set_weights(value)  # refuses before host assignment
         self._weight = value
         if self._gpu is not None:
             self._gpu.set_weights(value)
@@ -323,6 +352,8 @@ class Brain:
 
     def set_edge_weights(self, edges, values):
         """Write ``values`` into ``weight[edges]`` on the host and, if active, the GPU."""
+        if self._gpu is not None and self.backend == 'wgpu-amd':
+            self._gpu.set_edge_weights(edges, values)  # refuses before copy/write
         if not self._weight.flags.writeable:
             self._weight = self._weight.copy()
             if self._gpu is not None:
@@ -334,6 +365,8 @@ class Brain:
         """Push ``weight[edges]`` to the GPU after the caller edited the array it
         assigned to ``weight`` (a no-op on the CPU backend)."""
         if self._gpu is not None:
+            if self.backend == 'wgpu-amd':
+                self._gpu.update_weights(edges)  # fixed-weight refusal
             edges = np.asarray(edges, dtype=np.int64)
             self._gpu.update_edges(edges, self._weight[edges])
 
@@ -358,6 +391,12 @@ class Brain:
         conductances, refractory counters, delay queue and active set, clocks
         at zero.  On the CUDA backend the device copy is reset too, so a reset
         brain replays exactly like a freshly built one."""
+        if self.backend == 'wgpu-amd':
+            if v_rest_mV != -52.0:
+                raise ValueError('The wgpu-amd reset supports baseline rest -52 mV only')
+            self._gpu.reset_state()
+            self._sync_from_gpu()
+            return
         self.v.fill(v_rest_mV)
         for name in self._state_arrays():
             if name != 'v':
@@ -369,6 +408,12 @@ class Brain:
         self.sim_ms = 0.0
 
     def restore_state(self, state):
+        if self.backend == 'wgpu-amd':
+            # Adapter stages/validates every array, active order and all clocks
+            # before writes. Host arrays change only after a verified readback.
+            self._gpu.restore_state(state)
+            self._sync_from_gpu()
+            return
         # v2 and v3 share the (2, n) synaptic state shape, so the shape check
         # below cannot separate them: the version is carried explicitly.  A
         # checkpoint written before this field existed carries no claim and
@@ -421,6 +466,13 @@ class Brain:
         steps = round(duration_ms / self.dt)
         if steps < 1 or not math.isclose(steps*self.dt, duration_ms, abs_tol=1e-9):
             raise ValueError('Duration must be a multiple of 0.1 ms')
+        if self.backend == 'wgpu-amd':
+            counts, elapsed = self._gpu.step(drive, duration_ms)
+            self.counts[:] = counts
+            self.cursor += steps
+            self.total_spikes += int(counts.astype(np.int64).sum())
+            self.sim_ms += steps * self.dt
+            return counts, elapsed
         if self._gpu is not None:
             clock = time.perf_counter()
             self.cursor = self._gpu.advance(drive, self.cursor, steps, self.counts)
@@ -468,7 +520,12 @@ class Brain:
         return self.counts.copy(), elapsed
 
     def _upload_gpu_state(self):
-        if self.dynamics in GRADED_VERSIONS:
+        if self.backend == 'wgpu-amd':
+            state = {name: getattr(self, name) for name in STATE_ARRAYS}
+            state.update(cursor=self.cursor, total_spikes=self.total_spikes,
+                         sim_ms=self.sim_ms, dynamics=self.dynamics)
+            self._gpu.restore_state(state)
+        elif self.dynamics in GRADED_VERSIONS:
             self._gpu.upload_state(self.v, self.g, self.refractory, self.queue,
                                    self.queue_count, self.counts, self.active_flag,
                                    self.rel_ring)
@@ -493,6 +550,14 @@ class Brain:
     def _sync_from_gpu(self):
         """Copy device state into the host arrays (CPU layout, for snapshots and probes)."""
         if self._gpu is None:
+            return
+        if self.backend == 'wgpu-amd':
+            state = self._gpu.snapshot_state()
+            # Full validated snapshot, including the exact active order/tail.
+            for name in STATE_ARRAYS:
+                getattr(self, name)[:] = state[name]
+            for name in STATE_SCALARS:
+                setattr(self, name, state[name])
             return
         if self.dynamics in GRADED_VERSIONS:
             self._gpu.download_state(self.v, self.g, self.refractory, self.queue,

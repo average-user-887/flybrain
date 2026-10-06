@@ -31,7 +31,7 @@ Every line is one JSON object. Every record carries:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `type` | string | `"trial"`, `"telemetry_summary"` |
+| `type` | string | `"trial"`, `"observation"`, `"telemetry_summary"` |
 | `schema_version` | int | `1` |
 | `session_id` | string | `<UTC YYYYMMDDTHHMMSS>-<pid>-<6 hex>`; identifies one daemon start |
 | `recorded_at` | float | Unix seconds when the line was written (wall clock) |
@@ -81,6 +81,77 @@ common header are copied verbatim from the runner:
 Because `trial` restarts per session, the unique key of a trial is
 `(session_id, trial)`. Within a session a trial number is written at most
 once, even if the runner's in-memory ledger is truncated or re-read.
+
+## `trials.jsonl` (`type: "observation"`)
+
+`LearningRecorder.record_observation` is the strict journal API for
+metric-contract/1.2 terminal envelopes. The recorder thread reaches it through
+the runner-owned publication queue. It accepts the immutable envelope
+itself, never a mutable `last_terminal` wrapper or a live provisional snapshot.
+The full key is `(daemon_run_id, run_id, instance_id, segment_id,
+presentation_id)`; integer trial numbers do not participate, so multiple
+presentations in one trial remain distinct.
+
+The row stores `observation_key` plus the complete validated envelope in
+`observation`. Header timestamps and recorder-session fields are outside the
+immutable payload comparison. A successful receipt includes the full key,
+canonical payload SHA-256 and physical file/line/byte location. It is returned
+only after the complete line, file and any creation/rotation directory entry
+are synced. A same-key, same-payload retry re-scans and re-syncs the existing
+line; a different payload conflicts. Partial or malformed ledger tails are
+reported without truncation or repair.
+
+The supported ownership model is one `LearningRecorder`, drained by one
+`RecorderThread`, per data directory. The recorder takes a nonblocking,
+OS-backed exclusive lock on the stable `.neurofly-recorder.lock` sidecar before
+it opens writers or changes session/journal files, and holds it until `close()`.
+Direct observation calls on that recorder share the trials-writer lock. A
+second recorder instance or process for the same resolved directory fails
+before session/journal mutation; a clean close or process exit releases the
+kernel lock. Recorder objects inherited across a process fork are rejected.
+
+## Live metric-contract/1.2 telemetry
+
+Every live telemetry packet carries two separate objects:
+
+- `observation` is a detached, validated provisional schema 1.2 envelope. Its
+  identity includes the actual daemon run, manifest run, controller instance,
+  activation, assay, backend and retained `brain_id`. `segment_id` and
+  `segment_start_sim_s` bind its relative producer clocks to daemon simulation
+  time. Live records have `final: false`, no completion receipt and no terminal
+  pose.
+- `observation_lifecycle` is mutable runtime status. It reports the current
+  producer status, segment origin, durability availability and the requested
+  CLI policy. In `--continuous` mode an explicit `--trial-seconds` remains
+  visible here as requested but unused; the canonical producer config retains
+  the contract's continuous policy. Its `phase` is `observing`, `hold`,
+  `waiting_for_save`, `measurement_ended`, or `durable_transition_blocked`.
+  A captured terminal summary exposes its full observation key, canonical
+  payload digest, capture step and whether the exact durable receipt arrived.
+  Hold ticks continue to advance the producer clock without changing the
+  already frozen payload. Once the hold closes, `waiting_for_save` prevents a
+  new presentation or segment until that terminal's exact receipt is durable.
+
+`observation_publication` remains the separate persistence view. A pending
+candidate is not `last_terminal`; that field appears only with the exact durable
+journal receipt. Mutable lifecycle fields are never inserted into the immutable
+observation payload.
+
+Its durability view also reports the recorder's background-thread state,
+progress age, and active write name/age. A recorder that exits after it was
+started has a 2-second startup/death grace. A live poll loop gets its configured
+poll interval plus 2 seconds to report progress while no simulator step or
+command is in progress. A recorder write that has not returned for 30 seconds
+is considered stuck. The watchdog treats these conditions as required-save
+failures in scientific mode: the run becomes incomplete and halts, while the
+queued frozen terminal and writer ownership remain intact. Recorders attached
+only for synchronous/manual polling have not been started and are therefore
+outside this background-thread watchdog. Each watchdog episode remains in a
+bounded diagnostic history. A late write receipt does not clear its halt; an
+explicit recovery rearms the watchdog only after the same recorder is alive,
+inside its progress bound and no longer writing. Exploratory mode resolves its
+episode after independently observed healthy progress and does not duplicate
+the same active failure on every watchdog tick.
 
 ## `telemetry_summary.jsonl` (`type: "telemetry_summary"`)
 
@@ -186,6 +257,76 @@ SSE `heartbeat` events carry `step_in_progress_s` (wall seconds the current step
 has run, 0 between steps) and `last_step_wall_s`; `timing` in frames and
 `/api/status` carries the same two fields.
 
+### Liveness and saving (`status`, `liveness`, `persistence`, `recording_error`)
+
+Added after audit F (docs/receipts/audit-20261005/F-robustness.md), where the
+simulation thread died on a full disk while `/api/status` still said `online`.
+`/api/status`, every stream frame and every SSE `heartbeat` (which also carries
+`step`, `paused`, `halted` and `error`) report whether the simulation advances and
+whether it saves:
+
+After an unexpected simulation-loop exit, status and heartbeats additionally carry
+`observation_validity_update`: a detached `neurofly-observation-validity-update/1`
+notice with full `identity` (including `brain_id`), `segment_id`,
+`validity` (`invalidated`, or `exploratory_degraded` in exploratory mode), and
+`reason: unexpected_loop_exit`. No new engine observation or pose is sampled.
+Heartbeats carry `identity`, `brain_id` and `segment_id` from a completed packet
+or this notice. The dashboard rejects qualified heartbeats from another owner
+or segment, including one superseded by an acknowledged switch. A matching
+notice downgrades the live display and labels its values as the last pre-fault
+frame; it does not alter recorded frames, metric values or saved terminals.
+A verified rebuild uses normal new-owner frames; prior incomplete-run evidence remains.
+
+| field | meaning |
+|---|---|
+| `status` | `error` (halted -- including a run stopped by a failed required save --, stalled or the simulation thread is dead), else `degraded` (exploratory mode not saving, or a diagnostic log failing), else `online`. A paused run is `online` with `paused: true` |
+| `mode` | `scientific` (default) or `exploratory` (`--exploratory`) |
+| `result_validity` | `run_id`, `state` (`valid_so_far` or `incomplete`), `incidents` (append-only: `reason` such as `required_save_failed`, `not_saved_exploratory_gap`, `compute_failure_while_saving`, `halted_step`, `halted_device`, `interrupted_unclean_shutdown`; `channel`, `failure_class`, `error`, `errno`, `step`, `at`, `gap_open`, `recovered_at`, `recovered_step`), `other_runs_incomplete`, `unwritten_records`. Also kept in `<output-dir>/run_validity.jsonl` (append-only; it also records `session_start`, `activate` and a clean `session_end`). On activation a run reloads its incidents from that ledger (malformed lines are skipped and counted), and a run that was active in a session without a clean end gets an `interrupted_unclean_shutdown` incident, so a crash never returns a run to valid |
+| `liveness.state` | `advancing`, `paused`, `halted`, `slow` (one step has run > 2 s), `stalled` (no step for longer than `stall_threshold_s` while it should step, or one step longer than `step_hard_limit_s`), `dead` (the simulation thread has ended), `not_started`, `stopped` |
+| `liveness.step`, `last_advance_age_s` | the step counter and the wall seconds since it last increased |
+| `liveness.sim_thread_alive` | whether the simulation thread runs |
+| `liveness.stall_threshold_s` | `max(10 s, 20 x dt / speed, 3 x last_step_wall_s)` |
+| `persistence.state` | `ok`, `failing` (a write raised) or `disk_low` (free space below 2 x the last checkpoint + 512 MB, so the checkpoint was skipped before the disk filled) |
+| `persistence.failing` | per channel: required `checkpoint`, `brain_save`, `trial_ledger`, `events_ledger`, `recording`, `learning_records`, `provenance`; diagnostic `telemetry_summary`, `halt_log`. Each: `error`, `errno`, `failure_class` (`persistence` / `compute` / `software`), `required`, `path`, `since`, `failures`, `backoff_s`, `next_retry_at` |
+| `persistence.reason`, `summary`, `since` | `"disk full"` when any channel failed with ENOSPC or is `disk_low` |
+| `persistence.last_ok_save_at`, `last_ok_save_age_s` | the last checkpoint that was written |
+| `recording_error` | a `--record` / `record_start` capture that failed: the recording stopped and is INVALID (its `.partial` file is kept); the run stops (scientific mode) or continues (exploratory) |
+
+After a requested raw recording fails in scientific mode, selecting or resetting
+an assay cannot remove the recording obligation or resume without a writer.
+Repairing storage and writing a healthy checkpoint alone is insufficient. Use
+`record_start` with a **new name** to create a replacement that successfully
+captures its initial frame, then select the assay to recover. Alternatively stop
+and restart the daemon with `--record NEW_NAME` and the **same saved-brain output
+directory**. The failed filename/prefix is preserved and cannot be reused. The
+failed run remains incomplete; a fresh run has its own validity history.
+`recording_error.run_id` identifies that failed capture's run, and its message
+describes artifact/history facts. Current execution state comes from `halted`
+and `liveness`, not a frozen recording message. Unrecorded scientific runs do not
+require raw recording; exploratory mode retains visible unsaved continuation.
+
+`/api/status` also has `loop_failure` (type, message, phase and traceback tail of
+whatever ended the simulation thread) and `thread_failures` (uncaught exceptions
+in any `NeuroFly-*` thread, recorded by a `threading.excepthook` backstop).
+With status `dead`, `halted` is true and `error` starts with
+`simulation thread stopped:`; `POST /api/command` then refuses everything except
+`switch_paradigm` / `switch_backend`, whose success restarts the thread (the reply
+has `loop_restarted: true`). `timing.achieved_speed` is computed when it is read,
+from the steps of the last few seconds, so it drops to 0 when nothing advances.
+
+An exception anywhere in the simulation loop (not only inside `arena.step`) is an
+honest halt whose `error_detail.phase` names where it happened (`step`, `publish`
+after 3 consecutive failed frames, `trial bookkeeping`, `command`, `persistence`,
+`device`) and whose `error_detail.failure_class` is `persistence` (a storage error
+on a required save: the run stops, scientific mode), `compute` (CUDA/CuPy, memory or
+NaN/inf state: always halts) or `software` (any other error: halts). In
+`--exploratory` mode a storage error on a required save does not halt: the run keeps
+stepping with `status: "degraded"`, the checkpoint is retried after 30 s, doubling to
+at most 10 minutes, and the gap is an incident. A save-failure halt is lifted only by a
+switch whose recovery checkpoint succeeds. These health fields are wall-clock state and
+are not part of `.nfrec` recordings; `neurofly record` returns `status` `complete`,
+`incomplete` or `invalid` and exits non-zero unless complete.
+
 ### Identity (`identity`, also in `/api/status`, the ack and exports)
 
 Compact form of the run manifest (`provenance.RunManifest.identity()`):
@@ -204,6 +345,25 @@ Compact form of the run manifest (`provenance.RunManifest.identity()`):
 | `activation` | int | switch counter of this daemon process; increases on every activation |
 | `daemon_run_id` | string | equals the packet's top-level `run_id` |
 
+Graph run manifests also carry `graph_io` (`version`, `sha256`). A linked run
+created with `--continue-io-state` adds `lineage`: the parent run and instance,
+the exact validated parent checkpoint version/step/SHA-256, prior and new I/O
+identities, explicit continuation choice, inherited validity and interventions
+with source-run attribution, and the method-change interventions. Unknown legacy
+validity is recorded as incomplete evidence; it is never presented as pristine.
+
+The graph registry v2 index adds `current_instances`, keyed by
+`<assay>|<backend>`. Every historical entry remains in `instances`; selection
+uses the explicit current ID. Registry v1 is accepted for migration, then
+upgraded atomically on the first compatible selection or linked migration.
+Readers that only understand registry v1 must reject v2 instead of selecting
+the first historical entry.
+
+If an existing graph run has a missing or different I/O identity, startup
+refuses before migration writes and prints the deliberate continuation option:
+`--continue-io-state`. That option validates a retained checkpoint and publishes
+a new child store/run. It never relabels or overwrites the parent.
+
 Stale packets: after a switch ack, a consumer rejects packets from the same
 daemon process (`run_id == ack.identity.daemon_run_id`) whose
 `identity.activation` is lower than the ack's, or equal with a different
@@ -212,6 +372,22 @@ daemon process (`run_id == ack.identity.daemon_run_id`) whose
 switched later) and a restarted daemon are accepted.
 
 ### Motor provenance (`motor`, `controller_fault`)
+
+Graph controller replies identify their effective input/output method with
+`graph_io.version` and `graph_io.sha256`. `input_stage` lists each enabled probe,
+its biological entry stage, injected current, resolved cell count and observed
+spiking for the step. `decoder` states the active DN-to-motor equations.
+
+`dn_rates` uses JSON `null` when a requested DN pool has no resolved neurons;
+`dn_unavailable` gives the corresponding reason. The decoder still receives a
+numeric 0 Hz for that absent pool so its numerical behavior remains defined.
+
+For graph runs, `connectome.raw_motor_command` is the direct decoder output.
+`motor.record.raw_motor_command` repeats it beside `applied_motor_command`, the
+command after arena primitives and wall steering, and
+`engineered_motor_primitive`. A DNp01 graph spike decodes to a raw 35 mm/s
+`ESCAPE`; the arena records the bounded escape primitive that applies 3.5 mm/s
+for 0.2 s. When no primitive is active, `engineered_motor_primitive` is `null`.
 
 | Field | Type | Meaning |
 | --- | --- | --- |

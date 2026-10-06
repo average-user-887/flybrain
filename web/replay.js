@@ -13,7 +13,8 @@
     'use strict';
 
     const FORMAT = 'neurofly-run-recording';
-    const VERSION = 1;
+    const READABLE_VERSIONS = [1, 2];
+    const IDENTITY_NAMESPACE = 'recording-local/1';
     const PATH_STEPS = 240;          // same trail window the daemon sends live
     const RASTER_FRAMES = 200;       // raster columns kept (4 s at 20 ms frames)
 
@@ -64,7 +65,9 @@
             start = i + 1;
         }
         if (!header || header.format !== FORMAT) throw new Error('missing neurofly-run-recording header');
-        if (header.version !== VERSION) throw new Error(`unsupported recording version ${header.version}`);
+        if (!READABLE_VERSIONS.includes(header.version)) throw new Error(`unsupported recording version ${header.version}`);
+        if (header.version === 2 && header.projection?.identity_namespace !== IDENTITY_NAMESPACE)
+            throw new Error('unsupported recording identity namespace');
         if (!end) throw new Error('recording is incomplete (no end record)');
         if (end.frames !== frames.length) throw new Error(`end record says ${end.frames} frames, file has ${frames.length}`);
         if (!frames.length) throw new Error('recording has no frames');
@@ -198,7 +201,7 @@
             const prov = rec.header.provenance || {};
             bridge.enterReplay(`${prov.assay || '?'} · ${name}`);
             bridge.manifest = {replay: true, recording: name, header: rec.header};
-            bridge.manifestRunId = this.identity.run_id;
+            bridge.manifestRunId = this.identity?.run_id || null;
             ActivityPanel.reset();
             this.playhead = this.times[0];
             this.applied = -1;
@@ -211,7 +214,8 @@
         buildIdentity() {
             const h = this.rec.header, prov = h.provenance || {}, graph = prov.graph || {};
             const digest = (this.rec.end.frames_sha256 || '').slice(0, 12);
-            this.identity = {
+            this.identity = h.version === 2
+                ? JSON.parse(JSON.stringify(this.rec.frames[0].identity ?? null)) : {
                 run_id: `recording-${digest}`, instance_id: 'recording', assay: prov.assay, backend: prov.backend,
                 controller_version: prov.controller_version, graph_sha256: graph.graph_sha256 || null,
                 neuron_map_sha256: graph.neuron_map_sha256 || null, io_map_sha256: graph.io_map_sha256 || null,
@@ -237,8 +241,14 @@
             path.reverse();
             const dt = this.rec.header.provenance?.params?.dt_s ?? 0.02;
             const stepsInFrame = index > 0 ? f.step - this.rec.frames[index - 1].step : 0;
-            const pkt = Object.assign({}, f, {
-                type: 'telemetry', run_id: this.identity.run_id, brain_id: 'recording', identity: this.identity,
+            // Detached replay packets cannot alter frozen frame hashes or source proof.
+            const recorded = JSON.parse(JSON.stringify(f));
+            const local = this.rec.header.version === 2;
+            const identity = local ? recorded.identity : {...this.identity};
+            const pkt = Object.assign(recorded, {
+                type: 'telemetry',
+                run_id: local ? (identity?.daemon_run_id ?? recorded.run_id) : this.identity.run_id,
+                brain_id: local ? recorded.brain_id : 'recording', identity,
                 timestamp: Date.now() / 1000, sim_speed: this.speed, path,
                 timing: {requested_speed: this.speed, achieved_speed: this.speed, integration_dt_s: dt,
                          sim_time_s: f.sim_time_s, step: f.step, snapshot_seq: index, steps_in_frame: stepsInFrame,
@@ -246,6 +256,14 @@
                 activity: Object.assign({}, this.activityMeta, {rates: f.activity}),
                 raster: this.rasterMeta,
             });
+            pkt.recording_context = {...pkt.recording_context, mode: 'replay',
+                original_durable_evidence_verified: false,
+                measurement_label: 'Recorded provisional replay measurement'};
+            // A frame digest/projected payload hash is not an original ledger receipt.
+            // The untouched recording retains its source terminal for separate inspection.
+            if (pkt.observation_publication) pkt.observation_publication = {
+                ...pkt.observation_publication, last_terminal: null,
+                replay_reason: 'Original saved terminal evidence is not verified by this player'};
             delete pkt.k; delete pkt.i;
             return pkt;
         }
@@ -344,9 +362,9 @@
             const h = this.rec.header, prov = h.provenance || {};
             const graph = prov.graph?.graph_sha256 ? ` · graph ${prov.graph.graph_sha256.slice(0, 12)}` : '';
             const code = prov.code?.commit ? ` · code ${prov.code.commit.slice(0, 8)}${prov.code.dirty ? '+dirty' : ''}` : '';
-            const info = `${prov.assay} · ${prov.backend}${prov.synthetic ? ' (SYNTHETIC TEST GRAPH)' : ''} · seed ${prov.seed}`
+            const info = `REPLAY · recorded provisional measurements · saved terminal evidence unverified · ${prov.assay} · ${prov.backend}${prov.synthetic ? ' (SYNTHETIC TEST GRAPH)' : ''} · seed ${prov.seed}`
                 + `${graph}${code} · ${this.rec.frames.length} frames · ${this.rec.events.length} inputs`
-                + (this.rec.verified ? ' · digest OK' : ' · digest not checked (insecure origin)');
+                + (this.rec.verified ? ' · recorded frame digest OK' : ' · recorded frame digest not checked (insecure origin)');
             const infoEl = $('replayInfo');
             infoEl.textContent = info;
             infoEl.title = JSON.stringify(prov, null, 1);
@@ -378,16 +396,25 @@
 
     // ------------------------------------------------------------------ chooser
     async function loadFromUrl(url, name) {
+        clearLoadError();
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
         const bytes = new Uint8Array(await res.arrayBuffer());
         return player.loadBytes(bytes, name || decodeURIComponent(url.split('/').pop() || 'recording'));
     }
 
+    function clearLoadError() {
+        const label = $('replayLoadError');
+        if (label) { label.textContent = ''; label.hidden = true; }
+    }
+
     function showLoadError(e, what) {
-        const label = $('arenaRunState');
+        const label = $('replayLoadError');
         if (label) label.textContent = `Replay not loaded (${what}): ${e.message}`;
-        report('startup', e, {});
+        if (label) label.hidden = false;
+        const chooser = $('replayChooser');
+        if (chooser) chooser.hidden = false;
+        report('replay load', new Error(`Recording ${what}: ${e.message}`), {});
     }
 
     async function refreshList() {
@@ -425,6 +452,7 @@
         $('replayFileInput')?.addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
+            clearLoadError();
             try { await player.loadBytes(new Uint8Array(await file.arrayBuffer()), file.name); }
             catch (e) { showLoadError(e, file.name); }
             event.target.value = '';

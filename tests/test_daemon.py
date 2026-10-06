@@ -11,6 +11,7 @@ if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
 from neurofly_daemon import ContinuousExperimentRunner, NeuroflyHTTPHandler
+from tests.transition_control_helpers import transition_command
 
 
 class TestNeuroflyDaemonEngine(unittest.TestCase):
@@ -60,12 +61,18 @@ class TestNeuroflyDaemonEngine(unittest.TestCase):
         self.assertEqual(self.runner.sim_speed, 25.0)
 
         # Bounds check
-        self.runner.dispatch_command({"action": "set_speed", "speed": 999.0})
-        self.assertEqual(self.runner.sim_speed, 100.0)
+        res = self.runner.dispatch_command({"action": "set_speed", "speed": 999.0})
+        self.assertEqual(res["status"], "error")
+        self.assertEqual(self.runner.sim_speed, 25.0)
+
+        res = self.runner.dispatch_command({"action": "set_speed", "speed": 7.5})
+        self.assertEqual(res["status"], "ok")
+        self.assertEqual(res["sim_speed"], 7.5)
+        self.assertEqual(self.runner.sim_speed, 7.5)
 
     def test_command_dispatch_switch_paradigm(self):
         """Dispatching switch_paradigm re-initializes arena cleanly."""
-        res = self.runner.dispatch_command({"action": "switch_paradigm", "paradigm": "t-maze"})
+        res = transition_command(self.runner, {"action": "switch_paradigm", "paradigm": "t-maze"})
         self.assertEqual(res["status"], "ok")
         self.assertEqual(self.runner.active_paradigm_id, "t-maze")
 

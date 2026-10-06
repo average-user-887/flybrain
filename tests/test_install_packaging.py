@@ -79,7 +79,42 @@ def test_status_payload_reports_package_version(tmp_path):
     handler = object.__new__(nd.NeuroflyHTTPHandler)
     handler.runner = runner
     handler.gateway = StreamGateway(StreamPolicy())
-    assert handler._status_payload()['version'] == PYPROJECT['project']['version']
+    status = handler._status_payload()
+    assert status['version'] == PYPROJECT['project']['version']
+    assert status['delivery'] == nd.delivery_identity()
+    assert len(status['delivery']['web_build']) == 12
+
+
+def test_served_dashboard_stamps_the_status_build_without_changing_source():
+    index = ROOT / 'web/index.html'
+    source = index.read_text()
+    assert source.count(nd.WEB_BUILD_PLACEHOLDER) == 1
+    served = nd.dashboard_index_bytes(index).decode()
+    assert nd.WEB_BUILD_PLACEHOLDER not in served
+    assert f'content="{nd.DASHBOARD_WEB_BUILD}"' in served
+    assert index.read_text() == source
+
+
+def test_dashboard_build_covers_every_loaded_local_asset(tmp_path):
+    import re
+    loaded = {'web/index.html'}
+    for reference in re.findall(r'(?:src|href)="([^"]+)"',
+                                (ROOT / 'web/index.html').read_text()):
+        relative = reference.split('?', 1)[0]
+        if '://' not in relative and not relative.startswith('//') and relative.endswith(('.js', '.css')):
+            loaded.add('web/' + relative)
+    assert set(nd.DASHBOARD_WEB_ASSETS) == loaded
+    for relative in nd.DASHBOARD_WEB_ASSETS:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((ROOT / relative).read_bytes())
+    original = nd.dashboard_web_build(tmp_path)
+    for relative in nd.DASHBOARD_WEB_ASSETS:
+        target = tmp_path / relative
+        content = target.read_bytes()
+        target.write_bytes(content + b'\n/* build identity probe */\n')
+        assert nd.dashboard_web_build(tmp_path) != original, relative
+        target.write_bytes(content)
 
 
 # ------------------------------------------------------------------- packaging

@@ -45,3 +45,10 @@ Every retired entry point prints a notice naming the reason, the replacement and
 this file, then exits with status 2. The notice is printed before NumPy, the arena,
 the bridge or the graph are imported and before any output directory is created.
 `--help` prints the same notice and exits 0, with no side effects.
+
+## Preview controls retired on 2026-10-06
+
+- Removed unused T5 lesion and wing angle controls; their displayed values had no implemented consumer. General biological references remain.
+- Removed manual DN setpoint controls and thermal/odor flash buttons from the local preview. DN values were overwritten by autonomous updates; the flash actions changed MB reward/punishment without implementing the advertised sensory pulses. No trained state is reset by this cleanup.
+- CPG cadence, GF escape and wind gust remain explicitly labeled preview actions. The former optogenetic turn is named Rotate preview fly and changes only preview heading. Actual temperature/odor field controls remain available.
+- This source retirement does not establish a browser pass; root retains prechange evidence and owns postchange verification.

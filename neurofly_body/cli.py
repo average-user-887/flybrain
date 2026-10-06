@@ -99,6 +99,62 @@ def _parser() -> argparse.ArgumentParser:
                        help="keep polling for new jobs every SECONDS instead of exiting")
     q_status = queue_sub.add_parser("status", help="list jobs by state")
     q_status.add_argument("queue_dir", type=Path, metavar="QUEUE")
+    verdict = subparsers.add_parser(
+        "verdict",
+        help=(
+            "the component's headline evidence: reverse the stimulus sign across "
+            "seeds and require the turn to reverse with it"
+        ),
+        description=(
+            "Run the stimulus-sign reversal on one loaded graph and body and write "
+            "verdict.json and verdict.md. Exits 0 only on PASS, which needs a "
+            "full-duration reuse check (--reuse-check-duration equal to --duration); "
+            "otherwise the verdict is UNVERIFIED. The default plan is "
+            "two seeds by two stimulus signs (four 5 s conditions); --full-controls "
+            "adds the zero-stimulus baseline, the output-disconnected control and "
+            "two rate-matched drive controls (eight conditions). A 5 s condition "
+            "takes about 30 s with the CUDA brain backend and about 2 minutes on CPU."
+        ),
+    )
+    verdict.add_argument("--output", type=Path, required=True, metavar="DIRECTORY")
+    verdict.add_argument("--duration", type=float, default=5.0, metavar="SECONDS",
+                        help="per condition; below about 5 s the DNa02 sample is too "
+                             "small to conclude anything (default: 5)")
+    verdict.add_argument("--seeds", type=int, nargs="+", default=[0, 1],
+                        help="at least two (default: 0 1)")
+    verdict.add_argument("--angular-velocity", type=float, default=4.0,
+                        metavar="RAD_PER_S",
+                        help="magnitude; both +w and -w are run (default: 4)")
+    verdict.add_argument("--full-controls", action="store_true",
+                        help="also run the zero-stimulus baseline, the "
+                             "output-disconnected control and the rate-matched "
+                             "channel-swapped and time-shuffled drive controls")
+    verdict.add_argument("--no-reuse-check", dest="reuse_check", action="store_false",
+                        help="skip the check that reusing the loaded graph and body "
+                             "between conditions reproduces the first condition's "
+                             "telemetry bytes; the verdict is then UNVERIFIED")
+    verdict.add_argument("--reuse-check-duration", type=float, default=0.1,
+                        metavar="SECONDS",
+                        help="how much of the first condition to repeat on the reused "
+                             "graph and body. Only a value equal to --duration is the "
+                             "full comparability control; the default 0.1 s is a smoke "
+                             "comparison and leaves the verdict UNVERIFIED")
+    verdict.add_argument("--graph-dir", type=Path)
+    verdict.add_argument("--connectome-dir", type=Path)
+    verdict.add_argument("--neural-dt-ms", type=float, default=2.0)
+    verdict.add_argument("--physics-dt-s", type=float, default=0.0001)
+    verdict.add_argument("--warmup-s", type=float, default=0.05)
+    verdict.add_argument("--contrast", type=float, default=1.0)
+    verdict.add_argument(
+        "--decoder", choices=("dn-v2", "dna02-crossed-v1"), default="dn-v2",
+        help="same choice as `run` (default: dn-v2)",
+    )
+    verdict.add_argument("--decoder-tau-ms", type=float, default=50.0)
+    verdict.add_argument("--max-cpg-drive", type=float, default=1.2)
+    verdict.add_argument("--p9-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    verdict.add_argument("--dna02-stride-k-per-hz", type=float, default=0.01, help="dn-v2 (assumption)")
+    verdict.add_argument("--mdn-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
+    verdict.add_argument("--cpg-gain-per-hz", type=float, default=0.04, help="dna02-crossed-v1 only")
     check = subparsers.add_parser(
         "replay-check",
         help="re-run a finished run from its manifest and require a bit-identical trajectory",
@@ -158,6 +214,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _replay_check(args.run_dir, args.output)
     if args.command == "queue":
         return _queue(args)
+    if args.command == "verdict":
+        from .verdict import run_verdict
+
+        return run_verdict(args)
     if args.command != "run":  # pragma: no cover - argparse enforces this
         raise AssertionError(args.command)
     summary = _run(args)
@@ -249,7 +309,28 @@ def _replay_check(run_dir: Path, output: Path) -> int:
     return 0 if identical else 1
 
 
+def _check_output_dir(output: Path) -> Path:
+    """Refuse a colliding output directory before any expensive work (D6).
+
+    ``_RunOutput`` also creates the directory with ``exist_ok=False``, but that
+    happens after the connectome graph has been loaded, which costs tens of
+    seconds.  Failing here keeps a typo cheap.  This is a pre-check, not a lock:
+    the authoritative exclusive reservation is still the ``mkdir`` in the runner.
+    """
+    output = Path(output)
+    if output.exists():
+        raise SystemExit(
+            f"output directory already exists: {output.resolve()} "
+            "(every run needs its own fresh directory)"
+        )
+    parent = output.parent
+    if parent.exists() and not parent.is_dir():
+        raise SystemExit(f"output parent is not a directory: {parent}")
+    return output
+
+
 def _run(args: argparse.Namespace) -> dict[str, Any]:
+    _check_output_dir(args.output)
     # Import after argument validation so CLI help has no heavyweight dependency.
     try:
         from brainlab.cosim_server import ConnectomeServer

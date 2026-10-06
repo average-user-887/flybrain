@@ -801,6 +801,10 @@ class Arena:
         self.surge_cast = self.fly.surge_cast
         self.cx = self.fly.cx
 
+        # Metric observation is deliberately opt-in. Standalone Arena users retain the
+        # exact legacy execution path until a daemon explicitly attaches one owner.
+        self._observation_owner = None
+
         # Legal region for fly body centres: hard failsafe, wall perception and audits
         # all read this one description of the paradigm's enclosure.
         self.containment: ContainmentRegion = self._build_containment()
@@ -815,6 +819,79 @@ class Arena:
         self.total_distance = 0.0
         self.time_to_food_history: List[int] = []
         self.last_food_step = 0
+
+    @property
+    def observation_owner(self):
+        """The explicitly enabled C0 observer, or ``None`` for legacy standalone use."""
+        return self._observation_owner
+
+    def enable_observation(self, config):
+        """Attach and configure the sole primary subject's observation producer.
+
+        Multi-subject aggregation has no contract. Refuse it, a dead primary subject,
+        or a second attachment before configuring or otherwise mutating an observer.
+        The daemon calls this only after it has built the effective ObservationConfig.
+        """
+        if self._observation_owner is not None:
+            raise RuntimeError('observation instrumentation is already enabled for this arena')
+        if len(self.flies) != 1:
+            raise ValueError('metric observation requires exactly one primary fly; multi-subject aggregation is unsupported')
+        if not self.fly.alive:
+            raise ValueError('metric observation requires one live primary fly')
+
+        if self.paradigm is None:
+            from online_metrics import OpenArenaObserver
+            owner = OpenArenaObserver(airflow_mm_s=self._open_airflow_condition())
+        else:
+            owner = self.paradigm
+        owner.configure_observation(config)
+        self._observation_owner = owner
+        return owner
+
+    def _open_airflow_condition(self) -> float:
+        """Return the supported toward-minus-x scalar or refuse off-axis instrumentation."""
+        from online_metrics import MetricFault
+        try:
+            wind_x, wind_y = (float(v) for v in self.wind)
+        except (TypeError, ValueError):
+            raise MetricFault('open_arena.airflow_mm_s',
+                              'instrumented open arena requires a finite two-component airflow vector') from None
+        if not (math.isfinite(wind_x) and math.isfinite(wind_y)):
+            raise MetricFault('open_arena.airflow_mm_s',
+                              'instrumented open arena requires finite airflow components')
+        if wind_y != 0.0 or wind_x > 0.0:
+            raise MetricFault('open_arena.airflow_mm_s',
+                              'instrumented open arena supports only airflow toward -x (wind_y=0, wind_x<=0)')
+        return -wind_x
+
+    @staticmethod
+    def _contact_source(collided: bool, solver_normals, failsafe_mm: float, in_contact: bool) -> str:
+        """Label the already-computed contact evidence without another geometry query."""
+        sources = []
+        if collided:
+            sources.append('solver')
+        if failsafe_mm > 0.0:
+            sources.append('containment')
+        if in_contact and not sources:
+            sources.append('boundary_gap')
+        return '+'.join(sources) if sources else 'none'
+
+    def _observe_post_solver_contact(self, owner, dt: float, rec: Dict[str, Any], *,
+                                     collided: bool, solver_normals, failsafe_mm: float) -> None:
+        if owner is None:
+            return
+        normals = tuple(tuple(float(v) for v in normal) for normal in rec.get('contact_normals', ()))
+        in_contact = bool(rec.get('in_contact'))
+        owner.observe_contact(self.time_step, dt, 'post_solver', in_contact, normals=normals,
+                              source=self._contact_source(collided, solver_normals, failsafe_mm, in_contact))
+
+    @staticmethod
+    def _raise_instrument_fault(owner) -> None:
+        # ExperimentParadigm preserves legacy step return values by storing a MetricFault.
+        # Once explicitly instrumented, the arena must surface it to the daemon's F policy.
+        fault = getattr(owner, '_v1_fault', None)
+        if fault is not None:
+            raise fault
 
     @staticmethod
     def _empty_assist_totals() -> Dict[str, float]:
@@ -948,6 +1025,21 @@ class Arena:
 
     def _finish_motor_record(self, fly: FlyState, rec: Dict[str, Any], start: Tuple[float, float], dt: float) -> None:
         """Complete and store one step's motor record and add it to the totals."""
+        rec.setdefault('raw_motor_command', {
+            'forward_speed_mm_s': float(rec.get('controller_speed', 0.0)),
+            'yaw_rate_rad_s': float(rec.get('controller_yaw', 0.0)),
+            'state': rec.get('state'),
+        })
+        rec['applied_motor_command'] = {
+            'forward_speed_mm_s': float(rec.get('controller_speed', 0.0)),
+            'yaw_rate_rad_s': float(rec.get('controller_yaw', 0.0) + rec.get('wall_reflex_yaw', 0.0)),
+            'state': rec.get('state'),
+        }
+        rec.setdefault('engineered_motor_primitive', None)
+        telemetry = getattr(fly, 'last_connectome_telemetry', None)
+        if isinstance(telemetry, dict) and getattr(fly, 'motor_source', '').startswith('graph'):
+            telemetry['applied_motor_command'] = dict(rec['applied_motor_command'])
+            telemetry['engineered_motor_primitive'] = rec['engineered_motor_primitive']
         gap, nx, ny = self.nearest_boundary_gap(fly.pos.x, fly.pos.y, getattr(fly, 'radius', 1.5))
         rec['realized_dx'] = fly.pos.x - start[0]
         rec['realized_dy'] = fly.pos.y - start[1]
@@ -1556,6 +1648,14 @@ class Arena:
 
     def step(self, dt: float = 1.0) -> Dict:
         """Execute one simulation tick for all flies and predators."""
+        open_airflow = None
+        if self.paradigm is None and self._observation_owner is not None:
+            # Refuse unsupported or changed conditions before the arena step mutates
+            # simulation or observer state. Legacy physics remains unrestricted when
+            # observation instrumentation is disabled.
+            open_airflow = self._open_airflow_condition()
+            self._observation_owner.validate_airflow_condition(open_airflow)
+
         self.time_step += 1
 
         if self.paradigm is not None:
@@ -1594,11 +1694,17 @@ class Arena:
                 if collided:
                     fly.speed = math.copysign(math.hypot(new_vx, new_vy), fly.speed)
 
-                # 2. Query paradigm step
+                # 2. Query paradigm step. The enabled observer receives the actual arena
+                # step/raw dt immediately before the existing pre-motor sample.
+                observer = self._observation_owner if fly is self.fly else None
                 gf_source = self._gf_source(fly)
                 if hasattr(self.paradigm, 'gf_source'):
                     self.paradigm.gf_source = gf_source
+                if observer is not None:
+                    observer.begin_sample(self.time_step, dt)
                 paradigm_res = self.paradigm.step(fly, dt)
+                if observer is not None:
+                    self._raise_instrument_fault(observer)
 
                 # 3. Sample multi-modal stimuli (temperature, wind, odor, landmarks, laser, grating)
                 try:
@@ -1688,6 +1794,12 @@ class Arena:
                     visual_contrast=stimuli.get("contrast", 1.0),
                     assay_stimuli=stimuli
                 )
+                raw_motor_command = {
+                    'forward_speed_mm_s': float(new_speed),
+                    'yaw_rate_rad_s': float(dheading),
+                    'state': state,
+                }
+                engineered_motor_primitive = None
 
                 # The assay's expanding disk is an actual visual input, not merely
                 # a metric counter. A GF event triggers a bounded motor escape.
@@ -1710,6 +1822,14 @@ class Arena:
                     fly.assay_escape_remaining = max(0.0, fly.assay_escape_remaining - dt)
                     if not halted:   # a halted controller commands no escape run either
                         new_speed, state = 3.5, 'ESCAPE'
+                        engineered_motor_primitive = {
+                            'name': 'bounded_escape_run',
+                            'trigger': 'DNp01 graph spike' if gf_source == 'connectome'
+                                       else 'modular geometric GF event',
+                            'forward_speed_mm_s': 3.5,
+                            'duration_s': 0.2,
+                            'remaining_s': round(float(fly.assay_escape_remaining), 6),
+                        }
                 fly.speed = new_speed
                 fly.behavioral_state = state
                 fly.compass_heading = compass_h
@@ -1720,6 +1840,8 @@ class Arena:
                 rec['motor_source'] = getattr(fly, 'motor_source', 'modular')
                 rec['controller_fault'] = getattr(fly, 'controller_fault', None)
                 rec['halted'] = halted
+                rec['raw_motor_command'] = raw_motor_command
+                rec['engineered_motor_primitive'] = engineered_motor_primitive
 
                 # Wall perception: turn away from boundaries before touching them
                 # (engineered assist, logged separately from the controller's yaw).
@@ -1778,6 +1900,8 @@ class Arena:
                 if fs_mm > 0.0:
                     rec['contact_normals'].append((fs_nx, fs_ny))
                 self._finish_motor_record(fly, rec, step_start, dt)
+                self._observe_post_solver_contact(observer, dt, rec, collided=collided,
+                                                  solver_normals=normals, failsafe_mm=fs_mm)
 
                 if collided and normals:
                     # Continuous physical contact torque steering (zero angular teleportation)
@@ -1885,6 +2009,11 @@ class Arena:
                     self.hazard_encounters += 1
                     break
 
+            observer = self._observation_owner if fly is self.fly else None
+            if observer is not None:
+                observer.observe(fly, food_eaten_this_step, dt,
+                                 airflow_mm_s=open_airflow, arena_step=self.time_step)
+
             # Advance metabolic hunger
             fly.metabolic.step(dt=dt, speed=abs(fly.speed))
 
@@ -1956,6 +2085,8 @@ class Arena:
                     rec['contact_turn_rad'] = turn_dir * 4.0 * dt
                     fly.heading = (fly.heading + rec['contact_turn_rad']) % (2.0 * math.pi)
             self._finish_motor_record(fly, rec, step_start, dt)
+            self._observe_post_solver_contact(observer, dt, rec, collided=False, solver_normals=(),
+                                              failsafe_mm=rec['failsafe_correction_mm'])
 
         self.total_distance += self.fly.speed * dt
 

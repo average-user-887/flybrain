@@ -5,6 +5,7 @@ from arena import Arena
 from assay_controls import act, describe, set_parameter
 from experiment_brains import PARADIGMS
 from neurofly_daemon import ContinuousExperimentRunner
+from learning_recorder import LearningRecorder, RecorderThread
 
 
 def arena(pid, seed=4):
@@ -110,13 +111,28 @@ def test_live_capabilities_have_no_silent_unsupported_parameters(pid):
 
 def test_commands_change_physics_and_are_recorded(tmp_path):
     r=ContinuousExperimentRunner(initial_paradigm='optomotor',output_dir=tmp_path,continuous=True)
-    assert r.dispatch_command({'action':'set_param','params':{'name':'patternSpeed','value':-60}})['status']=='ok'
+    recorder = LearningRecorder(tmp_path / 'records', session={'daemon_run_id': r.run_id})
+    drain = RecorderThread(r, recorder, summary_interval=999)
+    r.attach_learning_records(drain)
+    reply = r.dispatch_command({'action':'set_param','params':{'name':'patternSpeed','value':-60}})
+    assert reply['status'] == 'queued' and not reply['ack']['applied']
+    transaction = r._pending_assay_control
+    terminal = r._observation_terminal
+    assert drain.poll_once()['observations'] == 1
+    assert transaction['entry']['done'].wait(2)
+    ack = transaction['entry']['result']
+    assert ack['command_id'] == reply['command_id'] and ack['ack']['applied']
+    assert terminal['durable'] is not None
+    assert ack['observation_key'] == terminal['observation_key']
+    assert ack['payload_sha256'] == terminal['payload_sha256']
     for _ in range(100):r.step_once()
     assert r.arena.fly.angular_velocity<0
     assert r.latest_telemetry['stimuli']['drum_velocity_deg_s']==-60
-    assert r.active_brain.history[-1]['kind']=='intervention'
+    assert r.active_brain.history[-1]['kind']=='assay_control'
+    assert r.active_brain.history[-1]['value'] == -60.0
     assert r.dispatch_command({'action':'set_param','name':'fake','value':1})['status']=='error'
     assert r.dispatch_command({'action':'inject_stimulus','type':'unsupported'})['status']=='error'
+    recorder.close()
 
 
 def test_open_arena_telemetry_contains_the_inputs_actually_seen(tmp_path):

@@ -105,3 +105,23 @@ def test_cosim_server_diff_is_left_minus_right(tmp_path):
     assert reply["dna02_diff"] == reply["dna02_rate_l"] - reply["dna02_rate_r"]
     # Same sign as the daemon's decoded yaw, 0.02 * (L - R), + = counter-clockwise.
     assert math.copysign(1.0, reply["dna02_diff"]) == math.copysign(1.0, 0.02 * (reply["dna02_rate_l"] - reply["dna02_rate_r"]))
+
+
+def test_server_publishes_integer_dna02_counts_and_keeps_the_legacy_rate():
+    """D2: new names are additive, so the daemon and the bridge keep working."""
+    import numpy as np
+    from brainlab.cosim_server import DN_RATE_CONVENTION, ConnectomeServer
+
+    server = ConnectomeServer(graph_dir=None, allow_synthetic=True)
+    reply = server.step({"mean_odor": 0.6, "wpn_wind_speed": 15.0}, duration_ms=2.0)
+    for side in ("l", "r"):
+        spikes = reply[f"dna02_spikes_{side}"]
+        assert isinstance(spikes, int)
+        assert reply[f"dna02_bin_rate_{side}_hz"] == spikes / 0.002
+        # Legacy key kept, same value.
+        assert reply[f"dna02_rate_{side}"] == reply[f"dna02_bin_rate_{side}_hz"]
+    status = server.get_status()
+    assert status["dn_rate_convention"] is DN_RATE_CONVENTION
+    assert "NOT comparable" in DN_RATE_CONVENTION["dna02_bin_rate_l_hz"]
+    assert "filtered_rate_l_hz" in DN_RATE_CONVENTION["wp5_comparable"]
+    assert np.isfinite(reply["dna02_diff"])

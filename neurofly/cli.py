@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -20,9 +21,40 @@ from pathlib import Path
 def cmd_run(args: list[str]) -> int:
     """Run the continuous neurofly daemon / simulation server."""
     import neurofly_daemon
+    from neurofly import storage
+    try:
+        # Parse only when a saved selection exists. Preserve all legacy forwarding.
+        path = None if any(flag in args for flag in ("-h", "--help")) else storage.config_path()
+        if path is not None and (path.exists() or path.is_symlink()):
+            parsed = neurofly_daemon.build_arg_parser().parse_args(args)
+            args = storage.run_arguments(args, parsed, path)
+    except storage.StorageError as exc:
+        print(f"neurofly: {exc}", file=sys.stderr)
+        return 2
     sys.argv = ["neurofly run"] + args
     neurofly_daemon.run_daemon()
     return 0
+
+
+def cmd_storage(args: list[str]) -> int:
+    """Remember existing directories; never copy, move or assess model compatibility."""
+    from neurofly import storage
+    parser = argparse.ArgumentParser(prog="neurofly storage", description=cmd_storage.__doc__,
+        epilog="Config: NEUROFLY_CONFIG_HOME/storage.json, otherwise XDG_CONFIG_HOME/neurofly/storage.json. Selected stores must survive checkout replacement.")
+    commands = parser.add_subparsers(dest="action", required=True)
+    use = commands.add_parser("use", help="Adopt two explicit existing directories")
+    use.add_argument("--output-dir", required=True)
+    use.add_argument("--data-dir", required=True)
+    commands.add_parser("show", help="Read-only JSON selection and directory preflight")
+    parsed = parser.parse_args(args)
+    try:
+        if parsed.action == "use":
+            storage.adopt(parsed.output_dir, parsed.data_dir)
+        print(json.dumps(storage.show(Path(__file__).resolve().parents[1]), sort_keys=True))
+        return 0
+    except storage.StorageError as exc:
+        print(f"neurofly: {exc}", file=sys.stderr)
+        return 2
 
 
 def cmd_download_data(args: list[str]) -> int:
@@ -68,14 +100,17 @@ def cmd_status(args: list[str]) -> int:
     # 3. Where a connectome brain would compute (the daemon prints the same at startup)
     try:
         from brainlab.brain import gpu_name, resolve_backend
-        from brainlab.gpu_probe import explain
         from brainlab.graph_identity import active_dynamics_version
         dynamics = active_dynamics_version()
         device = resolve_backend(dynamics)
-        reason = explain(dynamics)[1]
-        if device == "cuda":
+        if device == 'wgpu-amd':
+            print(f" [Compute] Brain backend: wgpu-amd requested for fixed LIF {dynamics}; "
+                  "actual Vulkan/device identity is reported by the running daemon; learning unsupported")
+        elif device == "cuda":
             print(f" [Compute] Brain backend: CUDA ({gpu_name() or 'unknown GPU'}) for LIF {dynamics}")
         else:
+            from brainlab.gpu_probe import explain
+            reason = explain(dynamics)[1]
             print(f" [Compute] Brain backend: CPU for LIF {dynamics} (GPU not used: {reason})")
     except Exception as e:
         print(f" [Compute] Brain backend unknown: {type(e).__name__}: {e}")
@@ -156,6 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="store_true", help="Print the NeuroFly version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
+    subparsers.add_parser("storage", help="Adopt/show persistent existing training directories")
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
     subparsers.add_parser("full-sim", help="RETIRED: not a full connectome simulation; prints why and exits")
     subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
@@ -172,7 +208,9 @@ def main(argv: list[str] | None = None) -> int:
     cmd = argv[0]
     rest = argv[1:]
 
-    if cmd == "run":
+    if cmd == "storage":
+        return cmd_storage(rest)
+    elif cmd == "run":
         return cmd_run(rest)
     elif cmd == "full-sim":
         return cmd_full_sim(rest)

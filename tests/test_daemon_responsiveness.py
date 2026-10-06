@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 import neurofly_daemon as nd
+from learning_recorder import LearningRecorder, RecorderThread
 from brainlab.brain import Brain
 from brainlab.graph_identity import synthetic_test_graph
 from stream_gateway import StreamGateway, StreamPolicy
@@ -81,6 +82,10 @@ def test_lif_kernel_releases_the_gil():
 def slow_served(tmp_path):
     runner = nd.ContinuousExperimentRunner(initial_paradigm="wind-tunnel", sim_speed=1.0,
                                            checkpoint_interval=3600, output_dir=tmp_path)
+    recorder = LearningRecorder(tmp_path / 'records', session={'daemon_run_id': runner.run_id})
+    drain = RecorderThread(runner, recorder, summary_interval=999)
+    runner.attach_learning_records(drain)
+    drain.start()
     runner.step_hook = nd.SlowStepBallast(SLOW_STEP_MS)
     # Well below one slow step, whatever this machine's exact step time.
     runner.command_reply_wait_s = 0.3
@@ -95,6 +100,7 @@ def slow_served(tmp_path):
     runner.running = False
     runner._wake.set()
     runner.sim_thread.join(timeout=10)
+    assert drain.stop(timeout=10)
     server.shutdown()
     server.server_close()
     nd.NeuroflyHTTPHandler.runner, nd.NeuroflyHTTPHandler.gateway = orig
@@ -137,6 +143,11 @@ def test_slow_step_does_not_delay_api_commands_or_stream(slow_served):
     ack = _wait(acked, 3 * SLOW_STEP_MS / 1e3 + 2.0)
     assert ack and ack["status"] == "ok", ack
     assert ack["ack"]["applied"] is True and ack["ack"]["latency_ms"] > 300
+    terminal = runner.observation_publication_status()['last_terminal']
+    assert terminal['receipt']['durable'] is True
+    assert ack['observation_key'] == terminal['observation_key']
+    assert ack['payload_sha256'] == terminal['payload_sha256']
+    assert runner.arena.paradigm.wind_flow == (-25.0, 0.0)
 
     # The SSE heartbeat says a step is in progress instead of going silent.
     with urllib.request.urlopen(base + "/api/stream", timeout=5.0) as stream:
@@ -148,7 +159,11 @@ def test_slow_step_does_not_delay_api_commands_or_stream(slow_served):
                 if beat.get("step_in_progress_s", 0) > 0:
                     break
         assert beat and beat["step_in_progress_s"] > 0, beat
-    timing = runner.timing_snapshot()
+    # A save barrier can briefly leave only equal-step samples in the speed
+    # window. Observe an actual completed slow step before asserting its rate.
+    timing = _wait(lambda: (t if (t := runner.timing_snapshot())["achieved_speed"] > 0 else None),
+                   3 * SLOW_STEP_MS / 1e3 + 2.0)
+    assert timing is not None
     assert timing["last_step_wall_s"] > 0.5, timing
     assert 0 < timing["achieved_speed"] < 0.1, timing
 

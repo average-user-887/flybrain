@@ -88,13 +88,24 @@ def test_graph_backend_ignores_the_geometric_gf_threshold():
 
 def test_graph_backend_escape_follows_the_dnp01_spike():
     a = _looming_arena_at_threshold_crossing()
-    a.graph_controller = lambda **kw: {"halted": False, "forward_speed": 35.0, "yaw_rate": 0.0,
-                                       "motor_source": "graph", "state": "ESCAPE"}
+    a.graph_controller = lambda **kw: {
+        "halted": False, "forward_speed": 35.0, "yaw_rate": 0.0,
+        "motor_source": "graph", "state": "ESCAPE",
+        "raw_motor_command": {"forward_speed_mm_s": 35.0, "yaw_rate_rad_s": 0.0,
+                              "state": "ESCAPE"},
+    }
     for _ in range(3):
         a.step(.02)
     assert a.paradigm.escape_initiated and a.paradigm.time_to_collision_at_jump_ms is not None
     assert a.fly.behavioral_state == "ESCAPE"
     assert a.total_escapes == 1   # one escape per GF volley, not one per spiking step
+    telemetry = a.fly.last_connectome_telemetry
+    assert telemetry["raw_motor_command"]["forward_speed_mm_s"] == 35.0
+    assert telemetry["applied_motor_command"]["forward_speed_mm_s"] == 3.5
+    assert telemetry["engineered_motor_primitive"]["name"] == "bounded_escape_run"
+    assert telemetry["engineered_motor_primitive"]["duration_s"] == 0.2
+    assert a.fly.motor_record["raw_motor_command"]["forward_speed_mm_s"] == 35.0
+    assert a.fly.motor_record["applied_motor_command"]["forward_speed_mm_s"] == 3.5
 
 
 def test_modular_baseline_keeps_its_geometric_gf():

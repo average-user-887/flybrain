@@ -35,8 +35,11 @@ def test_same_inputs_give_identical_file(tmp_path):
     frame = rec["frames"][60]
     for key in ("fly", "body_position_mm", "joint_angles_rad", "stimuli", "dn_rates", "descending", "activity"):
         assert key in frame
-    for key in ("timestamp", "timing", "run_id", "identity", "path", "brain_id"):
+    for key in ("timestamp", "timing", "path"):
         assert key not in frame
+    assert rec["header"]["version"] == 2
+    assert frame["identity"]["run_id"].startswith("r")
+    assert frame["recording_context"]["mode"] == "replay"
     assert frame["segment_id"] == "s0"
 
 
@@ -120,6 +123,7 @@ def test_region_map_from_labels():
 
 
 def test_daemon_record_commands_and_endpoints(tmp_path):
+    from tests.transition_control_helpers import transition_command
     runner = ContinuousExperimentRunner(initial_paradigm="t-maze", output_dir=tmp_path, checkpoint_interval=1e9)
     res = runner.dispatch_command({"action": "record_start", "name": "demo"})
     assert res["status"] == "ok", res
@@ -129,7 +133,7 @@ def test_daemon_record_commands_and_endpoints(tmp_path):
         with runner.lock:
             runner.step_once(publish=False)
     runner.dispatch_command({"action": "set_speed", "speed": 3})          # not an input
-    runner.dispatch_command({"action": "set_learning", "enabled": False})  # an input
+    assert transition_command(runner, {"action": "set_learning", "enabled": False})["status"] == "ok"  # an input
     assert runner.dispatch_command({"action": "switch_backend", "backend": "connectome-fixed"})["status"] == "error"
     done = runner.dispatch_command({"action": "record_stop"})
     assert done["status"] == "ok" and done["recording"]["frames"] == 11
@@ -163,10 +167,10 @@ def test_corrupt_or_truncated_recording_is_rejected(tmp_path):
     tampered = lines[:3] + [lines[3].replace(b'"step":2', b'"step":9')] + lines[4:]
     (tmp_path / "t.nfrec").write_bytes(gzip.compress(b"".join(tampered)))
     with pytest.raises(ValueError, match="digest"):
-        read_recording(tmp_path / "t.nfrec")
+        read_recording(tmp_path / "t.nfrec", require_finished=False)   # content check only
     (tmp_path / "u.nfrec").write_bytes(gzip.compress(b"".join(lines[:-1])))
     with pytest.raises(ValueError, match="incomplete"):
-        read_recording(tmp_path / "u.nfrec")
+        read_recording(tmp_path / "u.nfrec", require_finished=False)
 
 
 def test_predators_are_seeded():

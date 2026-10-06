@@ -256,6 +256,9 @@ def test_graph_controller_refuses_to_fake_the_map_on_a_synthetic_graph(tmp_path)
     telemetry = runner.arena.fly.last_connectome_telemetry
     assert telemetry['optomotor'] is None
     assert 'could not be resolved' in telemetry['optomotor_unsupported']
+    assert all(value is None for value in telemetry['dn_rates'].values())
+    assert set(telemetry['dn_rates']) == set(telemetry['dn_unavailable'])
+    assert telemetry['epg_available'] is False
     assert runner.arena.fly.motor_source == GraphArenaController.UNMAPPED
     assert runner.arena.fly.speed == 0.0
     provenance = runner.motor_summary()['optomotor']
@@ -278,6 +281,11 @@ def test_graph_controller_runs_the_wp5_loop_when_a_map_resolves(tmp_path):
     assert block['contrast'] == pytest.approx(CONTRAST)
     assert telemetry['engineered_assistance_enabled'] is False
     assert telemetry['engineered_assistance_applied'] == []
+    assert telemetry['epg_available'] is False
+    assert telemetry['dn_rates']['dna02_l'] is not None
+    assert telemetry['dn_rates']['dna02_r'] is not None
+    for channel in ('dnp09', 'mdn', 'gf'):
+        assert channel in telemetry['dn_unavailable']
     # Yaw is the decoder's command, applied as given; the tethered fly has no forward drive.
     assert fly.motor_source == 'graph' and fly.motor_halted is False
     assert fly.speed == 0.0 and fly.behavioral_state == 'OPTOMOTOR-TETHERED'

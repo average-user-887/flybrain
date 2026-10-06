@@ -26,7 +26,10 @@ def test_synthetic_graph_multi_assay_stepping(tmp_path):
     assert "epg_wedges" in telem
     assert len(telem["epg_wedges"]) == 16
     assert isinstance(telem["epg_bump_phase"], float)
-    assert fly.speed > 0.0
+    # A silent graph has no tonic DNb01 drive and no forward-speed floor.
+    assert fly.speed == 0.0
+    assert telem["raw_motor_command"]["forward_speed_mm_s"] == 0.0
+    assert telem["engineered_assistance_applied"] == []
 
 
 def test_switch_backend_live(tmp_path):

@@ -270,6 +270,9 @@
         if (file) await load(new Uint8Array(await file.arrayBuffer()), file.name);
     });
     $('play').addEventListener('click', () => setPlaying(!state.playing));
+    $('follow').addEventListener('change', () => {
+        if ($('follow').checked && state.rec?.frames.length) showFrame(state.frame);
+    });
     $('seek').addEventListener('input', (e) => { showFrame(Number(e.target.value)); if (state.playing) setPlaying(true); });
     $('speed').addEventListener('change', () => { if (state.playing) setPlaying(true); });
     window.addEventListener('keydown', (e) => {

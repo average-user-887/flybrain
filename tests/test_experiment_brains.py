@@ -4,25 +4,48 @@ import numpy as np
 import pytest
 from experiment_brains import ExperimentBrain, PARADIGMS
 from neurofly_daemon import ContinuousExperimentRunner
+from learning_recorder import LearningRecorder, RecorderThread
 from circuit import MushroomBodyCircuit
+from tests.transition_control_helpers import transition_command
+
+
+_recorders = []
+
+
+@pytest.fixture(autouse=True)
+def close_durable_recorders():
+    yield
+    while _recorders:
+        _recorders.pop().close()
 
 
 def runner(path):
-    return ContinuousExperimentRunner(initial_paradigm='t-maze', output_dir=path,
+    active = ContinuousExperimentRunner(initial_paradigm='t-maze', output_dir=path,
                                       checkpoint_interval=3600, trial_length_s=2)
+    records = LearningRecorder(path / f'test-records-{active.run_id}', session={'daemon_run_id': active.run_id})
+    active.attach_learning_records(RecorderThread(active, records, summary_interval=999))
+    _recorders.append(records)
+    return active
 
 
 def teach(r, pairs=6, reverse=False):
-    assert r.dispatch_command({'action': 'teach_brain', 'pairs': pairs, 'reverse': reverse})['status'] == 'ok'
-    while r.active_brain.teaching:
-        r.step_once()
+    assert transition_command(r, {'action': 'teach_brain', 'pairs': pairs, 'reverse': reverse})['status'] == 'ok'
+    while r._teaching_suspended or r._pending_assay_control is not None:
+        with r.lock:
+            r.step_once()
+        tx = r._pending_assay_control
+        if tx is not None:
+            assert tx['entry']['done'].wait(10)
+            assert tx['entry']['result']['ack']['applied']
+            tx['writer'].join(10)
+            assert not tx['writer'].is_alive()
 
 
 def test_each_experiment_has_a_separate_brain(tmp_path):
     r = runner(tmp_path)
     identities = set()
     for p in PARADIGMS:
-        assert r.dispatch_command({'action': 'switch_paradigm', 'paradigm': p})['status'] == 'ok'
+        assert transition_command(r, {'action': 'switch_paradigm', 'paradigm': p})['status'] == 'ok'
         identities.add(r.active_brain.brain_id)
         r.step_once()
     assert len(identities) == 14
@@ -39,11 +62,11 @@ def test_train_switch_return_and_restart_preserve_memory(tmp_path):
     assert first.probe()['discrimination'] > 0.05
     weights = first.circuit.w.copy()
     probe = first.probe()
-    r.dispatch_command({'action': 'switch_paradigm', 'paradigm': 'y-maze'})
+    transition_command(r, {'action': 'switch_paradigm', 'paradigm': 'y-maze'})
     np.testing.assert_array_equal(r.active_brain.circuit.w, 0)
     teach(r, reverse=True)
     assert r.active_brain.probe()['discrimination'] < -0.05
-    r.dispatch_command({'action': 'switch_paradigm', 'paradigm': 't-maze'})
+    transition_command(r, {'action': 'switch_paradigm', 'paradigm': 't-maze'})
     assert r.active_brain is first
     np.testing.assert_array_equal(first.circuit.w, weights)
     r.save_checkpoint('test')
@@ -57,7 +80,7 @@ def test_train_switch_return_and_restart_preserve_memory(tmp_path):
 
 def test_frozen_control_and_probe_do_not_change_memory(tmp_path):
     r = runner(tmp_path)
-    r.dispatch_command({'action': 'set_learning', 'enabled': False})
+    transition_command(r, {'action': 'set_learning', 'enabled': False})
     before = r.active_brain.circuit.w.copy()
     teach(r)
     np.testing.assert_array_equal(r.active_brain.circuit.w, before)
@@ -96,19 +119,26 @@ def test_corrupt_checkpoint_is_rejected_without_overwrite(tmp_path):
 
 def test_trial_history_and_learning_curve_are_experiment_specific(tmp_path):
     r = runner(tmp_path)
+    recorder = LearningRecorder(tmp_path / 'records', session={'daemon_run_id': r.run_id})
+    drain = RecorderThread(r, recorder, summary_interval=999)
+    with r.lock:
+        r.attach_learning_records(drain)
     for _ in range(101):
         r.step_once()
+        drain.poll_once()
     assert r.active_brain.trials == 1
     curve = r.learning_curve.copy()
-    r.dispatch_command({'action': 'switch_paradigm', 'paradigm': 'buridan'})
+    transition_command(r, {'action': 'switch_paradigm', 'paradigm': 'buridan'})
     assert r.learning_curve == []
     for _ in range(101):
         r.step_once()
+        drain.poll_once()
     assert [t['trial'] for t in r.trial_history] == [1, 2]  # recorder global sequence
     assert [t['brain_trial'] for t in r.trial_history] == [1, 1]
     assert len({t['brain_id'] for t in r.trial_history}) == 2
-    r.dispatch_command({'action': 'switch_paradigm', 'paradigm': 't-maze'})
+    transition_command(r, {'action': 'switch_paradigm', 'paradigm': 't-maze'})
     assert r.learning_curve == curve
+    recorder.close()
 
 
 def test_plasticity_advances_kc_trace_once_per_time_bin():

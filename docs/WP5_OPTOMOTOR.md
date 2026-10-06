@@ -848,3 +848,59 @@ or the quantum.
   2. One post-lock post-processing fix: the D4 phase sign was mirrored by a
      storage convention. It was corrected before any v5 analysis was read; the
      D1/D2/D5 amplitudes were unaffected.
+
+#### 14.8 Interpretation correction (5 October 2026)
+
+This note is added after Codex's primary-source check. It changes no measurement, gate,
+locked declaration, raw receipt or negative result in §13–§14, and none of their
+numbers. It corrects how §14.7 (and the timing sentence in §14.1) reads the modelling
+literature.
+
+* **Two statements in §14.7 overstate the sources.** The first is that the input
+  cells differ "by 50–300 ms in every working T4/T5 model". The second is that
+  Borst 2025 "finds" the L1/L2 H-current "necessary" for transient/sustained
+  diversity. The sources reviewed do not establish either universal timing or
+  necessity. Cell-type-specific intrinsic dynamics, and the H-current in
+  particular, are a **hypothesis** for the next blocker, not an established
+  requirement.
+* **Borst 2025** (*J Comput Neurosci*, doi
+  [10.1007/s10827-025-00914-5](https://link.springer.com/article/10.1007/s10827-025-00914-5);
+  implementation at commit `2e277fe` of `axelborst/temporal_filtering`,
+  `SimulationCode/FiveCol_MedSim_Pytorch.py`, `update_Vm`). The model is a
+  **fitted** graded network: parameters were optimised by gradient descent against
+  the measured responses of 13 of its 65 cell types (L1–L5, Mi1, Tm3, Mi4, Mi9,
+  Tm1, Tm2, Tm4, Tm9).
+  * Adding an H-current improves the fit. A separately optimised network with
+    uniform passive membranes also reproduced the transient and sustained cell
+    types, although with ringing.
+  * The effect of HCN knockdown on T4/T5 direction selectivity is stated as a
+    **prediction** ("I predict…"). It is not a demonstrated experiment or a
+    motion rescue.
+  * The model's L1–L3 `E_leak = −20 mV` is a leak reversal, not a resting
+    voltage. The ≈ −38 mV lamina resting potentials the paper cites are
+    **blowfly** (*Calliphora*) measurements.
+  * In the implementation, the H-current time constant is voltage-dependent,
+    ranging from **100 to 850 ms**. It is not a fixed pathway delay.
+  * Neither that paper nor this project shows that this mechanism caused the
+    v4/v5 failures reported here.
+* **Pugliese *et al.*** (bioRxiv, 12 September 2025, v1, doi
+  [10.1101/2025.09.12.675944](https://www.biorxiv.org/content/10.1101/2025.09.12.675944v1.full);
+  implementation at commit `1087fe4` of `smpuglie/Pugliese_2026`,
+  `src/simulation/vnc_sim.py`). Size normalisation there belongs to a
+  **firing-rate model of the front-leg VNC** (MANC and FANC), with inputs in
+  arbitrary units. Parameters were drawn from physiologically constrained
+  distributions, and their ranges were set by a hyperparameter search.
+  * With `s` = cell size / median size, the gain `a` is divided by `s` and the
+    threshold `θ` is multiplied by `s`. Here `a` is a rate-model gain, not a
+    synaptic conductance, and `θ` is an input threshold, not a spike threshold
+    in mV.
+  * It is not evidence for a universal, unfitted law. It has not been shown to remedy
+    the ≈ 500-fold photoreceptor-to-T4/T5 attenuation reported here (§13–§14).
+  * The 2026 v2 extension is a separate piece of evidence from this 2025 v1. Any
+    later use of morphology-based scaling must disclose how missing or zero
+    morphology values are handled.
+* **Consequence for the blocker list.** Item 1 of §14.7 stays a candidate to test,
+  not a known fix. Any test must be preregistered on non-motion input-cell
+  physiology and kept separately versioned, with no fitting against T4/T5 or
+  steering. This follows the owner's fitting permission
+  (`docs/OWNER_DECISIONS.md`, Ruling 2).

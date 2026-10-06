@@ -1,10 +1,11 @@
 # NeuroFly direction and acceptance gates — 5 October 2026
 
 Status: v0.4 release HOLD. Direction set by Codex under the owner's delegation on
-5 October. Claude owns implementation, worker coordination and candidate assembly;
-Codex owns scope, independent audit and acceptance. Existing owner decisions remain
-binding. This is an engineering direction document, not a claim of owner approval
-for new scientific assumptions.
+5 October; operating assignments updated by the owner on 6 October. GPT/Codex owns
+orchestration and implementation, with SOL workers for bounded tasks and independent
+Antigravity review retained. Main questions remain with the owner. Existing owner
+decisions and acceptance gates remain binding; this update grants no new scientific
+permission or release acceptance. See `docs/OWNER_DECISIONS.md`.
 
 ## Destination and evidence
 
@@ -29,6 +30,9 @@ the WP7 plan does not silently expand it. Engineered interventions may remain as
 explicit circuit probes or controls, never as evidence of sensory computation.
 
 ## Decisions on the four handoff questions
+
+These decisions record the 5 October handoff. Its Claude worker assignments are
+historical; current assignments appear under "Work order and ownership" below.
 
 1. **Core:** one scientific execution and recording contract shared by the daemon,
    dashboard, validation harness and embodied runner. The dashboard is the user
@@ -85,19 +89,16 @@ bundle and summary at `f5c8814`. These moving heads are not one tested candidate
 
 ## Work order and ownership
 
-Maintain at least two implementation/test lanes: a Claude worker on NVIDIA and a
-Claude worker on the AMD Steam Deck. Use the owner's requested Opus 5.5 where the
-session actually supports it; report the actual model rather than assuming it.
-The NVIDIA Claude coordinates day-to-day execution. The Deck independently tests
-and may propose fixes on its own branch; it does not validate NVIDIA-only behavior.
-CPU execution on an AMD host is AMD CPU coverage, not AMD GPU coverage. An AMD GPU
-port is deferred until correctness and performance measurements justify one.
+GPT/Codex coordinates implementation and candidate assembly, using SOL workers for
+bounded implementation/test tasks. Maintain NVIDIA and AMD implementation/test
+lanes and report each worker's actual model and hardware. Independent Antigravity
+review remains; main questions go to the owner. Earlier Claude handoff assignments
+are historical, not instructions to start or resume Claude workers.
 
-*Superseding note, 5 October 2026 (later):* the owner has since assigned the Deck lane
-to implement AMD GPU acceleration on an isolated branch. Merging requires both Codex
-and Antigravity approval of the exact candidate. The deferral sentence above is
-replaced by that decision; see `docs/OWNER_DECISIONS.md`, "Isolated AMD GPU
-acceleration lane".
+AMD GPU implementation is mandatory on an isolated branch. Its merge requires
+both root Codex and independent Antigravity approval of the exact candidate.
+The AMD lane does not validate NVIDIA-only behavior; AMD CPU coverage is not AMD GPU
+coverage. See `docs/OWNER_DECISIONS.md`, "GPT/Codex operating assignments".
 
 | Priority | Work package | Responsible lane | Acceptance evidence |
 |---|---|---|---|
@@ -156,8 +157,9 @@ scope and non-goals, dirty files, exact tests and skips, scientific controls,
 browser actions and limitations, raw receipt locations, rollback and next blocker.
 No claim is promoted solely because its author says PASS.
 
-Claude assembles candidates; Codex reviews before master integration, deployment
-or release. Use ordinary fast-forwards/merges, never rewrite published history.
+GPT/Codex assembles candidates and reviews them before master integration, deployment
+or release. Independent Antigravity review remains; AMD merges require both root Codex
+and Antigravity approval. Use ordinary fast-forwards/merges, never rewrite published history.
 Avoid wholesale refactors in the freeze fix. Serialize changes to shared controller
 and UI files. Changes made after validation require appropriate revalidation on the
 new exact candidate.

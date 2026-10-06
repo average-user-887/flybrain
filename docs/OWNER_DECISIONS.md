@@ -7,6 +7,36 @@ never edited.
 
 ---
 
+## 2026-10-06 (later) — GPT/Codex operating assignments
+
+The owner's current assignment is **GPT/Codex orchestration and implementation**,
+with **SOL workers for bounded tasks**. Independent **Antigravity review remains**.
+This supersedes the Claude implementation, coordination and candidate-assembly
+assignments in the earlier leadership, release-ownership and AMD-lane entries.
+Those entries remain verbatim as historical decisions, not current worker assignments.
+
+- **AMD GPU work remains mandatory and isolated on its own branch.** Its merge
+  requires both the root Codex review approval and independent Antigravity approval
+  of the exact candidate commit.
+- **Main questions remain with the owner.** Worker assignment does not transfer
+  authority to grant new scientific permissions or accept a release.
+- Existing scientific rules, saved-data obligations and acceptance gates remain
+  unchanged. This operating assignment records no browser pass or release acceptance.
+
+---
+
+## 2026-10-06 — Carry saved learning across application releases
+
+The owner requires existing training data and compatible saved brains to carry
+forward into the release. Application upgrades must not force collection or
+training from scratch. Preserve checkpoints, learned parameters, raw records and
+their original provenance; keep durable stores independent of replaceable code.
+Scientific-model incompatibility requires an explicit, validated migration or a
+precise refusal while retaining the original data, never a silent reset.
+See `docs/TRAINING_CONTINUITY.md` for the implementation boundary and release gate.
+
+---
+
 ## 2026-10-05 (later still) — Isolated AMD GPU acceleration lane. **Supersedes the AMD GPU deferral in `docs/DIRECTION_2026-10-05.md`.**
 
 The owner assigned the Claude worker on the AMD Steam Deck to implement AMD GPU

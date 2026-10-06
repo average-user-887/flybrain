@@ -26,7 +26,22 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Dict, Optional, Any, Type, Union, Set
 import numpy as np
 from collections import deque
+import functools
+import inspect
 from online_metrics import ScalarHistory, PathHistory
+from online_metrics import (EVIDENCE_EVENT_CAP, ContactCounter, MetricFault, ObservationLifecycle, _fly_field,
+                            event, evidence, pose_data, ratio, record, s_to_us, unsupported, us_to_s)
+
+
+def _finite_stimulus(value: Any, path: str):
+    """Reject a nonfinite sensory measurement before arithmetic can conceal it."""
+    try:
+        finite = math.isfinite(value)
+    except (TypeError, ValueError):
+        raise MetricFault(path, f'invalid numeric stimulus at {path}') from None
+    if not finite:
+        raise MetricFault(path)
+    return value
 
 
 # ==============================================================================
@@ -646,8 +661,79 @@ class TrialManager:
 # 2. ABSTRACT BASE CLASS: EXPERIMENT PARADIGM
 # ==============================================================================
 
-class ExperimentParadigm(ABC):
-    """Abstract Base Class for all Drosophila Neuroethological Experiment Paradigms."""
+class ExperimentParadigm(ObservationLifecycle, ABC):
+    """Abstract Base Class for all Drosophila Neuroethological Experiment Paradigms.
+
+    Metric contract v1: every concrete ``step`` also feeds the pre-motor sample to the
+    paradigm's v1 observer, and every ``reset_trial`` starts a new v1 segment. The legacy
+    step bodies and ``get_metrics()`` are untouched (contract §8).
+    """
+
+    _v1_legacy_out = None
+    _v1_last_pose = None
+    _v1_fault = None
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        legacy_step = cls.__dict__.get('step')
+        if legacy_step is not None and not getattr(legacy_step, '_v1_wrapped', False):
+            signature = inspect.signature(legacy_step)
+
+            @functools.wraps(legacy_step)
+            def step(self, *args, **kw):
+                if self.OBSERVATION_SPEC is None:
+                    # A paradigm with no v1 spec (a test fixture or an unknown assay): the legacy
+                    # step runs unchanged and nothing is observed. The daemon must refuse to
+                    # activate it as an assay (v1 §5.6); observation_spec() raises.
+                    return legacy_step(self, *args, **kw)
+                bound = signature.bind(self, *args, **kw)
+                bound.apply_defaults()
+                fly, dt = bound.arguments['fly'], bound.arguments['dt']
+                pose = self._extract_fly_pose(fly)
+                out = legacy_step(self, *args, **kw)
+                self._v1_legacy_out = out
+                try:
+                    self._v1_sample(fly, dt, pose)
+                except MetricFault as fault:
+                    # Surfaced when the records are read (the daemon's F policy); the
+                    # legacy step result is still returned unchanged.
+                    self._v1_fault = fault
+                return out
+
+            step._v1_wrapped = True
+            cls.step = step
+        legacy_reset = cls.__dict__.get('reset_trial')
+        if legacy_reset is not None and not getattr(legacy_reset, '_v1_wrapped', False):
+            @functools.wraps(legacy_reset)
+            def reset_trial(self, *args, config=None, **kw):
+                out = legacy_reset(self, *args, **kw)
+                if self.OBSERVATION_SPEC is not None:
+                    self._v1_reset_segment(config)  # I-5 with the v1.1 ObservationConfig
+                return out
+
+            reset_trial._v1_wrapped = True
+            cls.reset_trial = reset_trial
+
+    def _v1_reset_segment(self, config=None):
+        self._v1_fault = None
+        super()._v1_reset_segment(config)
+
+    def _v1_on_new_observation_segment(self):
+        self._v1_fault = None
+
+    def _v1_ready(self):
+        if self.OBSERVATION_SPEC is None:
+            raise MissingObservationSpec(f'assay {getattr(self, "name", type(self).__name__)} has no observation spec')
+        super()._v1_ready()
+
+    def observation_spec(self):
+        self._v1_ready()
+        return super().observation_spec()
+
+    def get_metric_records(self):
+        if self._v1_fault is not None:
+            raise self._v1_fault
+        return super().get_metric_records()
 
     def __init__(
         self,
@@ -770,10 +856,1028 @@ class ExperimentParadigm(ABC):
 
 
 # ==============================================================================
+# 2b. METRIC CONTRACT v1.2 PRODUCERS (metric-contract/1.2; docs/ASSAY_SEMANTICS.md)
+#
+# Each concrete paradigm inherits one observer below. The observer receives the same
+# pre-motor sample as the legacy step and keeps its own presentation-scoped
+# accumulators, so the legacy get_metrics() view is unchanged (contract §8, C0).
+# ==============================================================================
+
+WALKING_SPEED_MM_S = 0.5            # §9.2: walking |speed| > 0.5 mm/s; immobile <= 0.5 mm/s
+YMAZE_REARM_RADIUS_MM = 12.0        # §9.3 y_maze: hub radius 10 mm + 2 mm hysteresis
+LABYRINTH_REARM_MM = 1.0            # §9.3 labyrinth: re-arm >= 1.0 mm outside the dead end
+GAP_TURN_COMPLETE_RAD = 0.4         # mirrors the gap ABORT controller's `abs(error) < .4` (assay_response.py)
+DAM_BOUT_US = 300 * 1_000_000       # 300 s immobility criterion, never compressed
+BURIDAN_WALK_MIN_US = 1_000_000     # 1 s walking eligibility (engineering threshold)
+
+
+def _spec(assay, mode, window_s, *, headline, companions, hold_s=0.0, terminal_events=(),
+          triggers=(), curves=(), required_states=None, **extra):
+    spec = {
+        'assay': assay, 'spec_version': f'{assay}/1.2', 'mode': mode, 'window_s': window_s,
+        'hold_s': float(hold_s), 'terminal_events': list(terminal_events),
+        're_presentation_triggers': list(triggers), 'headline_metric': headline,
+        'companion_metrics': list(companions),
+        'curve_metrics': [{'name': n, 'curve_label': label} for n, label in curves],
+        'learning_claim': 'none', 'required_states': dict(required_states or {}),
+    }
+    spec.update(extra)
+    return spec
+
+
+def _wrap(angle):
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+class MissingObservationSpec(LookupError):
+    """A paradigm without a metric-contract spec; v1 §5.6: the daemon must refuse it visibly."""
+
+
+def _require_finite_yaw(yaw):
+    if not math.isfinite(yaw):
+        raise MetricFault('yaw_torque')
+
+
+def _cap(seq, item):
+    if len(seq) < EVIDENCE_EVENT_CAP:
+        seq.append(item)
+
+
+class _V1Paths:
+    """Path length and net displacement from successive pre-motor samples."""
+
+    def _v1_path_clear(self):
+        self._p_first = None
+        self._p_last = None
+        self._p_len = 0.0
+
+    def _v1_path(self, s):
+        xy = (s.x, s.y)
+        if self._p_first is None:
+            self._p_first = xy
+        else:
+            self._p_len += math.dist(self._p_last, xy)
+        self._p_last = xy
+
+    def _v1_path_records(self, iv, *, path_name='path_length_mm', net_name=None, net_note=None):
+        if self._p_first is None:
+            out = {path_name: record(kind='kinematic', unit='mm', reason='not_observed', interval_rel_s=iv)}
+            if net_name:
+                out[net_name] = record(kind='kinematic', unit='mm', reason='not_observed',
+                                       note=net_note, interval_rel_s=iv)
+            return out
+        out = {path_name: record(self._p_len, kind='kinematic', unit='mm', interval_rel_s=iv)}
+        if net_name:
+            out[net_name] = record(math.dist(self._p_first, self._p_last), kind='kinematic', unit='mm',
+                                   note=net_note, interval_rel_s=iv)
+        return out
+
+    def _v1_duration(self, us, iv, note=None, samples=None):
+        observed = self._v1_observed_samples() if samples is None else samples
+        if observed == 0:
+            return record(kind='duration', unit='s', reason='not_observed', note=note, interval_rel_s=iv)
+        return record(us_to_s(us), kind='duration', unit='s', note=note, interval_rel_s=iv)
+
+    def _v1_gated_duration(self, name, us, iv):
+        missing = self._v1_state_gate(self.OBSERVATION_SPEC['required_states'][name])
+        if missing:
+            return unsupported('duration', 's', f'controller does not emit {missing}', iv)
+        return self._v1_duration(us, iv)
+
+
+class _TMazeV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        't_maze', 'fixed', 120.0, triggers=['reverse_arms'], headline='first_choice',
+        companions=['first_choice_latency_s', 'cs_plus_entries', 'cs_minus_entries', 'arm_entry_preference_index'],
+        curves=[('arm_entry_preference_index', 'measured arm-entry preference index per completed observation')])
+    PI_NOTE = 'arm-entry preference index over repeated visits; not a conditioning PI or evidence of learning'
+
+    def _v1_clear(self):
+        self._tm = {'cs_plus': 0, 'cs_minus': 0, 'last_arm': None, 'first': None, 'first_arm': None,
+                    'first_us': None, 'first_pose': None, 'entries': []}
+
+    def _v1_carry(self):
+        # A fly still inside an arm at a reversal has not made a new entry (physical hysteresis).
+        return self._tm['last_arm']
+
+    def _v1_restore(self, carry):
+        self._tm['last_arm'] = carry
+
+    def _v1_segment_carry(self):
+        return self._tm['last_arm']
+
+    def _v1_segment_restore(self, carry):
+        self._tm['last_arm'] = carry
+
+    def _v1_observe(self, s):
+        tm = self._tm
+        zones = [z.name for z in self.get_active_zones(s.x, s.y)]
+        # Entry and re-arm rule of the legacy counter (maze.py TMazeParadigm.step).
+        arm = 'arm_a' if 'arm_a' in zones and s.x < 45 else ('arm_b' if 'arm_b' in zones and s.x > 95 else None)
+        if arm and arm != tm['last_arm']:
+            identity = 'cs_plus' if arm == self.cs_plus_arm else 'cs_minus'
+            tm[identity] += 1
+            if tm['first'] is None:
+                tm['first'], tm['first_arm'], tm['first_us'] = identity, arm, s.t_us
+                tm['first_pose'] = pose_data(s.x, s.y, s.heading, s.t_rel_s, s.step)
+            _cap(tm['entries'], event('arm_entry', s.t_rel_s, s.step, arm=arm, identity=identity))
+            tm['last_arm'] = arm
+        elif 63 <= s.x <= 77:
+            tm['last_arm'] = None
+
+    def _v1_records(self, cut):
+        tm, iv = self._tm, self._v1_interval()
+        counts = {'cs_plus': tm['cs_plus'], 'cs_minus': tm['cs_minus']}
+        if self._v1_observed_samples() == 0:
+            index = record(kind='index', unit='index', reason='not_observed', counts=counts,
+                           numerator=0, denominator=0, note=self.PI_NOTE, interval_rel_s=iv)
+            plus = record(kind='count', unit='count', reason='not_observed', interval_rel_s=iv)
+            minus = record(kind='count', unit='count', reason='not_observed', interval_rel_s=iv)
+        else:
+            index = ratio(tm['cs_plus'] - tm['cs_minus'], tm['cs_plus'] + tm['cs_minus'], kind='index',
+                          unit='index', counts=counts, note=self.PI_NOTE, interval_rel_s=iv)
+            plus = record(tm['cs_plus'], kind='count', unit='count', interval_rel_s=iv, evidence_ref='entries')
+            minus = record(tm['cs_minus'], kind='count', unit='count', interval_rel_s=iv, evidence_ref='entries')
+        if tm['first'] is not None:
+            first = record(tm['first'], kind='label', unit='label', counts={'arm': tm['first_arm']},
+                           interval_rel_s=iv, evidence_ref='first_choice_pose')
+        else:
+            first = self._v1_pending_value('label', 'label')
+        return {'arm_entry_preference_index': index, 'cs_plus_entries': plus, 'cs_minus_entries': minus,
+                'first_choice': first, 'first_choice_latency_s': self._v1_latency(self._tm['first_us'])}
+
+    def _v1_evidence(self):
+        ev = {'entries': evidence('event_sequence', self._tm['entries'])}
+        if self._tm['first_pose']:
+            ev['first_choice_pose'] = evidence('pose', self._tm['first_pose'])
+        return ev
+
+
+class _YMazeV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'y_maze', 'fixed', 300.0, headline='spontaneous_alternation_rate',
+        companions=['physical_entries', 'collapsed_length', 'handedness_index'],
+        curves=[('spontaneous_alternation_rate', 'measured alternation rate of the collapsed arm sequence per completed observation')])
+    SYMBOLS = ('A', 'B', 'C')
+
+    def _v1_clear_segment(self):
+        self._ym = {'armed': True, 'physical': [], 'collapsed': []}
+
+    def _v1_clear(self):
+        pass
+
+    def _v1_carry(self):
+        return self._ym['armed']
+
+    def _v1_restore(self, carry):
+        self._ym['armed'] = carry
+
+    def _v1_segment_carry(self):
+        return self._ym['armed']
+
+    def _v1_segment_restore(self, carry):
+        self._ym['armed'] = carry
+
+    def _v1_observe(self, s):
+        ym = self._ym
+        cx, cy = self.center
+        if math.hypot(s.x - cx, s.y - cy) <= YMAZE_REARM_RADIUS_MM:
+            ym['armed'] = True
+            return
+        if not ym['armed']:
+            return
+        zones = {z.name for z in self.get_active_zones(s.x, s.y)}
+        for idx in range(3):
+            if f'arm_{idx}' in zones:
+                ym['physical'].append(idx)
+                if not ym['collapsed'] or ym['collapsed'][-1] != idx:
+                    ym['collapsed'].append(idx)
+                ym['armed'] = False
+                return
+
+    def _v1_records(self, cut):
+        ym, iv = self._ym, self._v1_seg_interval()
+        seq = ym['collapsed']
+        triads = max(0, len(seq) - 2)
+        alternating = sum(1 for i in range(triads) if len(set(seq[i:i + 3])) == 3)
+        left = sum(1 for a, b in zip(seq, seq[1:]) if (b - a) % 3 == 1)
+        right = sum(1 for a, b in zip(seq, seq[1:]) if (b - a) % 3 == 2)
+        counts = {'collapsed_length': len(seq), 'physical_entries': len(ym['physical'])}
+        if self._v1_segment_samples() == 0:
+            na = lambda kind, unit: record(kind=kind, unit=unit, reason='not_observed', counts=counts, interval_rel_s=iv)
+            return {'physical_entries': na('count', 'count'), 'spontaneous_alternation_rate': na('ratio', 'ratio'),
+                    'handedness_index': na('index', 'index'), 'left_turns': na('count', 'count'),
+                    'right_turns': na('count', 'count'), 'total_triads': na('count', 'count'),
+                    'alternating_triads': na('count', 'count')}
+        sar = ratio(alternating, triads, counts=counts, interval_rel_s=iv,
+                    reason_if_zero='insufficient_events',
+                    note='alternation over the consecutive-repeat-collapsed arm sequence')
+        cnt = lambda v: record(v, kind='count', unit='count', interval_rel_s=iv)
+        return {
+            'physical_entries': record(len(ym['physical']), kind='count', unit='count', counts=counts,
+                                       interval_rel_s=iv, evidence_ref='physical_visit_sequence'),
+            'spontaneous_alternation_rate': sar,
+            'handedness_index': ratio(right - left, right + left, kind='index', unit='index',
+                                      counts={'left_turns': left, 'right_turns': right}, interval_rel_s=iv),
+            'left_turns': cnt(left), 'right_turns': cnt(right),
+            'total_triads': cnt(triads), 'alternating_triads': cnt(alternating),
+        }
+
+    def _v1_evidence(self):
+        sym = self.SYMBOLS
+        return {
+            'physical_visit_sequence': evidence('sequence', {'symbols': [sym[i] for i in self._ym['physical']],
+                                                             'collapse': 'none'}),
+            'alternation_sequence': evidence('sequence', {'symbols': [sym[i] for i in self._ym['collapsed']],
+                                                          'collapse': 'consecutive_repeats'}),
+        }
+
+
+class _HeatMazeV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'heat_maze', 'until_terminal', 300.0, hold_s=2.0, terminal_events=['refuge_entry'],
+        triggers=['floorTemp'], headline='escape_latency_s',
+        companions=['thermal_dose_degC_s', 'path_length_mm', 'refuge_reached'])
+
+    def _v1_window_params(self):
+        return {'floor_temp_degC': float(self.peltier.baseline_temp)}
+
+    def _v1_clear(self):
+        self._v1_path_clear()
+        self._hm = {'obs_us': 0, 'dose': 0.0, 'target_us': 0, 'refuge_us': None, 'refuge_pose': None}
+
+    def _v1_observe(self, s):
+        hm = self._hm
+        self._v1_path(s)
+        zones = {z.name for z in self.get_active_zones(s.x, s.y)}
+        if 'refuge' in zones and hm['refuge_us'] is None:
+            hm['refuge_us'] = s.t_us
+            hm['refuge_pose'] = pose_data(s.x, s.y, s.heading, s.t_rel_s, s.step)
+            if self._v1_terminal('refuge_entry', s):
+                return
+        temp = _finite_stimulus(self.peltier.get_temperature(s.x, s.y),
+                                'heat_maze.stimuli.temperature')
+        hm['dose'] += max(0.0, temp - 25.0) * s.observation_dt
+        hm['obs_us'] += s.observation_dt_us
+        if 'target_quadrant' in zones:
+            hm['target_us'] += s.observation_dt_us
+
+    def _v1_records(self, cut):
+        hm, iv = self._hm, self._v1_interval()
+        out = {
+            'escape_latency_s': self._v1_latency(hm['refuge_us']),
+            'refuge_reached': self._v1_outcome(hm['refuge_us'] is not None),
+            'target_quadrant_fraction': ratio(hm['target_us'], hm['obs_us'], kind='fraction', unit='fraction',
+                                              reason_if_zero='not_observed', interval_rel_s=iv),
+            'place_learning': unsupported('index', 'index', 'no place-memory mechanism is implemented', iv),
+        }
+        if self._v1_observed_samples() == 0:
+            out['thermal_dose_degC_s'] = record(kind='integral', unit='degC*s', reason='not_observed', interval_rel_s=iv)
+        else:
+            out['thermal_dose_degC_s'] = record(hm['dose'], kind='integral', unit='degC*s', interval_rel_s=iv,
+                                                note='sum of max(0, T - 25 degC) * dt at pre-motor samples')
+        out.update(self._v1_path_records(iv))
+        return out
+
+    def _v1_evidence(self):
+        return {'refuge_entry_pose': evidence('pose', self._hm['refuge_pose'])} if self._hm['refuge_pose'] else {}
+
+
+class _BuridanV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'buridan', 'fixed', 300.0, triggers=['rotate_stripes', 'contrast'], headline='walking_stripe_alignment',
+        companions=['walking_s', 'displacement_mm', 'heading_alignment', 'centre_fraction'],
+        curves=[('walking_stripe_alignment', 'measured walking stripe alignment per completed observation')])
+    ALIGN_NOTE = 'alignment, not navigation success'
+
+    def _v1_clear(self):
+        self._v1_path_clear()
+        self._bu = {'obs_us': 0, 'walk_us': 0, 'align': 0.0, 'walk_align': 0.0, 'centre_us': 0}
+
+    def _v1_observe(self, s):
+        bu = self._bu
+        self._v1_path(s)
+        fixation = self.sample_stimuli(s.x, s.y, s.heading)['stripe_fixation']
+        bu['obs_us'] += s.observation_dt_us
+        bu['align'] += fixation * s.observation_dt_us
+        if abs(s.speed) > WALKING_SPEED_MM_S:
+            bu['walk_us'] += s.observation_dt_us
+            bu['walk_align'] += fixation * s.observation_dt_us
+        if math.hypot(s.x - self.center[0], s.y - self.center[1]) < 25.0:
+            bu['centre_us'] += s.observation_dt_us
+
+    def _v1_records(self, cut):
+        bu, iv = self._bu, self._v1_interval()
+        observed = bu['obs_us'] > 0
+        na = lambda kind, unit, note=None: record(kind=kind, unit=unit, reason='not_observed', note=note, interval_rel_s=iv)
+        if not observed:
+            align = na('mean', 'index', self.ALIGN_NOTE)
+            walk = na('mean', 'index', self.ALIGN_NOTE)
+            centre = na('fraction', 'fraction')
+            phobism = na('fraction', 'fraction')
+        else:
+            align = record(bu['align'] / bu['obs_us'], kind='mean', unit='index', note=self.ALIGN_NOTE, interval_rel_s=iv)
+            if bu['walk_us'] < BURIDAN_WALK_MIN_US:
+                walk = record(kind='mean', unit='index', reason='insufficient_events', note=self.ALIGN_NOTE,
+                              counts={'walking_s': us_to_s(bu['walk_us']), 'min_walking_s': 1.0}, interval_rel_s=iv)
+            else:
+                walk = record(bu['walk_align'] / bu['walk_us'], kind='mean', unit='index', note=self.ALIGN_NOTE,
+                              counts={'walking_s': us_to_s(bu['walk_us'])}, interval_rel_s=iv)
+            frac = bu['centre_us'] / bu['obs_us']
+            centre = record(frac, kind='fraction', unit='fraction', numerator=bu['centre_us'],
+                            denominator=bu['obs_us'], interval_rel_s=iv)
+            phobism = record(1.0 - frac, kind='fraction', unit='fraction', numerator=bu['obs_us'] - bu['centre_us'],
+                             denominator=bu['obs_us'], interval_rel_s=iv)
+        out = {
+            'observation_s': self._v1_duration(bu['obs_us'], iv),
+            'walking_s': self._v1_duration(bu['walk_us'], iv),
+            'heading_alignment': align, 'walking_stripe_alignment': walk,
+            'centre_fraction': centre, 'centrophobism_index': phobism,
+            'stripe_traversals': unsupported('count', 'count', 'heading-side flips are not traversals; '
+                                             'a spatial traversal metric is not defined in spec buridan/1', iv),
+        }
+        out.update(self._v1_path_records(iv, net_name='displacement_mm'))
+        return out
+
+    def _v1_evidence(self):
+        return {}
+
+
+class _VisualOperantV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'visual_operant', 'presentation', 120.0, triggers=['reverse_heat'], headline='safe_occupancy_fraction',
+        companions=['occupancy_index', 'mean_yaw_command_safe_rad_s', 'mean_yaw_command_punished_rad_s',
+                    'mean_abs_yaw_command_safe_rad_s', 'mean_abs_yaw_command_punished_rad_s',
+                    'yaw_samples_safe', 'yaw_samples_punished'])
+    YAW_NOTE = 'controller yaw command used as torque proxy'
+    SIGNED_YAW_NOTE = 'signed controller yaw command used as torque proxy'
+
+    def _v1_window_params(self):
+        return {'invert_sectors': bool(self.invert_sectors), 'coupling_gain': float(self.coupling_gain)}
+
+    def _v1_clear(self):
+        self._vo = {'safe_us': 0, 'pun_us': 0, 'safe_signed': 0.0, 'pun_signed': 0.0, 'safe_abs': 0.0,
+                    'pun_abs': 0.0, 'safe_n': 0, 'pun_n': 0}
+
+    def _v1_observe(self, s):
+        # The sector and the yaw command are those of the legacy step for this same sample.
+        # Sign convention: positive = counter-clockwise (left), as fly.angular_velocity / yaw_torque.
+        vo, out = self._vo, self._v1_legacy_out or {}
+        punished = bool(out.get('stimuli', {}).get('is_punished'))
+        yaw = float(out.get('yaw_torque', s.angular_velocity))
+        _require_finite_yaw(yaw)
+        key = 'pun' if punished else 'safe'
+        vo[f'{key}_us'] += s.observation_dt_us
+        vo[f'{key}_signed'] += yaw
+        vo[f'{key}_abs'] += abs(yaw)
+        vo[f'{key}_n'] += 1
+
+    def _v1_records(self, cut):
+        vo, iv = self._vo, self._v1_interval()
+        total = vo['safe_us'] + vo['pun_us']
+
+        def sector_counts(key):
+            return {'n': vo[f'{key}_n'], 'sum_signed_rad_s': vo[f'{key}_signed'], 'sum_abs_rad_s': vo[f'{key}_abs']}
+
+        def mean(key, signed=False):
+            n = vo[f'{key}_n']
+            note = self.SIGNED_YAW_NOTE if signed else self.YAW_NOTE
+            if n == 0:
+                return record(kind='mean', unit='rad/s', reason='not_observed', counts=sector_counts(key),
+                              note=note, interval_rel_s=iv)
+            total_yaw = vo[f'{key}_signed'] if signed else vo[f'{key}_abs']
+            return record(total_yaw / n, kind='mean', unit='rad/s', counts=sector_counts(key),
+                          note=note, interval_rel_s=iv)
+
+        return {
+            'safe_occupancy_fraction': ratio(vo['safe_us'], total, kind='fraction', unit='fraction',
+                                             reason_if_zero='not_observed', interval_rel_s=iv,
+                                             note='occupancy, not learned avoidance'),
+            'occupancy_index': ratio(vo['safe_us'] - vo['pun_us'], total, kind='index', unit='index',
+                                     reason_if_zero='not_observed', interval_rel_s=iv,
+                                     note='occupancy, not learned avoidance'),
+            'mean_abs_yaw_command_safe_rad_s': mean('safe'),
+            'mean_abs_yaw_command_punished_rad_s': mean('pun'),
+            'mean_yaw_command_safe_rad_s': mean('safe', signed=True),
+            'mean_yaw_command_punished_rad_s': mean('pun', signed=True),
+            'yaw_samples_safe': record(vo['safe_n'], kind='count', unit='count', interval_rel_s=iv),
+            'yaw_samples_punished': record(vo['pun_n'], kind='count', unit='count', interval_rel_s=iv),
+            'operant_learning': unsupported('index', 'index', 'no pattern-specific operant memory is implemented', iv),
+        }
+
+    def _v1_evidence(self):
+        return {}
+
+
+class _WindTunnelV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'wind_tunnel', 'until_terminal', 120.0, hold_s=1.0, terminal_events=['source_entry'],
+        triggers=['windVelocity', 'plumeWidth', 'shift_plume'], headline='time_to_source_s',
+        companions=['upwind_displacement_mm', 'odor_contact_s', 'surge_s', 'cast_s', 'rest_s'],
+        required_states={'surge_s': ['SURGE'], 'cast_s': ['CAST'], 'rest_s': ['REST'],
+                         'other_state_s': ['SURGE', 'CAST', 'REST'], 'surge_cast_ratio': ['SURGE', 'CAST']})
+
+    def _v1_window_params(self):
+        return {'wind_velocity_mm_s': float(-self.wind_flow[0]), 'plume_sigma_mm': float(self.filament_sigma),
+                'nozzle_y_mm': float(self.nozzle_pos[1])}
+
+    def _v1_clear(self):
+        self._v1_path_clear()
+        self._wt = {'obs_us': 0, 'odor_us': 0, 'SURGE': 0, 'CAST': 0, 'REST': 0, 'other': 0,
+                    'x0': None, 'x': None, 'source_us': None}
+
+    def _v1_observe(self, s):
+        wt = self._wt
+        self._v1_path(s)
+        if wt['x0'] is None:
+            wt['x0'] = s.x
+        wt['x'] = s.x
+        if wt['source_us'] is None and any(z.name == 'source' for z in self.get_active_zones(s.x, s.y)):
+            wt['source_us'] = s.t_us
+            if self._v1_terminal('source_entry', s):
+                return
+        wt['obs_us'] += s.observation_dt_us
+        odor_conc = self.sample_stimuli(s.x, s.y, s.heading)['odor_conc']
+        if _finite_stimulus(odor_conc, 'wind_tunnel.stimuli.odor_conc') > 0.05:
+            wt['odor_us'] += s.observation_dt_us
+        state = str(_fly_field(s.fly, 'behavioral_state', '') or '')
+        wt[state if state in ('SURGE', 'CAST', 'REST') else 'other'] += s.observation_dt_us
+
+    def _v1_records(self, cut):
+        wt, iv = self._wt, self._v1_interval()
+        out = {
+            'observation_s': self._v1_duration(wt['obs_us'], iv),
+            'odor_contact_s': self._v1_duration(wt['odor_us'], iv, note='samples with odour concentration > 0.05'),
+            'source_reached': self._v1_outcome(wt['source_us'] is not None),
+            'time_to_source_s': self._v1_latency(wt['source_us']),
+            'surge_s': self._v1_gated_duration('surge_s', wt['SURGE'], iv),
+            'cast_s': self._v1_gated_duration('cast_s', wt['CAST'], iv),
+            'rest_s': self._v1_gated_duration('rest_s', wt['REST'], iv),
+            'other_state_s': self._v1_gated_duration('other_state_s', wt['other'], iv),
+        }
+        missing = self._v1_state_gate(self.OBSERVATION_SPEC['required_states']['surge_cast_ratio'])
+        if missing:
+            out['surge_cast_ratio'] = unsupported('ratio', 'ratio', f'controller does not emit {missing}', iv)
+        elif self._v1_observed_samples() == 0:
+            out['surge_cast_ratio'] = record(kind='ratio', unit='ratio', reason='not_observed', interval_rel_s=iv)
+        else:
+            out['surge_cast_ratio'] = ratio(us_to_s(wt['SURGE']), us_to_s(wt['CAST']), interval_rel_s=iv,
+                                            counts={'surge_s': us_to_s(wt['SURGE']), 'cast_s': us_to_s(wt['CAST']),
+                                                    'rest_s': us_to_s(wt['REST'])})
+        if wt['x0'] is None:
+            out['upwind_displacement_mm'] = record(kind='kinematic', unit='mm', reason='not_observed', interval_rel_s=iv,
+                                                   note='displacement, not evidence of wind sensing')
+        else:
+            out['upwind_displacement_mm'] = record(wt['x'] - wt['x0'], kind='kinematic', unit='mm', interval_rel_s=iv,
+                                                   note='displacement, not evidence of wind sensing')
+        out.update(self._v1_path_records(iv))
+        return out
+
+    def _v1_evidence(self):
+        return {}
+
+
+class _LoomingV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'looming_escape', 'presentation', None, triggers=['loom'], headline='escape_initiated',
+        companions=['ttc_at_initiation_ms', 'theta_at_initiation_deg', 'escape_completed'])
+
+    def _v1_window_s(self):
+        return self.t_collision_s + 1.6
+
+    def _v1_window_params(self):
+        return {'t_collision_s': float(self.t_collision_s), 'r_over_v_s': float(self.r_over_v_s),
+                'gf_threshold_deg': math.degrees(self.gf_threshold_rad)}
+
+    def _v1_clear(self):
+        self._le = {'onset': False, 'collision': False, 'init': None, 'motor_started': False,
+                    'completed_us': None, 'displacement': None, 'events': []}
+
+    def _v1_theta(self, t_us):
+        """Disc angle at presentation time t (the looming equation of sample_stimuli)."""
+        t = us_to_s(t_us - self._v1_pres_start_us)
+        ttc = max(0.001, self.t_collision_s - t)
+        return 2.0 * math.atan(self.r_over_v_s / ttc), self.t_collision_s - t
+
+    def _v1_gf_source(self):
+        prov = self.provenance if isinstance(self.provenance, dict) else {}
+        return prov.get('gf_source') or self.gf_source
+
+    def _v1_initiate(self, t_us, step, x, y, heading, source, stimuli):
+        theta_deg = float(stimuli['theta_deg'])
+        ttc_ms = float(stimuli['time_to_collision_s']) * 1000.0
+        le = self._le
+        le['init'] = {'t_us': t_us, 'theta_deg': theta_deg, 'ttc_ms': ttc_ms,
+                      'pose': (x, y, heading), 'step': step}
+        _cap(le['events'], event('gf_event', us_to_s(t_us), step, theta_deg=theta_deg,
+                                 ttc_ms=ttc_ms, source=source))
+
+    def _v1_record_gf_event(self, stimuli):
+        """record_gf_spike(): the connectome DNp01 event, stamped at the latest pre-motor sample."""
+        self._v1_ready()
+        if self._le['init'] is None and self._v1_end is None and self._v1_last_t_us is not None:
+            pose = self._v1_last_pose or (0.0, 0.0, 0.0)
+            self._v1_initiate(self._v1_last_t_us, self._v1_last_step, *pose,
+                              source='connectome', stimuli=stimuli)
+
+    def _v1_observe(self, s):
+        le = self._le
+        self._v1_last_pose = (s.x, s.y, s.heading)
+        if not le['onset']:
+            le['onset'] = True
+            _cap(le['events'], event('stimulus_onset', us_to_s(self._v1_pres_start_us), s.step,
+                                     offset_s=0.0))
+        collision_us = self._v1_pres_start_us + s_to_us(self.t_collision_s)
+        if not le['collision'] and s.t_us >= collision_us:
+            # A scheduled stimulus event, stamped at P + t_collision_s (segment-relative), never an escape.
+            le['collision'] = True
+            _cap(le['events'], event('stimulus_collision', us_to_s(collision_us), s.step,
+                                     offset_s=float(self.t_collision_s), observed_at_rel_s=s.t_rel_s))
+        actual = self._v1_legacy_out if isinstance(self._v1_legacy_out, dict) else {}
+        stimuli = actual.get('stimuli')
+        if (le['init'] is None and self._v1_gf_source() == 'geometric' and actual.get('gf_spike')
+                and isinstance(stimuli, dict)):
+            self._v1_initiate(s.t_us, s.step, s.x, s.y, s.heading, 'geometric', stimuli)
+        if le['init'] is not None and le['completed_us'] is None:
+            remaining = float(_fly_field(s.fly, 'assay_escape_remaining', 0.0) or 0.0)
+            if remaining > 0 and not le['motor_started']:
+                le['motor_started'] = True
+                _cap(le['events'], event('escape_motor_start', s.t_rel_s, s.step))
+            elif remaining <= 0 and le['motor_started']:
+                le['completed_us'] = s.t_us
+                x0, y0, _ = le['init']['pose']
+                le['displacement'] = math.hypot(s.x - x0, s.y - y0)
+                _cap(le['events'], event('escape_motor_end', s.t_rel_s, s.step))
+
+    def _v1_records(self, cut):
+        le, iv = self._le, self._v1_interval()
+        init = le['init']
+        out = {'escape_initiated': self._v1_outcome(init is not None,
+                                                    note='initiation from an explicit GF event only'),
+               'escape_completed': self._v1_outcome(le['completed_us'] is not None)}
+        if init:
+            out['initiation_latency_s'] = self._v1_latency(init['t_us'])
+            out['ttc_at_initiation_ms'] = self._v1_faulted_value(
+                init['ttc_ms'], kind='latency', unit='ms', evidence_ref='presentation_events')
+            out['theta_at_initiation_deg'] = record(init['theta_deg'], kind='kinematic', unit='deg',
+                                                    interval_rel_s=iv, evidence_ref='presentation_events')
+        else:
+            out['initiation_latency_s'] = self._v1_latency(None)
+            out['ttc_at_initiation_ms'] = self._v1_pending_value('latency', 'ms')
+            out['theta_at_initiation_deg'] = self._v1_pending_value('kinematic', 'deg')
+        if le['displacement'] is not None:
+            out['escape_displacement_mm'] = record(le['displacement'], kind='kinematic', unit='mm', interval_rel_s=iv)
+        else:
+            out['escape_displacement_mm'] = self._v1_pending_value('kinematic', 'mm')
+        out['gf_source'] = record(str(self._v1_gf_source()), kind='label', unit='label', interval_rel_s=iv)
+        return out
+
+    def _v1_evidence(self):
+        return {'presentation_events': evidence('event_sequence', self._le['events'])}
+
+    def _v1_envelope_extra(self):
+        return {'stimulus_collision_rel_s': us_to_s(self._v1_pres_start_us + s_to_us(self.t_collision_s))}
+
+    def _v1_on_new_presentation(self, reason):
+        # A new presentation is a new loom: restart the stimulus clock in place (as act('loom')).
+        self.stimulus_started_ms = self.time_elapsed_ms
+        self.escape_initiated = False
+        self.gf_spike = False
+
+
+class _OptomotorV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'optomotor', 'presentation', 60.0, triggers=['patternSpeed', 'reverse_grating', 'contrast'],
+        headline='gain', companions=['mean_fly_yaw_deg_s', 'mean_retinal_slip_deg_s'])
+
+    def _v1_window_params(self):
+        v = float(self.drum_velocity_deg_s)
+        return {'drum_velocity_deg_s': v, 'contrast': float(self.contrast),
+                'direction': 'positive' if v > 0 else ('negative' if v < 0 else 'static')}
+
+    def _v1_clear(self):
+        self._om = {'obs_us': 0, 'yaw': 0.0, 'drum': 0.0, 'slip': 0.0}
+
+    def _v1_observe(self, s):
+        om = self._om
+        yaw = math.degrees(s.angular_velocity)
+        drum = float(self.drum_velocity_deg_s)
+        om['obs_us'] += s.observation_dt_us
+        om['yaw'] += yaw * s.observation_dt
+        om['drum'] += drum * s.observation_dt
+        om['slip'] += (drum - yaw) * s.observation_dt
+
+    def _v1_records(self, cut):
+        om, iv = self._om, self._v1_interval()
+        prov = self.provenance if isinstance(self.provenance, dict) else {}
+        stage = prov.get('stimulus_entry_stage')
+        out = {
+            'mean_hs_firing_rate': unsupported('mean', 'label', 'phenomenological formula, not a measured neuron', iv),
+            'stimulus_entry_stage': (record(str(stage), kind='label', unit='label', interval_rel_s=iv) if stage
+                                     else record(kind='label', unit='label', reason='not_observed',
+                                                 note='no stimulus-entry provenance supplied', interval_rel_s=iv)),
+        }
+        if om['obs_us'] == 0:
+            out['gain'] = record(kind='ratio', unit='gain', reason='not_observed', interval_rel_s=iv)
+            out['mean_fly_yaw_deg_s'] = record(kind='mean', unit='deg/s', reason='not_observed', interval_rel_s=iv)
+            out['mean_retinal_slip_deg_s'] = record(kind='mean', unit='deg/s', reason='not_observed', interval_rel_s=iv)
+            return out
+        t = us_to_s(om['obs_us'])
+        out['gain'] = ratio(om['yaw'], om['drum'], unit='gain', interval_rel_s=iv,
+                            note='ratio of integrals: sum(yaw*dt) / sum(drum velocity*dt)')
+        out['mean_fly_yaw_deg_s'] = record(om['yaw'] / t, kind='mean', unit='deg/s', interval_rel_s=iv)
+        out['mean_retinal_slip_deg_s'] = record(om['slip'] / t, kind='mean', unit='deg/s', interval_rel_s=iv)
+        return out
+
+    def _v1_evidence(self):
+        return {}
+
+
+class _GapCrossingV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'gap_crossing', 'until_terminal', 120.0, hold_s=1.0, terminal_events=['landed', 'turn_complete'],
+        triggers=['gapWidth'], headline='crossing_success',
+        companions=['decision_outcome', 'time_to_cross_s', 'probing_duration_s', 'decision_latency_s'])
+    DECISION_NOTE = 'paradigm geometric threshold decision, not tactile planning'
+    SUCCESS_NOTE = 'crossed by the declared deadline'
+
+    def _v1_window_params(self):
+        return {'gap_width_mm': float(self.gap_width_mm),
+                'reachability_threshold_mm': float(self.reachability_threshold_mm)}
+
+    def _v1_clear(self):
+        self._gc = {'probe_us': 0, 'obs_us': 0, 'decision': None, 'decision_us': None, 'landed': False,
+                    'landed_us': None, 'turned': False, 'events': []}
+
+    def _v1_observe(self, s):
+        gc = self._gc
+        stim = self.sample_stimuli(s.x, s.y, s.heading)
+        decided_now = False
+        if stim['is_probing'] and gc['decision'] is None:
+            gc['decision'] = 'CROSS' if stim['p_cross'] >= 0.5 else 'ABORT'
+            gc['decision_us'] = s.t_us
+            _cap(gc['events'], event('probe', s.t_rel_s, s.step))
+            _cap(gc['events'], event(gc['decision'].lower(), s.t_rel_s, s.step))
+            decided_now = True
+        if gc['landed_us'] is None and any(z.name == 'landing_track' for z in self.get_active_zones(s.x, s.y)):
+            gc['landed'], gc['landed_us'] = True, s.t_us
+            _cap(gc['events'], event('landed', s.t_rel_s, s.step))
+            if self._v1_terminal('landed', s):
+                return
+        if (gc['decision'] == 'ABORT' and not decided_now and not gc['turned']
+                and abs(_wrap(math.pi - s.heading)) < GAP_TURN_COMPLETE_RAD):
+            gc['turned'] = True
+            _cap(gc['events'], event('turn_complete', s.t_rel_s, s.step))
+            if self._v1_terminal('turn_complete', s):
+                return
+        gc['obs_us'] += s.observation_dt_us
+        if stim['is_probing']:
+            gc['probe_us'] += s.observation_dt_us
+
+    def _v1_records(self, cut):
+        gc, iv = self._gc, self._v1_interval()
+        if gc['decision']:
+            decision = record(gc['decision'], kind='label', unit='label', note=self.DECISION_NOTE, interval_rel_s=iv,
+                              evidence_ref='decision_sequence')
+        else:
+            decision = self._v1_pending_value('label', 'label', self.DECISION_NOTE)
+        success = self._v1_outcome(gc['landed'], note=self.SUCCESS_NOTE)
+        turn = self._v1_outcome(gc['turned'], note='after abort: first sample with |wrap(pi - heading)| < 0.4 rad')
+        if self._v1_observed_samples() == 0:
+            probing = record(kind='duration', unit='s', reason='not_observed', interval_rel_s=iv)
+        else:
+            probing = record(us_to_s(gc['probe_us']), kind='duration', unit='s', interval_rel_s=iv)
+        return {'decision_outcome': decision, 'crossing_success': success, 'turn_complete': turn,
+                'time_to_cross_s': self._v1_latency(gc['landed_us'], note='latency from the presentation start to landed'),
+                'probing_duration_s': probing, 'decision_latency_s': self._v1_latency(gc['decision_us'])}
+
+    def _v1_evidence(self):
+        return {'decision_sequence': evidence('event_sequence', self._gc['events'])}
+
+
+class _CircadianDAMV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'circadian_dam', 'continuous', None, headline='bout_immobility_min',
+        companions=['beam_crossings', 'current_immobile_s', 'immobility_bouts_300s', 'light_phase'])
+    IMMOBILITY_NOTE = 'operational immobility proxy (speed <= 0.5 mm/s, no beam crossing); not validated sleep'
+
+    def _v1_light_schedule(self):
+        sched = getattr(self, '_light_schedule', None)
+        if sched:
+            return dict(sched)
+        if self.photoperiod == 'DD':
+            return {'mode': 'DD', 'light_s': 0.0, 'dark_s': 86400.0}
+        return {'mode': 'LD', 'light_s': 43200.0, 'dark_s': 43200.0}
+
+    def set_light_schedule(self, light_s, dark_s):
+        """A compressed light cycle: a labelled software test, never an entrainment claim."""
+        light_s, dark_s = float(light_s), float(dark_s)
+        if not (math.isfinite(light_s) and math.isfinite(dark_s)) or light_s <= 0 or dark_s <= 0:
+            raise ValueError('light_s and dark_s must be positive and finite')
+        self._light_schedule = {'mode': 'compressed', 'light_s': light_s, 'dark_s': dark_s,
+                                'note': 'software light-cycle test; no entrainment claim'}
+
+    def observation_spec(self):
+        spec = super().observation_spec()
+        spec['light_schedule'] = self._v1_light_schedule()
+        return spec
+
+    def _v1_phase(self, t_us):
+        sched = self._v1_light_schedule()
+        if sched['mode'] == 'DD':
+            return 'dark'
+        light, period = s_to_us(sched['light_s']), s_to_us(sched['light_s'] + sched['dark_s'])
+        return 'light' if t_us % period < light else 'dark'
+
+    def _v1_clear_segment(self):
+        self._dam = {'beam': 0, 'last_x': None, 'cur_us': 0, 'bout_us': 0, 'bouts': 0, 'in_bout': False,
+                     'bins': [], 'phase': None}
+
+    def _v1_clear(self):
+        pass
+
+    def _v1_observe(self, s):
+        dam = self._dam
+        crossed = dam['last_x'] is not None and ((dam['last_x'] < 32.5 <= s.x) or (dam['last_x'] > 32.5 >= s.x))
+        dam['last_x'] = s.x
+        dam['phase'] = self._v1_phase(s.t_us)
+        if self._v1_light_schedule()['mode'] == 'compressed':
+            actual = self._v1_legacy_out if isinstance(self._v1_legacy_out, dict) else {}
+            stimuli = actual.get('stimuli')
+            lights_on = stimuli.get('is_lights_on') if isinstance(stimuli, dict) else None
+            if isinstance(lights_on, bool):
+                dam['phase'] = 'light' if lights_on else 'dark'
+        b = s.t_us // (60 * 1_000_000)
+        while len(dam['bins']) <= b:
+            dam['bins'].append(0)
+        if crossed:
+            dam['beam'] += 1
+            dam['bins'][b] += 1
+        if crossed or abs(s.speed) > WALKING_SPEED_MM_S:
+            dam['cur_us'] = 0
+            dam['in_bout'] = False
+            return
+        dam['cur_us'] += s.observation_dt_us
+        if dam['in_bout']:
+            dam['bout_us'] += s.observation_dt_us
+        elif dam['cur_us'] >= DAM_BOUT_US:
+            dam['in_bout'] = True
+            dam['bouts'] += 1
+            dam['bout_us'] += dam['cur_us']  # the full qualifying interval, counted once
+
+    def _v1_records(self, cut):
+        dam, iv = self._dam, self._v1_seg_interval()
+        n = self._v1_segment_samples()
+        na = lambda kind, unit, note=None: record(kind=kind, unit=unit, reason='not_observed', note=note, interval_rel_s=iv)
+        if n == 0:
+            out = {'beam_crossings': na('count', 'count'), 'immobility_bouts_300s': na('count', 'count', self.IMMOBILITY_NOTE),
+                   'bout_immobility_min': na('duration', 'min', self.IMMOBILITY_NOTE),
+                   'mean_bout_min': na('ratio', 'min'), 'current_immobile_s': na('duration', 's'),
+                   'light_phase': na('label', 'label')}
+        else:
+            bout_min = dam['bout_us'] / 60_000_000
+            out = {
+                'beam_crossings': record(dam['beam'], kind='count', unit='count', interval_rel_s=iv,
+                                         evidence_ref='activity_bins'),
+                'immobility_bouts_300s': record(dam['bouts'], kind='count', unit='count', note=self.IMMOBILITY_NOTE,
+                                                interval_rel_s=iv),
+                'bout_immobility_min': record(bout_min, kind='duration', unit='min', note=self.IMMOBILITY_NOTE,
+                                              interval_rel_s=iv),
+                'mean_bout_min': ratio(bout_min, dam['bouts'], kind='ratio', unit='min', interval_rel_s=iv),
+                'current_immobile_s': record(us_to_s(dam['cur_us']), kind='duration', unit='s', interval_rel_s=iv),
+                'light_phase': record(dam['phase'], kind='label', unit='label', interval_rel_s=iv,
+                                      evidence_ref='light_phases'),
+            }
+        out['circadian_rhythm'] = unsupported('label', 'label', 'activity and immobility monitor; no endogenous oscillator', iv)
+        return out
+
+    def _v1_evidence(self):
+        sched = self._v1_light_schedule()
+        end = self._v1_seg_us
+        phases = []
+        if sched['mode'] == 'DD':
+            phases.append({'phase': 'dark', 'start_rel_s': 0.0, 'end_rel_s': us_to_s(end)})
+        else:
+            light, dark = s_to_us(sched['light_s']), s_to_us(sched['dark_s'])
+            t = 0
+            while t <= end and len(phases) < EVIDENCE_EVENT_CAP:
+                phases.append({'phase': 'light', 'start_rel_s': us_to_s(t), 'end_rel_s': us_to_s(t + light)})
+                if t + light <= end:
+                    phases.append({'phase': 'dark', 'start_rel_s': us_to_s(t + light),
+                                   'end_rel_s': us_to_s(t + light + dark)})
+                t += light + dark
+        return {'activity_bins': evidence('bins', {'bin_s': 60.0, 'start_rel_s': 0.0,
+                                                   'quantity': 'beam_crossings', 'counts': list(self._dam['bins'])}),
+                'light_phases': evidence('phase_boundaries', phases)}
+
+
+class _CourtshipV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'courtship', 'fixed', 600.0, triggers=['receptivity'], headline='proximity_fraction',
+        companions=['min_distance_mm', 'approach_s', 'avoid_s', 'courtship_state_fraction'],
+        required_states={'approach_s': ['SOCIAL_APPROACH'], 'avoid_s': ['SOCIAL_AVOID'],
+                         'courtship_state_s': ['COURTSHIP'], 'courtship_state_fraction': ['COURTSHIP']})
+
+    def _v1_window_params(self):
+        return {'female_type': self.female_type, 'proximity_radius_mm': 3.5}
+
+    def _v1_clear(self):
+        self._co = {'obs_us': 0, 'near_us': 0, 'min_d': None, 'SOCIAL_APPROACH': 0, 'SOCIAL_AVOID': 0,
+                    'COURTSHIP': 0}
+
+    def _v1_observe(self, s):
+        co = self._co
+        d = math.hypot(self.female_pos[0] - s.x, self.female_pos[1] - s.y)
+        co['obs_us'] += s.observation_dt_us
+        co['min_d'] = d if co['min_d'] is None else min(co['min_d'], d)
+        if d < 3.5:
+            co['near_us'] += s.observation_dt_us
+        state = str(_fly_field(s.fly, 'behavioral_state', '') or '')
+        if state in ('SOCIAL_APPROACH', 'SOCIAL_AVOID', 'COURTSHIP'):
+            co[state] += s.observation_dt_us
+
+    def _v1_records(self, cut):
+        co, iv = self._co, self._v1_interval()
+        out = {'proximity_fraction': ratio(co['near_us'], co['obs_us'], kind='fraction', unit='fraction',
+                                           reason_if_zero='not_observed', interval_rel_s=iv,
+                                           note='time within 3.5 mm of the female position'),
+               'min_distance_mm': (record(co['min_d'], kind='kinematic', unit='mm', interval_rel_s=iv)
+                                   if co['min_d'] is not None else
+                                   record(kind='kinematic', unit='mm', reason='not_observed', interval_rel_s=iv)),
+               'approach_s': self._v1_gated_duration('approach_s', co['SOCIAL_APPROACH'], iv),
+               'avoid_s': self._v1_gated_duration('avoid_s', co['SOCIAL_AVOID'], iv),
+               'courtship_state_s': self._v1_gated_duration('courtship_state_s', co['COURTSHIP'], iv)}
+        missing = self._v1_state_gate(['COURTSHIP'])
+        out['courtship_state_fraction'] = (
+            unsupported('fraction', 'fraction', f'controller does not emit {missing}', iv) if missing else
+            ratio(co['COURTSHIP'], co['obs_us'], kind='fraction', unit='fraction', reason_if_zero='not_observed',
+                  interval_rel_s=iv, note="time in the controller's COURTSHIP state"))
+        for name, note in (('courtship_conditioning', 'no courtship memory is implemented'),
+                           ('learned_suppression', 'no courtship memory is implemented'),
+                           ('wing_song', 'no wing-song model'),
+                           ('rejection_kicks', 'no female rejection behaviour is modelled')):
+            out[name] = unsupported('count' if name == 'rejection_kicks' else 'label',
+                                    'count' if name == 'rejection_kicks' else 'label', note, iv)
+        return out
+
+    def _v1_evidence(self):
+        return {}
+
+
+class _LabyrinthV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'labyrinth', 'until_terminal', 300.0, hold_s=2.0, terminal_events=['goal_entry'], headline='time_to_goal_s',
+        companions=['path_length_mm', 'wall_contact_onsets', 'dead_end_entries', 'tortuosity'])
+
+    def _v1_clear_segment(self):
+        self._v1_path_clear()
+        self._lb = {'contacts': ContactCounter(), 'armed': {}, 'entries': 0, 'dead_us': 0, 'goal_us': None,
+                    'obs_us': 0}
+
+    def _v1_clear(self):
+        pass
+
+    def _v1_segment_carry(self):
+        return {'armed': dict(self._lb['armed']), 'in_contact': self._lb['contacts'].prev}
+
+    def _v1_segment_restore(self, carry):
+        self._lb['armed'] = carry['armed']
+        self._lb['contacts'].prev = carry['in_contact']
+
+    @staticmethod
+    def _outside_by(bounds, x, y):
+        x0, y0, x1, y1 = bounds
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        return math.hypot(dx, dy)
+
+    def _v1_observe(self, s):
+        lb = self._lb
+        self._v1_path(s)
+        if lb['goal_us'] is None and any(z.name == 'goal' and z.contains(s.x, s.y) for z in self.zones):
+            lb['goal_us'] = s.t_us
+            if self._v1_terminal('goal_entry', s):
+                return
+        lb['obs_us'] += s.observation_dt_us
+        inside_any = False
+        for z in self.zones:
+            if not z.name.startswith('dead_end'):
+                continue
+            armed = lb['armed'].get(z.name, True)
+            if z.contains(s.x, s.y):
+                inside_any = True
+                if armed:
+                    lb['entries'] += 1
+                    lb['armed'][z.name] = False
+            elif self._outside_by(z.bounds, s.x, s.y) >= LABYRINTH_REARM_MM:
+                lb['armed'][z.name] = True
+        if inside_any:
+            lb['dead_us'] += s.observation_dt_us
+
+    def _v1_contact(self, step, t_us, dt_us, in_contact, source):
+        self._lb['contacts'].observe(step, t_us, dt_us, in_contact, source)
+
+    def _v1_contact_prefix(self, dt_us):
+        self._lb['contacts'].integrate_prefix(dt_us)
+
+    def _v1_records(self, cut):
+        lb, iv = self._lb, self._v1_seg_interval()
+        out = lb['contacts'].records(iv)
+        segment_samples = self._v1_segment_samples()
+        observed = segment_samples > 0
+        out['dead_end_entries'] = (record(lb['entries'], kind='count', unit='count', interval_rel_s=iv) if observed
+                                   else record(kind='count', unit='count', reason='not_observed', interval_rel_s=iv))
+        out['dead_end_s'] = self._v1_duration(lb['dead_us'], iv, samples=segment_samples)
+        out.update(self._v1_path_records(iv, net_name='net_displacement_mm'))
+        if not observed:
+            out['tortuosity'] = record(kind='ratio', unit='ratio', reason='not_observed', interval_rel_s=iv)
+        else:
+            net = math.dist(self._p_first, self._p_last)
+            out['tortuosity'] = (record(kind='ratio', unit='ratio', reason='zero_denominator', numerator=self._p_len,
+                                        denominator=0.0, interval_rel_s=iv) if net < 1e-9 else
+                                 record(self._p_len / net, kind='ratio', unit='ratio', numerator=self._p_len,
+                                        denominator=net, interval_rel_s=iv))
+        out['goal_reached'] = self._v1_segment_outcome(lb['goal_us'] is not None)
+        out['time_to_goal_s'] = self._v1_segment_latency(lb['goal_us'])
+        return out
+
+    def _v1_evidence(self):
+        return {'contact_events': evidence('event_sequence', self._lb['contacts'].events)}
+
+
+class _MultisensoryV1(_V1Paths):
+    OBSERVATION_SPEC = _spec(
+        'multisensory', 'fixed', 120.0, headline='distance_mm',
+        companions=['odor_a_exposure_s', 'heat_exposure_s', 'wall_contact_onsets'])
+    SCRIPTED_NOTE = 'scripted leg phases are illustrative; no neural coordination'
+
+    def _v1_clear_segment(self):
+        self._v1_path_clear()
+        self._ms = {'contacts': ContactCounter(), 'obs_us': 0, 'odor_us': 0, 'heat_us': 0, 'v': None, 'a': None,
+                    'jerk_sum': 0.0, 'jerk_n': 0}
+
+    def _v1_clear(self):
+        pass
+
+    def _v1_segment_carry(self):
+        return self._ms['contacts'].prev
+
+    def _v1_segment_restore(self, carry):
+        self._ms['contacts'].prev = carry
+
+    def _v1_observe(self, s):
+        ms = self._ms
+        self._v1_path(s)
+        stim = self.sample_stimuli(s.x, s.y, s.heading)
+        _finite_stimulus(stim['odor_a'], 'multisensory.stimuli.odor_a')
+        _finite_stimulus(stim['temperature'], 'multisensory.stimuli.temperature')
+        ms['obs_us'] += s.observation_dt_us
+        if stim['odor_a'] >= 0.5:
+            ms['odor_us'] += s.observation_dt_us
+        if stim['temperature'] > 35.0:
+            ms['heat_us'] += s.observation_dt_us
+        if ms['v'] is not None:
+            accel = (s.speed - ms['v']) / s.dt
+            if ms['a'] is not None:
+                ms['jerk_sum'] += abs(accel - ms['a']) / s.dt
+                ms['jerk_n'] += 1
+            ms['a'] = accel
+        ms['v'] = s.speed
+
+    def _v1_contact(self, step, t_us, dt_us, in_contact, source):
+        self._ms['contacts'].observe(step, t_us, dt_us, in_contact, source)
+
+    def _v1_contact_prefix(self, dt_us):
+        self._ms['contacts'].integrate_prefix(dt_us)
+
+    def _v1_records(self, cut):
+        ms, iv = self._ms, self._v1_seg_interval()
+        segment_samples = self._v1_segment_samples()
+        out = ms['contacts'].records(iv)
+        out.update(self._v1_path_records(iv, path_name='distance_mm'))
+        out['odor_a_exposure_s'] = self._v1_duration(
+            ms['odor_us'], iv, note='time with odour A >= 0.5', samples=segment_samples)
+        out['heat_exposure_s'] = self._v1_duration(
+            ms['heat_us'], iv, note='time with temperature > 35 degC', samples=segment_samples)
+        out['mean_abs_speed_jerk_mm_s3'] = (
+            record(ms['jerk_sum'] / ms['jerk_n'], kind='mean', unit='mm/s^3', counts={'samples': ms['jerk_n']},
+                   note='proxy: mean |delta acceleration| / dt from the sampled speed', interval_rel_s=iv)
+            if ms['jerk_n'] else
+            record(kind='mean', unit='mm/s^3', reason='not_observed', counts={'samples': 0}, interval_rel_s=iv))
+        for name in ('composite_benchmark_score', 'locomotor_coordination_index', 'multisensory_integration_score',
+                     'biomechanical_efficiency', 'kinematic_smoothness', 'energy_proxy'):
+            out[name] = unsupported('index', 'index', self.SCRIPTED_NOTE, iv)
+        return out
+
+    def _v1_evidence(self):
+        return {'contact_events': evidence('event_sequence', self._ms['contacts'].events)}
+
+
+# ==============================================================================
 # 3. 12 CONCRETE EXPERIMENT PARADIGMS
 # ==============================================================================
 
-class TMazeParadigm(ExperimentParadigm):
+class TMazeParadigm(_TMazeV1, ExperimentParadigm):
     """Paradigm 1: T-Maze Olfactory Associative Conditioning (Tully & Quinn 1985).
 
     Stem (60x14mm), Left Arm (CS+, sucrose reward), Right Arm (CS-, shock grid 60V).
@@ -917,7 +2021,7 @@ class TMazeParadigm(ExperimentParadigm):
         }
 
 
-class YMazeParadigm(ExperimentParadigm):
+class YMazeParadigm(_YMazeV1, ExperimentParadigm):
     """Paradigm 2: Y-Maze Spontaneous Alternation & Handedness (Buchanan et al. 2015).
 
     3 symmetric arms oriented at 0, 120, 240 degrees (arm length 40mm, width 12mm),
@@ -1072,7 +2176,7 @@ class YMazeParadigm(ExperimentParadigm):
         }
 
 
-class HeatMazeParadigm(ExperimentParadigm):
+class HeatMazeParadigm(_HeatMazeV1, ExperimentParadigm):
     """Paradigm 3: Thermal Heat-Maze Place Learning (Ofstad, Zuker & Reiser, Nature 2011).
 
     Circular arena (R=55mm), 36.5 deg C heated floor, 24.0 deg C cool refuge at (22, 18),
@@ -1141,7 +2245,8 @@ class HeatMazeParadigm(ExperimentParadigm):
 
     def sample_stimuli(self, x: Any, y: Optional[float] = None, heading: Optional[float] = None) -> Dict[str, Any]:
         x, y, heading = self._normalize_stimuli_args(x, y, heading)
-        temp = self.peltier.get_temperature(x, y)
+        temp = _finite_stimulus(self.peltier.get_temperature(x, y),
+                                'heat_maze.stimuli.temperature')
         r_warm = max(0.0, (temp - 26.0) * 8.0)
         r_cold = max(0.0, (25.0 - temp) * 8.0)
 
@@ -1166,7 +2271,7 @@ class HeatMazeParadigm(ExperimentParadigm):
         self.path_points.append((x, y))
 
         stimuli = self.sample_stimuli(x, y, heading)
-        temp = stimuli['temperature']
+        temp = _finite_stimulus(stimuli['temperature'], 'heat_maze.stimuli.temperature')
         self.cumulative_thermal_dose += max(0.0, temp - 25.0) * dt
 
         # Check refuge
@@ -1276,7 +2381,7 @@ class HeatMazeParadigm(ExperimentParadigm):
         return metrics
 
 
-class BuridanParadigm(ExperimentParadigm):
+class BuridanParadigm(_BuridanV1, ExperimentParadigm):
     """Paradigm 4: Buridan's Visual Landmark Paradigm (Götz 1980; Colomb & Brembs 2012).
 
     Circular platform (R=50mm) surrounded by water moat, with 2 opposing black stripes
@@ -1386,7 +2491,7 @@ class BuridanParadigm(ExperimentParadigm):
         }
 
 
-class VisualOperantParadigm(ExperimentParadigm):
+class VisualOperantParadigm(_VisualOperantV1, ExperimentParadigm):
     """Paradigm 5: Visual Operant Flight Simulator / Yaw Conditioning (Wolf & Heisenberg 1991).
 
     Tethered fly in 360-deg drum with alternating upright 'T' (safe) and inverted 'T' (punished).
@@ -1488,7 +2593,7 @@ class VisualOperantParadigm(ExperimentParadigm):
         }
 
 
-class WindTunnelParadigm(ExperimentParadigm):
+class WindTunnelParadigm(_WindTunnelV1, ExperimentParadigm):
     """Paradigm 6: Wind Tunnel Odor Plume Tracking (Alvarez-Salvado 2018; Demir 2020).
 
     200x60mm laminar wind tunnel with downwind flow (-25, 0) mm/s, upstream odor nozzle
@@ -1540,11 +2645,14 @@ class WindTunnelParadigm(ExperimentParadigm):
         else:
             conc = 0.0
 
+        conc = _finite_stimulus(conc, 'wind_tunnel.stimuli.odor_conc')
+        wind_x = _finite_stimulus(self.wind_flow[0], 'wind_tunnel.stimuli.wind[0]')
+        wind_y = _finite_stimulus(self.wind_flow[1], 'wind_tunnel.stimuli.wind[1]')
         return {
             'odor_conc': float(np.clip(conc, 0.0, 1.0)),
             'wind': self.wind_flow,
-            'wind_speed': math.hypot(*self.wind_flow),
-            'wind_direction_rad': math.atan2(self.wind_flow[1], self.wind_flow[0])  # Wind blows in -x direction
+            'wind_speed': math.hypot(wind_x, wind_y),
+            'wind_direction_rad': math.atan2(wind_y, wind_x)  # Wind blows in -x direction
         }
 
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
@@ -1557,7 +2665,8 @@ class WindTunnelParadigm(ExperimentParadigm):
         self.last_x = x
 
         stimuli = self.sample_stimuli(x, y, heading)
-        odor_on = (stimuli['odor_conc'] > 0.05)
+        odor_on = (_finite_stimulus(stimuli['odor_conc'],
+                                    'wind_tunnel.stimuli.odor_conc') > 0.05)
 
         if odor_on:
             self.surge_steps += 1
@@ -1605,7 +2714,7 @@ class WindTunnelParadigm(ExperimentParadigm):
         }
 
 
-class LoomingEscapeParadigm(ExperimentParadigm):
+class LoomingEscapeParadigm(_LoomingV1, ExperimentParadigm):
     """Paradigm 7: Visual Looming Predator Escape & Takeoff Assay (Card & Dickinson 2008).
 
     Circular stage with an approaching visual dark disk expanding as theta(t) = 2 arctan(r / (v (t_coll - t))).
@@ -1682,8 +2791,14 @@ class LoomingEscapeParadigm(ExperimentParadigm):
 
     def record_gf_spike(self) -> None:
         """A DNp01 spike of the connectome brain: the first one of a loom is the jump."""
+        actual = self._v1_legacy_out if isinstance(self._v1_legacy_out, dict) else {}
+        actual_stimuli = actual.get('stimuli')
+        stimuli = (actual_stimuli if isinstance(actual_stimuli, dict)
+                   else self.sample_stimuli(0.0, 0.0, 0.0))
         if not self.escape_initiated:
-            self._mark_escape(self.sample_stimuli(0.0, 0.0, 0.0))
+            self._mark_escape(stimuli)
+        if isinstance(actual_stimuli, dict):
+            self._v1_record_gf_event(actual_stimuli)
 
     def reset_trial(self) -> Dict[str, Any]:
         self.trial_manager.reset()
@@ -1704,7 +2819,7 @@ class LoomingEscapeParadigm(ExperimentParadigm):
         }
 
 
-class OptomotorParadigm(ExperimentParadigm):
+class OptomotorParadigm(_OptomotorV1, ExperimentParadigm):
     """Paradigm 8: Optomotor Gaze Stabilization & Saccadic Efference Copy (Götz 1964; Kim 2017).
 
     Rotating vertical sinusoidal grating drum (R=45mm, omega=30 deg/s).
@@ -1796,7 +2911,7 @@ class OptomotorParadigm(ExperimentParadigm):
         }
 
 
-class GapCrossingParadigm(ExperimentParadigm):
+class GapCrossingParadigm(_GapCrossingV1, ExperimentParadigm):
     """Paradigm 9: Gap Crossing & Spatial Motor Planning (Pick & Strauss 2005; Triphan 2010).
 
     Elevated linear track (100x5mm) with adjustable chasm (2.0 to 5.5mm).
@@ -1889,7 +3004,7 @@ class GapCrossingParadigm(ExperimentParadigm):
         }
 
 
-class CircadianDAMParadigm(ExperimentParadigm):
+class CircadianDAMParadigm(_CircadianDAMV1, ExperimentParadigm):
     """Paradigm 10: Circadian Locomotor Rhythm & Sleep Deprivation Assay (Konopka 1971; Allada 2010).
 
     Array of 16 cylindrical activity tubes (5x65mm) with mid-tube infrared beam break (x=32.5mm).
@@ -1927,7 +3042,10 @@ class CircadianDAMParadigm(ExperimentParadigm):
         current_minute = (self.time_elapsed_ms / 60000.0) % 1440
         hour_of_day = current_minute / 60.0
 
-        if self.photoperiod == 'LD':
+        if self._v1_light_schedule()['mode'] == 'compressed':
+            elapsed_us = s_to_us(self.time_elapsed_ms / 1000.0)
+            is_lights_on = self._v1_phase(elapsed_us) == 'light'
+        elif self.photoperiod == 'LD':
             is_lights_on = (hour_of_day < 12.0)
         else:
             is_lights_on = False
@@ -2000,7 +3118,7 @@ class CircadianDAMParadigm(ExperimentParadigm):
         }
 
 
-class CourtshipParadigm(ExperimentParadigm):
+class CourtshipParadigm(_CourtshipV1, ExperimentParadigm):
     """Paradigm 11: Courtship Conditioning & Pheromone Memory (Siegel & Hall 1979; Keleman 2007).
 
     Circular courtship chamber (R=8.5mm, as drawn by the dashboard), male and female fly (virgin or mated).
@@ -2100,7 +3218,7 @@ class CourtshipParadigm(ExperimentParadigm):
         }
 
 
-class LabyrinthParadigm(ExperimentParadigm):
+class LabyrinthParadigm(_LabyrinthV1, ExperimentParadigm):
     """Paradigm 12: Corridor Obstacle Labyrinth (Sliding Collision Physics).
 
     140x100mm multi-junction labyrinth with 12 internal wall segments forming
@@ -2259,7 +3377,7 @@ class LabyrinthParadigm(ExperimentParadigm):
 
 
 
-class MultisensoryLimbBenchmark(ExperimentParadigm):
+class MultisensoryLimbBenchmark(_MultisensoryV1, ExperimentParadigm):
     """Assay 13: Multisensory Ingress & Full-Body Limb Biomechanics Benchmark.
 
     A comprehensive closed-loop benchmark integrating:
@@ -2386,21 +3504,28 @@ class MultisensoryLimbBenchmark(ExperimentParadigm):
         db = math.hypot(fx - self.repellent_pos[0], fy - self.repellent_pos[1])
         dc = math.hypot(fx - self.pheromone_pos[0], fy - self.pheromone_pos[1])
 
-        odor_a = float(math.exp(-(da * da) / (2 * 20.0 * 20.0)))
-        odor_b = float(math.exp(-(db * db) / (2 * 20.0 * 20.0)))
-        odor_cva = float(0.8 * math.exp(-(dc * dc) / (2 * 18.0 * 18.0)))
+        odor_a = _finite_stimulus(float(math.exp(-(da * da) / (2 * 20.0 * 20.0))),
+                                  'multisensory.stimuli.odor_a')
+        odor_b = _finite_stimulus(float(math.exp(-(db * db) / (2 * 20.0 * 20.0))),
+                                  'multisensory.stimuli.odor_b')
+        odor_cva = _finite_stimulus(float(0.8 * math.exp(-(dc * dc) / (2 * 18.0 * 18.0))),
+                                    'multisensory.stimuli.odor_cva')
 
         # 2. Thermal terrain (ambient 24.0, hotspot 38.5, cool refuge 22.0)
         dh = math.hypot(fx - self.hotspot_pos[0], fy - self.hotspot_pos[1])
         d_cool = math.hypot(fx - self.cool_pos[0], fy - self.cool_pos[1])
         temp_hot = 14.5 * math.exp(-(dh * dh) / (2 * 18.0 * 18.0))
         temp_cool = -2.0 * math.exp(-(d_cool * d_cool) / (2 * 12.0 * 12.0))
-        temperature = float(max(20.0, min(42.0, 24.0 + temp_hot + temp_cool)))
+        raw_temperature = _finite_stimulus(24.0 + temp_hot + temp_cool,
+                                           'multisensory.stimuli.temperature')
+        temperature = float(max(20.0, min(42.0, raw_temperature)))
 
         # 3. Mechanosensory wind
-        wind_mag = math.hypot(self.wind_vector[0], self.wind_vector[1])
-        wind_angle = math.atan2(self.wind_vector[1], self.wind_vector[0])
-        upwind_angle = math.atan2(-self.wind_vector[1], -self.wind_vector[0])
+        wind_x = _finite_stimulus(self.wind_vector[0], 'multisensory.stimuli.wind[0]')
+        wind_y = _finite_stimulus(self.wind_vector[1], 'multisensory.stimuli.wind[1]')
+        wind_mag = math.hypot(wind_x, wind_y)
+        wind_angle = math.atan2(wind_y, wind_x)
+        upwind_angle = math.atan2(-wind_y, -wind_x)
         egocentric_wind = ((upwind_angle - fheading + math.pi) % (2 * math.pi)) - math.pi
         jo_antenna_deflect_un = float(wind_mag * 0.12)
 
@@ -2504,8 +3629,11 @@ class MultisensoryLimbBenchmark(ExperimentParadigm):
         power = (self.cpg_freq_hz * 0.8 + fspeed * 0.5) * dt
         self.total_energy += power
 
-        reward = 1.0 if stim['odor_a'] > 0.6 and stim['temperature'] < 25.0 else 0.0
-        punishment = 1.0 if stim['temperature'] > 35.0 or stim['odor_b'] > 0.5 else 0.0
+        odor_a = _finite_stimulus(stim['odor_a'], 'multisensory.stimuli.odor_a')
+        odor_b = _finite_stimulus(stim['odor_b'], 'multisensory.stimuli.odor_b')
+        temperature = _finite_stimulus(stim['temperature'], 'multisensory.stimuli.temperature')
+        reward = 1.0 if odor_a > 0.6 and temperature < 25.0 else 0.0
+        punishment = 1.0 if temperature > 35.0 or odor_b > 0.5 else 0.0
 
         return {
             'stimuli': stim,

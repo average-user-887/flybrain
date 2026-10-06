@@ -255,6 +255,12 @@ def _get_json(url, timeout=3.0):
         return resp.status, json.loads(resp.read().decode("utf-8")), dict(resp.headers)
 
 
+def _get(url, headers=None, timeout=3.0):
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.status, resp.read(), dict(resp.headers)
+
+
 def _open_sse(host, port, timeout=3.0):
     """Open a raw SSE connection and return (socket, status_line)."""
     s = socket.create_connection((host, port), timeout=timeout)
@@ -264,6 +270,22 @@ def _open_sse(host, port, timeout=3.0):
 
 
 class TestDaemonPrivateModeUnchanged:
+    def test_dashboard_html_is_build_stamped_and_static_assets_revalidate(self, daemon_server):
+        import neurofly_daemon as nd
+
+        base, _ = daemon_server(StreamPolicy())
+        status, page, headers = _get(base + "/", {"Accept": "text/html"})
+        assert status == 200 and headers["Cache-Control"] == "no-cache"
+        assert nd.WEB_BUILD_PLACEHOLDER.encode() not in page
+        assert f'content="{nd.DASHBOARD_WEB_BUILD}"'.encode() in page
+
+        status, app, headers = _get(base + "/app.js")
+        assert status == 200 and headers["Cache-Control"] == "no-cache"
+        assert b"deliveryBuildState" in app
+
+        _, payload, _ = _get_json(base + "/api/status")
+        assert payload["delivery"]["web_build"] == nd.DASHBOARD_WEB_BUILD
+
     def test_command_allowed_and_cors_star(self, daemon_server):
         base, runner = daemon_server(StreamPolicy())
         status, body, headers = _post(base + "/api/command", {"action": "set_speed", "speed": 5})

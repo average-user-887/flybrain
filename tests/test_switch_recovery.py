@@ -15,13 +15,14 @@ Runs on the synthetic test graph with the stub WP5 map used by
 tests/test_wp5_live_loop.py; no 600 MB graph, no behavioural claim.
 """
 import pytest
+from tests.transition_control_helpers import transition_command
 
 from neurofly_daemon import NeuroflyHTTPHandler
 from tests.test_wp5_live_loop import graph_runner, synthetic_io_map
 
 
 def _switch(runner, paradigm):
-    return runner._apply_command({"action": "switch_paradigm", "paradigm": paradigm})
+    return transition_command(runner, {"action": "switch_paradigm", "paradigm": paradigm}, lock_held=True)
 
 
 def _status(runner):
@@ -151,7 +152,7 @@ def test_backend_switch_clears_the_halt(tmp_path):
     with runner.lock:
         _fail_next_step(runner)
         runner.step_once()
-        result = runner._apply_command({"action": "switch_backend", "backend": "modular"})
+        result = transition_command(runner, {"action": "switch_backend", "backend": "modular"}, lock_held=True)
     assert result["status"] == "ok", result
     assert runner.last_error is None
     assert runner.cleared_errors[-1]["cleared_by"] == "switch_backend"
