@@ -25,10 +25,10 @@ function harness(){
  vm.runInContext([declaration('validateRequestedSpeed'),declaration('requestedSpeedText'),declaration('formatSimSpeed')].join('\n'),context);
  const playback=app.includes('    renderPlaybackState(')?method('renderPlaybackState','enterReplay'):
   `renderPlaybackState(pkt) {${app.slice(app.indexOf('            this.arena.paradigmStatus = pkt.error'),app.indexOf('            const panelCaps = graphPanelCapabilities(pkt);'))}}`;
- vm.runInContext(`window.headerMethods={${playback},${method('renderTiming','scheduleReconnect')},${method('updateFreshness','stepAgeSeconds')},${method('exitReplay','markReadOnly')},${method('speedFeedback','reconcileRequestedSpeed')},${method('reconcileRequestedSpeed','async setSpeed')},${method('async setSpeed','reconcileBackendSelector')}}`,context);
+ vm.runInContext(`window.headerMethods={${playback},${method('currentHaltForPacket','renderCurrentHalt')},${method('renderCurrentHalt','applyObservationValidityUpdate')},${method('renderTiming','scheduleReconnect')},${method('updateFreshness','stepAgeSeconds')},${method('exitReplay','markReadOnly')},${method('speedFeedback','reconcileRequestedSpeed')},${method('reconcileRequestedSpeed','async setSpeed')},${method('async setSpeed','reconcileBackendSelector')}}`,context);
  const methods=context.window.headerMethods;
  const hud={simSpeed:100,speedOptions:[.5,1,100],...methods};
- const bridge={replayMode:true,connected:false,arena:{},hud,renderPlaybackState:methods.renderPlaybackState,renderTiming:methods.renderTiming,
+ const bridge={currentHaltForPacket:methods.currentHaltForPacket,renderCurrentHalt:methods.renderCurrentHalt,replayMode:true,connected:false,arena:{},hud,renderPlaybackState:methods.renderPlaybackState,renderTiming:methods.renderTiming,
   updateFreshness:methods.updateFreshness,exitReplay:methods.exitReplay,stepAgeSeconds:()=>.25,updatePersistenceBanner(){},initConnection(){},
   slowStepSeconds:()=>null,notAdvancing:()=>false,statusPill:{style:{}},staleAfterMs:1000,lastValidDataTime:-100,
   handleDaemonPacket(pkt){this.renderPlaybackState(pkt);this.renderTiming(pkt);},resetReplayView(){}};

@@ -1,0 +1,34 @@
+{
+  "halted": true,
+  "paused": false,
+  "error": "telemetry publication failed: RuntimeError: TEST INJECTION: telemetry publication failure",
+  "liveness": {
+    "state": "halted",
+    "step": 657,
+    "last_advance_age_s": 22.24,
+    "sim_thread_alive": true,
+    "step_in_progress_s": 0.0,
+    "stall_threshold_s": 10.0,
+    "step_hard_limit_s": 5.0
+  },
+  "mode": "scientific",
+  "persistence": {
+    "state": "ok",
+    "ok": true,
+    "failing": {},
+    "total_failures": 0,
+    "last_ok_save_at": 1791328545.249,
+    "last_ok_save_age_s": 22.1,
+    "mode": "scientific"
+  },
+  "step": 657,
+  "error_detail": {
+    "message": "telemetry publication failed: RuntimeError: TEST INJECTION: telemetry publication failure",
+    "type": "RuntimeError",
+    "phase": "publish",
+    "failure_class": "software",
+    "step": 657,
+    "paradigm": "t-maze",
+    "recover": "The simulation is halted by this error and does not advance. Select an assay (selecting the same one retries it) or switch the controller backend to rebuild the controller and resume. Pausing, resuming or changing speed does not lift it."
+  }
+}

@@ -4069,7 +4069,8 @@ class DaemonBridgeClient {
             if (achievedEl) achievedEl.textContent = '--';
             return;
         }
-        achievedEl.textContent = source.paused ? 'paused' : formatSimSpeed(timing.achieved_speed);
+        achievedEl.textContent = !this.replayMode && this.daemonHalt ? '0x · halted'
+            : source.paused ? 'paused' : formatSimSpeed(timing.achieved_speed);
         achievedEl.style.color = timing.overloaded ? '#fbbf24' : '';
         const dropped = this.streamStats ? ` Display decimation: ${this.streamStats.decimated_snapshots} snapshots skipped in the last second (latest-value-wins).` : '';
         achievedEl.title = `Requested ${timing.requested_speed}x, measured ${timing.achieved_speed}x `
@@ -4146,6 +4147,7 @@ class DaemonBridgeClient {
         this.renderDeliveryIdentity(status);
         this.renderTiming(status);
         // Connecting during a fault: start from the daemon's own account of it.
+        this.healthStep = null;
         this.daemonHalt = status.halted ? {error: status.error || 'unknown error', detail: status.error_detail || null}
             : null;
         if (this.statusPill) {
@@ -4244,10 +4246,10 @@ class DaemonBridgeClient {
         const halt = this.daemonHalt;
         const stopped = this.notAdvancing(stepAge, slowStep);
         const paused = this.daemonPaused || this.daemonLiveness?.state === 'paused';
-        const state = stopped ? 'stopped' : halt ? 'error' : (stale && slowStep !== null) ? 'slow'
+        const state = halt ? 'error' : stopped ? 'stopped' : (stale && slowStep !== null) ? 'slow'
             : paused ? 'paused' : stale ? 'stale' : 'live';
         if (stepAgeEl) {
-            stepAgeEl.textContent = stepAge === null ? '--' : paused && !stopped ? 'paused'
+            stepAgeEl.textContent = stepAge === null ? '--' : paused && !stopped && !halt ? 'paused'
                 : `${stepAge < 10 ? stepAge.toFixed(1) : Math.round(stepAge)}s`;
             stepAgeEl.style.color = stopped || halt ? '#f87171' : paused ? '#94a3b8'
                 : stepAge !== null && stepAge > 3 ? '#fbbf24' : '#4ade80';
@@ -4275,6 +4277,7 @@ class DaemonBridgeClient {
             this.statusPill.title = 'The daemon is connected and paused: the simulation does not advance until you resume it.';
         }
         if (state === 'error') {
+            this.renderCurrentHalt();
             // Connected and fresh, but the simulation does not advance: never show LIVE.
             const cls = halt.detail?.failure_class;
             this.statusPill.textContent = cls === 'compute' ? `● SIMULATION HALTED${ro} · GPU/COMPUTE ERROR`
@@ -4465,6 +4468,33 @@ class DaemonBridgeClient {
         return true;
     }
 
+    // Health is current control-plane evidence, independent of the last pose frame.
+    applyDaemonHealth(beat) {
+        if (!this.acceptsHeartbeatOwner(beat)) return false;
+        this.daemonHalt = beat.halted || beat.error
+            ? {error: beat.error || 'unknown error', detail: beat.error_detail || null} : null;
+        this.healthStep = beat.step;
+        this.daemonPaused = !!beat.paused;
+        this.renderPlaybackState({...this.lastOrderedPacket, paused: this.daemonPaused,
+            error: this.daemonHalt?.error || null});
+        this.renderCurrentHalt();
+        return true;
+    }
+
+    currentHaltForPacket(pkt) {
+        return !this.replayMode && this.daemonHalt && Number.isFinite(this.healthStep)
+            && Number.isFinite(pkt.step) && pkt.step <= this.healthStep
+            && this.acceptsHeartbeatOwner(this.lastHeartbeat);
+    }
+
+    renderCurrentHalt() {
+        if (this.replayMode || !this.daemonHalt) return;
+        const fault = document.getElementById('identFault');
+        if (fault) { fault.textContent = this.daemonHalt.error; fault.style.color = '#f87171'; }
+        const achieved = document.getElementById('statAchieved');
+        if (achieved) { achieved.textContent = '0x · halted'; achieved.style.color = '#f87171'; }
+    }
+
     applyObservationValidityUpdate(update) {
         const packet = this.lastOrderedPacket || this.arena.remotePacket;
         if (this.replayMode || this.switchPending || packet?.identity?.assay !== this.arena.activeParadigmId
@@ -4506,7 +4536,7 @@ class DaemonBridgeClient {
                     this.noteStep(beat.step, this.stepKey);
                     this.daemonLiveness = {...beat.liveness, at: this.lastPacketTime};
                     this.daemonPersistence = beat.persistence || null;
-                    this.daemonPaused = !!beat.paused;
+                    this.applyDaemonHealth(beat);
                     this.daemonError = beat.error || null;
                     if (beat.result_validity) this.daemonValidity = beat.result_validity;
                     if (beat.mode) this.daemonMode = beat.mode;
@@ -4589,22 +4619,25 @@ class DaemonBridgeClient {
         this.reconcileObservationValidityUpdate(pkt);
         // A step error halts the daemon (nothing advances) until a switch rebuilds it.
         // Frames still arrive, so without this the pill would read LIVE over a frozen run.
-        const halt = (pkt.halted || pkt.error) ? {error: pkt.error || 'unknown error', detail: pkt.error_detail || null} : null;
+        const healthHalt = this.currentHaltForPacket(pkt);
+        const halt = healthHalt ? this.daemonHalt : (pkt.halted || pkt.error) ? {error: pkt.error || 'unknown error', detail: pkt.error_detail || null} : null;
         const haltChanged = (halt?.error || null) !== (this.daemonHalt?.error || null);
         this.daemonHalt = halt;
         // Page watchdog (F4): the step clock moves only when the step increases.
         const advanced = step !== null && (this.lastStepSeen === null || step > this.lastStepSeen);
         this.noteStep(step, `${pkt.run_id}|${pkt.paradigm}|${pkt.identity?.activation ?? ''}`);
-        this.daemonPaused = !!pkt.paused;
+        if (!healthHalt) this.daemonPaused = !!pkt.paused;
         // A new stream first replays the last published frame.  Its liveness is history:
         // it must not overwrite a "dead"/"stalled" report unless the step has moved since.
-        const reportedStopped = ['dead', 'stalled'].includes(this.daemonLiveness?.state);
+        const reportedStopped = ['dead', 'stalled', 'halted'].includes(this.daemonLiveness?.state);
         if (pkt.liveness && (advanced || !reportedStopped)) this.daemonLiveness = {...pkt.liveness, at: performance.now()};
-        this.daemonPersistence = pkt.persistence || null;
-        this.daemonRecordingError = pkt.recording_error || null;
-        if (pkt.result_validity) this.daemonValidity = pkt.result_validity;
-        if (pkt.mode) this.daemonMode = pkt.mode;
-        this.daemonError = pkt.error || null;
+        if (!healthHalt) {
+            this.daemonPersistence = pkt.persistence || null;
+            this.daemonRecordingError = pkt.recording_error || null;
+            if (pkt.result_validity) this.daemonValidity = pkt.result_validity;
+            if (pkt.mode) this.daemonMode = pkt.mode;
+            this.daemonError = pkt.error || null;
+        }
         renderIdentity(pkt);
         if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 
@@ -4638,6 +4671,7 @@ class DaemonBridgeClient {
             this.arena.stepCount = pkt.step;
             this.renderPlaybackState(pkt);
             this.renderTiming(pkt);
+            this.renderCurrentHalt();
             const panelCaps = graphPanelCapabilities(pkt);
             // The daemon retains a modular helper brain during graph runs, but it is
             // not the selected controller. Never copy those helper values into the
@@ -4819,11 +4853,18 @@ class DaemonBridgeClient {
     /** Playback controls belong to the active player, not historical frame pause. */
     renderPlaybackState(pkt) {
         if (this.replayMode) { window.neuroflyReplay?.updateButtons(); return; }
-        this.arena.paradigmStatus = pkt.error ? `SIMULATION ERROR: ${pkt.error}` : pkt.paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
+        const currentHalt = this.currentHaltForPacket(pkt);
+        const error = currentHalt ? this.daemonHalt.error : pkt.error;
+        const paused = currentHalt ? this.daemonPaused : pkt.paused;
+        this.arena.paradigmStatus = error ? `SIMULATION ERROR: ${error}` : paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
         const phaseLabel = document.getElementById('arenaRunState');
         if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
         const pause = document.getElementById('btnPauseToggle');
-        if (pause) pause.textContent = pkt.paused ? 'Resume' : 'Pause';
+        if (pause) {
+            const halted = !this.replayMode && !!error;
+            pause.textContent = halted ? 'Halted' : paused ? 'Resume' : 'Pause';
+            pause.disabled = halted;
+        }
     }
 
     /** Stop live delivery; recording frames drive the same panels through handleDaemonPacket. */
@@ -4853,6 +4894,7 @@ class DaemonBridgeClient {
     resetReplayView() {
         this.lastOrderedPacket = null;
         this.observationValidityUpdate = null;
+        this.healthStep = null;
         this.lastSwitchAck = null;
         this.lastTrailStep = -1;
         this.arena.remoteSegment = null;
