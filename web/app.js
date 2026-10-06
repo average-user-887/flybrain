@@ -4063,6 +4063,7 @@ class DaemonBridgeClient {
         if (this.replayMode) { window.neuroflyReplay?.updateButtons(); return; }
         if (Number.isFinite(source?.sim_speed)) this.hud.reconcileRequestedSpeed(source.sim_speed);
         const achievedEl = document.getElementById('statAchieved');
+        if (achievedEl?.parentElement) achievedEl.parentElement.title = 'Simulation speed the daemon actually achieved (measured), versus the requested speed';
         const timing = source?.timing;
         if (!achievedEl || !timing || !Number.isFinite(timing.achieved_speed)) {
             if (achievedEl) achievedEl.textContent = '--';

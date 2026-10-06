@@ -357,6 +357,9 @@
             ActivityPanel.reset();
             this.bridge?.hud?.speedFeedback('');
             this.bridge?.exitReplay();
+            const achieved = $('statAchieved');
+            if (achieved?.parentElement) achieved.parentElement.title = 'Simulation speed the daemon actually achieved (measured), versus the requested speed';
+            if (achieved) achieved.title = '';
             const pause = $('btnPauseToggle');
             if (pause) pause.textContent = 'Pause';
         }
@@ -397,6 +400,7 @@
                 achieved.textContent = this.playing ? `${this.speed}x` : 'paused';
                 achieved.style.color = '';
                 achieved.title = 'Replay playback rate in recorded simulation time; not measured live daemon speed.';
+                if (achieved.parentElement) achieved.parentElement.title = achieved.title;
             }
         }
 

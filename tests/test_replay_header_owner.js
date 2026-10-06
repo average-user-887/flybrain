@@ -17,7 +17,7 @@ function declaration(name){
 }
 function harness(){
  const elements=new Map();
- const element=id=>{if(!elements.has(id))elements.set(id,{textContent:'',title:'',style:{},value:'1',hidden:false,
+ const element=id=>{if(!elements.has(id))elements.set(id,{textContent:'',title:'',parentElement:{title:'Simulation speed the daemon actually achieved (measured), versus the requested speed'},style:{},value:'1',hidden:false,
   options:[.5,1,100].map(value=>({value:String(value)})),querySelectorAll:()=>[],appendChild(option){this.options.push(option);}});return elements.get(id);};
  const context={window:{location:{search:''}},document:{readyState:'loading',activeElement:null,addEventListener(){},getElementById:id=>id==='activityCanvas'||id==='rasterCanvas'?null:element(id),createElement:()=>({dataset:{}})},
   requestAnimationFrame:()=>1,cancelAnimationFrame(){},performance:{now:()=>0},console};
@@ -79,4 +79,16 @@ test('live pause status and acknowledged speed continue to use the daemon',async
  h.bridge.renderPlaybackState({paused:true});assert.equal(h.element('btnPauseToggle').textContent,'Resume');assert.equal(h.element('arenaRunState').textContent,'PAUSED');
  h.bridge.sendCommand=async()=>({status:'ok',sim_speed:7.5});assert.equal(await h.hud.setSpeed(7.5),true);
  assert.equal(h.hud.simSpeed,7.5);assert.equal(h.element('speedFeedback').textContent,'Requested speed set to 7.5x.');
+});
+test('timing container tooltip follows replay ownership then returns to measured live wording',()=>{
+ const h=harness(),achieved=h.element('statAchieved');h.player.play();h.player.apply(0);
+ assert.equal(achieved.parentElement.title,achieved.title);assert.match(achieved.parentElement.title,/Replay playback rate.*not measured/);
+ h.player.pause();h.player.seekFraction(1);h.player.setSpeed(.5);
+ assert.equal(achieved.parentElement.title,achieved.title);
+ h.player.exit();assert.match(achieved.parentElement.title,/daemon actually achieved \(measured\)/);assert.equal(achieved.title,'');
+ // Live rendering also restores wording if another replay display had set it.
+ achieved.parentElement.title='Replay playback rate';h.bridge.renderTiming({paused:false,sim_speed:100,
+  timing:{requested_speed:100,achieved_speed:7.5,integration_dt_s:.02,steps_in_frame:1}});
+ assert.equal(achieved.textContent,'7.5x');assert.match(achieved.title,/measured 7.5x/);
+ assert.match(achieved.parentElement.title,/daemon actually achieved \(measured\)/);
 });
