@@ -52,3 +52,10 @@ the bridge or the graph are imported and before any output directory is created.
 - Removed manual DN setpoint controls and thermal/odor flash buttons from the local preview. DN values were overwritten by autonomous updates; the flash actions changed MB reward/punishment without implementing the advertised sensory pulses. No trained state is reset by this cleanup.
 - CPG cadence, GF escape and wind gust remain explicitly labeled preview actions. The former optogenetic turn is named Rotate preview fly and changes only preview heading. Actual temperature/odor field controls remain available.
 - This source retirement does not establish a browser pass; root retains prechange evidence and owns postchange verification.
+
+## Future capability restoration
+
+The owner requested that unsupported capabilities remain on the
+[post-v0.4 feature backlog](POST_V04_FEATURES.md). It tracks restoration or
+reimplementation with acceptance criteria; retirement of an entry point does not
+cancel its useful capabilities. Current release defects remain release gates.

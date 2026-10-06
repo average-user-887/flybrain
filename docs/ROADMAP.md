@@ -353,3 +353,10 @@ default anywhere.
 2. Never delete a repository, worktree, checkout, branch, or evidence bundle.
 3. Browser-facing changes are verified in the running browser.
 4. Conflicts escalate; they are never settled on the spot.
+
+## Post-v0.4 feature restoration
+
+The owner requested that unsupported capabilities remain on the
+[post-v0.4 feature backlog](POST_V04_FEATURES.md). It tracks restoration or
+reimplementation with acceptance criteria; retirement of an entry point does not
+cancel its useful capabilities. Current release defects remain release gates.
