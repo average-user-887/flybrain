@@ -20,6 +20,16 @@ class Element {
 }
 const document = {createElement(tag) { return new Element(this,tag); }};
 function rendered(d) { const el=new Element(document,'div'); renderer.render(el,d); return el; }
+test('measurement identity distinguishes experiment record brain from controller instance without rewriting owners',()=>{
+    const x=clone(generated.fixtures[0]);
+    const p=packet(x), before=JSON.stringify(p);
+    const d=renderer.view(p,{connected:true}), text=rendered(d).textContent;
+    assert.ok(text.includes(`Experiment record brain ${x.observation.identity.brain_id}`));
+    assert.ok(text.includes(`Controller instance ${x.observation.identity.instance_id}`));
+    assert.equal(JSON.stringify(p),before);
+    assert.equal(d.live.identity.brain_id,x.observation.identity.brain_id);
+    assert.equal(d.live.identity.instance_id,x.observation.identity.instance_id);
+});
 for (const x of generated.fixtures) test('all14 producer DOM binding: '+x.identity.assay,()=>{
     const d=renderer.view(packet(x),{connected:true}); const el=rendered(d);
     assert.equal(d.live.state,'available',d.live.error);
@@ -153,6 +163,7 @@ test('persistence banner preserves incomplete reason and uses only valid recover
 });
 
 const hudStart=app.indexOf('class ScientificHUD');const hudEnd=app.indexOf('// 9. APPLICATION INITIALIZATION');
+vm.runInContext(app.slice(app.indexOf('function liveAssayMountKey('),app.indexOf('const SELECTABLE_BACKENDS =')),ctx);
 vm.runInContext(app.slice(hudStart,hudEnd)+'\nglobalThis.livePlot=ScientificHUD.prototype.renderLiveOutcome;',ctx);
 test('actual plot discards old presentation and disconnected samples',()=>{
     const drawing={clearRect(){},fillText(){},beginPath(){},moveTo(){},lineTo(){},stroke(){}};

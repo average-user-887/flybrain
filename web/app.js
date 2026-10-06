@@ -3613,6 +3613,15 @@ function arenaToolCapabilities(arena, bridge) {
 }
 window.neuroflyArenaToolCapabilities = arenaToolCapabilities;
 
+/** Live panel declarations belong to the accepted controller, not only its assay.
+ * Parameter values update in place so ordinary changes preserve input focus. */
+function liveAssayMountKey(packet) {
+    if (!packet?.live_assay) return null;
+    const capability = packet.live_assay;
+    return JSON.stringify([packet.paradigm, packet.identity, packet.brain_id,
+        {...capability, parameters: capability.parameters.map(({value, ...parameter}) => parameter)}]);
+}
+
 const SELECTABLE_BACKENDS = ['modular', 'connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout'];
 function verifiedBackendIdentity(identity) {
     return !!identity && SELECTABLE_BACKENDS.includes(identity.backend)
@@ -5943,6 +5952,7 @@ class ScientificHUD {
         if (!panel) return;
 
         this.liveAssayMounted = !!(this.arena.remoteDriven && this.arena.remotePacket?.live_assay);
+        this.liveAssayMountKey = this.liveAssayMounted ? liveAssayMountKey(this.arena.remotePacket) : null;
         if (this.liveAssayMounted) {
             this.liveAssayParadigm = this.arena.remotePacket.paradigm;
             window.mountLiveAssay(this, panel);
@@ -6095,7 +6105,7 @@ class ScientificHUD {
     updateAssayTools() {
         if ((this.arena.remoteDriven || this.arena.awaitingDaemon) && !document.getElementById('liveMetrics'))
             this.renderAssayTools(this.arena.activeParadigmId);
-        if ((!this.liveAssayMounted || this.liveAssayParadigm !== this.arena.remotePacket?.paradigm) && this.arena.remoteDriven && this.arena.remotePacket?.live_assay) this.renderAssayTools(this.arena.activeParadigmId);
+        if ((!this.liveAssayMounted || this.liveAssayMountKey !== liveAssayMountKey(this.arena.remotePacket)) && this.arena.remoteDriven && this.arena.remotePacket?.live_assay) this.renderAssayTools(this.arena.activeParadigmId);
         if (this.arena.remoteDriven || this.arena.awaitingDaemon) {
             const display = this.arena.getObservationDisplay();
             const updateKey = JSON.stringify([this.daemonBridge.connected, this.daemonBridge.readOnly,

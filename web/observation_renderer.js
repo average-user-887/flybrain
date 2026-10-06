@@ -86,7 +86,7 @@
         const status = observation.provisional ? `Provisional · ${observation.validity} · ${observation.envelope.state}${observation.endReason ? ' · ' + observation.endReason : ''}`
             : `${observation.contextLabel} · ${observation.validity} · ${observation.completeness} · ${observation.endReason}`;
         panel.appendChild(node(document, 'p', status, 'observation-status'));
-        panel.appendChild(node(document, 'p', `Brain ${observation.identity.brain_id} · run ${observation.identity.run_id} · presentation ${observation.presentationId}`));
+        panel.appendChild(node(document, 'p', `Experiment record brain ${observation.identity.brain_id} · Controller instance ${observation.identity.instance_id} · run ${observation.identity.run_id} · presentation ${observation.presentationId}`));
         const prov = observation.provenance;
         panel.appendChild(node(document, 'p', `Controller: ${observation.identity.backend} · ${observation.identity.controller_version} · synthetic: ${observation.identity.synthetic} · test mode: ${observation.identity.test_mode}. Motor assists: ${prov.motor_assists_enabled}. GF: ${prov.gf_source ?? 'not declared'}. Stimulus: ${prov.stimulus_entry_stage ?? 'not declared'}.`));
         for (const [name, record] of Object.entries(observation.records)) {
