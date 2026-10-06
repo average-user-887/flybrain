@@ -57,3 +57,32 @@ test('dashboard exposes preset, custom, delivery and device controls', () => {
         assert.match(html, new RegExp(`id="${id}"`), id);
     }
 });
+
+test('connected installed wheel without Git labels missing revision separately from delivery or liveness', () => {
+    const elements = new Map();
+    context.document = {
+        querySelector: () => ({content:'956-installed-build'}),
+        getElementById(id) {
+            if (!elements.has(id)) elements.set(id, {textContent:'', title:'', style:{}});
+            return elements.get(id);
+        },
+    };
+    const start = app.indexOf('    renderDeliveryIdentity(status) {');
+    const end = app.indexOf('    renderTiming(', start);
+    assert.ok(start >= 0 && end > start);
+    vm.runInContext(`renderer = {${app.slice(start, end)}}`, context);
+    const bridge = {connected:true};
+    const status = {delivery:{web_build:'956-installed-build', revision:null, source_dirty:false},
+        compute:{device:'wgpu-amd'}};
+    const before = JSON.stringify(status);
+    const state = context.renderer.renderDeliveryIdentity.call(bridge, status);
+    assert.equal(state.stale, false);
+    assert.equal(elements.get('deliveryBadge').textContent, 'page 956-installed-build · daemon revision unavailable');
+    assert.match(elements.get('deliveryBadge').title, /daemon web build 956-installed-build; daemon revision unavailable/);
+    assert.equal(elements.get('deliveryBanner').style.display, 'none');
+    assert.equal(bridge.connected, true);
+    assert.equal(JSON.stringify(status), before);
+    status.delivery.revision = 'known-commit';
+    context.renderer.renderDeliveryIdentity.call(bridge, status);
+    assert.equal(elements.get('deliveryBadge').textContent, 'page 956-installed-build · daemon revision known-commit');
+});

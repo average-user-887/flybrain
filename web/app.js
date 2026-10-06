@@ -4036,7 +4036,7 @@ class DaemonBridgeClient {
         const dirty = status?.delivery?.source_dirty === true ? '+dirty' : '';
         const badge = document.getElementById('deliveryBadge');
         if (badge) {
-            badge.textContent = `page ${state.page} · daemon ${revision}${dirty}`;
+            badge.textContent = `page ${state.page} · daemon revision ${revision}${dirty}`;
             badge.title = `Page build ${state.page}; daemon web build ${state.daemon || 'not reported'}; daemon revision ${revision}${dirty}`;
             badge.style.color = state.stale ? '#fbbf24' : '#94a3b8';
         }
