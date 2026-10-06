@@ -331,6 +331,7 @@
             const sel = $('replaySpeed');
             if (sel && [...sel.options].some((o) => Number(o.value) === v)) sel.value = String(v);
             if (this.applied >= 0) this.apply(this.applied);
+            this.updateButtons();
         }
 
         seekFraction(fraction) {
@@ -340,6 +341,7 @@
             const index = this.indexAt(this.playhead);
             if (index !== this.applied) this.apply(index);
             this.updateBar();
+            this.updateButtons();
         }
 
         stop() {
@@ -353,6 +355,7 @@
             this.rec = null;
             $('replayBar').hidden = true;
             ActivityPanel.reset();
+            this.bridge?.hud?.speedFeedback('');
             this.bridge?.exitReplay();
             const pause = $('btnPauseToggle');
             if (pause) pause.textContent = 'Pause';
@@ -377,8 +380,24 @@
             const label = this.playing ? 'Pause' : 'Play';
             const btn = $('btnReplayPlay');
             if (btn) btn.textContent = label;
+            const bridge = this.bridge;
+            if (!this.rec || !bridge?.replayMode) return;
             const pause = $('btnPauseToggle');
-            if (pause) pause.textContent = this.playing ? 'Pause' : 'Resume';
+            if (pause) pause.textContent = label;
+            const ended = this.playhead >= this.times[this.times.length - 1];
+            const state = this.playing ? 'PLAYING' : ended ? 'ENDED' : 'PAUSED';
+            const status = `REPLAY · ${state}`;
+            bridge.arena.paradigmStatus = status;
+            const phase = $('arenaRunState');
+            if (phase) phase.textContent = status;
+            bridge.hud?.reconcileRequestedSpeed(this.speed);
+            bridge.hud?.speedFeedback(`Replay playback speed: ${this.speed}x.`);
+            const achieved = $('statAchieved');
+            if (achieved) {
+                achieved.textContent = this.playing ? `${this.speed}x` : 'paused';
+                achieved.style.color = '';
+                achieved.title = 'Replay playback rate in recorded simulation time; not measured live daemon speed.';
+            }
         }
 
         updateBar() {

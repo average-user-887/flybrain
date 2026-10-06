@@ -4060,6 +4060,7 @@ class DaemonBridgeClient {
     }
 
     renderTiming(source) {
+        if (this.replayMode) { window.neuroflyReplay?.updateButtons(); return; }
         if (Number.isFinite(source?.sim_speed)) this.hud.reconcileRequestedSpeed(source.sim_speed);
         const achievedEl = document.getElementById('statAchieved');
         const timing = source?.timing;
@@ -4632,12 +4633,8 @@ class DaemonBridgeClient {
             this.arena.paradigmElapsedSec = pkt.trial_elapsed_s;
             this.arena.simTime = pkt.sim_time_s ?? pkt.step * 0.02;
             this.arena.stepCount = pkt.step;
-            this.arena.paradigmStatus = pkt.error ? `SIMULATION ERROR: ${pkt.error}` : pkt.paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
-            const phaseLabel = document.getElementById('arenaRunState');
-            if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
+            this.renderPlaybackState(pkt);
             this.renderTiming(pkt);
-            const pause = document.getElementById('btnPauseToggle');
-            pause.textContent = pkt.paused ? 'Resume' : 'Pause';
             const panelCaps = graphPanelCapabilities(pkt);
             // The daemon retains a modular helper brain during graph runs, but it is
             // not the selected controller. Never copy those helper values into the
@@ -4816,10 +4813,17 @@ class DaemonBridgeClient {
         window.neuroflyActivityPanel?.update(pkt);
     }
 
-    /**
-     * Stop the live stream and let a recording drive the same panels (web/replay.js).
-     * Frames then enter through handleDaemonPacket exactly like SSE frames.
-     */
+    /** Playback controls belong to the active player, not historical frame pause. */
+    renderPlaybackState(pkt) {
+        if (this.replayMode) { window.neuroflyReplay?.updateButtons(); return; }
+        this.arena.paradigmStatus = pkt.error ? `SIMULATION ERROR: ${pkt.error}` : pkt.paused ? 'PAUSED' : pkt.brain?.teaching ? 'CUE TEACHING · ARENA PAUSED' : `${pkt.fly.state} · ${pkt.continuous ? 'CONTINUOUS OBSERVATION' : 'TRIAL ' + pkt.trial}`;
+        const phaseLabel = document.getElementById('arenaRunState');
+        if (phaseLabel) phaseLabel.textContent = this.arena.paradigmStatus;
+        const pause = document.getElementById('btnPauseToggle');
+        if (pause) pause.textContent = pkt.paused ? 'Resume' : 'Pause';
+    }
+
+    /** Stop live delivery; recording frames drive the same panels through handleDaemonPacket. */
     enterReplay(label) {
         this.arena.cancelPreviewGust?.(true);
         this.replayMode = true;
@@ -5573,6 +5577,8 @@ class ScientificHUD {
             this.speedFeedback(`Replay speed set to ${requestedSpeedText(requested)}.`);
         } else if (this.daemonBridge && this.daemonBridge.connected) {
             const result = await this.daemonBridge.sendCommand('set_speed', {speed:requested});
+            // A live request may finish after replay takes ownership of the header.
+            if (this.daemonBridge?.replayMode) { window.neuroflyReplay?.updateButtons(); return false; }
             if (!result || result.status !== 'ok' || !Number.isFinite(result.sim_speed)) {
                 this.speedFeedback(result?.message || 'The daemon did not acknowledge the speed; it was not changed.', true);
                 this.reconcileRequestedSpeed(this.simSpeed);
