@@ -3995,7 +3995,8 @@ class DaemonBridgeClient {
             badge.textContent = `daemon ${shown}`;
             badge.style.color = '#4ade80';
             badge.title = `Connected to the NeuroFly daemon at ${this.activeUrl}`
-                + (status?.version ? ` (version ${status.version}, backend ${status.backend || '?'}).` : '.')
+                + (status?.version ? ` (version ${status.version}).` : '.')
+                + (status ? ` Initial connection snapshot: backend ${status.backend || '?'}.` : '')
                 + compute + ' Choose another with ?daemon=http://host:port.';
         } else if (this.offeredUrl) {
             badge.textContent = `daemon found: ${this.offeredUrl} (not connected)`;
@@ -4026,8 +4027,8 @@ class DaemonBridgeClient {
         const device = document.getElementById('identDevice');
         if (device) {
             const deviceName = compute.device || 'unknown';
-            device.textContent = compute.gpu ? `${deviceName} · ${compute.gpu}` : deviceName;
-            device.title = compute.detail || compute.error || `Daemon compute device: ${deviceName}`;
+            device.textContent = `Initial connection snapshot: ${compute.gpu ? `${deviceName} · ${compute.gpu}` : deviceName}`;
+            device.title = `Initial connection snapshot: ${compute.detail || compute.error || `Daemon compute device: ${deviceName}`}`;
             device.style.color = compute.error ? '#f87171' : '#e2e8f0';
         }
         const banner = document.getElementById('deliveryBanner');
@@ -4133,7 +4134,7 @@ class DaemonBridgeClient {
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
             this.statusPill.style.border = '1px solid #22c55e';
             this.statusPill.style.color = '#4ade80';
-            this.statusPill.title = this.connectedPillTitle = `Connected to the learning daemon at ${this.activeUrl} (assay: ${status.active_paradigm}, ${status.total_steps} steps, ${status.uptime_sec}s uptime)`;
+            this.statusPill.title = this.connectedPillTitle = `Connected to the learning daemon at ${this.activeUrl}`;
         }
         this.showDaemonAddress(status);
         const versionBadge = document.getElementById('appVersionBadge');
