@@ -460,6 +460,19 @@ Global trial records now additionally include `brain_id` and `brain_trial`.
 The session-wide `trial` stays monotonic across switches for recorder compatibility.
 An unavailable scalar `metric` is null; it is never synthesized as 0.5.
 
+## External stimulus scene phase
+
+Optomotor `scene.drum_angle_deg` is declared external-stimulus kinematics in
+degrees: a newly created stimulus or explicit trial reset starts at zero. Arena
+steps advance it by configured velocity × simulation dt, modulo 360.
+Reversal and contrast changes
+preserve known phase; pause holds it. This phase does not feed the neural encoder
+or change drive, wiring, learning or LIF dynamics. The existing world snapshot
+retains phase. Historical worlds without it restore an unknown phase (`null`),
+which remains unavailable until an explicit new presentation or trial reset.
+Remote 2D/3D cues require a finite scene angle; they do not reconstruct it from
+current velocity and elapsed time.
+
 ## Reading in Python
 
 ```python

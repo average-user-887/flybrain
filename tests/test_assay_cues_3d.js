@@ -84,6 +84,25 @@ test('optomotor grating does not require unrelated operant polarity',()=>{
  const a=arena('optomotor');a.remoteDriven=true;a.remotePacket={paradigm:'optomotor',scene:{food:[],hazards:[],predators:[],drum_angle_deg:90},stimuli:{contrast:0}};
  const d=helper.describe(a,geometry),ring=d.cues.find(c=>c.kind==='ring');assert.ok(ring);assert.equal(ring.contrast,0);assert.equal(ring.operant,false);assert.ok(!d.unavailable.includes('operant sector polarity'));
 });
+test('optomotor 2D and 3D use exact authoritative phase and refuse unknown historical phase',()=>{
+ const a=arena('optomotor');a.remoteDriven=true;
+ const arcs=[],labels=[];const ctx={beginPath(){},moveTo(){},fill(){},arc(...args){arcs.push(args);},fillText(text){labels.push(text);}};
+ a.worldToScreen=()=>({x:100,y:100});
+ for(const angle of [undefined,null,'0',false]) {
+  a.remotePacket={paradigm:'optomotor',scene:{food:[],hazards:[],predators:[],drum_angle_deg:angle},stimuli:{contrast:.9}};
+  a.paradigmState.drumAngleDeg=77;arcs.length=0;labels.length=0;
+  a.renderOptomotor(ctx);assert.equal(arcs.length,0);assert.ok(labels.includes('Grating phase unavailable'));
+  const d=helper.describe(a,geometry);assert.ok(!d.cues.some(c=>c.kind==='ring'));assert.ok(d.unavailable.includes('drum angle'));
+ }
+ for(const angle of [0,359.5,.1]) {
+  a.remotePacket.scene.drum_angle_deg=angle;arcs.length=0;
+  a.renderOptomotor(ctx);assert.equal(arcs[0][3],angle*Math.PI/180);
+  assert.equal(helper.describe(a,geometry).cues.find(c=>c.kind==='ring').angle,angle);
+ }
+ a.awaitingDaemon=true;arcs.length=0;a.renderOptomotor(ctx);assert.equal(arcs.length,0);
+ a.awaitingDaemon=false;a.remotePacket.paradigm='t-maze';arcs.length=0;a.renderOptomotor(ctx);assert.equal(arcs.length,0);
+ assert.doesNotMatch(app,/state\.drumAngleDeg=\(stimulus\.drum_velocity_deg_s\|\|0\)\*pkt\.trial_elapsed_s/);
+});
 
 test('same-assay pending and postACK retained old owner clear cues, matching new packet recovers',()=>{
  const a=arena('open-arena');a.remoteDriven=true;

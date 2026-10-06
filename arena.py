@@ -1010,6 +1010,12 @@ class Arena:
         self.circuit, self.surge_cast, self.cx = self.fly.circuit, self.fly.surge_cast, self.fly.cx
         for fly in self.flies:
             fly.vision.rng = self.np_rng
+        if mine == 'optomotor':
+            # Restore overlays constructor attributes; do not invent a phase for
+            # historical worlds saved before external stimulus phase was recorded.
+            paradigm_state = (state.get('paradigm') or {}).get('state', {})
+            if 'drum_angle_deg' not in paradigm_state:
+                self.paradigm.drum_angle_deg = None
 
     def nearest_boundary_gap(self, x: float, y: float, radius: float) -> Tuple[float, float, float]:
         """(gap, nx, ny) of the closest boundary: body-edge clearance and away-normal."""

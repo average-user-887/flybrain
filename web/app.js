@@ -3070,13 +3070,21 @@ class ScientificBioArena {
     renderOptomotor(ctx) {
         const p = this.paradigmState;
         const sc = this.worldToScreen(45.0, 45.0);
+        const remote = this.remoteDriven || this.awaitingDaemon || !!this.remotePacket;
+        const current = !this.awaitingDaemon && this.remotePacket?.paradigm === 'optomotor';
+        const angle = remote ? (current ? this.remotePacket.scene?.drum_angle_deg : null) : p.drumAngleDeg;
+        if (!Number.isFinite(angle)) {
+            ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+            ctx.fillText('Grating phase unavailable', sc.x - 70, sc.y + 95);
+            return;
+        }
 
         const numStripes = 24;
         if (p.contrast===0) {
             ctx.fillStyle='#64748b';ctx.beginPath();ctx.arc(sc.x,sc.y,85,0,Math.PI*2);ctx.fill();
         }
         for (let i = 0; p.contrast!==0 && i < numStripes; i++) {
-            const a1 = ((p.drumAngleDeg + i * (360 / numStripes)) * Math.PI) / 180;
+            const a1 = ((angle + i * (360 / numStripes)) * Math.PI) / 180;
             const a2 = a1 + (Math.PI / numStripes);
             ctx.fillStyle = p.contrast === 0 ? '#64748b' : (i % 2 === 0 ? '#020617' : '#e2e8f0');
             ctx.beginPath(); ctx.moveTo(sc.x, sc.y); ctx.arc(sc.x, sc.y, 85, a1, a2); ctx.fill();
@@ -4707,7 +4715,7 @@ class DaemonBridgeClient {
                 if (assay.hs_firing_rate !== undefined) state.hsFiringRate=assay.hs_firing_rate;
                 if (stimulus.looming_angle_deg !== undefined) state.thetaDeg=stimulus.looming_angle_deg;
                 if (stimulus.theta_deg !== undefined) state.thetaDeg=stimulus.theta_deg;
-                if (activeParadigm==='optomotor') state.drumAngleDeg=(stimulus.drum_velocity_deg_s||0)*pkt.trial_elapsed_s%360;
+                if (activeParadigm==='optomotor') state.drumAngleDeg=Number.isFinite(pkt.scene?.drum_angle_deg)?pkt.scene.drum_angle_deg:null;
                 if (pkt.scene?.female_pos) state.femalePos=pkt.scene.female_pos.map((v,i)=>v+off[i]);
                 if (pkt.scene?.female_type) state.femaleType=pkt.scene.female_type;
             }

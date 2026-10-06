@@ -1492,6 +1492,12 @@ class _OptomotorV1(_V1Paths):
     def _v1_evidence(self):
         return {}
 
+    def _v1_on_new_presentation(self, reason):
+        # A legacy world has no phase origin. Only a new presentation declares one;
+        # speed/reversal/contrast changes preserve any already known phase.
+        if getattr(self, 'drum_angle_deg', None) is None:
+            self.drum_angle_deg = 0.0
+
 
 class _GapCrossingV1(_V1Paths):
     OBSERVATION_SPEC = _spec(
@@ -2836,6 +2842,8 @@ class OptomotorParadigm(_OptomotorV1, ExperimentParadigm):
             max_duration_steps=max_duration_steps
         )
         self.drum_velocity_deg_s = float(drum_velocity_deg_s)
+        # Declared external stimulus phase; presentation only, never an encoder input.
+        self.drum_angle_deg = 0.0
         self.contrast = 0.9
         self.hs_firing_history = ScalarHistory()
         self.retinal_slip_history = ScalarHistory()
@@ -2852,6 +2860,10 @@ class OptomotorParadigm(_OptomotorV1, ExperimentParadigm):
     def step(self, fly: Any, dt: float = 1.0) -> Dict[str, Any]:
         self.time_elapsed_ms += dt * 1000.0
         self.trial_manager.step()
+        # Integrate actual completed stimulus time, preserving reversal continuity.
+        # Missing historical phase stays unknown until an explicit presentation reset.
+        if self.drum_angle_deg is not None:
+            self.drum_angle_deg = (self.drum_angle_deg + self.drum_velocity_deg_s * dt) % 360.0
 
         x, y, heading, speed, angular_vel = self._extract_fly_pose(fly)
         fly_yaw_deg_s = math.degrees(angular_vel)
@@ -2896,6 +2908,7 @@ class OptomotorParadigm(_OptomotorV1, ExperimentParadigm):
         self.retinal_slip_history.clear()
         self.gain_history.clear()
         self.time_elapsed_ms = 0.0
+        self.drum_angle_deg = 0.0  # Explicit trial reset declares a fresh stimulus origin.
         return {'trial_number': self.trial_manager.trial_number}
 
     def get_metrics(self) -> Dict[str, Any]:
