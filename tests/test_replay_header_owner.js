@@ -108,3 +108,18 @@ test('replay owns both age labels immediately and live freshness resumes after e
  h.bridge.daemonPaused=true;h.bridge.updateFreshness();assert.equal(h.element('statStepAge').textContent,'paused');
  assert.equal(JSON.stringify(recording.frames),before);
 });
+
+test('live halt to replay to live returns header control ownership and enabled state',()=>{
+ const h=harness();h.bridge.replayMode=false;h.bridge.connected=true;
+ const halt={error:'publish failed',paused:false,step:10,fly:{state:'REST'}};
+ h.bridge.renderPlaybackState(halt);
+ assert.equal(h.element('btnPauseToggle').disabled,true);assert.equal(h.element('btnPauseToggle').textContent,'Halted');
+ h.bridge.replayMode=true;h.player.play();h.player.apply(0);
+ assert.equal(h.element('btnPauseToggle').disabled,false);buttons(h,'Pause');
+ h.player.toggle();assert.equal(h.element('btnPauseToggle').disabled,false);buttons(h,'Play');
+ h.player.exit();assert.equal(h.bridge.replayMode,false);
+ h.bridge.renderPlaybackState(halt);assert.equal(h.element('btnPauseToggle').disabled,true);
+ assert.equal(h.element('btnPauseToggle').textContent,'Halted');
+ h.bridge.renderPlaybackState({paused:true});assert.equal(h.element('btnPauseToggle').disabled,false);
+ assert.equal(h.element('btnPauseToggle').textContent,'Resume');
+});

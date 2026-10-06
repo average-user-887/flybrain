@@ -390,7 +390,7 @@
                 if (age) { age.textContent = 'replay'; age.style.color = '#c084fc'; }
             }
             const pause = $('btnPauseToggle');
-            if (pause) pause.textContent = label;
+            if (pause) { pause.textContent = label; pause.disabled = false; }
             const ended = this.playhead >= this.times[this.times.length - 1];
             const state = this.playing ? 'PLAYING' : ended ? 'ENDED' : 'PAUSED';
             const status = `REPLAY · ${state}`;
