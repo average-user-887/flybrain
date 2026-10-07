@@ -67,19 +67,23 @@ test('the dashboard renders every readout from clockReadouts',()=>{
 
 test('a restarted measurement window is shown apart from the continuing trial clock',()=>{
  const lineage={segment_id:'child',parent_segment_id:'parent',reason:'daemon_restart',
-  parent_observation:'interrupted_incomplete_no_terminal',restored_trial_elapsed_s:0.08,
+  continuation:'new_window_not_continuing_parent',parent_observation:'unknown',
+  parent_observation_evidence:{source:'assay_event_ledger',detail:'ledger missing'},restored_trial_elapsed_s:0.08,
   observation_window:'restarted',metric_accumulators:'not_restored'};
  const pkt={clocks:{trial:{...known,elapsed_s:0.1,current_trial:1},
   observation:{scope:'observation_segment',segment_id:'child',segment_elapsed_s:0.02,effective_window_s:0.2,lineage}}};
  const r=c.readouts({...view,paradigmElapsedSec:0.1},pkt,true,false);
  assert.equal(r.elapsed,'0.10s');assert.equal(r.windowVisible,true);
  assert.equal(r.window,'Window 0.02s · restarted after daemon restart');
- assert.match(r.windowTitle,/interrupted and recorded as incomplete/);
+ assert.match(r.windowTitle,/does not continue the earlier one/);
+ assert.match(r.windowTitle,/Whether the earlier measurement finished is unknown/);
  assert.match(r.windowTitle,/not carried over/);assert.match(r.windowTitle,/continues from 0\.08s/);
  const replay=c.readouts({...view,paradigmElapsedSec:0.1},pkt,true,true);
  assert.equal(replay.window,r.window);
- const switched=c.readouts(view,{clocks:{observation:{segment_elapsed_s:0,lineage:{...lineage,reason:'assay_reactivated'}}}},true,false);
- assert.match(switched.window,/restarted after assay switch/);assert.match(switched.windowTitle,/ended when you switched/);
+ const switched=c.readouts(view,{clocks:{observation:{segment_elapsed_s:0,lineage:{...lineage,reason:'assay_reactivated',
+  parent_observation:'terminal_recorded',parent_observation_evidence:{source:'durable_receipt_this_process',end_reason:'experiment_selected'}}}}},true,false);
+ assert.match(switched.window,/restarted after assay switch/);
+ assert.match(switched.windowTitle,/has a recorded end \(experiment_selected\); that record is kept/);
  for(const p of [{clocks:{observation:{segment_elapsed_s:1,lineage:null}}},{}])
   assert.equal(c.readouts(view,p,true,false).windowVisible,false);
  assert.equal(c.readouts(view,pkt,false,false).windowVisible,false);

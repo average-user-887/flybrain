@@ -636,9 +636,10 @@ function clockReadouts(view, packet, remote, replay) {
         window: lineage ? `Window ${windowElapsed} · restarted after `
             + (lineage.reason === 'daemon_restart' ? 'daemon restart' : 'assay switch') : '',
         windowTitle: lineage ? 'The measurement window started again; it does not continue the earlier one. '
-            + (lineage.reason === 'daemon_restart'
-                ? 'The measurement in progress before the restart was interrupted and recorded as incomplete. '
-                : 'The earlier measurement ended when you switched assays. ')
+            + (lineage.parent_observation === 'terminal_recorded'
+                ? 'The earlier measurement has a recorded end' + (lineage.parent_observation_evidence?.end_reason
+                    ? ` (${lineage.parent_observation_evidence.end_reason})` : '') + '; that record is kept. '
+                : 'Whether the earlier measurement finished is unknown: no recorded end was found. ')
             + `Its metric values were not carried over. The trial clock continues from ${restoredFrom}, `
             + 'so trial elapsed time can exceed the window.' : '',
         elapsed: elapsedUnknown ? 'Unknown' : elapsed,
