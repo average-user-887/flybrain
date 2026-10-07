@@ -3874,8 +3874,9 @@ class ContinuousExperimentRunner:
                      metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
                      reason=reason, metrics=metrics, probe=self.active_brain.probe())
         ident = self.identity()
-        owner = getattr(self.arena, "observation_owner", None)
-        observed = owner.observation_status() if owner is not None else {}
+        # The frozen terminal observation is the measurement's authority (the producer
+        # itself has been reset by the respawn); None when no terminal ended the trial.
+        observed = (self._observation_terminal or {}).get("observation") or {}
         self.trial_history.append({
             "run_id": ident.get("run_id"),
             "instance_id": ident.get("instance_id"),
