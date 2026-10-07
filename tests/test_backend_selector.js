@@ -124,3 +124,58 @@ test('HTTP timeout reports unknown outcome without same-origin fallback',async()
  assert.match(h.elements.backendCommandStatus.textContent,/timed out.*outcome is unknown/);
  assert.equal(h.calls.length,1);assert.equal(h.elements.selectBackend.value,'modular');
 });
+
+// Astra dispatch 42 (7d7abd6 browser run): after a refused plastic switch and the
+// "state uncertain" refusal of re-selecting fixed, re-selecting the same assay
+// recovered the daemon (CONNECTED / PAUSED / Fault none) but the controller status
+// still read "Controller connectome-fixed refused: The simulation state is uncertain".
+function recoveryHarness(){
+ const replies=[final('connectome-fixed',{status:'error',applied:false,activation:2,
+   message:'The simulation state is uncertain; select an assay or switch to a different backend to rebuild it'})];
+ const h=harness(()=>replies.shift());
+ h.arena.remotePacket={run_id:'daemon',identity:identity('connectome-fixed',2)};
+ h.recover=async({daemon='daemon',activation=3}={})=>{
+  const ack={applied:true,action:'switch_paradigm',identity:{...identity('connectome-fixed',activation),daemon_run_id:daemon},applied_step:1147};
+  replies.push({status:'ok',ack});
+  const r=await h.bridge.sendCommand('switch_paradigm',{paradigm:'open-arena'});
+  h.arena.remotePacket={run_id:daemon,identity:ack.identity};
+  return r;
+ };
+ return h;
+}
+test('accepted same-assay recovery relabels the earlier refusal as history',async()=>{
+ const h=recoveryHarness();
+ assert.equal(await h.hud.setBackend('connectome-fixed'),false);
+ assert.match(h.elements.backendCommandStatus.textContent,/connectome-fixed refused: The simulation state is uncertain/);
+ h.hud.reconcileBackendSelector();
+ assert.match(h.elements.backendCommandStatus.textContent,/refused: The simulation state is uncertain/);
+ await h.recover();h.hud.reconcileBackendSelector();
+ const text=h.elements.backendCommandStatus.textContent;
+ assert.match(text,/^Previous refusal of controller connectome-fixed at .+, since recovered \(switch paradigm applied at step 1147\)\. Current controller: connectome-fixed\./);
+ assert.doesNotMatch(text,/refused:/);
+ assert.equal(h.elements.backendCommandStatus.style.color,'#94a3b8');
+});
+test('refusal stays current while the daemon is still halted',async()=>{
+ const h=recoveryHarness();
+ await h.hud.setBackend('connectome-fixed');
+ await h.recover();h.arena.remotePacket.halted=true;h.hud.reconcileBackendSelector();
+ assert.match(h.elements.backendCommandStatus.textContent,/refused: The simulation state is uncertain/);
+ assert.equal(h.elements.backendCommandStatus.style.color,'#fca5a5');
+ h.arena.remotePacket.halted=false;h.bridge.daemonHalt={error:'still halted'};h.hud.reconcileBackendSelector();
+ assert.match(h.elements.backendCommandStatus.textContent,/refused: The simulation state is uncertain/);
+ h.bridge.daemonHalt=null;h.hud.reconcileBackendSelector();
+ assert.match(h.elements.backendCommandStatus.textContent,/^Previous refusal/);
+});
+test('an older or foreign acknowledgement never relabels a refusal',async()=>{
+ for(const opts of [{activation:2},{daemon:'other-daemon'}]){
+  const h=recoveryHarness();
+  await h.hud.setBackend('connectome-fixed');
+  await h.recover(opts);h.arena.remotePacket={run_id:'daemon',identity:identity('connectome-fixed',2)};
+  h.hud.reconcileBackendSelector();
+  assert.match(h.elements.backendCommandStatus.textContent,/refused: The simulation state is uncertain/,JSON.stringify(opts));
+ }
+ const h=recoveryHarness();
+ h.bridge.lastSwitchAck={applied:true,action:'switch_paradigm',identity:identity('connectome-fixed',9),applied_step:5};
+ await h.hud.setBackend('connectome-fixed');h.hud.reconcileBackendSelector();
+ assert.match(h.elements.backendCommandStatus.textContent,/refused: The simulation state is uncertain/);
+});

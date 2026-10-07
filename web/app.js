@@ -5705,6 +5705,26 @@ class ScientificHUD {
             select.value = state.backend;
             select.title = state.reason || 'Request a controller backend; only the daemon can apply it.';
         }
+        // A refusal stays current until the SAME daemon acknowledges a later applied
+        // rebuild (higher activation) and reports no halt; only then is it shown as
+        // history.  A halt that has not recovered is never relabelled.
+        const refusal = this.backendRefusal;
+        if (refusal && !this.backendCommandWaiting && this.backendCommandError) {
+            const bridge = this.daemonBridge, pkt = this.arena?.remotePacket;
+            const ack = bridge?.lastSwitchAck;
+            const recovered = ack && ack !== refusal.priorAck && ack.applied === true
+                && verifiedBackendIdentity(ack.identity) && ack.identity.daemon_run_id === refusal.daemonRunId
+                && Number.isInteger(refusal.activation) && ack.identity.activation > refusal.activation
+                && !bridge?.daemonHalt && !pkt?.halted && !pkt?.error;
+            if (recovered) {
+                const step = Number.isInteger(ack.applied_step) && ack.applied_step >= 0 ? ` at step ${ack.applied_step}` : '';
+                const action = String(ack.action || 'rebuild').replaceAll('_', ' ');
+                this.backendCommandText = `Previous refusal of controller ${refusal.target} at ${refusal.at}, since recovered `
+                    + `(${action} applied${step}). Current controller: ${state?.backend || ack.identity.backend}.`;
+                this.backendCommandError = false;
+                this.backendRefusal = null;
+            }
+        }
         const status = document.getElementById('backendCommandStatus');
         if (status) {
             const text = [this.backendCommandText, state.reason].filter(Boolean).join(' · ')
@@ -5725,10 +5745,17 @@ class ScientificHUD {
         if (applied) this.daemonBridge.lastSwitchAck = result.ack;
         this.backendCommandWaiting = result?.status === 'queued' || (!!result?.timed_out && !!result.command_id);
         this.backendCommandError = !applied;
+        this.backendRefusal = null;
         if (applied) this.backendCommandText = `Applied controller ${target} at step ${Number.isInteger(result.ack.applied_step) && result.ack.applied_step >= 0 ? result.ack.applied_step : 'unreported'}.`;
         else if (result?.timed_out) this.backendCommandText = `Controller ${target}: ${result.message}`;
-        else if ((result?.ack?.applied === false || result?.applied === false) && result.status !== 'queued')
+        else if ((result?.ack?.applied === false || result?.applied === false) && result.status !== 'queued') {
             this.backendCommandText = `Controller ${target} refused: ${result.message || 'the daemon did not apply the request'}.`;
+            const activation = sameDaemon ? result.ack.identity.activation
+                : backendSelectorState(this.arena, this.daemonBridge).identity?.activation;
+            this.backendRefusal = {target, daemonRunId: this.backendCommand?.daemonRunId, activation,
+                                   priorAck: this.daemonBridge?.lastSwitchAck || null,
+                                   at: new Date().toLocaleTimeString()};
+        }
         else this.backendCommandText = `Controller ${target} not confirmed: ${result?.message || 'no final applied acknowledgement received'}.`;
         this.reconcileBackendSelector();
         return applied;
