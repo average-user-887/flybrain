@@ -1,11 +1,14 @@
 """Scientific trajectories must have one clock and explicit discontinuities."""
+import json
 import math
 
 import pytest
 
 from arena import Arena
 from experiment_brains import PARADIGMS
+from learning_recorder import LearningRecorder, RecorderThread
 from neurofly_daemon import ContinuousExperimentRunner
+from tests.transition_control_helpers import transition_command
 
 
 @pytest.mark.parametrize('pid', PARADIGMS)
@@ -26,10 +29,27 @@ def test_continuous_observation_never_auto_respawns(pid, tmp_path):
 
 
 def test_terminal_outcome_is_not_assigned_to_the_respawn_pose(tmp_path):
-    r = ContinuousExperimentRunner(initial_paradigm='labyrinth', output_dir=tmp_path)
+    # Since 730059e a terminal is frozen, held for the producer's declared hold,
+    # and the segment ends only after its durable save is acknowledged; without
+    # a durable recorder the run halts instead.  Attach a real recorder and
+    # drain each frozen terminal synchronously, then check the same boundary.
+    r = ContinuousExperimentRunner(initial_paradigm='labyrinth', output_dir=tmp_path / 'runner')
+    records = LearningRecorder(tmp_path / 'records', session={'daemon_run_id': r.run_id})
+    drain = RecorderThread(r, records, summary_interval=999)
+    with r.lock:
+        r.attach_learning_records(drain)
     old_segment = r.segment_id
     r.arena.fly.pos.x, r.arena.fly.pos.y = 130, 85
     r.step_once()
+    for _ in range(500):
+        if r.segment_id != old_segment:
+            break
+        if r._observation_terminal is not None and r._observation_terminal['durable'] is None:
+            drain.poll_once()
+        else:
+            r.step_once()
+    records.close()
+    assert not r.last_error
     t = r.latest_telemetry
     assert t['segment_id'] != old_segment
     assert t['transition']['ended_segment'] == old_segment
@@ -48,9 +68,14 @@ def test_pause_freezes_time_pose_and_memory_and_reset_marks_a_boundary(tmp_path)
     assert r.total_steps == before['step']
     assert r.latest_telemetry['fly'] == before['fly']
     assert r.latest_telemetry['paused']
-    r.dispatch_command({'action':'reset_trial'})
-    assert r.latest_telemetry['segment_id'] != before['segment_id']
-    assert r.latest_telemetry['transition']['reason'] == 'manual_reset'
+    # Since 730059e a reset needs a durable recorder and runs as a queued
+    # transaction; the shared helper supplies both.
+    # The boundary is published with the next frame.
+    assert transition_command(r, {'action':'reset_trial'})['status'] == 'ok'
+    packet = json.loads(r._publish_snapshot().data)
+    assert r.segment_id == packet['segment_id'] != before['segment_id']
+    assert packet['transition']['reason'] == 'manual_reset'
+    assert packet['paused'] and r.total_steps == before['step']
     r.dispatch_command({'action':'set_paused', 'paused':False})
     r.step_once()
     assert r.total_steps == before['step'] + 1
