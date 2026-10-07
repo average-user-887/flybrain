@@ -3,6 +3,25 @@
 The caller holds its runner lock around every operation.  This coordinator is
 deliberately single-threaded: it performs no I/O and invokes no callbacks.
 Writer I/O happens after :meth:`claim_oldest` and before :meth:`acknowledge`.
+
+Durable keys are remembered only in a bounded recent-durability cache.  The
+authority on what is durable is the recorder's ledger (and its disk-backed key
+index), never this cache.  A cache hit answers an exact retry at once; a miss
+(a key acknowledged long ago and since evicted, or one from an earlier process)
+is enqueued as ordinary pending work, so the recorder re-validates it on the
+writer thread outside the caller's lock:
+
+* same key and payload: the recorder returns an idempotent receipt for the
+  existing row and adds none; acknowledging it restores the cache entry;
+* same key, different payload: the recorder raises its conflict error, the
+  attempt is marked failed and no durable acknowledgement is ever produced.
+
+Only acknowledged keys are cached, so pending, claimed and failed work is never
+evicted.  The visible difference for an evicted key is that a retry reports
+``"enqueued"`` (and takes a queue slot until the writer confirms it) instead
+of ``"durable"``, and a changed payload is refused by the writer instead of at
+enqueue.  Such a refused entry stays failed at the queue head, so later work
+waits behind it (fail closed) exactly like any other failed write.
 """
 
 from __future__ import annotations
@@ -16,6 +35,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from observation_envelopes import validate_observation_envelope
 
+
+DEFAULT_DURABLE_CACHE_CAPACITY = 4096
 
 KEY_FIELDS = (
     "daemon_run_id", "run_id", "instance_id", "segment_id", "presentation_id",
@@ -69,19 +90,25 @@ def _detached(value: bytes) -> Any:
 class ObservationPublicationQueue:
     """Bounded pending queue with one active writer claim and durable receipts."""
 
-    def __init__(self, capacity: int = 32, *, terminal_capacity: int = 64):
+    def __init__(self, capacity: int = 32, *, terminal_capacity: int = 64,
+                 durable_cache_capacity: int = DEFAULT_DURABLE_CACHE_CAPACITY):
         if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1:
             raise ValueError("capacity must be a positive integer")
         if (isinstance(terminal_capacity, bool) or not isinstance(terminal_capacity, int)
                 or terminal_capacity < 1):
             raise ValueError("terminal_capacity must be a positive integer")
+        if (isinstance(durable_cache_capacity, bool) or not isinstance(durable_cache_capacity, int)
+                or durable_cache_capacity < 1):
+            raise ValueError("durable_cache_capacity must be a positive integer")
         self.capacity = capacity
         self.terminal_capacity = terminal_capacity
+        self.durable_cache_capacity = durable_cache_capacity
         self._pending: "OrderedDict[Tuple[str, ...], _PendingMetadata]" = OrderedDict()
         self._active_token: Optional[str] = None
         # Payload history is intentionally bounded to the latest terminal per
-        # recently used owner.  Key/digest metadata alone provides idempotency.
-        self._durable_digests: Dict[Tuple[str, ...], str] = {}
+        # recently used owner.  Key/digest metadata is a bounded LRU of recently
+        # acknowledged keys; a miss falls back to the recorder (module docstring).
+        self._durable_digests: "OrderedDict[Tuple[str, ...], str]" = OrderedDict()
         self._last_terminal: "OrderedDict[Tuple[str, ...], Tuple[_FrozenObservation, bytes]]" = OrderedDict()
 
     @staticmethod
@@ -150,7 +177,9 @@ class ObservationPublicationQueue:
         if durable_digest is not None:
             if durable_digest != frozen.payload_sha256:
                 raise ObservationPayloadConflict("durable observation key has a different payload")
+            self._durable_digests.move_to_end(frozen.key)
             return {"status": "durable", **self._public_frozen(frozen)}
+        # Not recently acknowledged: queue it so the recorder re-validates it.
         if len(self._pending) >= self.capacity:
             raise ObservationQueueFull(
                 f"pending observation capacity {self.capacity} reached; no entry was dropped")
@@ -245,6 +274,9 @@ class ObservationPublicationQueue:
         del self._pending[frozen.key]
         self._active_token = None
         self._durable_digests[frozen.key] = frozen.payload_sha256
+        self._durable_digests.move_to_end(frozen.key)
+        while len(self._durable_digests) > self.durable_cache_capacity:
+            self._durable_digests.popitem(last=False)
         self._last_terminal[frozen.owner] = (frozen, receipt_bytes)
         self._last_terminal.move_to_end(frozen.owner)
         while len(self._last_terminal) > self.terminal_capacity:
