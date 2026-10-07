@@ -58,6 +58,12 @@ DISCLOSURE = ('Declared I/O, not native computation: the OptomotorEncoder inject
               'bypassed) and the DNa02YawDecoder is an engineered linear readout. Fixed weights, no learning. '
               'No claim of validated fly behaviour.')
 ASSAYS = ('optomotor',)
+RESUME_HELP = ('Verify and continue a cohort directory: same-engine resume is byte-identical; '
+               'CPU<->GPU continuation is NOT exact, only verified within the contract bounds')
+RESUME_DESCRIPTION = ('Verify a cohort directory and continue it. Resume on the same engine (CPU, or GPU '
+                      'on the same device) is byte-identical to an uninterrupted run. CPU<->GPU '
+                      'continuation is NOT exact: it is verified only within the preregistered contract '
+                      'bounds (g relative error <= 4.5e-7, 0 spike mismatches over ticks 100-199).')
 
 
 class CohortError(RuntimeError):
@@ -565,6 +571,12 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
                   graph: Optional[CohortGraph] = None, graph_dir=None, connectome_dir=None,
                   allow_synthetic: bool = False, progress: Callable[[str], None] = print,
                   stop_after_steps: Optional[int] = None) -> List[dict]:
+    """Verify a cohort directory and continue it.
+
+    Same-engine resume is byte-identical to an uninterrupted run.  CPU<->GPU
+    continuation is NOT exact; it is verified only within the preregistered
+    contract bounds (see RESUME_DESCRIPTION).
+    """
     root = Path(out).expanduser()
     store.refuse_legacy_path(root)
     if not store.manifest_path(root).is_file():
@@ -736,7 +748,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     run.add_argument('--engine', choices=('cpu', 'gpu'), default='cpu')
     run.add_argument('--checkpoint-every-ms', type=float, default=None,
                      help='simulated ms between checkpoints (default: start and end only)')
-    res = sub.add_parser('resume', help='Verify and continue a cohort directory exactly')
+    res = sub.add_parser('resume', help=RESUME_HELP, description=RESUME_DESCRIPTION)
     res.add_argument('dir')
     res.add_argument('--seconds', type=float, default=None,
                      help='further simulated seconds (default: finish the original target)')

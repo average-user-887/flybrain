@@ -120,6 +120,23 @@ def test_cli_run_and_resume(tmp_path, capsys):
     assert 'SYNTHETIC TEST GRAPH' in capsys.readouterr().err
 
 
+def test_resume_help_states_same_engine_exact_and_cross_engine_bounded(capsys):
+    """The CLI must not promise exact CPU<->GPU continuation (only bounded agreement)."""
+    with pytest.raises(SystemExit) as exc:
+        main(['resume', '--help'])
+    assert exc.value.code == 0
+    text = ' '.join(capsys.readouterr().out.split())
+    assert 'Resume on the same engine (CPU, or GPU on the same device) is byte-identical' in text
+    assert 'CPU<->GPU continuation is NOT exact' in text
+    assert 'g relative error <= 4.5e-7, 0 spike mismatches over ticks 100-199' in text
+    with pytest.raises(SystemExit):
+        main(['--help'])
+    listing = ' '.join(capsys.readouterr().out.split())
+    assert 'same-engine resume is byte-identical' in listing
+    assert 'CPU<->GPU continuation is NOT exact' in listing
+    assert 'cohort directory exactly' not in listing
+
+
 def test_neurofly_entry_point_dispatches_cohort(tmp_path):
     from neurofly.cli import main as neurofly_main
     out = tmp_path / 'ep'
