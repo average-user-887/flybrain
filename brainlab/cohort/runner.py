@@ -367,6 +367,23 @@ def schedule_sha256(world: FlyWorld) -> str:
     return _sha256_json(world.schedule())
 
 
+def _flag_superseded_io(manifest: dict, effective: dict) -> None:
+    """A v0.5.0rc1 manifest declared the daemon's whole-arena I/O table (9 probes, 6 decoders)
+    as the cohort's.  It is kept exactly as written, flagged as superseded, and the cohort's
+    actual effective I/O is declared beside it; nothing is dropped or rewritten in place."""
+    disclosure = manifest.get('scientific_disclosure') or {}
+    recorded = disclosure.get('graph_io') or {}
+    if recorded.get('scope') == 'cohort' or 'graph_io_status' in disclosure:
+        return
+    disclosure['graph_io_status'] = (
+        'superseded: declared by the v0.5.0rc1 cohort writer, which recorded the daemon\'s whole-arena '
+        'graph I/O table (all input probes and decoders) instead of the cohort\'s own. Kept unchanged '
+        'as historical record. The effective I/O of every segment of this cohort is effective_graph_io: '
+        'one optomotor encoder (T4/T5) and one DNa02 yaw decoder, tethered.')
+    disclosure['effective_graph_io'] = effective
+    manifest['scientific_disclosure'] = disclosure
+
+
 def _resume_engine(engine: Optional[str], recorded: str, arrays: dict, flies: int) -> CohortEngine:
     """Default: the RECORDED backend, matched by exact id; unavailable or unknown -> refuse
     (nothing has been written yet).  Never a silent GPU->CPU fallback."""
@@ -752,6 +769,8 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
         if mixed:
             manifest['mixed_engines'] = True
             manifest['numerical_realisation'] = MIXED_ENGINE_NOTE
+        effective_io = graph_io_disclosure(worlds[0])['graph_io']
+        _flag_superseded_io(manifest, effective_io)
         cohort = Cohort(root, graph, eng, worlds, manifest, progress)
         cohort.parents = [last[e['fly_id']][2] for e in manifest['flies']]
         cohort.open_outputs()
@@ -773,6 +792,7 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
                                      'engine_description': eng.describe(),
                                      'engine_choice': 'explicit' if engine else 'recorded',
                                      'mixed_engine': eng.backend_id != recorded_engine,
+                                     'effective_graph_io': effective_io,
                                      'steps': steps, 'wall_s': wall, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
         _print_table(rows, wall, flies, progress)

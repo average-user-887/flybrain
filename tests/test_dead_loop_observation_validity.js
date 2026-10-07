@@ -23,7 +23,7 @@ function harness() {
         + app.slice(app.indexOf('class DaemonBridgeClient'), app.indexOf('const ASSAY_CONFIGS ='))
         + app.slice(app.indexOf('class ScientificBioArena'), app.indexOf('const EXPERIMENT_GUIDES'))
         + '\nthis.B=DaemonBridgeClient.prototype;this.A=ScientificBioArena.prototype;', c);
-    for (const name of ['acceptsHeartbeatOwner', 'applyDaemonHealth', 'currentHaltForPacket', 'renderCurrentHalt', 'renderPlaybackState', 'applyObservationValidityUpdate', 'reconcileObservationValidityUpdate', 'startStreaming']) bridge[name] = c.B[name];
+    for (const name of ['acceptsHeartbeatOwner', 'applySimProcessLiveness', 'applyDaemonHealth', 'currentHaltForPacket', 'renderCurrentHalt', 'renderPlaybackState', 'applyObservationValidityUpdate', 'reconcileObservationValidityUpdate', 'startStreaming']) bridge[name] = c.B[name];
     arena.getObservationDisplay = c.A.getObservationDisplay;
     bridge.startStreaming();
     const notice = {schema: 'neurofly-observation-validity-update/1', identity: {...x.identity, brain_id: x.brainId},

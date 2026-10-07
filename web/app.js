@@ -4198,6 +4198,8 @@ class DaemonBridgeClient {
         this.healthStep = null;
         this.daemonHalt = status.halted ? {error: status.error || 'unknown error', detail: status.error_detail || null}
             : null;
+        this.simProcessDown = null;
+        this.applySimProcessLiveness(status);
         if (this.statusPill) {
             this.statusPill.textContent = '● LIVE DAEMON';
             this.statusPill.style.background = 'rgba(34, 197, 94, 0.25)';
@@ -4328,10 +4330,15 @@ class DaemonBridgeClient {
             this.renderCurrentHalt();
             // Connected and fresh, but the simulation does not advance: never show LIVE.
             const cls = halt.detail?.failure_class;
-            this.statusPill.textContent = cls === 'compute' ? `● SIMULATION HALTED${ro} · GPU/COMPUTE ERROR`
+            this.statusPill.textContent = this.simProcessDown
+                ? `● SIMULATION PROCESS ${this.simProcessDown.state === 'sim_process_down' ? 'DOWN' : 'NOT RESPONDING'}${ro}`
+                : cls === 'compute' ? `● SIMULATION HALTED${ro} · GPU/COMPUTE ERROR`
                 : (cls === 'persistence' && halt.detail?.channel) ? `● SIMULATION STOPPED${ro} · NOT SAVED`
                 : `● SIMULATION HALTED${ro} · ERROR`;
-            this.statusPill.title = `The daemon is connected but the simulation is halted and not advancing: `
+            this.statusPill.title = this.simProcessDown
+                ? `The web page server answers, but the simulation process is not running (${halt.error}). `
+                    + `Nothing advances and commands are disabled. The last frame shown belongs to the stopped run.`
+                : `The daemon is connected but the simulation is halted and not advancing: `
                 + `${halt.error}` + (halt.detail?.paradigm ? ` (assay ${halt.detail.paradigm}, step ${halt.detail.step}). ` : '. ')
                 + (halt.detail?.recover || 'Select an assay to rebuild the controller and resume.');
         }
@@ -4541,6 +4548,38 @@ class DaemonBridgeClient {
         return true;
     }
 
+    /** Split mode (web process up, simulation process down or not answering): the web
+     *  reports liveness sim_process_down / sim_process_unresponsive.  Show that, never the
+     *  last run's PAUSED state; clear that run's identity and disable commands.  Returns
+     *  true while the simulation process is down. */
+    applySimProcessLiveness(source) {
+        const state = source?.liveness?.state;
+        if (state !== 'sim_process_down' && state !== 'sim_process_unresponsive') {
+            if (this.simProcessDown) {
+                // Back: the restarted process's own frames and status set identity and controls.
+                this.simProcessDown = null;
+                if (this.daemonHalt?.detail?.kind === 'simulation_process') this.daemonHalt = null;
+            }
+            return false;
+        }
+        const error = source.error || (state === 'sim_process_down' ? 'simulation process is down'
+            : 'simulation process is not responding');
+        this.simProcessDown = {state, error};
+        this.daemonHalt = {error, detail: source.error_detail || {kind: 'simulation_process', message: error}};
+        this.daemonPaused = false;
+        this.daemonError = error;
+        this.daemonLiveness = {...source.liveness, at: performance.now()};
+        // Acknowledgements and the frame order belong to the process that is gone.
+        this.lastSwitchAck = this.lastBackendAck = this.lastAck = null;
+        const run = document.getElementById('identRun');
+        if (run) { run.textContent = 'run --'; run.title = 'No simulation process: the previous run is no longer current.'; }
+        const label = document.getElementById('arenaRunState');
+        if (label) label.textContent = `SIMULATION PROCESS ${state === 'sim_process_down' ? 'DOWN' : 'NOT RESPONDING'} · commands disabled`;
+        const pause = document.getElementById('btnPauseToggle');
+        if (pause) { pause.textContent = 'Sim down'; pause.disabled = true; }
+        return true;
+    }
+
     // Health is current control-plane evidence, independent of the last pose frame.
     applyDaemonHealth(beat) {
         if (!this.acceptsHeartbeatOwner(beat)) return false;
@@ -4599,6 +4638,9 @@ class DaemonBridgeClient {
                 let beat;
                 try { beat = {...JSON.parse(event.data), at: this.lastPacketTime}; }
                 catch (e) { this.lastHeartbeat = null; return; }
+                // Split mode: a down simulation process belongs to no run, so it is applied
+                // before the run-owner fence and overrides any paused presentation.
+                if (this.applySimProcessLiveness(beat)) { this.lastHeartbeat = beat; this.updateFreshness(); return; }
                 if (beat.identity && !this.acceptsHeartbeatOwner(beat)) return;
                 this.lastHeartbeat = beat;
                 if (beat && beat.liveness) {
@@ -5034,7 +5076,7 @@ class DaemonBridgeClient {
     }
 
     async sendCommand(action, params = {}, onQueued = null, options = {}) {
-        if (!this.connected || !this.activeUrl || this.readOnly) return null;
+        if (!this.connected || !this.activeUrl || this.readOnly || this.simProcessDown) return null;
         const switching = ['switch_paradigm', 'switch_backend'].includes(action);
         const clientCommandId = options.clientCommandId || this.newClientCommandId();
         if (switching) this.switchPending = true;

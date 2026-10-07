@@ -360,6 +360,41 @@ def test_rc1_store_still_resumes_and_the_original_is_untouched(tmp_path):
     seg = manifest['segments'][-1]
     assert seg['engine_choice'] == 'recorded' and seg['source_engine'] == 'cpu-loop-v3'
     assert seg['source_engine_description']['backend'] == 'cpu-loop-v3'
-    # Its recorded rc1 disclosure is kept as written, not rewritten.
+    # Its recorded rc1 disclosure is kept as written (flagged: see the F4 resume test).
     original = json.loads((RC1_STORE / store.MANIFEST_NAME).read_text())
-    assert manifest['scientific_disclosure'] == original['scientific_disclosure']
+    assert manifest['scientific_disclosure']['graph_io'] == original['scientific_disclosure']['graph_io']
+    assert manifest['scientific_disclosure']['notice'] == original['scientific_disclosure']['notice']
+
+
+def test_resumed_rc1_store_declares_effective_io_and_flags_the_old_declaration(tmp_path):
+    """F4 for old stores: the rc1 manifest's daemon-wide declaration (9 probes, 6 decoders) is kept
+    unchanged but flagged as superseded; the resumed segment declares the cohort's actual I/O."""
+    import provenance
+    original = json.loads((RC1_STORE / store.MANIFEST_NAME).read_text())
+    old = original['scientific_disclosure']['graph_io']
+    assert len(old['config']['input_probes']) == 9 and len(old['config']['decoders']) == 6
+    work = tmp_path / 'rc1'
+    shutil.copytree(RC1_STORE, work)
+    resume_cohort(work, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((work / store.MANIFEST_NAME).read_text())
+    disclosure = manifest['scientific_disclosure']
+    assert disclosure['graph_io'] == old                                   # historical, unchanged
+    assert disclosure['graph_io_status'].startswith('superseded: declared by the v0.5.0rc1 cohort writer')
+    for effective in (disclosure['effective_graph_io'], manifest['segments'][-1]['effective_graph_io']):
+        assert effective['scope'] == 'cohort'
+        assert [p['name'] for p in effective['input_probes']] == ['optomotor'] and effective['decoders'] == ['yaw']
+        assert effective['daemon_graph_io'] == provenance.graph_io_declaration()
+    # A second resume keeps the flag and the old declaration; it does not stack another one.
+    resume_cohort(work, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    again = json.loads((work / store.MANIFEST_NAME).read_text())['scientific_disclosure']
+    assert again == disclosure
+
+
+def test_resumed_rc2_store_keeps_its_cohort_declaration_unflagged(tmp_path):
+    root = tmp_path / 'rc2'
+    run_cohort(root, flies=1, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    before = json.loads((root / store.MANIFEST_NAME).read_text())['scientific_disclosure']
+    resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    assert manifest['scientific_disclosure'] == before
+    assert manifest['segments'][-1]['effective_graph_io'] == before['graph_io']
