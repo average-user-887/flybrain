@@ -328,6 +328,65 @@ def test_missing_or_unreadable_ledger_leaves_the_parent_unknown(daemon, damage):
         'ledger missing' if damage == 'missing' else 'ledger unreadable')
 
 
+def test_switch_back_scans_the_ledger_outside_the_runner_lock(daemon, monkeypatch):
+    runner = daemon(trial_length_s=600.0)
+    advance(runner, 3)
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'buridan'})
+    advance(runner, 2)
+    held = []
+    real_scan = ContinuousExperimentRunner._scan_ledger_evidence
+
+    def watched_scan(self, path, parent):
+        held.append(self.lock._lock.locked())
+        return real_scan(self, path, parent)
+
+    monkeypatch.setattr(ContinuousExperimentRunner, '_scan_ledger_evidence', watched_scan)
+    # Forget the in-process receipt so the commit must rely on the ledger evidence.
+    runner._durable_terminals.clear()
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'multisensory-sandbox'})
+    assert held == [False]                          # scanned once, during prepare, unlocked
+    lineage = runner.current_segment_lineage()
+    assert lineage['reason'] == 'assay_reactivated'
+    assert lineage['parent_observation'] == 'unknown'   # its terminal is in buridan's ledger
+
+
+def test_ledger_evidence_scan_is_bounded_to_the_newest_bytes(daemon, monkeypatch):
+    first = daemon(trial_length_s=0.2)
+    advance(first, 4)
+    parent = first.segment_id
+    first.save_checkpoint('before-completion')
+    saved = first.active_brain.path.read_bytes()
+    advance(first, 6)                               # the parent's terminal is in the ledger
+    first.active_brain.path.write_bytes(saved)
+    path = first.active_brain.directory / 'multisensory-sandbox.events.jsonl'
+    monkeypatch.setattr(ContinuousExperimentRunner, 'LEDGER_EVIDENCE_TAIL_BYTES', 4096)
+    within = daemon(trial_length_s=0.2).current_segment_lineage()
+    assert within['parent_observation'] == 'terminal_recorded'
+
+    # Push the terminal record out of the searched window with later records.
+    first.active_brain.path.write_bytes(saved)
+    with path.open('a') as fh:
+        for i in range(64):
+            fh.write(json.dumps({'kind': 'filler', 'i': i, 'pad': 'x' * 100}) + '\n')
+    reads = []
+    real_open = open
+
+    def counting_open(file, mode='r', *args, **kwargs):
+        handle = real_open(file, mode, *args, **kwargs)
+        if str(file) == str(path) and 'b' in mode:
+            real_read = handle.read
+            handle.read = lambda n=-1: reads.append(n) or real_read(n)
+        return handle
+
+    monkeypatch.setattr('builtins.open', counting_open)
+    beyond = daemon(trial_length_s=0.2).current_segment_lineage()
+    monkeypatch.undo()
+    assert beyond['parent_segment_id'] == parent and beyond['parent_observation'] == 'unknown'
+    assert 'older records not searched' in beyond['parent_observation_evidence']['detail']
+    assert reads and max(reads) <= 4096
+    assert path.stat().st_size > 4096
+
+
 def test_lineage_chains_across_repeated_restarts(daemon):
     first = daemon(trial_length_s=600.0)
     advance(first, 3)
