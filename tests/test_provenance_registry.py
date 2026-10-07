@@ -456,7 +456,7 @@ def test_retention_unlinks_symlinked_checkpoints_but_keeps_their_targets(tmp_pat
 
 
 # ---------------------------------------------------------------------------
-# Activation after release
+# Activation after release, and per-instance engine resolution
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize('backend', ['connectome-fixed', 'connectome-plastic'])
 def test_activate_after_release_restores_the_checkpoint_instead_of_the_released_instance(
@@ -478,3 +478,22 @@ def test_activate_after_release_restores_the_checkpoint_instead_of_the_released_
     other = registry.activate('t-maze', backend)
     assert registry.active is other and other.brain is not None
 
+
+def test_auto_engine_is_resolved_per_instance_not_frozen_by_the_first(tmp_path, monkeypatch):
+    """With 'auto' every instance asks Brain for 'auto', so Brain's CPU fallback stays reachable."""
+    import experiment_registry as registry_module
+    requested = []
+    real_brain = registry_module.Brain
+
+    def spy(*args, backend=None, **kwargs):
+        requested.append(backend)
+        return real_brain(*args, backend=backend, **kwargs)
+
+    monkeypatch.setenv('NEUROFLY_BRAIN_BACKEND', 'cpu')
+    monkeypatch.setattr(registry_module, 'Brain', spy)
+    registry = make_registry(tmp_path, brain_backend='auto')
+    requested.clear()                       # graph validation builds a host-only Brain
+    registry.activate('buridan', 'connectome-fixed')
+    registry.activate('t-maze', 'connectome-fixed')
+    assert requested == ['auto', 'auto']
+    assert registry.brain_backend == 'auto'

@@ -189,9 +189,11 @@ class GraphInstance:
         self.assay, self.backend, self.instance_id, self.seed = assay, backend, instance_id, seed
         self.manifest = manifest
         self.rng = np.random.default_rng(seed)
+        # The registry keeps the operator's selection.  With 'auto', every
+        # instance resolves its own engine, so a later GPU set-up failure (for
+        # example out of memory) still falls back to the CPU inside Brain
+        # instead of being forced onto the engine the first instance resolved.
         self.brain = Brain(arrays=self.shared.arrays, validate=False, backend=selected)
-        if selected == 'auto':
-            registry.brain_backend = self.brain.backend
         identity = self.shared.identity
         if (self.brain.dynamics == 'v3' and not identity.synthetic
                 and 'v3-modulatory-only' not in identity.dataset):
