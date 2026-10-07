@@ -638,7 +638,7 @@ class TestIncrementalIndex:
 
 
 # =============================================================================
-# 5. The SQLite index is derived state: an I/O failure refuses, never acknowledges
+# 5. The SQLite index is derived state: rebuild a malformed cache, refuse I/O failure
 # =============================================================================
 
 INDEX_FILE = ".neurofly-observation-index.sqlite"
@@ -683,6 +683,49 @@ def _is_closed(conn):
 
 
 class TestDerivedIndexCache:
+    @pytest.mark.parametrize("damage", ["not_sqlite", "truncated"])
+    def test_malformed_cache_is_retired_and_rebuilt_from_the_ledger(
+            self, tmp_path, monkeypatch, capsys, damage):
+        envelope, ledger = _seed_ledger(tmp_path)
+        cache = tmp_path / INDEX_FILE
+        if damage == "not_sqlite":
+            cache.write_bytes(b"this is not a database at all" * 100)
+        else:
+            data = cache.read_bytes()
+            cache.write_bytes(data[: max(100, len(data) // 3)])
+        damaged = cache.read_bytes()
+        opened = _track_connections(monkeypatch)
+        with LearningRecorder(tmp_path, fsync=False) as rec:
+            assert rec._index.count() == 2
+            assert rec.record_observation(envelope)["idempotent"] is True
+            changed = copy.deepcopy(envelope)
+            changed["provenance"]["controller_specific"]["raw_motor_command"]["yaw"] = 3.0
+            with pytest.raises(learning_recorder.ObservationConflictError):
+                rec.record_observation(changed)
+            assert _ledger_bytes(tmp_path) == ledger  # authoritative bytes untouched
+        [retired] = tmp_path.glob(INDEX_FILE + ".corrupt-*")
+        assert retired.read_bytes() == damaged         # kept as evidence, not deleted
+        assert "rebuilding from the ledger" in capsys.readouterr().err
+        assert len(opened) == 2 and all(_is_closed(c) for c in opened)
+
+    @pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0, reason="needs POSIX non-root")
+    def test_permission_denied_cache_refuses_explicitly(self, tmp_path, monkeypatch):
+        import sqlite3
+
+        envelope, ledger = _seed_ledger(tmp_path)
+        cache = tmp_path / INDEX_FILE
+        cache.chmod(0)
+        opened = _track_connections(monkeypatch)
+        try:
+            with pytest.raises(sqlite3.OperationalError):
+                LearningRecorder(tmp_path, fsync=False)
+        finally:
+            cache.chmod(0o600)
+        assert _ledger_bytes(tmp_path) == ledger
+        assert not list(tmp_path.glob(INDEX_FILE + ".corrupt-*"))  # not "repaired"
+        assert all(_is_closed(c) for c in opened)
+        LearningRecorder(tmp_path, fsync=False).close()  # directory ownership was released
+
     @pytest.mark.parametrize("where", ["add", "get"])
     def test_cache_io_failure_refuses_then_rebuilds_without_losing_conflicts(
             self, tmp_path, monkeypatch, where):

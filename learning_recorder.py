@@ -634,7 +634,10 @@ class _ObservationIndex:
     is dropped and rebuilt from the ledger at every open and every full
     re-validation, so contents left by an earlier process are never trusted.
     The recorder never deletes it; it may be deleted by hand while no
-    recorder owns the directory.
+    recorder owns the directory. A file SQLite reports as not a database or
+    corrupt is renamed aside (never deleted) as ``<name>.corrupt-<UTC>``, and
+    one fresh cache is rebuilt solely from the ledger; genuine disk or
+    permission errors (CANTOPEN, IOERR, READONLY, FULL) refuse instead.
 
     Failure behaviour: any SQLite error during an observation write discards
     the in-memory view (the next call rebuilds from byte 0) and raises
@@ -663,6 +666,24 @@ class _ObservationIndex:
             raise
         self._db = db
 
+    def _retire_corrupt(self, exc: BaseException) -> None:
+        self._close_quietly()
+        stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
+        target = self.path.with_name(f"{self.path.name}.corrupt-{stamp}")
+        n = 1
+        while target.exists():
+            target = self.path.with_name(f"{self.path.name}.corrupt-{stamp}-{n}")
+            n += 1
+        if self.path.exists():
+            os.replace(self.path, target)
+        print(f"[Recorder] observation index cache unusable ({type(exc).__name__}: {exc}); "
+              f"renamed to {target.name} and rebuilding from the ledger", file=sys.stderr, flush=True)
+
+    # Only these mean "the cache file's contents are unusable". Every other
+    # SQLite error (CANTOPEN, IOERR, READONLY, FULL, PERM, ...) is a genuine
+    # disk or permission failure and is refused, never "repaired".
+    _MALFORMED = frozenset({"SQLITE_NOTADB", "SQLITE_CORRUPT"})
+
     def _close_quietly(self) -> None:
         if self._db is not None:
             try:
@@ -672,11 +693,22 @@ class _ObservationIndex:
             self._db = None
 
     def reset(self) -> None:
-        """Drop and recreate the table."""
+        """Drop and recreate the table; a malformed cache is retired once and rebuilt."""
         try:
             if self._db is None:
                 self._connect()
             self._reset_table()
+        except sqlite3.DatabaseError as exc:
+            self._close_quietly()
+            if getattr(exc, "sqlite_errorname", None) not in self._MALFORMED:
+                raise
+            self._retire_corrupt(exc)
+            try:  # exactly one rebuild attempt; no loop
+                self._connect()
+                self._reset_table()
+            except BaseException:
+                self._close_quietly()
+                raise
         except BaseException:
             self._close_quietly()
             raise
