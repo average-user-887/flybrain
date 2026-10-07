@@ -45,8 +45,10 @@ extern "C" __global__ void advance_v3_cohort(
     const float* __restrict__ drive, int* queue, int* queue_count,
     int* counts, unsigned char* active_flag, unsigned char* spiked,
     const long long* __restrict__ cursor0,
+    const long long* __restrict__ in_ptr, const int* __restrict__ in_pre,
+    const float* __restrict__ in_w, long long* due_stamp, long long* recv_stamp,
     const long long n, const int n_flies, const int delay_slots, const int steps,
-    const double dt, const double e_inh)
+    const double dt, const double e_inh, const double g_unit_exc, const double g_unit_inh)
 {
     cg::grid_group grid = cg::this_grid();
     const long long tid = blockIdx.x * (long long)blockDim.x + threadIdx.x;
@@ -93,33 +95,31 @@ extern "C" __global__ void advance_v3_cohort(
         }
         grid.sync();
 
-        // Phase 2: deliver the spikes due this tick, one warp per spiker, fly by fly.
+        // Phase 2a: stamp this tick's due spikers and the targets they reach.
         for (int f = 0; f < n_flies; ++f) {
             const long long cursor = cursor0[f] + step;
+            const long long stamp = cursor + 1;
             const int slot = (int)(cursor % delay_slots);
             const long long qrow = (long long)f * delay_slots + slot;
             const int nspk = queue_count[qrow];
             const int* qf = queue + qrow * n;
             short* ref_f = refractory + (long long)f * n;
-            unsigned char* af_f = active_flag + (long long)f * n;
-            unsigned long long* acc_exc = acc + (long long)f * 2 * n;
-            unsigned long long* acc_inh = acc_exc + n;
             for (long long q = warp_id; q < nspk; q += nwarps) {
                 const int pre = qf[q];
+                if (lane == 0) due_stamp[(long long)f * n + pre] = stamp;
                 const long long end = ptr[pre + 1];
                 for (long long e = ptr[pre] + lane; e < end; e += 32) {
                     const int j = post[e];
                     if (ref_f[j] > 0) continue;
-                    const long long inc = edge_inc[e];
-                    if (inc > 0) atomicAdd(&acc_exc[j], (unsigned long long)inc);
-                    else atomicAdd(&acc_inh[j], (unsigned long long)(-inc));
-                    af_f[j] = 1;
+                    recv_stamp[(long long)f * n + j] = stamp;
                 }
             }
         }
         grid.sync();
 
-        // Phase 3: fold arrivals into g, reset this tick's spikers.
+        // Phase 2b+3: each receiving target adds its arrivals one by one in
+        // float32, in ascending (pre, edge) order, as the CPU kernel's
+        // per-arrival accumulation does; then this tick's spikers reset.
         for (long long f = tid; f < n_flies; f += nthreads) {
             const long long cursor = cursor0[f] + step;
             queue_count[f * delay_slots + (int)(cursor % delay_slots)] = 0;
@@ -129,18 +129,24 @@ extern "C" __global__ void advance_v3_cohort(
             const long long i = x - f * n;
             float* g_exc = g + f * 2 * n;
             float* g_inh = g_exc + n;
-            unsigned long long* acc_exc = acc + f * 2 * n;
-            unsigned long long* acc_inh = acc_exc + n;
+            const long long stamp = cursor0[f] + step + 1;
+            if (recv_stamp[x] == stamp) {
+                const long long* due_f = due_stamp + f * n;
+                float ge = g_exc[i], gi = g_inh[i];
+                for (long long e = in_ptr[i]; e < in_ptr[i + 1]; ++e) {
+                    if (due_f[in_pre[e]] != stamp) continue;
+                    const float w = in_w[e];
+                    if (w > 0.0f) ge = (float)((double)ge + (double)w * g_unit_exc);
+                    else gi = (float)((double)gi - (double)w * g_unit_inh);
+                }
+                g_exc[i] = ge; g_inh[i] = gi;
+                active_flag[x] = 1;
+            }
             if (spiked[x]) {
                 spiked[x] = 0;
                 v[x] = (float)@V_RESET_MV@;
                 g_exc[i] = 0.0f; g_inh[i] = 0.0f;
                 refractory[x] = (short)refractory_ticks;
-                acc_exc[i] = 0ULL; acc_inh[i] = 0ULL;
-            } else {
-                const unsigned long long a0 = acc_exc[i], a1 = acc_inh[i];
-                if (a0) { g_exc[i] = (float)((double)g_exc[i] + (double)(long long)a0 * inv_scale); acc_exc[i] = 0ULL; }
-                if (a1) { g_inh[i] = (float)((double)g_inh[i] + (double)(long long)a1 * inv_scale); acc_inh[i] = 0ULL; }
             }
         }
         grid.sync();
@@ -206,8 +212,16 @@ def _graph_on_device(cp, dev: int, arrays: dict, g_unit_exc: float, g_unit_inh: 
                weight.__array_interface__['data'][0], weight.nbytes, g_unit_exc, g_unit_inh)
         if key in _GRAPH_CACHE:
             return _GRAPH_CACHE[key][1]
+    n = len(ptr) - 1
+    # Incoming-edge (CSC) view: per target, edges in ascending (pre, edge) order.
+    order = np.argsort(post, kind='stable')
+    src = np.repeat(np.arange(n, dtype=np.int32), np.diff(ptr))
+    in_ptr = np.zeros(n + 1, dtype=np.int64)
+    np.cumsum(np.bincount(post, minlength=n), out=in_ptr[1:])
     graph = (cp.asarray(ptr), cp.asarray(post),
-             cp.asarray(edge_increments(weight, g_unit_exc, g_unit_inh)))
+             cp.asarray(edge_increments(weight, g_unit_exc, g_unit_inh)),
+             cp.asarray(in_ptr), cp.asarray(src[order]),
+             cp.asarray(np.ascontiguousarray(weight[order], dtype=np.float32)))
     if key is not None:
         # Holding the host arrays keeps their buffers alive, so a key never goes stale.
         _GRAPH_CACHE[key] = ((ptr, post, weight), graph)
@@ -253,7 +267,8 @@ class GpuCohortEngine(CohortEngine):
             self.kernel.compile()
             self.timings['compile_s'] = time.perf_counter() - clock
             clock = time.perf_counter()
-            self.d_ptr, self.d_post, self.d_edge_inc = _graph_on_device(
+            (self.d_ptr, self.d_post, self.d_edge_inc,
+             self.d_in_ptr, self.d_in_pre, self.d_in_w) = _graph_on_device(
                 cp, self.device_index, arrays, self.g_unit_exc, self.g_unit_inh)
             cp.cuda.Device().synchronize()
             self.timings['graph_upload_s'] = time.perf_counter() - clock
@@ -261,6 +276,8 @@ class GpuCohortEngine(CohortEngine):
             self.d_v = cp.full((B, n), V_INIT_MV, dtype=cp.float32)
             self.d_g = cp.zeros((B, 2, n), dtype=cp.float32)
             self.d_acc = cp.zeros((B, 2, n), dtype=cp.uint64)
+            self.d_due = cp.zeros((B, n), dtype=cp.int64)
+            self.d_recv = cp.zeros((B, n), dtype=cp.int64)
             self.d_refractory = cp.zeros((B, n), dtype=cp.int16)
             self.d_drive = cp.zeros((B, n), dtype=cp.float32)
             self.d_queue = cp.zeros((B, S, n), dtype=cp.int32)
@@ -299,7 +316,8 @@ class GpuCohortEngine(CohortEngine):
 
     def device_bytes(self) -> int:
         """Bytes held by this engine's state plus the shared graph."""
-        arrays = (self.d_ptr, self.d_post, self.d_edge_inc, self.d_v, self.d_g, self.d_acc,
+        arrays = (self.d_ptr, self.d_post, self.d_edge_inc, self.d_in_ptr, self.d_in_pre, self.d_in_w,
+                  self.d_due, self.d_recv, self.d_v, self.d_g, self.d_acc,
                   self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
                   self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor)
         return int(sum(a.nbytes for a in arrays))
@@ -317,7 +335,7 @@ class GpuCohortEngine(CohortEngine):
             for k in fly_ids:
                 k = self._check_fly(k)
                 self.d_v[k].fill(V_INIT_MV)
-                for arr in (self.d_g, self.d_acc, self.d_refractory, self.d_queue,
+                for arr in (self.d_g, self.d_acc, self.d_due, self.d_recv, self.d_refractory, self.d_queue,
                             self.d_queue_count, self.d_counts, self.d_active_flag, self.d_spiked):
                     arr[k].fill(0)
                 self.cursor[k] = 0
@@ -336,8 +354,10 @@ class GpuCohortEngine(CohortEngine):
             args = (self.d_ptr, self.d_post, self.d_edge_inc, self.d_v, self.d_g, self.d_acc,
                     self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
                     self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
+                    self.d_in_ptr, self.d_in_pre, self.d_in_w, self.d_due, self.d_recv,
                     np.int64(self.n), np.int32(self.n_flies), np.int32(self.delay_slots),
-                    np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh))
+                    np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh),
+                    np.float64(self.g_unit_exc), np.float64(self.g_unit_inh))
             self.kernel((self._grid_blocks(),), (THREADS_PER_BLOCK,), args)
             counts = self.d_counts.get()
         for k in range(self.n_flies):
@@ -406,6 +426,8 @@ class GpuCohortEngine(CohortEngine):
             self.d_counts[k].set(arrays['counts'])
             self.d_active_flag[k].set(arrays['active_flag'])
             self.d_acc[k].fill(0)
+            self.d_due[k].fill(0)
+            self.d_recv[k].fill(0)
             self.d_spiked[k].fill(0)
             self.device.synchronize()
         self.cursor[k] = int(arrays['cursor'])
