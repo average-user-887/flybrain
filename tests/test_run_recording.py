@@ -2,6 +2,7 @@
 import gzip
 import hashlib
 import json
+import shutil
 import sys
 import threading
 import urllib.request
@@ -70,6 +71,63 @@ def test_synthetic_graph_recording_provenance_and_determinism(tmp_path):
     regions = header["channels"]["regions"]
     assert regions["grouping"] == "io-channel" and sum(regions["sizes"]) == 64
     assert header["channels"]["raster"]["n"] > 0
+
+
+def _initial_state(path):
+    return read_recording(path, require_finished=False)["header"]["provenance"]["initial_state"]
+
+
+def _restore_events(registry_root):
+    events = []
+    for path in sorted(Path(registry_root).rglob("events.jsonl")):
+        events += [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [e for e in events if e.get("kind") == "restore"]
+
+
+def test_header_restored_reports_the_graph_checkpoint_restore(tmp_path):
+    """initial_state.restored is about the graph instance, not runner bookkeeping.
+
+    A store that holds only the registry (as a migrated linked child, or a copied
+    registry, has no graph-bookkeeping file) used to give ``restored: false``
+    although the run continued from the checkpoint's step with a restore event.
+    """
+    kw = dict(paradigm="t-maze", backend="connectome-fixed", test_synthetic_graph=True)
+    fresh = _initial_state(record_run(out=tmp_path / "fresh", steps=3, **kw)["path"])
+    assert fresh["restored"] is False and fresh["restore_source"] is None
+    assert fresh["graph_step_index"] == 0
+
+    learned = tmp_path / "learned"
+    record_run(out=tmp_path / "learn", steps=11, state_dir=learned,
+               schedule=[{"step": 10, "cmd": {"action": "save_checkpoint"}}], **kw)
+    assert (learned / "graph-bookkeeping").is_dir()
+    # Registry only: exactly the state layout of the defect report.
+    registry_only = tmp_path / "registry-only"
+    shutil.copytree(learned / "registry-v3", registry_only / "registry-v3")
+    assert not (registry_only / "graph-bookkeeping").exists()
+    before = _restore_events(registry_only / "registry-v3")
+    state = _initial_state(record_run(out=tmp_path / "continued", steps=2, state_dir=registry_only, **kw)["path"])
+    restores = _restore_events(registry_only / "registry-v3")[len(before):]
+    assert [(e["version"], e["step"]) for e in restores] == [(1, 10)]
+    assert state["graph_step_index"] == 10
+    assert state["restored"] is True
+    assert state["restore_source"] == dict(kind="graph_checkpoint", checkpoint_version=1, step_index=10,
+                                           fallback=False)
+
+    # With the bookkeeping file present the answer is the same (it never decided it).
+    full = _initial_state(record_run(out=tmp_path / "continued-full", steps=2, state_dir=learned, **kw)["path"])
+    assert full["restored"] is True and full["restore_source"]["step_index"] == 10
+
+
+def test_header_restored_for_modular_brain_file(tmp_path):
+    state_dir = tmp_path / "state"
+    naive = _initial_state(record_run(paradigm="t-maze", out=tmp_path / "a", steps=3, state_dir=state_dir,
+                                      schedule=[{"step": 2, "cmd": {"action": "save_checkpoint"}}])["path"])
+    assert naive["restored"] is False and naive["restore_source"] is None
+    assert "graph_step_index" not in naive
+    assert (state_dir / "brains" / "t-maze.json").is_file()
+    again = _initial_state(record_run(paradigm="t-maze", out=tmp_path / "b", steps=2, state_dir=state_dir)["path"])
+    assert again["restored"] is True and again["restore_source"] == {"kind": "modular_brain_file"}
+    assert again["brain_steps"] == 2
 
 
 def test_record_cli_defaults_to_v3_dynamics(tmp_path, monkeypatch):

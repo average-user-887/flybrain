@@ -216,6 +216,10 @@ class GraphInstance:
         self.restore_fallback: Optional[dict] = None   # set when an older checkpoint was restored
         self.learning_state_restore: Optional[dict] = None
         self.learning_state_resets: list = []
+        # Set only by ExperimentRegistry._restore when this instance's state was
+        # loaded from a saved checkpoint: the restored version and its step index.
+        # None means the instance started fresh in this process.
+        self.restored_from: Optional[dict] = None
         self.rule = None
         self.plastic_edges = np.zeros(0, dtype=np.int64)
         self.plastic_delta = np.zeros(0, dtype=np.float32)
@@ -1105,6 +1109,8 @@ class ExperimentRegistry:
             else:
                 instance.load_payload(meta, arrays)
                 instance.checkpoint_version = current['version']
+                instance.restored_from = dict(checkpoint_version=int(current['version']),
+                                              step_index=int(instance.step_index), fallback=False)
                 self._event(instance, 'restore', version=current['version'], step=instance.step_index,
                             learning_state=instance.learning_state_restore)
                 return
@@ -1131,6 +1137,8 @@ class ExperimentRegistry:
             # ones are never overwritten (retention prunes them later, as usual).
             highest = max([v for v, _ in versions] + [int((current or {}).get('version') or 0)])
             instance.checkpoint_version = highest
+            instance.restored_from = dict(checkpoint_version=int(version),
+                                          step_index=int(instance.step_index), fallback=True)
             self._event(instance, 'restore', version=version, step=instance.step_index, fallback=True,
                         problem=problem, skipped=skipped, sha256_checked=version in hashes,
                         learning_state=instance.learning_state_restore)
