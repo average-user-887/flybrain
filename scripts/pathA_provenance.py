@@ -57,12 +57,33 @@ def stamp(base: dict, seed: int) -> dict:
     return dict(base, seed=int(seed))
 
 
+HEX_LENGTHS = dict(contract_sha256=64, graph_npz_sha256=64, engine_sha256=64, code_sha=40)
+
+
+def check_complete(prov: dict, where: str = 'record') -> None:
+    """Every field present and well formed: hashes are lowercase hex of the right length,
+    dynamics/backend non-empty strings, seed an int.  A missing key never matches."""
+    if not isinstance(prov, dict):
+        raise ProvenanceError(f'{where}: no provenance record (unverified row)')
+    for k, n in HEX_LENGTHS.items():
+        v = prov.get(k)
+        if not (isinstance(v, str) and len(v) == n and all(c in '0123456789abcdef' for c in v)):
+            raise ProvenanceError(f'{where}: provenance {k} missing or not a {n}-hex hash: {v!r}')
+    for k in ('dynamics', 'backend'):
+        if not (isinstance(prov.get(k), str) and prov.get(k)):
+            raise ProvenanceError(f'{where}: provenance {k} missing or empty')
+    if not isinstance(prov.get('seed'), int) or isinstance(prov.get('seed'), bool):
+        raise ProvenanceError(f'{where}: provenance seed missing or not an int')
+
+
 def check_row(row: dict, base: dict, *, fields=FIELDS) -> None:
     """Raise ProvenanceError unless ``row`` carries exactly ``base`` plus its own seed."""
     prov = row.get('provenance')
     where = f"row {row.get('condition')!r} seed {row.get('seed')!r}"
-    if not isinstance(prov, dict):
-        raise ProvenanceError(f'{where}: no provenance record (unverified row)')
+    check_complete(prov, where)
+    for k in ('engine_sha256', 'code_sha'):
+        if k in fields and k not in base:
+            raise ProvenanceError(f'{where}: expected identity lacks {k}; refusing')
     want = stamp({k: base[k] for k in base if k in fields}, row.get('seed'))
     for k in fields:
         if k == 'seed':
@@ -71,5 +92,7 @@ def check_row(row: dict, base: dict, *, fields=FIELDS) -> None:
             continue
         if k not in want:
             continue
+        if want[k] is None:
+            raise ProvenanceError(f'{where}: expected {k} is undefined; refusing')
         if prov.get(k) != want[k]:
             raise ProvenanceError(f'{where}: provenance {k} = {prov.get(k)!r}, expected {want[k]!r}')

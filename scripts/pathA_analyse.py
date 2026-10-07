@@ -40,6 +40,10 @@ def main():
             r = json.loads(line)
             p = r.get('provenance') or {}
             if ident is None:
+                try:  # the identity is taken only from a complete, well-formed record
+                    prov.check_complete(r.get('provenance'), f"row {r.get('condition')!r} seed {r.get('seed')!r}")
+                except prov.ProvenanceError as exc:
+                    raise SystemExit(f'refusing to analyse: {exc}')
                 ident = dict(engine_sha256=p.get('engine_sha256'), code_sha=p.get('code_sha'))
             try:
                 prov.check_row(r, dict(base, **ident))
