@@ -330,6 +330,15 @@ def daemon_e_inh() -> None:
             f"through the research scripts (docs/EINH_SENSITIVITY.md). Nothing was started or written.")
 
 
+# Dashboard request ids (client_command_id): transport metadata only.
+CLIENT_COMMAND_ID_RE = re.compile(r'^[A-Za-z0-9._-]{1,64}$')
+COMMAND_ACK_INDEX_SIZE = 256
+
+
+def valid_client_command_id(value) -> bool:
+    return isinstance(value, str) and CLIENT_COMMAND_ID_RE.match(value) is not None
+
+
 def daemon_configuration(version: Optional[str] = None) -> str:
     """Every process-wide model override the daemon accepts, checked together."""
     chosen = daemon_dynamics(version)
@@ -1276,6 +1285,12 @@ class ContinuousExperimentRunner:
         # are never dropped and never applied mid-step, so results do not change.
         self.command_reply_wait_s = 1.0
         self.command_acks: deque = deque(maxlen=8)
+        # Final acknowledgements by daemon command id AND the dashboard's own request id
+        # (``client_command_id``), so a request whose HTTP reply was lost or timed out
+        # can still be matched to its exact outcome (GET /api/command_ack).  Bounded;
+        # an id that is not here is reported as unknown, never as success.
+        self.command_ack_index: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self._ack_index_lock = threading.Lock()   # never the simulation lock: lookups stay fast
         self._command_seq = 0
         self._step_started: Optional[float] = None   # perf_counter() while a step runs
         self.last_step_wall_s = 0.0
@@ -1840,14 +1855,21 @@ class ContinuousExperimentRunner:
                 "captured_step": terminal["captured_step"],
                 "durable": terminal.get("durable") is not None,
             }),
-            "pending_control": (None if self._pending_assay_control is None else {
-                "command_id": self._pending_assay_control['entry']['id'],
-                "action": self._pending_assay_control['plan']['action'],
-                "name": self._pending_assay_control['plan']['name'],
-                "persistence_phase": self._pending_assay_control.get('phase', 'saving_prefix'),
-            }),
+            "pending_control": (None if self._pending_assay_control is None
+                                else self._pending_control_view(self._pending_assay_control)),
             "control_failures": copy.deepcopy(list(self.assay_control_failures)),
         }
+
+    @staticmethod
+    def _pending_control_view(transaction) -> Dict[str, Any]:
+        """Progress of the control being applied: which request, which phase, how long."""
+        plan = transaction['plan']
+        return {"command_id": transaction['entry']['id'],
+                "client_command_id": transaction['entry'].get('client_command_id'),
+                "action": plan['action'], "name": plan['name'],
+                "backend": plan.get('backend'),
+                "persistence_phase": transaction.get('phase', 'saving_prefix'),
+                "elapsed_s": round(time.monotonic() - transaction['started'], 3)}
 
     def _observation_waiting_for_save(self) -> bool:
         if self._pending_assay_control is not None:
@@ -2900,7 +2922,7 @@ class ContinuousExperimentRunner:
             entry['result'] = result
             self._note_latency(result, entry['received'])
             if isinstance(result, dict):
-                result['command_id'] = entry['id']
+                self._stamp_command_ack(entry, result)
                 self.command_acks.append(result)
             entry['done'].set()
         return result
@@ -4049,27 +4071,91 @@ class ContinuousExperimentRunner:
         received = time.perf_counter()
         if not isinstance(cmd, dict):
             return {"status": "error", "message": "Command must be a JSON object"}
+        # The dashboard's own request id is transport metadata: it is removed before
+        # the command is applied or journaled, and only echoed on replies and acks.
+        cmd = dict(cmd)
+        client_id = cmd.pop("client_command_id", None)
+        if client_id is not None and not valid_client_command_id(client_id):
+            return {"status": "error", "applied": False,
+                    "message": "client_command_id must be 1-64 characters of A-Z a-z 0-9 . _ -"}
         if self._loop_active():
             with self._commands_lock:
                 self._command_seq += 1
                 entry = {"cmd": cmd, "done": threading.Event(), "result": None,
-                         "id": f"{self.run_id[:8]}-{self._command_seq}", "received": received}
+                         "id": f"{self.run_id[:8]}-{self._command_seq}", "received": received,
+                         "client_command_id": client_id}
                 self._commands.append(entry)
             self._wake.set()
             if not entry["done"].wait(self.command_reply_wait_s):
                 # A long step is running.  The command stays queued and is applied at
                 # the next step boundary; its acknowledgement arrives in the stream.
                 return {"status": "queued", "applied": False, "command_id": entry["id"],
+                        "client_command_id": client_id, "daemon_run_id": self.run_id,
                         "action": cmd.get("action", ""),
                         "step_in_progress_s": self.step_in_progress_s(),
                         "message": "Queued: applied when the current simulation step finishes"}
             return entry["result"]
         if self._loop_dead():
-            return self._dispatch_with_dead_loop(cmd, received)
-        with self.lock:
-            result = self._apply_command(cmd)
-        self._note_latency(result, received)
+            result = self._dispatch_with_dead_loop(cmd, received)
+        else:
+            with self.lock:
+                result = self._apply_command(cmd)
+                pending = self._pending_assay_control
+                if (client_id is not None and isinstance(result, dict) and pending is not None
+                        and result.get("command_id") == pending["entry"]["id"]):
+                    pending["entry"]["client_command_id"] = client_id
+            self._note_latency(result, received)
+        if isinstance(result, dict) and client_id is not None:
+            result["client_command_id"] = client_id
+            if result.get("status") in ("ok", "error"):
+                self._index_command_ack(result)
         return result
+
+    def _stamp_command_ack(self, entry, result):
+        """Name the request on its final acknowledgement and keep it findable."""
+        result['command_id'] = entry['id']
+        if entry.get('client_command_id') is not None:
+            result['client_command_id'] = entry['client_command_id']
+        self._index_command_ack(result)
+
+    def _index_command_ack(self, result):
+        record = {'daemon_run_id': self.run_id, 'ack': copy.deepcopy(result)}
+        with self._ack_index_lock:
+            for key in (result.get('command_id'), result.get('client_command_id')):
+                if key:
+                    self.command_ack_index.pop(key, None)
+                    self.command_ack_index[key] = record
+            while len(self.command_ack_index) > COMMAND_ACK_INDEX_SIZE:
+                self.command_ack_index.popitem(last=False)
+
+    def command_ack_lookup(self, *, command_id=None, client_command_id=None) -> Dict[str, Any]:
+        """Exact outcome of one request: acknowledged, pending, queued or unknown.
+
+        Read-only.  ``unknown`` means this daemon process has no record of the id
+        (another or restarted daemon, or evicted): it is never success.
+        """
+        key = client_command_id or command_id
+        base = {'daemon_run_id': self.run_id, 'command_id': command_id,
+                'client_command_id': client_command_id}
+        if not key or (client_command_id is not None and not valid_client_command_id(client_command_id)):
+            return dict(base, state='unknown', message='No command id given')
+        with self._ack_index_lock:
+            record = self.command_ack_index.get(key)
+            if record is not None:
+                return dict(base, state='acknowledged', ack=copy.deepcopy(record['ack']))
+        pending = self._pending_assay_control          # one reference read; no simulation lock
+        if pending is not None and key in (pending['entry']['id'], pending['entry'].get('client_command_id')):
+            return dict(base, state='pending', command_id=pending['entry']['id'],
+                        pending_control=self._pending_control_view(pending))
+        with self._commands_lock:
+            queued = [e for e in self._commands if key in (e['id'], e.get('client_command_id'))]
+            executing = self._executing_command_entry
+        if queued:
+            return dict(base, state='queued', command_id=queued[0]['id'])
+        if executing is not None and key in (executing['id'], executing.get('client_command_id')):
+            return dict(base, state='applying', command_id=executing['id'])
+        return dict(base, state='unknown',
+                    message='This daemon process has no record of this command; its outcome is unknown')
 
     REBUILD_ACTIONS = ("switch_paradigm", "switch_backend", "switch_controller")
 
@@ -4905,12 +4991,14 @@ class ContinuousExperimentRunner:
             return
         entry = transaction['entry']
         result = self._ack_command_result(entry['cmd'], result)
-        result['command_id'] = entry['id']
         terminal = transaction.get('terminal')
         if terminal is not None:
             result['observation_key'] = copy.deepcopy(terminal['observation_key'])
             result['payload_sha256'] = terminal['payload_sha256']
         self._note_latency(result, entry['received'])
+        # Indexed only once every final field (terminal evidence, latency) is set, so
+        # GET /api/command_ack returns exactly the acknowledgement the stream carries.
+        self._stamp_command_ack(entry, result)
         entry['result'] = result
         self._pending_assay_control = None
         self.command_acks.append(result)
@@ -5547,6 +5635,14 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             if view is not None:
                 self._send_json(dict(view, status=self._status_payload()))
 
+        elif url == "/api/command_ack":
+            # Read-only: the exact outcome of one earlier request (see command_ack_lookup).
+            from urllib.parse import parse_qs, urlsplit
+            query = parse_qs(urlsplit(self.path).query)
+            payload = self.runner.command_ack_lookup(
+                command_id=(query.get("command_id") or [None])[0],
+                client_command_id=(query.get("client_command_id") or [None])[0])
+            self._send_json(payload)
         elif url == "/api/manifest":
             # Full machine-readable run manifest of the active run (exports embed it).
             runner = self.runner
