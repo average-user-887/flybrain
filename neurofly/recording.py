@@ -684,8 +684,13 @@ class RunRecorder:
         graph = dict((manifest.graph or {}) if manifest is not None else {})
         for key in ("graph_path", "neuron_map_path", "root"):   # host paths, not identity
             graph.pop(key, None)
-        source = dict(getattr(manifest, "source", None) or getattr(runner, "_source", {}) or {})
+        # ``code`` is the origin recorded in the run manifest when the run (or the
+        # instance it continues) was created; it is never rewritten.  The code that
+        # writes this file is ``writer`` (running_code_identity), hashed now.
+        manifest_source = getattr(manifest, "source", None)
+        source = dict(manifest_source or getattr(runner, "_source", {}) or {})
         source.pop("root", None)
+        code_scope = "run_manifest_origin" if manifest_source else "running_runner_source"
         brain = getattr(runner, "active_brain", None)
         instance = getattr(getattr(runner, "registry", None), "active", None)
         initial_state = dict(brain_steps=int(getattr(brain, "steps", 0) or 0))
@@ -713,6 +718,8 @@ class RunRecorder:
             graph=graph or None,
             dynamics=getattr(manifest, "dynamics", {}) if manifest is not None else {},
             code=source,
+            code_scope=code_scope,
+            writer=_running_code_identity(),
             software=dict(python=platform.python_version(), numpy=np.__version__),
             params=dict(dt_s=runner.dt, graph_step_ms=getattr(runner, "graph_step_ms", None),
                         trial_length_s=runner.trial_length_s, continuous=runner.continuous,
@@ -1236,6 +1243,11 @@ def list_recordings(directory) -> List[dict]:
 # ---------------------------------------------------------------------------
 # Batch recording: run a paradigm headless (as fast as it computes) and record it
 # ---------------------------------------------------------------------------
+def _running_code_identity() -> dict:
+    from provenance import running_code_identity   # top-level module of the same distribution
+    return running_code_identity()
+
+
 def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", record_every: int = 1,
                raster: str = "io", schedule: Optional[List[dict]] = None, state_dir=None,
                test_synthetic_graph: bool = False, graph_dir=None, graph_step_ms: Optional[float] = None,

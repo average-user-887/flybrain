@@ -251,6 +251,87 @@ def source_revision(root: Path = ROOT, files: Optional[tuple] = None) -> dict:
     return info
 
 
+# Modules whose code writes or drives a recording.  Their loaded files are hashed
+# as the executing writer's identity (``running_code_identity``).
+WRITER_MODULES = ('neurofly.recording', 'neurofly_daemon', 'experiment_registry', 'provenance',
+                  'experiment_brains', 'arena', 'brainlab.brain', 'brainlab.engine')
+# Files pip writes per installation; they are not part of the distributed code.
+_VENV_SPECIFIC = ('INSTALLER', 'REQUESTED', 'direct_url.json', 'RECORD')
+
+
+def _installed_payload(dist) -> dict:
+    """Hash every file the distribution's RECORD lists, from disk, and check it.
+
+    The digest covers the files the wheel ships (paths inside site-packages, minus
+    pip's per-install files), so equal code installed anywhere gives the same value.
+    """
+    import base64
+    import csv
+    import io
+    files, mismatches = {}, []
+    for row in csv.reader(io.StringIO(dist.read_text('RECORD') or '')):
+        if not row:
+            continue
+        rel, recorded = row[0], (row[1] if len(row) > 1 else '')
+        if (rel.startswith('..') or rel.endswith('.pyc') or '__pycache__' in rel
+                or Path(rel).name in _VENV_SPECIFIC):
+            continue
+        try:
+            data = Path(dist.locate_file(rel)).read_bytes()
+        except OSError:
+            mismatches.append(rel)
+            continue
+        files[rel] = hashlib.sha256(data).hexdigest()
+        algo, _, value = recorded.partition('=')
+        if algo != 'sha256' or base64.urlsafe_b64encode(
+                hashlib.sha256(data).digest()).rstrip(b'=').decode() != value:
+            mismatches.append(rel)
+    digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+    return dict(files=len(files), files_sha256=digest, record_mismatches=sorted(mismatches))
+
+
+def running_code_identity(modules: tuple = WRITER_MODULES) -> dict:
+    """The code executing now, never an identity inherited from a saved run.
+
+    ``loaded_module_sha256`` hashes the files the interpreter actually imported.
+    When they come from an installed ``neurofly`` distribution, its whole installed
+    payload is hashed against RECORD (``ident`` = name-version+files:digest; git is
+    not needed).  Otherwise the code runs from a source tree: git commit and dirty
+    flag where git is available.
+    """
+    import sys
+    loaded = {}
+    for name in modules:
+        path = getattr(sys.modules.get(name), '__file__', None)
+        if path:
+            loaded[name] = _sha(Path(path))
+    info: Dict[str, Any] = dict(role='executing_writer', loaded_module_sha256=loaded)
+    try:
+        from importlib import metadata
+        dist = metadata.distribution('neurofly')
+    except Exception:  # noqa: BLE001 -- no installed distribution: a source tree
+        dist = None
+    running = Path(getattr(sys.modules.get('neurofly.recording'), '__file__', None)
+                   or ROOT / 'neurofly' / 'recording.py').resolve()
+    installed = False
+    if dist is not None:
+        try:
+            installed = Path(dist.locate_file('neurofly/recording.py')).resolve() == running
+        except (OSError, TypeError, ValueError):
+            installed = False
+    if installed:
+        payload = _installed_payload(dist)
+        name = dist.metadata['Name']
+        info.update(kind='installed_distribution', distribution=name, version=dist.version,
+                    ident=f"{name}-{dist.version}+files:{payload['files_sha256']}", **payload)
+    else:
+        from neurofly import __version__
+        revision = source_revision(ROOT)
+        info.update(kind='source_tree', version=__version__, commit=revision.get('commit'),
+                    dirty=revision.get('dirty'))
+    return info
+
+
 def rng_state(generator: np.random.Generator) -> dict:
     """JSON-safe bit generator state (big integers as strings)."""
     def encode(value):

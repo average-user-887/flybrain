@@ -64,9 +64,37 @@ Only commands that were accepted and can change the simulation are logged
 `test_mode`, `graph` (graph, neuron map and IO map SHA-256, neuron and edge
 counts; host paths removed), `dynamics` (the run manifest's model description),
 `code` (git commit, dirty flag, SHA-256 of the backend's source files),
+`code_scope`, `writer` (both below),
 `software` (Python and NumPy versions), `params` (`dt_s`, `graph_step_ms`,
 `trial_length_s`, `continuous`, `motor_assists`), `initial_state` (see below)
 and `inputs` (the step schedule given to `neurofly record`).
+
+### Code origin and executing writer
+
+`code` is the **origin** of the run: the code identity stored in the run manifest
+when the run, or the saved instance it continues, was created. A recording that
+continues saved state therefore shows the parent's code here, even when newer code
+wrote the file; it is never rewritten. `code_scope` says which it is:
+`run_manifest_origin`, or `running_runner_source` when the runner had no manifest
+source. Files written before October 2026 have no `code_scope`; their `code` has the
+same origin meaning.
+
+`writer` (added October 2026) identifies the code that wrote **this file**, hashed
+when the header is written:
+
+- `role`: `executing_writer`.
+- `loaded_module_sha256`: SHA-256 of the files the interpreter actually imported
+  for the recorder, daemon runner, registry, provenance, brains, arena and graph
+  engine (modules that were not loaded are absent).
+- `kind` `installed_distribution` (the imported code is the installed `neurofly`
+  package): `distribution`, `version`, `files` (count), `files_sha256` (SHA-256 of
+  the sorted JSON map of every RECORD-listed file inside site-packages, hashed from
+  disk, without pip's per-install `INSTALLER`, `REQUESTED`, `direct_url.json`,
+  `RECORD`), `ident` (`name-version+files:files_sha256`, independent of the venv),
+  and `record_mismatches` (files whose bytes differ from RECORD; empty when intact).
+  Git is not needed.
+- `kind` `source_tree` (running from a checkout): `version`, `commit` and `dirty`
+  from git (null without git).
 
 ### `provenance.initial_state`
 

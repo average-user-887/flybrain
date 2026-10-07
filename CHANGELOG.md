@@ -65,6 +65,12 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 ### Fixed
 
+- **Recording header names the code that wrote it**: `provenance.code` is the run's
+  origin from the run manifest, so a recording continuing saved state showed the
+  parent's source hashes as if they identified the writer. It is kept unchanged and
+  labelled by `provenance.code_scope`; the new `provenance.writer` hashes the code
+  actually running (the installed distribution's RECORD-listed files, or git in a
+  checkout, plus the loaded module files).
 - **Recording header `initial_state.restored` on graph backends**: it read the runner's
   graph-bookkeeping file, so a recording continuing a checkpointed graph instance
   (for example a migrated linked child, which has no bookkeeping file) said
