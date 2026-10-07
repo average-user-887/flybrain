@@ -34,7 +34,10 @@ for name, rule in C['pass_criteria'].items():
 fals = [t for t in C['falsified_if_below_0p5_mV'] if abs(out['C1_fullfield_ON'][t]['resp']) < 0.5]
 verdict = 'PASS' if all(c['ok'] for c in checks.values()) else 'FAIL'
 res = dict(contract_sha256=a.contract_sha256, readout=out, checks=checks, falsified_by=fals, verdict=verdict)
+if C.get('transfer_diagnostics_are_not_fit_objectives') is True:
+    res.update(verdict=f'DIAGNOSTIC {verdict}', diagnostic_verdict=verdict,
+               stage_validation='NOT EVALUABLE', motion='UNOPENED')
 (a.run / 'analysis.json').write_text(json.dumps(res, indent=1))
 for g, v in out['C1_fullfield_ON'].items():
     print(f"{g:6s} ON resp {v['resp']:+8.3f} (E {v['dV_E']:+.3f} S {v['dV_S']:+.3f}) V_B {v['V_B']:.2f} | OFF {out['C2_fullfield_OFF'][g]['resp']:+.3f}")
-print(json.dumps(dict(checks=checks, falsified_by=fals, verdict=verdict)))
+print(json.dumps({k: v for k, v in res.items() if k != 'readout'}))
