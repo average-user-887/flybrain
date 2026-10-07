@@ -64,7 +64,16 @@ def advance(runner, steps):
 
 
 def clock_of(runner):
-    return validate_trial_clock(runner.active_brain.trial_clock)
+    """The active clock without its segment_id (checked separately below)."""
+    return sans(validate_trial_clock(runner.active_brain.trial_clock))
+
+
+def sans(clock):
+    return {k: v for k, v in clock.items() if k != 'segment_id'}
+
+
+def tc(*args, **kwargs):
+    return sans(trial_clock(*args, **kwargs))
 
 
 def saved_brain_json(runner):
@@ -86,7 +95,7 @@ def make_legacy_brain_json(runner):
 # -- known clocks ------------------------------------------------------------------
 def test_fresh_assay_starts_a_known_first_trial(daemon):
     runner = daemon()
-    assert clock_of(runner) == trial_clock()
+    assert clock_of(runner) == tc()
     assert runner.trial_sim_time == 0.0 and runner.current_trial == 1
 
 
@@ -97,7 +106,7 @@ def test_known_modular_clock_continues_across_restart(daemon):
     assert first.trial_sim_time == pytest.approx(4 * DT)
     elapsed, steps, trials = first.trial_sim_time, first.active_brain.steps, first.active_brain.trials
     first.save_checkpoint('clock')
-    assert saved_brain_json(first)['trial_clock'] == trial_clock(elapsed, 3)
+    assert sans(saved_brain_json(first)['trial_clock']) == tc(elapsed, 3)
 
     restarted = daemon(trial_length_s=0.2)
     assert restarted.total_steps == 0                          # a new daemon session
@@ -107,7 +116,7 @@ def test_known_modular_clock_continues_across_restart(daemon):
     assert ack['applied_step'] == 0 and ack['applied_sim_time_scope'] == 'daemon_session'
     assert ack['clocks']['session'] == {'scope': 'daemon_session', 'daemon_run_id': restarted.run_id,
                                         'step': 0, 'elapsed_s': 0.0}
-    assert ack['clocks']['trial'] == trial_clock(elapsed, 3)
+    assert sans(ack['clocks']['trial']) == tc(elapsed, 3)
     assert 'graph' not in ack['clocks']
     restarted.dispatch_command({'action': 'set_paused', 'paused': False})
 
@@ -133,7 +142,7 @@ def test_known_graph_clock_comes_only_from_the_selected_checkpoint(daemon):
     sim_ms = float(instance.brain.sim_ms)
     ident = first.identity()
     first.save_checkpoint('clock')
-    assert newest_graph_meta(first)['trial_clock'] == trial_clock(elapsed, 1)
+    assert sans(newest_graph_meta(first)['trial_clock']) == tc(elapsed, 1)
     assert 'trial_clock' not in newest_graph_meta(first)['world_state']
     # A newer, contradictory helper JSON is never the authority for a graph run.
     helper = saved_brain_json(first)
@@ -150,7 +159,7 @@ def test_known_graph_clock_comes_only_from_the_selected_checkpoint(daemon):
     assert clocks['session']['step'] == 0 and clocks['session']['elapsed_s'] == 0.0
     assert clocks['graph'] == {'scope': 'retained_graph_instance', 'instance_id': ident['instance_id'],
                                'step': step_index, 'elapsed_s': round(sim_ms / 1000.0, 5)}
-    assert clocks['trial'] == trial_clock(elapsed, 1)
+    assert sans(clocks['trial']) == tc(elapsed, 1)
     packet = restarted.latest_telemetry
     assert packet['sim_time_scope'] == 'daemon_session' and packet['clocks'] == clocks
     assert packet['timing']['sim_time_scope'] == 'daemon_session'
@@ -180,6 +189,121 @@ def test_switching_assays_restores_each_counter_and_keeps_records_monotonic(daem
         assert recorder.record_trials(history) == 4
     finally:
         recorder.close()
+
+
+# -- the observation window restart is an explicit, recorded discontinuity -------------
+def observation_records(tmp_path):
+    rows = []
+    for path in sorted(tmp_path.glob('records-*/trials.jsonl')):
+        rows += [json.loads(line) for line in path.read_text().splitlines()]
+    return [row for row in rows if row['type'] == 'observation']
+
+
+def ledger(runner):
+    path = runner.active_brain.directory / f'{runner.active_paradigm_id}.events.jsonl'
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
+def test_restart_opens_a_new_segment_with_lineage_and_records_the_old_one_interrupted(daemon, tmp_path):
+    first = daemon(trial_length_s=0.2)
+    advance(first, 4)
+    parent = first.segment_id
+    first.save_checkpoint('mid-trial')
+    assert saved_brain_json(first)['trial_clock']['segment_id'] == parent
+    assert first.current_segment_lineage() is None                 # an ordinary segment
+
+    restarted = daemon(trial_length_s=0.2)
+    child = restarted.segment_id
+    assert child != parent
+    lineage = restarted.current_segment_lineage()
+    assert lineage == {
+        'segment_id': child, 'parent_segment_id': parent, 'reason': 'daemon_restart',
+        'parent_observation': 'interrupted_incomplete_no_terminal',
+        'daemon_run_id': restarted.run_id, 'trial': 1, 'trial_known': True,
+        'restored_trial_elapsed_s': pytest.approx(4 * DT), 'trial_elapsed_known': True,
+        'observation_window': 'restarted', 'metric_accumulators': 'not_restored'}
+    # Durable, append-only incomplete marker for the interrupted parent.
+    interrupted = [e for e in ledger(restarted) if e['kind'] == 'observation_interrupted']
+    assert len(interrupted) == 1
+    assert {k: interrupted[0][k] for k in lineage} == lineage
+    # The new window is a different presentation identity with fresh accumulators.
+    packet = restarted.latest_telemetry
+    assert packet['observation']['segment_id'] == child
+    assert packet['observation']['presentation_id'] == f'{child}:0'
+    assert packet['observation']['config_id'].startswith(f'segment:{child}')
+    window = packet['clocks']['observation']
+    assert window['segment_id'] == child and window['lineage'] == lineage
+    assert window['segment_elapsed_s'] == 0.0 and window['effective_window_s'] == 0.2
+    assert packet['clocks']['trial']['elapsed_s'] == pytest.approx(4 * DT)   # trial clock apart
+    assert packet['observation_lifecycle']['segment_lineage'] == lineage
+    owner = restarted.arena.observation_owner
+    assert owner.observation_status()['segment_elapsed_s'] == 0.0
+
+    advance(restarted, 10)                          # the restarted window, not the remainder
+    record = restarted.trial_history[0]
+    assert record['observation_segment_id'] == child and record['segment_lineage'] == lineage
+    assert record['observation_measured_s'] == pytest.approx(0.2)            # measurement window
+    assert record['sim_seconds'] == pytest.approx(4 * DT + 0.2)              # trial clock
+    # Only the new segment has a terminal observation; the parent is never combined.
+    keys = [row['observation_key'] for row in observation_records(tmp_path)]
+    assert [k['segment_id'] for k in keys] == [child]
+    assert [k['presentation_id'] for k in keys] == [f'{child}:0']
+    # The next segment is ordinary again.
+    assert restarted.segment_id != child and restarted.current_segment_lineage() is None
+    assert restarted.clock_status()['observation']['lineage'] is None
+
+
+def test_lineage_chains_across_repeated_restarts(daemon):
+    first = daemon(trial_length_s=600.0)
+    advance(first, 3)
+    first.save_checkpoint('one')
+    second = daemon(trial_length_s=600.0)
+    advance(second, 3)
+    second.save_checkpoint('two')
+    third = daemon(trial_length_s=600.0)
+    assert third.current_segment_lineage()['parent_segment_id'] == second.segment_id
+    assert second.current_segment_lineage()['parent_segment_id'] == first.segment_id
+    assert third.current_segment_lineage()['restored_trial_elapsed_s'] == pytest.approx(6 * DT)
+    events = [e for e in ledger(third) if e['kind'] == 'observation_interrupted']
+    assert [e['parent_segment_id'] for e in events] == [first.segment_id, second.segment_id]
+
+
+def test_legacy_restart_lineage_names_an_unknown_parent(daemon):
+    first = daemon(trial_length_s=600.0)
+    advance(first, 3)
+    first.save_checkpoint('pre-clock')
+    make_legacy_brain_json(first)
+    restarted = daemon(trial_length_s=600.0)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] is None and lineage['reason'] == 'daemon_restart'
+    assert lineage['trial_elapsed_known'] is False and lineage['trial_known'] is False
+    assert lineage['metric_accumulators'] == 'not_restored'
+
+
+def test_graph_restart_lineage_comes_from_the_checkpoint(daemon):
+    first = daemon('t-maze', graph=True)
+    advance(first, 5)
+    parent = first.segment_id
+    first.save_checkpoint('mid-trial')
+    assert newest_graph_meta(first)['trial_clock']['segment_id'] == parent
+    restarted = daemon('t-maze', graph=True)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] == parent and lineage['reason'] == 'daemon_restart'
+    assert restarted.latest_telemetry['clocks']['observation']['segment_elapsed_s'] == 0.0
+
+
+def test_switching_back_marks_the_reactivated_segment(daemon):
+    runner = daemon(trial_length_s=600.0)
+    advance(runner, 3)
+    sandbox_segment = runner.segment_id
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'buridan'})
+    assert runner.current_segment_lineage() is None             # buridan starts fresh
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'multisensory-sandbox'})
+    lineage = runner.current_segment_lineage()
+    assert lineage['parent_segment_id'] == sandbox_segment
+    assert lineage['reason'] == 'assay_reactivated'
+    assert lineage['parent_observation'] == 'ended_before_assay_switch'
+    assert not [e for e in ledger(runner) if e['kind'] == 'observation_interrupted']
 
 
 # -- legacy state stays unknown --------------------------------------------------------
@@ -225,7 +349,7 @@ def test_legacy_modular_brain_stays_unknown_until_a_new_trial_starts(daemon):
     for cycle in range(3):
         restarted = daemon(trial_length_s=0.2)
         clock = clock_of(restarted)
-        assert clock == dict(unknown_trial_clock(), elapsed_s=clock['elapsed_s'])
+        assert clock == dict(sans(unknown_trial_clock()), elapsed_s=clock['elapsed_s'])
         assert restarted.active_brain.trials == trials_before
         advance(restarted, 2)
         restarted.save_checkpoint(f'unknown-{cycle}')
@@ -337,13 +461,13 @@ def test_trial_completion_boundary_saves_a_matching_count_and_clock(daemon, monk
     advance(first, 9)                               # one step before the window ends
     first.save_checkpoint('before-boundary')
     before = saved_brain_json(first)
-    assert before['trials'] == 0 and before['trial_clock'] == trial_clock(9 * DT, 1)
+    assert before['trials'] == 0 and sans(before['trial_clock']) == tc(9 * DT, 1)
 
     saves = []
     real_save = experiment_brains.ExperimentBrain.save
 
     def recording_save(brain):
-        saves.append((brain.trials, dict(brain.trial_clock)))
+        saves.append((brain.trials, sans(brain.trial_clock)))
         return real_save(brain)
 
     monkeypatch.setattr(experiment_brains.ExperimentBrain, 'save', recording_save)
@@ -352,9 +476,9 @@ def test_trial_completion_boundary_saves_a_matching_count_and_clock(daemon, monk
     assert [t['assay_trial'] for t in first.trial_history] == [1]
     # The boundary save holds the advanced count and the new trial's clock, never
     # "1 completed" with trial 1 still running at its old elapsed time.
-    assert saves == [(1, trial_clock(0.0, 2))]
+    assert saves == [(1, tc(0.0, 2))]
     on_disk = saved_brain_json(first)
-    assert on_disk['trials'] == 1 and on_disk['trial_clock'] == trial_clock(0.0, 2)
+    assert on_disk['trials'] == 1 and sans(on_disk['trial_clock']) == tc(0.0, 2)
 
     after = daemon(trial_length_s=0.2)
     assert after.current_trial == 2 and after.trial_sim_time == 0.0
@@ -384,7 +508,7 @@ def test_graph_restore_after_a_later_trial_boundary_uses_the_checkpoints_clock(d
 
     restarted = daemon('t-maze', graph=True, trial_length_s=0.2)
     assert restarted.registry.active.step_index == saved['step_index']
-    assert clock_of(restarted) == saved['trial_clock'] == trial_clock(saved['trial_clock']['elapsed_s'], 1)
+    assert clock_of(restarted) == sans(saved['trial_clock']) == tc(saved['trial_clock']['elapsed_s'], 1)
     assert restarted.trial_sim_time == pytest.approx(7 * DT)
 
 
