@@ -63,7 +63,11 @@ function unavailableTraining() {
  weightsLabel('Weight readout unavailable','No weight readout is available for the displayed owner.');
  $('trainingBrains').innerHTML='';$('trainingEvents').innerHTML='';$('trainingMetric').textContent='No training history for the displayed owner.';
 }
-function clearOwnerMessage(){message(trainingReplayActive()?'Replay is read only; no live training command result belongs to this recording.':'Awaiting training measurements for the displayed live owner.');}
+// The last command outcome for the displayed owner generation (CARD75). Poll refreshes show it
+// instead of the generic capability notice; it is cleared at every owner or replay boundary.
+let lastCommand=null;
+function commandMessage(text,error=false){lastCommand={generation:trainingGeneration,text,error};message(text,error);}
+function clearOwnerMessage(){lastCommand=null;message(trainingReplayActive()?'Replay is read only; no live training command result belongs to this recording.':'Awaiting training measurements for the displayed live owner.');}
 function reconcileTrainingOwner() {
  const next=displayedOwner();
  if(!sameOwner(next,trainingOwner)&&(next||trainingOwner)) {trainingOwner=next;trainingGeneration++;refreshing=false;snapshot=null;snapshotOwner=null;writable=false;connected=false;clearOwnerMessage();}
@@ -109,9 +113,10 @@ async function command(body) {
   const result=await owner.bridge.sendCommand(action,{...params,expected_owner:{...owner.identity,brain_id:owner.brain_id}},()=>{if(generation===trainingGeneration)message('Queued · awaiting final durable acknowledgement.');});
   if(generation!==trainingGeneration||!sameOwner(owner,displayedOwner()))return;
   if(result?.status!=='ok'||result?.ack?.applied!==true||ownerFields.some(k=>result.ack.identity?.[k]!==owner.identity[k]))throw new Error(result?.message||'No applied final acknowledgement received.');
-  message('Applied: '+action.replaceAll('_',' '));
+  const saved=action==='save_checkpoint'&&typeof result.checkpoint==='string'?' · '+result.checkpoint.split(/[\\/]/).pop():'';
+  commandMessage('Applied: '+action.replaceAll('_',' ')+saved);
  }
- catch(error){if(generation===trainingGeneration)message(error.message,true);}finally{busy=false; await refresh();buttons();}
+ catch(error){if(generation===trainingGeneration)commandMessage(error.message,true);}finally{busy=false; await refresh();buttons();}
 }
 $('trainingTeach').onclick=()=>command({action:'teach_brain',pairs:8});
 $('trainingReverse').onclick=()=>command({action:'teach_brain',pairs:8,reverse:true});
@@ -188,7 +193,8 @@ function renderGraph(n,caps){
  $('researchProtocol').textContent='Schema 1.2 observation history is a separate integration.';
  $('researchRows').innerHTML='';
  lineChart('researchChart',[],'No graph cohort connected');
- message(caps.wp6Measured
+ if(lastCommand?.generation===trainingGeneration)message(lastCommand.text,lastCommand.error);
+ else message(caps.wp6Measured
   ? 'Teach, Reverse and Probe act only on the modular mushroom body and are disabled. Checkpoint save remains available; Freeze controls the measured WP6 subset.'
   : `Teach, Reverse, Probe and learning controls are disabled. ${caps.modularReason} Checkpoint save remains available.`);
  buttons();
