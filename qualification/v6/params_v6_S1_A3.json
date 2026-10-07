@@ -1,0 +1,27 @@
+{
+ "fit_spec_sha256": "c625dbdc0affed114c5aa8a302bb03a5e88e7bd0581144abe067c7373415bbbe",
+ "phototransduction": {
+  "G": 68.78467273164175,
+  "Ka": 0.007212198720419329,
+  "Kt": 0.997779268452982,
+  "dead_time_ms": 10,
+  "encoder_to_intensity": 0.01,
+  "n_stages": 4,
+  "tau_a_ms": 200,
+  "tau_p0_ms": 4.327696304840035
+ },
+ "types": {
+  "R1-R6": {
+   "release": {
+    "gain": 17.837512761252835,
+    "kappa": 1.0,
+    "kind": "sigmoid",
+    "s_mV": 1,
+    "tau_s_ms": 200.0,
+    "vh_mV": -47.16006308921321
+   }
+  }
+ },
+ "verdict": "REJECTED",
+ "version": "v6-S1"
+}

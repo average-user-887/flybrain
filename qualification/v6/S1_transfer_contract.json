@@ -1,0 +1,23 @@
+{
+  "contract": "v6 S1 transfer test, PREREGISTERED before the run. Path B phase-3 protocol unchanged (scripts/v6/measure_transfer_v6.py, a copy of scripts/pathB/measure_transfer.py from Path B 89bc3d9).",
+  "status_of_arm": "S1-A3 parameters FROZEN as fitted. The A3 FIT IS REJECTED by its own spec (release cost 4.02 > 1.0; held-out 2 of 4: H1 pass, H3 pass, H2 fail, H4 fail). This run is therefore a DIAGNOSTIC of the best available input stage; it can falsify S1 but cannot turn the rejected fit into a calibrated v6. Recorded either way.",
+  "params": "qualification/v6/params_v6_S1_A3.json sha256 490749f21230380bb210d55772a259783d447b699aa70186f849143462c82257",
+  "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "photoreceptor_io_sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+  "engine": "BrainV6 = v4 primary graded policy (v4-optic-lobe-graded), CPU, plus the frozen per-type parameters; only R1-R6 carry v6 parameters in S1",
+  "stimulus": "Path B conditions C0 sham, C1 full-field ON (encoder 10 -> 20), C2 full-field OFF (10 -> 0), C3 column ON seeds 0-2; encoder level x 0.01 = light in BG0 units (10 = BG-1)",
+  "readout": "right eye, COMPLETE columns, group mean dV in window E (0-50 ms) and S (50-200 ms) versus the 100 ms baseline; resp = the window with the larger magnitude",
+  "transfer_diagnostics_are_not_fit_objectives": true,
+  "predictions_from_reduced_model": {"L1": -8.5, "L2": -3.8, "L3": -4.2, "note": "reduced single-cell lamina model of the A3 fit (BG-1 -> 2x step, mean over the step); predicts L2 BELOW the 5 mV threshold"},
+  "pass_criteria": {
+    "L1_ON": {"type": "L1", "sign": "-", "min_abs_mV": 5.0},
+    "L2_ON": {"type": "L2", "sign": "-", "min_abs_mV": 5.0},
+    "Mi1_ON": {"type": "Mi1", "sign": "+", "min_abs_mV": 0.5},
+    "Tm3_ON": {"type": "Tm3", "sign": "+", "min_abs_mV": 0.5},
+    "Tm1_ON": {"type": "Tm1", "sign": "-", "min_abs_mV": 0.5},
+    "Tm2_ON": {"type": "Tm2", "sign": "-", "min_abs_mV": 0.5}
+  },
+  "falsified_if_below_0p5_mV": ["Mi1", "Tm3", "Tm1", "Tm2"],
+  "verdict_rule": "PASS only if every pass criterion holds. S1 as a stage is FALSIFIED if any of Mi1/Tm3/Tm1/Tm2 has |resp| < 0.5 mV. Also reported, no threshold: L3-L5, Mi4, Mi9, Tm4, Tm9, T4, T5, the OFF condition, the C3 column conditions.",
+  "compute": "CPU, one numba thread, nice, taskset 0-3; no GPU"
+}
