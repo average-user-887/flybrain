@@ -38,7 +38,14 @@ def test_initial_daemon_packets_embed_current_runtime_cues(tmp_path):
         assert expected and all(scene[key]==value for key,value in expected.items())
 
 
-def test_optomotor_has_velocity_and_contrast_but_no_runtime_phase():
+def test_optomotor_phase_is_declared_scene_state_but_never_a_stimulus_sample():
+    # Since ab15fb5 the drum carries a declared external phase (drum_angle_deg,
+    # docs/DATA_SCHEMA.md "External stimulus scene phase").  It is presentation
+    # state only: the stimuli sampled for the fly stay velocity, wavelength and
+    # contrast, and the phase value never changes what the fly is given.
     p=Arena(paradigm='optomotor').paradigm
-    assert not hasattr(p,'drum_angle_deg')
-    assert set(p.sample_stimuli(45.,45.,0.))=={'drum_velocity_deg_s','spatial_wavelength_deg','contrast'}
+    assert p.drum_angle_deg==0.0
+    sample=p.sample_stimuli(45.,45.,0.)
+    assert set(sample)=={'drum_velocity_deg_s','spatial_wavelength_deg','contrast'}
+    p.drum_angle_deg=123.0
+    assert p.sample_stimuli(45.,45.,0.)==sample
