@@ -54,6 +54,37 @@ EYES = ('L', 'R')
 #: ratio of the grating's spatial period to the lattice spacing matters.
 INTEROMMATIDIAL_DEG = 5.0
 
+#: Hex-lattice -> plane conventions for :class:`PhotoreceptorGratingEncoder`.
+#: ``'axial-v1'`` is the original v4/v5 encoder frame, ``u = h1 + h2/2``,
+#: ``w = (sqrt3/2) h2``: it treats (1,-1)/(-1,1) as nearest neighbours.  The
+#: released MaleCNS ``assignedOlHex1/2`` lattice has (1,1)/(-1,-1) as nearest
+#: neighbours instead (cross-column synapses between hex-annotated columnar
+#: cells: +-(1,1) carries ~10x the weight of +-(1,-1), which sits with the
+#: second ring), so ``'axial-v1'`` is a shear of the real lattice
+#: (``S = [[1, 2/sqrt3], [0, 1]]``), not a rotated/reflected equivalent.
+#: ``'malecns-hex-v2'`` (``u = h1 - h2/2``) is the post-finding correction
+#: (2026-10-08).  ``'axial-v1'`` stays the default so every published v4/v5
+#: number is reproducible bit for bit; v2 must be requested explicitly.
+LATTICE_VERSIONS = {
+    'axial-v1': ((1.0, 0.5), (0.0, math.sqrt(3.0) / 2.0)),
+    'malecns-hex-v2': ((1.0, -0.5), (0.0, math.sqrt(3.0) / 2.0)),
+}
+DEFAULT_LATTICE = 'axial-v1'
+
+
+def lattice_matrix(lattice: str = DEFAULT_LATTICE) -> np.ndarray:
+    """2x2 matrix taking (hex1, hex2) to the planar frame, in lattice steps."""
+    if lattice not in LATTICE_VERSIONS:
+        raise ValueError(f'unknown lattice {lattice!r}; choose one of {sorted(LATTICE_VERSIONS)}')
+    return np.array(LATTICE_VERSIONS[lattice], dtype=np.float64)
+
+
+def hex_to_plane_deg(cart: np.ndarray, lattice: str = DEFAULT_LATTICE) -> np.ndarray:
+    """(n, 2) integer hex coordinates -> (n, 2) planar position in degrees."""
+    cart = np.asarray(cart, dtype=np.float64).reshape(-1, 2)
+    return (cart @ lattice_matrix(lattice).T) * INTEROMMATIDIAL_DEG
+
+
 #: Populations recorded (never driven) along the pathway the spec names.
 TRACE_TYPES: Dict[str, tuple] = {
     'R1-R6': ('R1-R6',),
@@ -207,20 +238,30 @@ class PhotoreceptorGratingEncoder:
     """
 
     def __init__(self, io: PhotoreceptorIOMap, *, i_max: float = 20.0,
-                 spatial_period_deg: float = 30.0, temporal_frequency_hz: float = 1.5):
+                 spatial_period_deg: float = 30.0, temporal_frequency_hz: float = 1.5,
+                 lattice: str = DEFAULT_LATTICE):
         self.io = io
         self.i_max = float(i_max)
         self.spatial_period_deg = float(spatial_period_deg)
         self.temporal_frequency_hz = float(temporal_frequency_hz)
+        lattice_matrix(lattice)  # validates the name
+        self.lattice = lattice
+        # axial-v1 keeps the map's own positions object, so it stays bit-identical.
+        self.position_deg = (io.r_position_deg if lattice == 'axial-v1' else
+                             {eye: hex_to_plane_deg(io.r_cartridge[eye], lattice) for eye in EYES})
 
     def describe(self) -> dict:
-        return dict(model='drifting sinusoidal grating on R1-R6 only, retinotopic by cartridge',
-                    i_max=self.i_max, spatial_period_deg=self.spatial_period_deg,
-                    temporal_frequency_hz=self.temporal_frequency_hz,
-                    noise=None, direction_selectivity='NOT supplied by this encoder',
-                    units='per-neuron drive current (upstream mV-equivalent)',
-                    io_map_sha256=self.io.sha256,
-                    interommatidial_deg=INTEROMMATIDIAL_DEG)
+        out = dict(model='drifting sinusoidal grating on R1-R6 only, retinotopic by cartridge',
+                   i_max=self.i_max, spatial_period_deg=self.spatial_period_deg,
+                   temporal_frequency_hz=self.temporal_frequency_hz,
+                   noise=None, direction_selectivity='NOT supplied by this encoder',
+                   units='per-neuron drive current (upstream mV-equivalent)',
+                   io_map_sha256=self.io.sha256,
+                   interommatidial_deg=INTEROMMATIDIAL_DEG)
+        if self.lattice != 'axial-v1':  # the v1 description stays exactly as published
+            out.update(lattice=self.lattice, lattice_matrix=lattice_matrix(self.lattice).tolist(),
+                       correction='post-finding correction 2026-10-08 (hex-lattice shear)')
+        return out
 
     def encode(self, currents: np.ndarray, t_ms: float, direction_deg: float,
                contrast: float) -> dict:
@@ -230,7 +271,7 @@ class PhotoreceptorGratingEncoder:
         phase_t = 2 * math.pi * self.temporal_frequency_hz * t_ms / 1000.0
         totals = {}
         for eye in EYES:
-            pos = self.io.r_position_deg[eye]
+            pos = self.position_deg[eye]
             projection = pos[:, 0] * math.cos(theta) + pos[:, 1] * math.sin(theta)
             drive = self.i_max * 0.5 * (1.0 + contrast * np.cos(k * projection - phase_t))
             drive = drive.astype(np.float32)
@@ -254,7 +295,7 @@ class PhotoreceptorGratingEncoder:
         totals = {}
         for eye in EYES:
             theta = math.radians(float(direction_by_eye[eye]))
-            pos = self.io.r_position_deg[eye]
+            pos = self.position_deg[eye]
             projection = pos[:, 0] * math.cos(theta) + pos[:, 1] * math.sin(theta)
             drive = self.i_max * 0.5 * (1.0 + contrast * np.cos(k * projection - phase_t))
             drive = drive.astype(np.float32)
