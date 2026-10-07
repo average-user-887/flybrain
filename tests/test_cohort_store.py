@@ -141,9 +141,44 @@ def test_run_refuses_non_empty_directory(cohort_dir):
         run_cohort(cohort_dir, flies=1, seconds=0.02, graph=synthetic_graph(), progress=quiet)
 
 
-def test_cross_engine_resume_is_refused(cohort_dir):
+def test_cross_engine_resume_is_allowed_and_recorded(tmp_path, monkeypatch):
+    """CPU checkpoint resumed on another engine (a CPU stand-in with a different
+    backend_id, since tests run without a GPU): exact continuation, both engines
+    recorded, every other check still applied."""
+    from brainlab.cohort import runner
+    from brainlab.cohort.api import CpuLoopCohortEngine
+
+    class OtherEngine(CpuLoopCohortEngine):
+        backend_id = 'stand-in-gpu'
+
+    real = runner.make_engine
+    monkeypatch.setattr(runner, 'make_engine',
+                        lambda name, arrays, n: OtherEngine(arrays, n) if name == 'gpu' else real(name, arrays, n))
+    full, split = tmp_path / 'full', tmp_path / 'split'
+    run_cohort(full, flies=2, seconds=0.2, checkpoint_every_ms=100, graph=synthetic_graph(), progress=quiet)
+    run_cohort(split, flies=2, seconds=0.1, checkpoint_every_ms=100, graph=synthetic_graph(), progress=quiet)
+    resume_cohort(split, seconds=0.1, engine='gpu', graph=synthetic_graph(), progress=quiet)
+    for k in range(2):
+        rel = f'flies/fly-{k:02d}/steps.jsonl'
+        assert (full / rel).read_bytes() == (split / rel).read_bytes()
+        _, sa, _ = store.read_checkpoint(full / 'ckpt' / store.checkpoint_name(k, 2000))
+        mb, sb, _ = store.read_checkpoint(split / 'ckpt' / store.checkpoint_name(k, 2000))
+        assert mb['engine_backend_id'] == 'stand-in-gpu'
+        assert all(np.array_equal(sa[x], sb[x]) if isinstance(sa[x], np.ndarray) else sa[x] == sb[x] for x in sa)
+    manifest = json.loads((split / store.MANIFEST_NAME).read_text())
+    seg = manifest['segments'][-1]
+    assert (seg['source_engine'], seg['target_engine']) == ('cpu-loop-v3', 'stand-in-gpu')
+    assert manifest['engine_backend_id'] == 'stand-in-gpu'
+    # Back to CPU: the source is now the recorded stand-in, and the whole chain is verified again.
+    resume_cohort(split, seconds=0.1, engine='cpu', graph=synthetic_graph(), progress=quiet)
+    assert json.loads((split / store.MANIFEST_NAME).read_text())['segments'][-1]['source_engine'] == 'stand-in-gpu'
+
+
+def test_checkpoint_engine_disagreeing_with_manifest_is_refused(cohort_dir):
     manifest = json.loads((cohort_dir / store.MANIFEST_NAME).read_text())
     manifest['engine_backend_id'] = 'some-gpu-engine'
     (cohort_dir / store.MANIFEST_NAME).write_text(json.dumps(manifest))
-    with pytest.raises(CohortError):
+    before = snapshot_tree(cohort_dir)
+    with pytest.raises(CohortError, match='checkpoint engine'):
         resume_cohort(cohort_dir, seconds=0.1, engine='cpu', graph=synthetic_graph(), progress=quiet)
+    assert snapshot_tree(cohort_dir) == before

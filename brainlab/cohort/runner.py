@@ -512,9 +512,8 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
         step_ms = float(manifest['step_ms'])
         recorded_engine = manifest['engine_backend_id']
         eng = make_engine(engine or ('gpu' if 'gpu' in recorded_engine else 'cpu'), graph.arrays, flies)
-        if eng.backend_id != recorded_engine:
-            raise CohortError(f'This cohort was run on engine {recorded_engine}; resuming on {eng.backend_id} is '
-                              'refused (cross-engine restore needs the numeric restore proof of "cohort verify")')
+        # Cross-engine resume (cpu <-> gpu) is allowed: the preregistered restore
+        # proof passed in both directions.  Source and target are recorded.
         # Phase 1: validate the WHOLE cohort in memory.  Nothing live or on disk
         # changes until every fly has passed every check.
         lasts = [last[e['fly_id']] for e in manifest['flies']]
@@ -568,11 +567,13 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
             progress(f'cohort {root}: already at step {cursor} (target {manifest["target_steps"]}); nothing to do. '
                      'Pass --seconds S to continue further.')
             return []
+        manifest['engine_backend_id'] = eng.backend_id
+        manifest['engine'] = eng.describe()
         cohort = Cohort(root, graph, eng, worlds, manifest, progress)
         cohort.parents = [last[e['fly_id']][2] for e in manifest['flies']]
         cohort.open_outputs()
         progress(f'cohort resume: {flies} flies from step {cursor} (sim {cursor * step_ms / 1000:.3f} s), '
-                 f'+{n_steps} steps, engine {eng.backend_id}')
+                 f'+{n_steps} steps, engine {recorded_engine} -> {eng.backend_id}')
         every = int(manifest['checkpoint_every_steps'])
         try:
             steps, wall = cohort.run_steps(n_steps, every, stop_after_steps)
@@ -580,6 +581,7 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
             cohort.close_outputs()
         rows = cohort.summary(steps, wall)
         manifest['segments'].append({'kind': 'resume', 'from_step': cursor, 'engine': eng.backend_id,
+                                     'source_engine': recorded_engine, 'target_engine': eng.backend_id,
                                      'steps': steps, 'wall_s': wall, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
         _print_table(rows, wall, flies, progress)
