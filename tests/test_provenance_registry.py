@@ -537,3 +537,40 @@ def test_runtime_device_fault_propagates_and_never_switches_engine(tmp_path, mon
         instance.step(np.zeros(instance.shared.n, dtype=np.float32), 5.0)
     assert registry.active is instance and instance.brain is brain and brain.backend == engine
     assert instance.compute['actual'] == engine and registry.brain_backend == 'auto'
+
+
+def test_writer_identity_is_the_loaded_code_and_reports_later_disk_drift(tmp_path, monkeypatch):
+    """A4: rc1 hashed the file on disk at identity time, so a file replaced after import
+    relabelled code that was still executing.  The load-time hash is kept; drift is reported."""
+    import hashlib
+    import importlib
+    import sys as _sys
+    import provenance as prov
+    v1, v2 = b'def f():\n    return 1\n', b'def f():\n    return 2\n'
+    (tmp_path / 'a4_drift_mod.py').write_bytes(v1)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(_sys, 'dont_write_bytecode', True)
+    importlib.invalidate_caches()
+    mod = importlib.import_module('a4_drift_mod')
+    try:
+        prov.capture_load_identity(('a4_drift_mod',))          # as a writer does at import
+        clean = prov.running_code_identity(('a4_drift_mod',))
+        assert 'disk_drift_since_load' not in clean
+        (tmp_path / 'a4_drift_mod.py').write_bytes(v2)
+        ident = prov.running_code_identity(('a4_drift_mod',))
+        assert mod.f() == 1
+        assert ident['loaded_module_sha256']['a4_drift_mod'] == hashlib.sha256(v1).hexdigest()
+        assert ident['disk_drift_since_load'] == {'a4_drift_mod': {
+            'loaded': hashlib.sha256(v1).hexdigest(), 'disk_now': hashlib.sha256(v2).hexdigest()}}
+    finally:
+        _sys.modules.pop('a4_drift_mod', None)
+        prov._LOAD_TIME_SHA256.pop('a4_drift_mod', None)
+
+
+def test_cohort_writer_modules_are_pinned_at_import():
+    import provenance as prov
+    from brainlab.cohort import runner
+    for name in ('brainlab.cohort.runner', 'brainlab.cohort.api', 'brainlab.cohort.store', 'provenance'):
+        assert name in prov._LOAD_TIME_SHA256, name
+    assert runner.writer_identity()['loaded_module_sha256']['brainlab.cohort.runner'] == \
+        prov._LOAD_TIME_SHA256['brainlab.cohort.runner'][1]

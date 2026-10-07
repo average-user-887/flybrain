@@ -76,6 +76,12 @@ MIXED_ENGINE_NOTE = ('Mixed-engine numerical realisation: segments of this cohor
 ENGINE_NAMES = {'cpu-loop-v3': 'cpu', 'cuda-cohort-v3': 'gpu'}
 
 
+def _capture_loaded_code() -> None:
+    """Pin the load-time hashes of the writer modules imported so far (A4)."""
+    import provenance
+    provenance.capture_load_identity(tuple(provenance.WRITER_MODULES) + COHORT_WRITER_MODULES)
+
+
 class CohortError(RuntimeError):
     pass
 
@@ -264,6 +270,7 @@ def make_engine(name: str, arrays: dict, n_flies: int) -> CohortEngine:
         except Exception as exc:
             raise EngineUnavailable(f'--engine gpu is unavailable: cannot import brainlab.cohort.gpu '
                                     f'({type(exc).__name__}: {exc}). Use --engine cpu.') from exc
+        _capture_loaded_code()
         try:
             return GpuCohortEngine(arrays, n_flies)
         except Exception as exc:
@@ -316,6 +323,7 @@ class FlyWorld:
     def __init__(self, fly_id: int, seed: int, graph: CohortGraph, assay: str, step_ms: float):
         from arena import Arena
         from brainlab.io_map import DNa02YawDecoder, OptomotorEncoder
+        _capture_loaded_code()
         if assay not in ASSAYS:
             raise CohortError(f'Assay {assay!r} is not supported by the cohort runner (supported: {ASSAYS})')
         self.fly_id, self.seed, self.assay, self.step_ms = int(fly_id), int(seed), assay, float(step_ms)
@@ -860,6 +868,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     except (CohortError, store.CohortStoreError, GraphUnavailable) as exc:
         print(f'neurofly cohort: {exc}', file=sys.stderr)
         return 2
+
+
+_capture_loaded_code()
 
 
 if __name__ == '__main__':

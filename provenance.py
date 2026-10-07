@@ -290,22 +290,47 @@ def _installed_payload(dist) -> dict:
     return dict(files=len(files), files_sha256=digest, record_mismatches=sorted(mismatches))
 
 
+# Load-time identity: each writer module's file hash, taken once (at import where the
+# importer calls capture_load_identity, otherwise at the first identity request) and never
+# re-taken, so a file replaced on disk later cannot relabel code that is still executing.
+_LOAD_TIME_SHA256: Dict[str, tuple] = {}
+
+
+def capture_load_identity(modules: tuple) -> None:
+    """Hash each listed, already-imported module's file once and keep that hash for the process."""
+    import sys
+    for name in modules:
+        path = getattr(sys.modules.get(name), '__file__', None)
+        if path and _LOAD_TIME_SHA256.get(name, (None,))[0] != path:
+            _LOAD_TIME_SHA256[name] = (path, _sha(Path(path)))
+
+
 def running_code_identity(modules: tuple = WRITER_MODULES) -> dict:
     """The code executing now, never an identity inherited from a saved run.
 
-    ``loaded_module_sha256`` hashes the files the interpreter actually imported.
+    ``loaded_module_sha256`` hashes the files the interpreter actually imported, as
+    first captured in this process (``capture_load_identity``); later on-disk changes
+    are reported under ``disk_drift_since_load``, never substituted.
     When they come from an installed ``neurofly`` distribution, its whole installed
     payload is hashed against RECORD (``ident`` = name-version+files:digest; git is
     not needed).  Otherwise the code runs from a source tree: git commit and dirty
     flag where git is available.
     """
     import sys
-    loaded = {}
+    capture_load_identity(modules)
+    loaded, drift = {}, {}
     for name in modules:
         path = getattr(sys.modules.get(name), '__file__', None)
         if path:
-            loaded[name] = _sha(Path(path))
+            loaded[name] = _LOAD_TIME_SHA256[name][1]
+            now = _sha(Path(path))
+            if now != loaded[name]:
+                drift[name] = {'loaded': loaded[name], 'disk_now': now}
     info: Dict[str, Any] = dict(role='executing_writer', loaded_module_sha256=loaded)
+    if drift:
+        # The files on disk changed after this process loaded them: the hashes above are
+        # the loaded ones; the installation fields below describe the disk as it is now.
+        info['disk_drift_since_load'] = drift
     try:
         from importlib import metadata
         dist = metadata.distribution('neurofly')
@@ -480,3 +505,6 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
             os.close(directory)
     except OSError:
         pass
+
+
+capture_load_identity(WRITER_MODULES)   # the writer modules already imported with this one
