@@ -609,6 +609,13 @@ function clockReadouts(view, packet, remote, replay) {
     const graph = g && Number.isFinite(g.elapsed_s) && Number.isFinite(g.step) ? g : null;
     const elapsed = Number(view.paradigmElapsedSec).toFixed(2) + 's';
     const number = view.currentTrial;
+    // The measurement window is its own clock: after a restore it starts again
+    // while the trial clock continues (clocks.observation.lineage).
+    const obs = remote ? packet?.clocks?.observation : null;
+    const lineage = obs?.lineage || null;
+    const windowElapsed = Number.isFinite(obs?.segment_elapsed_s) ? obs.segment_elapsed_s.toFixed(2) + 's' : '--';
+    const restoredFrom = Number.isFinite(lineage?.restored_trial_elapsed_s)
+        ? lineage.restored_trial_elapsed_s.toFixed(2) + 's' : 'an unknown time';
     return {
         timeLabel: replay ? 'Recorded session time' : remote ? 'Session time' : 'Preview time',
         stepLabel: replay ? 'Recorded session step' : remote ? 'Session step' : 'Preview step',
@@ -625,6 +632,15 @@ function clockReadouts(view, packet, remote, replay) {
         trial: trialUnknown ? 'Unknown' : '#' + number,
         guideTrial: trialUnknown ? 'TRIAL UNKNOWN' : 'TRIAL #' + number,
         trialTitle: trialUnknown ? `The trial number is unknown. ${why} This is trial ${number} counted since then.` : '',
+        windowVisible: !!lineage,
+        window: lineage ? `Window ${windowElapsed} · restarted after `
+            + (lineage.reason === 'daemon_restart' ? 'daemon restart' : 'assay switch') : '',
+        windowTitle: lineage ? 'The measurement window started again; it does not continue the earlier one. '
+            + (lineage.reason === 'daemon_restart'
+                ? 'The measurement in progress before the restart was interrupted and recorded as incomplete. '
+                : 'The earlier measurement ended when you switched assays. ')
+            + `Its metric values were not carried over. The trial clock continues from ${restoredFrom}, `
+            + 'so trial elapsed time can exceed the window.' : '',
         elapsed: elapsedUnknown ? 'Unknown' : elapsed,
         elapsedTitle: elapsedUnknown ? `The trial's elapsed time is unknown until a new trial starts. ${why} `
             + `At least ${elapsed} have passed since the brain was restored.` : '',
@@ -6517,6 +6533,8 @@ class ScientificHUD {
         setText('paradigmTrial', clocks.trial, clocks.trialTitle);
         setText('guideTrialBadge', clocks.guideTrial, clocks.trialTitle);
         setText('paradigmElapsed', clocks.elapsed, clocks.elapsedTitle);
+        const windowEl = document.getElementById('paradigmWindow');
+        if (windowEl) { windowEl.hidden = !clocks.windowVisible; windowEl.textContent = clocks.window; windowEl.title = clocks.windowTitle; }
 
         const metric = this.arena.getCanonicalMetricInfo();
         const mLabelEl = document.getElementById('paradigmMetricLabel');
