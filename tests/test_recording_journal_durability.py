@@ -31,6 +31,7 @@ from learning_recorder import (  # noqa: E402
     DurabilityUncertainError,
     JsonlWriter,
     LearningRecorder,
+    ObservationConflictError,
     ObservationJournalError,
     read_jsonl,
 )
@@ -468,7 +469,7 @@ class TestIncrementalIndex:
         assert rec.record_observation(envelope)["idempotent"] is True
         rec.close()
 
-    def test_external_append_is_validated_incrementally(self, tmp_path):
+    def test_external_append_forces_full_revalidation(self, tmp_path):
         rec = LearningRecorder(tmp_path, fsync=False)
         envelope = _terminal_envelope(run_id="run-ext")
         rec.record_observation(envelope)
@@ -477,15 +478,74 @@ class TestIncrementalIndex:
         with open(path, "ab") as fh:
             fh.write(b'{"type":"trial","trial":99}\n')
         assert rec.record_observation(_next_presentation(envelope))["idempotent"] is False
-        assert rec.full_scans == 1
+        assert rec.full_scans == 2  # growth this recorder did not write: re-validated from byte 0
         with open(path, "ab") as fh:  # someone else appends a duplicate of a stored row
             fh.write(stored)
         with pytest.raises(ObservationJournalError, match="duplicate observation key"):
             rec.record_observation(_terminal_envelope(run_id="run-ext-2"))
-        with open(path, "ab") as fh:
-            fh.write(b"{broken}\n")
-        with pytest.raises(ObservationJournalError):
-            rec.record_observation(_terminal_envelope(run_id="run-ext-2"))
+        rec.close()
+
+    def test_corrupt_prefix_plus_valid_append_is_refused(self, tmp_path):
+        """Reviewer reproducer: >6000-byte legacy row, first byte changed, valid row appended."""
+        path = tmp_path / "trials.jsonl"
+        path.write_bytes(b'{"type":"trial","padding":"' + b"x" * 6000 + b'"}\n')
+        rec = LearningRecorder(tmp_path)
+        with path.open("r+b") as fh:
+            fh.write(b"!")
+            fh.seek(0, 2)
+            fh.write(b'{"type":"trial","trial":2}\n')
+            fh.flush()
+            os.fsync(fh.fileno())
+        with pytest.raises(ObservationJournalError, match=r"invalid JSON at trials\.jsonl:line 1:byte 0"):
+            rec.record_observation(_terminal_envelope(run_id="run-prefix"))
+        assert rec.full_scans == 2
+        assert not _obs_lines(path)
+        rec.close()
+
+    def test_observation_payload_prefix_mutation_plus_append_is_refused(self, tmp_path):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-payload")
+        rec.record_observation(envelope)
+        rec.record_trials([{"trial": 1, "padding": "y" * 6000}])  # keep the change far from the tail
+        path = tmp_path / "trials.jsonl"
+        data = path.read_bytes()
+        idx = data.index(b'"yaw":0.0')
+        with path.open("r+b") as fh:  # same length, still valid JSON, different payload
+            fh.seek(idx)
+            fh.write(b'"yaw":9.0')
+            fh.seek(0, 2)
+            fh.write(b'{"type":"trial","trial":2}\n')
+        with pytest.raises(ObservationConflictError, match="different observation payload"):
+            rec.record_observation(envelope)
+        assert rec.full_scans == 2
+        rec.close()
+
+    def test_own_partial_strict_write_is_repaired_then_retried(self, tmp_path, monkeypatch):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-own-torn")
+        rec.record_trials([{"trial": 1}])  # opens the writer's file handle
+
+        class HalfThenFail:
+            def __init__(self, raw):
+                self.raw = raw
+
+            def write(self, data):
+                self.raw.write(bytes(data[: len(data) // 2]))
+                raise OSError(errno.ENOSPC, "injected torn strict write")
+
+            def __getattr__(self, name):
+                return getattr(self.raw, name)
+
+        real = rec.trials._fh
+        rec.trials._fh = HalfThenFail(real)
+        with pytest.raises(OSError, match="torn strict write"):
+            rec.record_observation(envelope)
+        rec.trials._fh = real
+        assert rec.record_observation(envelope)["idempotent"] is False
+        # A failed write cannot prove how many bytes were its own: re-validated in full.
+        assert rec.full_scans == 2
+        assert len(_obs_lines(tmp_path / "trials.jsonl")) == 1
+        assert _evidence(tmp_path)[0]["reason"] == "this writer's failed write"
         rec.close()
 
     def test_rotation_restart_and_receipts_without_rescans(self, tmp_path):

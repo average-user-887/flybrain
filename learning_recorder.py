@@ -175,7 +175,6 @@ class DurabilityUncertainError(ObservationJournalError):
 
 
 QUARANTINE_SUBDIR = "quarantine"
-TAIL_DIGEST_BYTES = 4096
 _MAX_UNCERTAIN_FILES = 1024
 
 
@@ -227,21 +226,56 @@ class JsonlWriter:
         self._synced_size: Optional[int] = None
         # (st_dev, st_ino) -> (start, end, reason) of bytes whose fsync failed.
         self._uncertain: Dict[Tuple[int, int], Tuple[int, int, str]] = {}
+        # (st_dev, st_ino) -> (size, mtime_ns, ctime_ns) of a file whose current
+        # state is fully accounted for: validated by the reader, then changed only
+        # by this writer's own writes, renames and truncations. Any change not
+        # made here breaks the chain and the reader re-validates from byte 0.
+        self._trusted: Dict[Tuple[int, int], Tuple[int, int, int]] = {}
         self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    # -- own-change accounting ------------------------------------------------
+    @staticmethod
+    def _ident(st: os.stat_result) -> Tuple[int, int]:
+        return (st.st_dev, st.st_ino)
+
+    @staticmethod
+    def _signature(st: os.stat_result) -> Tuple[int, int, int]:
+        return (st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+    def trust_locked(self, st: os.stat_result) -> None:
+        self._trusted[self._ident(st)] = self._signature(st)
+
+    def is_trusted_locked(self, st: os.stat_result) -> bool:
+        return self._trusted.get(self._ident(st)) == self._signature(st)
+
+    def _carry_trust_locked(self, before: os.stat_result, after: os.stat_result) -> None:
+        """Extend trust across one of our own changes only if it was trusted before."""
+        if self.is_trusted_locked(before):
+            self.trust_locked(after)
+        else:
+            self._trusted.pop(self._ident(before), None)
 
     # -- file management -----------------------------------------------------
     def _open(self) -> None:
         if self._fh is None:
+            created = not self.path.exists()
             # Unbuffered: a failed write can never leave bytes in a user-space
             # buffer that a later flush or close would append out of order.
             self._fh = open(self.path, "a+b", buffering=0)
             self._synced_size = None
+            if created:  # an empty file this writer just made is fully accounted for
+                self.trust_locked(os.fstat(self._fh.fileno()))
 
     def _size(self) -> int:
         try:
             return self.path.stat().st_size
         except FileNotFoundError:
             return 0
+
+    def _rename_locked(self, target: Path) -> None:
+        before = os.stat(self.path)
+        os.replace(self.path, target)
+        self._carry_trust_locked(before, os.stat(target))
 
     def rotated_files(self) -> List[Path]:
         return sorted(p for p in self.path.parent.glob(self.path.name + ".*") if p.is_file())
@@ -256,7 +290,7 @@ class JsonlWriter:
         while target.exists():
             target = self.path.with_name(f"{self.path.name}.{stamp}-{n}")
             n += 1
-        os.replace(self.path, target)
+        self._rename_locked(target)
         self.rotations += 1
         self._open()
 
@@ -364,6 +398,7 @@ class JsonlWriter:
                     f"{self.path.name} changed while its torn tail was quarantined; not truncated")
             os.ftruncate(fd, start)
             os.fsync(fd)
+            self._carry_trust_locked(st, os.fstat(fd))
         finally:
             os.close(fd)
         self.tail_repairs.append(receipt)
@@ -397,6 +432,8 @@ class JsonlWriter:
                 "refusing to append onto it (it is repaired on the next recorder start)")
 
     def _write_bytes_locked(self, data: bytes) -> None:
+        fd = self._fh.fileno()
+        before = os.fstat(fd)
         view, total = memoryview(data), 0
         try:
             while total < len(data):
@@ -407,6 +444,12 @@ class JsonlWriter:
         except BaseException:
             self._torn_pending = True
             raise
+        finally:
+            after = os.fstat(fd)
+            if after.st_size != before.st_size + total:  # someone else wrote too
+                self._trusted.pop(self._ident(before), None)
+            else:
+                self._carry_trust_locked(before, after)
 
     # -- fsync and ambiguity ---------------------------------------------------
     def _mark_uncertain_locked(self, st: os.stat_result, start: int, end: int, reason: str) -> None:
@@ -505,7 +548,7 @@ class JsonlWriter:
         while target.exists():
             target = self.path.with_name(f"{self.path.name}.{stamp}-{n}")
             n += 1
-        os.replace(self.path, target)
+        self._rename_locked(target)
         self._fsync_parent()
         self._open()
         self._fsync_parent()
@@ -560,7 +603,7 @@ class _LedgerChanged(ObservationJournalError):
 class _LedgerFile:
     """Validated prefix of one physical trials ledger file."""
 
-    __slots__ = ("name", "ident", "size", "lines", "nonblank", "mtime_ns", "tail_sha")
+    __slots__ = ("name", "ident", "size", "lines", "nonblank")
 
     def __init__(self, name: str, ident: Tuple[int, int]):
         self.name = name
@@ -568,24 +611,6 @@ class _LedgerFile:
         self.size = 0          # bytes validated (always ends on a newline)
         self.lines = 0         # physical lines validated
         self.nonblank = 0
-        self.mtime_ns = 0
-        self.tail_sha = b""
-
-    def _tail(self, fd: int) -> bytes:
-        start = max(0, self.size - TAIL_DIGEST_BYTES)
-        return hashlib.sha256(os.pread(fd, self.size - start, start)).digest()
-
-    def stamp(self, fd: int) -> None:
-        self.mtime_ns = os.fstat(fd).st_mtime_ns
-        self.tail_sha = self._tail(fd)
-
-    def tail_matches(self, path: Path) -> bool:
-        fd = os.open(path, os.O_RDONLY)
-        try:
-            st = os.fstat(fd)
-            return (st.st_dev, st.st_ino) == self.ident and self._tail(fd) == self.tail_sha
-        finally:
-            os.close(fd)
 
 
 class _ObservationIndex:
@@ -843,7 +868,10 @@ class LearningRecorder:
                 self._strict_row_locked(index, lf, raw, lf.lines + 1, offset)
                 lf.lines += 1
                 lf.size = offset + len(raw)
-            lf.stamp(fh.fileno())
+            end = os.fstat(fh.fileno())
+            # Read to EOF and nothing changed under us: this state is accounted for.
+            if torn is None and end.st_size == lf.size:
+                self.trials.trust_locked(end)
         return torn
 
     def _ledger_paths(self) -> List[Path]:
@@ -857,6 +885,7 @@ class LearningRecorder:
         index = _ObservationIndex()
         torn = None
         self.full_scans += 1
+        self.trials._trusted.clear()
         paths = self._ledger_paths()
         for path in paths:
             st = os.stat(path)
@@ -867,11 +896,12 @@ class LearningRecorder:
         return index, torn
 
     def _incremental_locked(self, index: "_ObservationIndex") -> None:
-        """Validate only bytes appended since the last check; raise _LedgerChanged otherwise.
+        """Validate only bytes this recorder appended itself; raise _LedgerChanged otherwise.
 
-        A known file may only have grown with its validated tail intact, or (the
-        active file) have been renamed by rotation. Anything else - a missing,
-        shrunk, replaced or rewritten file, or a changed mtime at equal size -
+        The fast path applies only while every ledger file's (size, mtime, ctime)
+        equals the state this process accounted for: what it validated, extended
+        solely by its own writes, renames and truncations under directory
+        ownership. Any other growth, change, new, missing or replaced file
         forces a full re-validation from byte 0.
         """
         seen = set()
@@ -880,29 +910,27 @@ class LearningRecorder:
                 st = os.stat(path)
             except FileNotFoundError as exc:
                 raise _LedgerChanged(f"{path.name} disappeared") from exc
+            if not self.trials.is_trusted_locked(st):
+                raise _LedgerChanged(f"{path.name} changed outside this recorder")
             ident = (st.st_dev, st.st_ino)
             lf = index.files.get(ident)
-            if lf is None:  # a file this index has never seen (new active file after rotation)
+            if lf is None:  # an empty file this writer created (rotation)
                 lf = _LedgerFile(path.name, ident)
                 index.files[ident] = lf
-            else:
-                lf.name = path.name  # rotation renames the active file in place
-                if st.st_size < lf.size:
-                    raise _LedgerChanged(f"{path.name} shrank")
-                if not lf.tail_matches(path):
-                    raise _LedgerChanged(f"{path.name} validated tail changed")
-                if st.st_size == lf.size:
-                    if st.st_mtime_ns != lf.mtime_ns:
-                        raise _LedgerChanged(f"{path.name} modified in place")
-                    seen.add(ident)
-                    continue
-            self._validate_from_locked(index, lf, path)
+            lf.name = path.name  # our own rotation renamed it
+            if st.st_size < lf.size:
+                raise _LedgerChanged(f"{path.name} shrank")
+            if st.st_size > lf.size:  # our own appends: validate before acknowledging
+                self._validate_from_locked(index, lf, path)
             seen.add(ident)
         if set(index.files) - seen:
             raise _LedgerChanged("a validated ledger file disappeared")
 
     def _refresh_index_locked(self) -> "_ObservationIndex":
         """Bring the bounded index up to date with disk; caller owns the writer lock."""
+        if self.trials._torn_pending:  # our own failed write: quarantine, then cut
+            self.trials._repair_torn_tail_locked(reason="this writer's failed write")
+            self.trials._torn_pending = False
         index = self._index
         try:
             if index is None:
@@ -927,9 +955,8 @@ class LearningRecorder:
             receipt = self.trials._repair_torn_tail_locked(
                 expected_offset=torn, reason="unterminated final record found at open")
             active = os.stat(self.trials.path)
-            lf = index.files[(active.st_dev, active.st_ino)]
-            with open(self.trials.path, "rb") as fh:
-                lf.stamp(fh.fileno())
+            if index.files[(active.st_dev, active.st_ino)].size == active.st_size:
+                self.trials.trust_locked(active)
         self.trials._tail_checked = True
         self._index = index
         return receipt
