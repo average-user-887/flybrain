@@ -12,6 +12,7 @@ import argparse, hashlib, json, math, sys
 from pathlib import Path
 
 import numpy as np
+from numba import njit
 from scipy.optimize import minimize
 
 REPO = Path(__file__).resolve().parents[2]
@@ -19,7 +20,6 @@ sys.path.insert(0, str(REPO))
 from brainlab.engine import R_MAX_HZ, TAU_SYN_MS, DELAY_MS  # noqa: E402
 from brainlab.v6_calibrated import Phototransduction  # noqa: E402
 
-SPEC = REPO / 'qualification/v6/S1_fit_spec.json'
 V_REST, E_INH, E_EXC, DT = -52.0, -70.0, 0.0, 0.1
 G_UNIT_INH = 1.0 / (V_REST - E_INH)
 
@@ -29,8 +29,42 @@ def sha(p):
 
 
 # ---------------- photoreceptor reduced model ----------------
+@njit(cache=True)
+def _r_trace(G, Ka, Kt, tau_a, tau_p0, n, D, light, tau_m):
+    """Scalar twin of Phototransduction + the passive R membrane (checked equal at start-up)."""
+    st = np.zeros(n); a = 0.0
+    ring = np.zeros(max(D, 1)); cur = 0
+    v = V_REST
+    out = np.empty(len(light))
+    ea = 1.0 - math.exp(-1.0 / tau_a)
+    for t in range(len(light)):
+        if D > 0:
+            k = cur % D; x = ring[k]; ring[k] = light[t]; cur += 1
+        else:
+            x = light[t]
+        tau = tau_p0 / (1.0 + a / Kt)
+        al = 1.0 - math.exp(-1.0 / tau)
+        prev = x
+        for j in range(n):
+            st[j] += al * (prev - st[j]); prev = st[j]
+        y = st[n - 1]
+        a += ea * (y - a)
+        gl = G * y / (1.0 + a / Ka)
+        gt = 1.0 + gl
+        vinf = (V_REST + gl * E_EXC) / gt
+        v = vinf + (v - vinf) * math.exp(-1.0 * gt / tau_m)
+        v = min(max(v, E_INH), E_EXC)
+        out[t] = v
+    return out
+
+
 def r_trace(pp, light, tau_m=20.0):
     """light: array (ms,) of intensity in BG0 units.  Returns V_R (mV) per ms."""
+    return _r_trace(pp['G'], pp['Ka'], pp.get('Kt', pp['Ka']), pp['tau_a_ms'], pp['tau_p0_ms'], int(pp['n_stages']),
+                    int(pp['dead_time_ms']), np.asarray(light, np.float64), tau_m)
+
+
+def r_trace_reference(pp, light, tau_m=20.0):
     pt = Phototransduction(pp, 1)
     v = V_REST
     out = np.empty(len(light))
@@ -45,8 +79,8 @@ def r_trace(pp, light, tau_m=20.0):
 
 
 def pp_from(x, fixed):
-    G, Ka, tp0 = np.exp(x)
-    return dict(G=G, Ka=Ka, tau_p0_ms=tp0, **fixed)
+    G, Ka, tp0, Kt = (float(v) for v in np.exp(x))
+    return dict(G=G, Ka=Ka, tau_p0_ms=tp0, Kt=Kt, **fixed)
 
 
 def photoreceptor_metrics(pp):
@@ -70,15 +104,21 @@ def photoreceptor_metrics(pp):
 def lamina_peak(rel, lam, v_r, tau_m=20.0):
     """v_r: V_R per ms.  Simulate one L cell of the reduced model at 0.1 ms; returns V_L per ms."""
     gain, vh, s = rel
-    W, ge_o, gi_o = lam['W'], lam['ge_o'], lam['gi_o']
-    ag = math.exp(-DT / TAU_SYN_MS)
-    d = int(round(DELAY_MS / DT))
-    vr = np.repeat(v_r, 10)
-    x = gain * R_MAX_HZ * DT * 1e-3 / (1.0 + np.exp(-(vr - vh) / s))
+    return _lamina(gain, vh, s, lam['W'], lam['ge_o'], lam['gi_o'], lam['v0'], np.asarray(v_r, np.float64),
+                   tau_m, R_MAX_HZ, TAU_SYN_MS, int(round(DELAY_MS / DT)))
+
+
+@njit(cache=True)
+def _lamina(gain, vh, s, W, ge_o, gi_o, v0, v_r, tau_m, rmax, tau_syn, d):
+    ag = math.exp(-DT / tau_syn)
+    nt = len(v_r) * 10
+    x = np.empty(nt)
+    for t in range(nt):
+        x[t] = gain * rmax * DT * 1e-3 / (1.0 + math.exp(-(v_r[t // 10] - vh) / s))
     g = W * G_UNIT_INH * x[0] / (1 - ag)
-    v = lam['v0']
+    v = v0
     out = np.empty(len(v_r))
-    for t in range(len(vr)):
+    for t in range(nt):
         xi = x[t - d] if t >= d else x[0]
         g = g * ag + W * G_UNIT_INH * xi
         gi = gi_o + g
@@ -90,16 +130,26 @@ def lamina_peak(rel, lam, v_r, tau_m=20.0):
     return out
 
 
+_RCACHE = {}
+
+
+def _rc(pp, key, light):
+    k = (tuple(sorted(pp.items())), key)
+    if k not in _RCACHE:
+        _RCACHE[k] = r_trace(pp, light)
+    return _RCACHE[k]
+
+
 def lamina_metrics(rel, lam, pp):
-    dark = r_trace(pp, np.zeros(1500))
     flash = np.zeros(1500); flash[1200] = 3.3
-    vf = r_trace(pp, flash)
+    vf = _rc(pp, 'flash', flash)
     vl = lamina_peak(rel, lam, vf)
     v_dark = float(vl[1100:1200].mean())
     peak = float(vl[1200:1450].min())
     bg = np.full(2500, 0.1); bg[2200:2400] = 0.2
-    vs = lamina_peak(rel, lam, r_trace(pp, bg))
-    return dict(V_dark=v_dark, frac=(v_dark - peak) / (v_dark - E_INH),
+    vs = lamina_peak(rel, lam, _rc(pp, 'step', bg))
+    den = v_dark - E_INH
+    return dict(V_dark=v_dark, frac=(v_dark - peak) / den if den >= 0.01 else 0.0,
                 H3_step_dV=float(vs[2200:2400].mean() - vs[2100:2200].mean()))
 
 
@@ -139,15 +189,19 @@ def lamina_inputs(pathb, weight_cache):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
+    ap.add_argument('--spec', type=Path, required=True)
     ap.add_argument('--spec-sha256', required=True)
     ap.add_argument('--pathb', type=Path, required=True)
     ap.add_argument('--weights', type=Path, required=True, help='npz from scripts/v6/r_to_l_weights.py')
     ap.add_argument('--out', type=Path, required=True)
     a = ap.parse_args(argv)
-    if sha(SPEC) != a.spec_sha256:
+    if sha(a.spec) != a.spec_sha256:
         raise SystemExit('S1 fit spec sha mismatch; refusing')
-    spec = json.loads(SPEC.read_text())
+    spec = json.loads(a.spec.read_text())
     fixed = spec['phototransduction']['fixed']
+    chk = dict(G=7.0, Ka=0.2, Kt=0.7, tau_p0_ms=9.0, **fixed)
+    lt0 = np.zeros(600); lt0[50:400] = 1.0; lt0[100] = 3.3
+    assert np.allclose(r_trace(chk, lt0), r_trace_reference(chk, lt0), atol=1e-9), "scalar twin differs"
     tg = spec['phototransduction']['train_targets']
 
     def cost_pt(x):
@@ -155,13 +209,15 @@ def main(argv=None):
         return sum(((m[k] - v['target']) / v['tol']) ** 2 for k, v in tg.items())
 
     best = None
-    for x0 in ([math.log(20), math.log(0.3), math.log(8)], [math.log(100), math.log(0.05), math.log(15)],
-               [math.log(5), math.log(1.0), math.log(4)]):
-        r = minimize(cost_pt, x0, method='Nelder-Mead', options=dict(maxiter=400, xatol=1e-3, fatol=1e-4))
+    lo, hi = np.log(spec['phototransduction']['bounds_lo']), np.log(spec['phototransduction']['bounds_hi'])
+    for x0 in ([math.log(75), math.log(0.007), math.log(10), math.log(0.5)],
+               [math.log(20), math.log(0.05), math.log(8), math.log(1.0)],
+               [math.log(200), math.log(0.002), math.log(15), math.log(0.1)]):
+        r = minimize(cost_pt, x0, method='Nelder-Mead', bounds=list(zip(lo, hi)),
+                     options=dict(maxiter=1500, xatol=1e-4, fatol=1e-6))
         if best is None or r.fun < best.fun:
             best = r
-    lo, hi = np.log(spec['phototransduction']['bounds_lo']), np.log(spec['phototransduction']['bounds_hi'])
-    xb = np.clip(best.x, lo, hi)
+    xb = best.x
     pp = pp_from(xb, fixed)
     mpt = photoreceptor_metrics(pp)
     print('phototransduction', pp, mpt, flush=True)
@@ -192,7 +248,7 @@ def main(argv=None):
             chosen = trail[-1]
             break
     out = a.out; out.mkdir(parents=True, exist_ok=True)
-    report = dict(spec_sha256=a.spec_sha256, phototransduction=pp, photoreceptor_metrics=mpt,
+    report = dict(spec_sha256=a.spec_sha256, phototransduction=pp, photoreceptor_metrics=mpt, pt_cost=float(best.fun),
                   lamina_reduced_model=lam, release_trail=trail, release_chosen=chosen)
     if chosen is not None:
         report['lamina_metrics'] = {t: lamina_metrics((chosen['gain'], chosen['vh_mV'], chosen['s_mV']), lam[t], pp)

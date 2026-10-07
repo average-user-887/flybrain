@@ -146,14 +146,14 @@ class Phototransduction:
 
     Light ``I`` (units of the JH2001 BG0 intensity, ~3e6 photons/s) passes a
     pure dead time ``D``, then ``n`` first-order stages whose time constant
-    shortens with adaptation, ``tau = tau_p0 / (1 + a/Ka)``; ``a`` low-passes
+    shortens with adaptation, ``tau = tau_p0 / (1 + a/Kt)`` (``Kt`` defaults to ``Ka``); ``a`` low-passes
     the cascade output with ``tau_a``.  The light conductance (leak units) is
     ``G * y / (1 + a/Ka)``: divisive gain control.  State is plain arrays so a
     snapshot captures it.
     """
 
     def __init__(self, p: dict, n_cells: int):
-        self.G = float(p['G']); self.Ka = float(p['Ka'])
+        self.G = float(p['G']); self.Ka = float(p['Ka']); self.Kt = float(p.get('Kt', p['Ka']))
         self.tau_a = float(p['tau_a_ms']); self.tau_p0 = float(p['tau_p0_ms'])
         self.n = int(p['n_stages']); self.D = int(p['dead_time_ms'])
         self.stages = np.zeros((self.n, n_cells))
@@ -175,7 +175,7 @@ class Phototransduction:
             self.cur[0] += 1
         else:
             x = np.asarray(intensity, float)
-        tau = self.tau_p0 / (1.0 + self.a / self.Ka)
+        tau = self.tau_p0 / (1.0 + self.a / self.Kt)
         al = 1.0 - np.exp(-dt_ms / tau)
         prev = x
         for s in range(self.n):
