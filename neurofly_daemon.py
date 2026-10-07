@@ -1043,8 +1043,10 @@ class PersistenceMonitor:
             self.channels.pop(channel, None)
 
     def retry_due(self, channel: str, now: Optional[float] = None) -> bool:
-        entry = self.channels.get(channel)
-        return entry is None or (time.time() if now is None else now) >= entry["next_retry_at"]
+        with self._lock:
+            entry = self.channels.get(channel)
+            next_retry_at = None if entry is None else entry["next_retry_at"]
+        return next_retry_at is None or (time.time() if now is None else now) >= next_retry_at
 
     def failing(self) -> bool:
         return bool(self.channels)
