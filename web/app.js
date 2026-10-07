@@ -1,27 +1,21 @@
 /**
- * FlyBrain Connectome — In-Silico Neuroethology Scientific Instrument
- * ===================================================================
- * Complete biophysical simulation and electrophysiology HUD:
- * 1. Mushroom Body (120 KCs, Huang/Luo Nature 2024 anti-Hebbian rate rule)
- * 2. Central Complex (16-wedge E-PG ring attractor compass + PFL3/PFL2 steering)
- * 3. Descending Locomotion Decoders (DNa02, DNa01, DNp09, BPN, MDN, DNp01/GF)
- * 4. Biomechanical Kuramoto-Hopf Tripod Gait CPG (Cruse Walknet Rule 1)
- * 5. WallSegment 2D Continuous Sliding Collision Physics (Coulomb friction & restitution)
- * 6. 12 Canonical Neuroethological Paradigms + Open Arena:
- *    - open-arena: Free multi-modal foraging
- *    - t-maze: Tully & Quinn (1985) Olfactory Conditioning (CS+/CS-, vacuum airflow, shock grid)
- *    - y-maze: Buchanan et al. (Nature 2015) Spontaneous Alternation & Handedness
- *    - heat-maze: Ofstad, Zuker & Reiser (Nature 2011) Thermal Place Learning (cool refuge at (22, 18), 4 distal landmarks)
- *    - buridan: Götz (1980) Visual Landmark Fixation & Centrophobism (water moat, 2 opposing black stripes)
- *    - visual-operant: Wolf & Heisenberg (1991) Operant Flight Simulator (360° drum, yaw torque, laser heat beam)
- *    - wind-tunnel: Alvarez-Salvado (2018) / Demir (2020) Plume Navigation (laminar flow, surge-and-cast)
- *    - looming-escape: Card & Dickinson (2008) Looming Predator Escape (optical expansion, GF spike threshold)
- *    - optomotor: Götz (1964) / Kim et al. (Cell 2017) Gaze Stabilization (rotating grating drum, saccadic efference copy)
- *    - gap-crossing: Pick & Strauss (Nature 2005) / Triphan (2010) Gap Crossing & Spatial Motor Planning
- *    - circadian-dam: Konopka (1971) / Allada (2010) DAM Sleep/Wake Monitor (16 tubes, mid-tube IR beam break)
- *    - courtship: Siegel & Hall (1979) / Keleman (Nature 2007) Courtship Conditioning & Wing Extension Song
- *    - labyrinth: Multi-junction Obstacle Labyrinth (16 walls, 4 junctions, dead ends, food goal, sliding physics)
- * 7. Real-Time Electrophysiology HUD & Telemetry Blob Exporters (CSV & JSON)
+ * NeuroFly dashboard and standalone browser preview
+ * ==================================================
+ * When no daemon drives the view, this file runs an ENGINEERED, illustrative preview,
+ * not the connectome and not fitted to fly data:
+ * 1. Mushroom body: 120 Kenyon-cell units with a hand-built reward/punishment rate rule.
+ * 2. Heading compass: a 16-wedge bump that follows the preview heading, plus a goal-steering term.
+ * 3. Descending-drive labels (DNa02, DNp09, MDN, GF ...) computed from the preview's own steering.
+ * 4. Engineered Kuramoto tripod oscillator for leg pose; not a biological nerve cord.
+ * 5. 2D wall contacts with Coulomb sliding (friction mu, restitution).
+ * 6. 14 assay previews (open-arena, t-maze, y-maze, heat-maze, buridan, visual-operant,
+ *    wind-tunnel, looming-escape, optomotor, gap-crossing, circadian-dam, courtship,
+ *    labyrinth, multisensory-sandbox). EXPERIMENT_GUIDES states what each preview actually
+ *    does; scripted choices, hand-set thresholds and stored-coordinate steering are named
+ *    there, and unsupported biology (conditioning, place or working memory, motor
+ *    planning, efference copy, circadian rhythm, courtship memory) is post-v0.4 backlog
+ *    work (docs/POST_V04_FEATURES.md), not a capability of this file or the connectome.
+ * 7. Telemetry display and CSV/JSON exporters.
  */
 
 // =============================================================================
