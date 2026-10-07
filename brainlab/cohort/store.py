@@ -181,6 +181,12 @@ def refuse_legacy_path(path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Checkpoints
 # ---------------------------------------------------------------------------
+# Deterministic for a given zlib build; the content digest inside each checkpoint is
+# independent of compression, so verification never depends on it.
+CHECKPOINT_COMPRESSION = zipfile.ZIP_DEFLATED
+CHECKPOINT_COMPRESSLEVEL = 1
+
+
 def checkpoint_name(fly_id: int, tick: int) -> str:
     return f'fly-{fly_id:02d}-t{tick:06d}.npz'
 
@@ -214,11 +220,14 @@ def encode_checkpoint(meta: dict, state: Dict[str, object]) -> bytes:
                 state_arrays={k: [a.dtype.str, list(a.shape)] for k, a in sorted(arrays.items())})
     meta['content_sha256'] = _content_digest(meta, arrays)
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+    with zipfile.ZipFile(buf, "w") as zf:
         def put(name, data):
             info = zipfile.ZipInfo(name, date_time=_ZIP_EPOCH)
             info.external_attr = 0o644 << 16
-            zf.writestr(info, data)
+            # Explicit per member: a ZipInfo otherwise defaults to ZIP_STORED, which is
+            # what v0.5.0rc1 wrote (those archives still read; their bytes never change).
+            zf.writestr(info, data, compress_type=CHECKPOINT_COMPRESSION,
+                        compresslevel=CHECKPOINT_COMPRESSLEVEL)
         put('meta.json', json.dumps(meta, sort_keys=True, indent=1).encode())
         for name in sorted(arrays):
             put(f'state/{name}.npy', _npy_bytes(arrays[name]))
