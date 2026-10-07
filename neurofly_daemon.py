@@ -1509,7 +1509,8 @@ class ContinuousExperimentRunner:
             self._persist("provenance", manifest.write, manifest_path, path=manifest_path)
         self.latest_telemetry = self._assemble_telemetry({})
 
-    def _restore_trial_clock(self, brain, instance=None, *, restart: bool = False) -> None:
+    def _restore_trial_clock(self, brain, instance=None, *, restart: bool = False,
+                             parent_evidence: Optional[dict] = None) -> None:
         """Adopt the trial clock saved with the state that was just restored.
 
         Graph runs use only the clock in the selected verified checkpoint (including
@@ -1532,9 +1533,10 @@ class ContinuousExperimentRunner:
             instance.trial_clock = clock       # one record for the NPZ and the helper JSON
         self.trial_sim_time = clock['elapsed_s']
         self.current_trial = clock['current_trial']
-        self._open_restored_segment(parent, clock, restart=restart)
+        self._open_restored_segment(parent, clock, restart=restart, parent_evidence=parent_evidence)
 
-    def _open_restored_segment(self, parent: Optional[str], clock: dict, *, restart: bool) -> None:
+    def _open_restored_segment(self, parent: Optional[str], clock: dict, *, restart: bool,
+                               parent_evidence: Optional[dict] = None) -> None:
         """Give a segment that starts inside a restored trial its immutable lineage.
 
         The observation producer starts a fresh segment and a full window; it does not
@@ -1545,7 +1547,7 @@ class ContinuousExperimentRunner:
         self.segment_lineage = None
         if not restart and (parent is None or parent == self.segment_id):
             return
-        status, evidence = self._parent_observation_status(parent)
+        status, evidence = self._parent_observation_status(parent, parent_evidence)
         lineage = {
             "segment_id": self.segment_id,
             "parent_segment_id": parent,
@@ -1568,7 +1570,76 @@ class ContinuousExperimentRunner:
             # Append-only discontinuity record; it never replaces a parent terminal.
             self._ledger("observation_segment_restarted", **lineage)
 
-    def _parent_observation_status(self, parent: Optional[str]):
+    # Newest bytes of an assay ledger searched for a parent terminal.  The parent is
+    # that assay's most recent segment, so its record sits at the end; older history
+    # is not read, which bounds the work however long the ledger grows.
+    LEDGER_EVIDENCE_TAIL_BYTES = 4 * 1024 * 1024
+
+    def _assay_ledger_path(self, brain=None) -> Path:
+        brain = brain or self.active_brain
+        return Path(brain.directory) / f"{brain.paradigm}.events.jsonl"
+
+    @staticmethod
+    def _ledger_fingerprint(path: Path):
+        try:
+            st = os.stat(path)
+        except OSError:
+            return None
+        return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
+    def _scan_ledger_evidence(self, path: Path, parent: str):
+        """(status, evidence) from the newest LEDGER_EVIDENCE_TAIL_BYTES of ``path``."""
+        bound = int(self.LEDGER_EVIDENCE_TAIL_BYTES)
+        try:
+            with open(path, "rb") as fh:
+                size = os.fstat(fh.fileno()).st_size
+                start = max(0, size - bound)
+                fh.seek(start)
+                data = fh.read(size - start)
+        except FileNotFoundError:
+            return "unknown", {"source": "assay_event_ledger", "detail": "ledger missing"}
+        except OSError as exc:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"ledger unreadable ({type(exc).__name__})"}
+        lines = data.split(b"\n")
+        if start > 0:
+            lines = lines[1:]                  # the first line may start mid-record
+        needle, unreadable = parent.encode(), 0
+        for raw in reversed(lines):            # newest first
+            if needle not in raw:
+                continue
+            try:
+                record = json.loads(raw.decode("utf-8"))
+            except ValueError:                 # includes UnicodeDecodeError
+                unreadable += 1
+                continue
+            key = record.get("observation_key") if isinstance(record, dict) else None
+            if isinstance(key, dict) and key.get("segment_id") == parent:
+                return "terminal_recorded", {
+                    "source": "assay_event_ledger", "ledger_kind": record.get("kind"),
+                    "end_reason": record.get("reason"),
+                    "payload_sha256": record.get("payload_sha256")}
+        if unreadable:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"ledger unreadable ({unreadable} record(s) naming the "
+                                         "parent could not be read)"}
+        if start > 0:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"no terminal for the parent in the newest {bound} bytes of "
+                                         "this assay's ledger (older records not searched)"}
+        return "unknown", {"source": "assay_event_ledger",
+                           "detail": "no terminal for the parent in this assay's ledger"}
+
+    def _prepare_parent_evidence(self, brain, parent: Optional[str]) -> Optional[dict]:
+        """Scan a target's ledger before the runner lock is taken (transition prepare)."""
+        if parent is None:
+            return None
+        path = self._assay_ledger_path(brain)
+        status, evidence = self._scan_ledger_evidence(path, parent)
+        return {"parent": parent, "path": str(path), "fingerprint": self._ledger_fingerprint(path),
+                "status": status, "evidence": evidence}
+
+    def _parent_observation_status(self, parent: Optional[str], prepared: Optional[dict] = None):
         """(status, evidence) of a parent segment from durable records only.
 
         ``terminal_recorded`` when this process acknowledged its durable terminal or
@@ -1576,40 +1647,20 @@ class ContinuousExperimentRunner:
         ``unknown``.  Restoring a checkpoint taken before the parent ended proves
         nothing about it, and a missing ledger record does not prove interruption:
         the earlier session's recorder may hold a terminal it never logged here.
+        Under the runner lock (a transition commit) this uses evidence prepared
+        outside the lock when the ledger is unchanged (one stat); any ledger read is
+        bounded by LEDGER_EVIDENCE_TAIL_BYTES.
         """
         if parent is None:
             return "unknown", {"source": None, "detail": "saved state names no parent segment"}
         receipt = self._durable_terminals.get(parent)
         if receipt is not None:
             return "terminal_recorded", dict(receipt, source="durable_receipt_this_process")
-        path = self.active_brain.directory / f"{self.active_brain.paradigm}.events.jsonl"
-        unreadable = 0
-        try:
-            with open(path, "r", encoding="utf-8", errors="strict") as fh:
-                for line in fh:
-                    if parent not in line:
-                        continue
-                    try:
-                        record = json.loads(line)
-                    except ValueError:
-                        unreadable += 1
-                        continue
-                    key = record.get("observation_key") if isinstance(record, dict) else None
-                    if isinstance(key, dict) and key.get("segment_id") == parent:
-                        return "terminal_recorded", {
-                            "source": "assay_event_ledger", "ledger_kind": record.get("kind"),
-                            "end_reason": record.get("reason"),
-                            "payload_sha256": record.get("payload_sha256")}
-        except FileNotFoundError:
-            return "unknown", {"source": "assay_event_ledger", "detail": "ledger missing"}
-        except (OSError, UnicodeDecodeError) as exc:
-            return "unknown", {"source": "assay_event_ledger",
-                               "detail": f"ledger unreadable ({type(exc).__name__})"}
-        if unreadable:
-            return "unknown", {"source": "assay_event_ledger",
-                               "detail": f"{unreadable} unreadable ledger record(s) name the parent"}
-        return "unknown", {"source": "assay_event_ledger",
-                           "detail": "no terminal for the parent in this assay's ledger"}
+        path = self._assay_ledger_path()
+        if (prepared is not None and prepared["parent"] == parent and prepared["path"] == str(path)
+                and prepared["fingerprint"] == self._ledger_fingerprint(path)):
+            return prepared["status"], copy.deepcopy(prepared["evidence"])
+        return self._scan_ledger_evidence(path, parent)
 
     def current_segment_lineage(self) -> Optional[Dict[str, Any]]:
         lineage = self.segment_lineage
@@ -4376,6 +4427,14 @@ class ContinuousExperimentRunner:
                 payload_sha256=transaction['terminal']['payload_sha256'])
             if record is None:
                 raise RuntimeError('Target preparation evidence could not be saved')
+            # The target's parent-segment evidence is read here, outside the runner lock;
+            # the commit only re-checks the ledger fingerprint.
+            if backend in GRAPH_BACKENDS:
+                target_clock = prepared['activation']['target'].trial_clock
+            else:
+                target_clock = brain.trial_clock
+            prepared['parent_evidence'] = self._prepare_parent_evidence(
+                brain, (target_clock or {}).get('segment_id'))
             return prepared
         except Exception:
             self._cancel_transition_target(prepared)
@@ -4429,7 +4488,8 @@ class ContinuousExperimentRunner:
             self.active_paradigm_title = getattr(self.arena.paradigm, 'name', 'Open Arena Assay')
             self.segment_id = uuid.uuid4().hex
             self._restore_trial_clock(self.active_brain,
-                                      self.registry.active if self.graph_mode else None)
+                                      self.registry.active if self.graph_mode else None,
+                                      parent_evidence=prepared.get('parent_evidence'))
             self.learning_curve = self.active_brain.curve
             self._path.clear()
             self._last_step_result = {}
