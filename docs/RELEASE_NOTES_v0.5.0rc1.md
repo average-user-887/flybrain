@@ -38,6 +38,45 @@ neurofly cohort verify [--engine cpu|gpu]
   (`brainlab/cohort/cohort_contract.json`).
 - `--engine gpu` needs an NVIDIA GPU with CuPy. The CPU engine is the reference.
 
+**Data, and running from the wheel.** The wheel contains the program only. The
+connectome data are prepared once, in the matching source checkout, with the same steps
+as v0.4.0:
+
+```bash
+git clone https://github.com/average-user-887/flybrain.git
+cd flybrain
+git checkout v0.5.0rc1
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[test]"
+neurofly download-data          # about 1.1 GB, hash-checked (CC BY 4.0)
+python -m brainlab.connectome   # normalizes the tables
+python -m brainlab.prepare      # builds the engine graph
+neurofly status                 # the graph line should end in (VERIFIED)
+```
+
+To run cohorts from the installed wheel in another environment, export the two data
+locations once, pointing at that checkout. Every cohort command then reuses the same
+prepared data:
+
+```bash
+export NEUROFLY_GRAPH_DIR=/path/to/flybrain/outputs/brainlab/malecns_v1
+export NEUROFLY_CONNECTOME_DIR=/path/to/flybrain/connectome_data/malecns_v1
+neurofly cohort run --out runs/cohort-a --flies 8 --seconds 2
+neurofly cohort resume runs/cohort-a --seconds 2
+neurofly cohort verify --engine gpu      # NVIDIA + CuPy only
+```
+
+How each command finds the data:
+- `verify` has no directory options. It reads only these two variables.
+- `run` also accepts `--graph-dir` and `--connectome-dir`. These options take precedence
+  over the variables.
+- `resume` loads the graph in the same way (options, else the variables), not from a
+  path stored in the cohort. It then checks the loaded graph and I/O map against the
+  `graph_sha256` and `io_map_sha256` recorded in `cohort_manifest.json`, and refuses to
+  continue if either differs.
+- Without the variables, each command falls back to directories inside the installed
+  package, which hold no data.
+
 **What the cohort does not show.** The input and output are declared, not computed by
 the connectome. The `OptomotorEncoder` injects motion-selective drive directly into
 T4/T5: the encoder imposes the direction, and photoreceptor motion computation is
@@ -47,7 +86,7 @@ and writes it into `cohort_manifest.json`.
 
 ## GPU cohort engine: measured results
 
-These were measured on one host with a GTX 1660 Ti (6 GB). Peak GPU memory was 1.05 GB.
+These were measured on one host with a GTX 1660 Ti (6 GB).
 
 ### CPU-reference gate: **FAIL**
 
@@ -73,21 +112,46 @@ The spike and voltage figures are descriptive and do not change the FAIL.
 
 ### Throughput
 
-These figures are from 2000 ticks, median of 3 runs.
+**Units.** The brain advances in **ticks of 0.1 ms**. The cohort loop runs the Arena in
+**steps of 20 ms**, and each Arena step is 200 brain ticks. The summary that `neurofly cohort run`
+prints counts "fly-steps/s" in 20 ms Arena steps, including the Arena, encoder and
+decoder work.
 
-| Engine | Flies (B) | Fly-steps/s | Simulated s per wall s, per fly |
-|---|---|---|---|
-| CPU | 1 | 484 | 0.048 |
-| CPU | 8 | 474 | — |
-| GPU, serial (8 × B1) | 8 | 4068 | — |
-| GPU, batched | 1 | 4151 | 0.415 |
-| GPU, batched | 8 | 4803 | 0.060 |
-| GPU, batched | 32 | 4854 | 0.015 |
+**How it was measured.** `scripts/cohort_bench.py` steps the engine alone, with the
+preregistered constant drive. It runs 2000 ticks (0.2 simulated seconds) per fly per
+run, in calls of 20 ticks. Each figure is the median of 3 runs on the GTX 1660 Ti and
+on this host's CPU.
 
-- **CPU versus GPU:** batched GPU reaches about 4,800 fly-steps/s, against about 480 on
+**Not included.** The Arena, encoder and decoder work in a real `cohort run` is not
+timed. A real run is therefore somewhat slower than these figures.
+
+**Columns.**
+- *Brain ticks/s* is fly × ticks per wall second, summed over the cohort.
+- *Arena steps/s* is the same rate in 20 ms Arena steps (brain ticks/s ÷ 200).
+- *Simulated s per wall s, per fly* is how far each fly gets in one wall-clock second.
+
+| Engine | Flies (B) | Brain ticks/s (0.1 ms) | Arena steps/s (20 ms) | Simulated s per wall s, per fly |
+|---|---|---|---|---|
+| CPU | 1 | 484 | 2.4 | 0.048 |
+| CPU | 8 | 474 | 2.4 | 0.0059 |
+| CPU | 32 | 473 | 2.4 | 0.0015 |
+| GPU, serial (8 runs of B1) | 8 | 4068 | 20.3 | 0.051 |
+| GPU, serial (32 runs of B1) | 32 | 4041 | 20.2 | 0.013 |
+| GPU, batched | 1 | 4151 | 20.8 | 0.415 |
+| GPU, batched | 8 | 4803 | 24.0 | 0.060 |
+| GPU, batched | 32 | 4854 | 24.3 | 0.015 |
+
+- **Where the numbers come from.** The rows for CPU B1/B8, serial 8 and batched B1/B8/B32
+  were measured at `35859da`. CPU B32 and serial 32 were measured at the release
+  candidate, with the machine otherwise idle (load average about 1) and after the GPU
+  tests.
+- **Serial and batched B1 are the same thing.** One run of B1 is the batched B1 row.
+- **Peak device memory in use:** 1.05 GB batched (B32) and 0.42 GB serial.
+
+- **CPU versus GPU:** batched GPU reaches about 4,800 brain ticks/s, against about 480 on
   the CPU.
 - **Batching:** batching adds only about **1.2×** over running the same flies one after
-  another on the GPU. Most of the gain comes from the GPU kernel itself, not from
+  another on the GPU: 4803 against 4068 for 8 flies, and 4854 against 4041 for 32. Most of the gain comes from the GPU kernel itself, not from
   batching.
 - **Start-up costs:**
   - GPU start-up: 0.2–0.65 s.

@@ -33,8 +33,8 @@ results). Details: `docs/RELEASE_NOTES_v0.5.0rc1.md`.
   0 spike/refractory mismatches over 200 ticks; max |ΔV| 1.14e-5 mV.
 - **Checks that pass:** cross-engine restore, batch invariance, isolation between
   flies, and byte-identical resume.
-- **Throughput** (GTX 1660 Ti): batched GPU runs about 4,800 fly-steps/s, against about
-  480 on the CPU. Batching adds only about 1.2x over serial GPU runs.
+- **Throughput** (GTX 1660 Ti): batched GPU runs about 4,800 brain ticks/s (0.1 ms ticks), against
+  about 480 on the CPU. Batching adds only about 1.2x over serial GPU runs.
 - **Disclosure:** the cohort's input and output are declared, not native. The encoder
   drives T4/T5 directly, and the DNa02 yaw decoder is an engineered linear readout.
 
