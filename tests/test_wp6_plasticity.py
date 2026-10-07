@@ -133,7 +133,14 @@ def test_rule_substeps_split_a_control_step_into_rule_steps():
 
 
 def test_registry_updates_the_rule_once_per_rule_dt(tmp_path):
-    """A 20 ms registry step runs ten 2 ms brain steps, each followed by one update."""
+    """A 20 ms registry step runs ten 2 ms brain steps, each followed by one update.
+
+    Since 730059e the rule passed to the registry is a template: each instance
+    steps its own copy so WP6 traces belong to one assay (see
+    test_upgrade_learning_state.py::test_wp6_traces_belong_to_assay_and_survive_switching).
+    The calls are therefore counted on the instance's rule, and the template
+    must never be stepped.
+    """
     from experiment_registry import TestOnlyCoactivityRule
 
     class CountingRule(TestOnlyCoactivityRule):
@@ -154,10 +161,13 @@ def test_registry_updates_the_rule_once_per_rule_dt(tmp_path):
     rule = CountingRule(np.arange(0, 384, 7))
     registry = ExperimentRegistry(shared, tmp_path / 'reg', test_mode=True, plasticity_rule=rule)
     instance = registry.activate('buridan', 'connectome-plastic')
+    assert isinstance(instance.rule, CountingRule) and instance.rule is not rule
     currents = np.full(shared.n, 20.0, np.float32)
     counts = instance.step(currents, 20.0).counts
-    assert rule.calls == 10
+    assert instance.rule.calls == 10
+    assert rule.calls == 0
     assert counts.shape == (shared.n,)
     registry.learning_enabled = False
     instance.step(currents, 20.0)
-    assert rule.calls == 10
+    assert instance.rule.calls == 10
+    assert rule.calls == 0
