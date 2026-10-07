@@ -14,7 +14,8 @@ belong to a CELL TYPE:
   ``r(V)``; a type without a sigmoid keeps v4's linear release times ``gain``
   (gain 1 = v4 exactly).  ``gain`` is an EFFECTIVE release gain recorded per
   presynaptic type; it never rewrites a weight;
-* a graded type may have its own membrane time constant;
+* a graded type may have its own membrane time constant and leak reversal
+  (``e_leak_mV``; v4 uses the global rest -52 mV);
 * a graded type may carry an H-current (S2 hypothesis, L1/L2 only).
 
 Every parameter comes from a frozen JSON file whose sha256 the caller passes;
@@ -42,7 +43,7 @@ E_LIGHT_MV = E_EXC_MV          # light-gated TRP/TRPL conductance; capped by the
 def advance_v6(ptr, post, weight, v, g, refractory, drive, queue, queue_count, cursor, steps, dt,
                counts, active, active_flag, nactive, e_inh, g_unit_exc, g_unit_inh, graded,
                graded_idx, rel_ring, tau_m, g_light, rel_gain, rel_vh, rel_s,
-               gh, h_vh, h_k, h_tau, h_e, h_state, rel_kappa, rel_tau_s, rel_m):
+               gh, h_vh, h_k, h_tau, h_e, h_state, rel_kappa, rel_tau_s, rel_m, e_leak):
     """``advance_v4`` with per-neuron graded-cell parameters (see module doc).
 
     Spiking cells are integrated exactly as in v4 (global TAU_M_MS).  For a
@@ -87,7 +88,7 @@ def advance_v6(ptr, post, weight, v, g, refractory, drive, queue, queue_count, c
             i = graded_idx[k]
             ge = g[0, i]; gi = g[1, i]; gl = g_light[i]
             gtot = 1.0 + ge + gi + gl
-            num = V_REST_MV + ge * E_EXC_MV + gi * e_inh + gl * E_LIGHT_MV + drive[i]
+            num = e_leak[i] + ge * E_EXC_MV + gi * e_inh + gl * E_LIGHT_MV + drive[i]
             if gh[i] > 0.0:
                 hinf = 1.0 / (1.0 + math.exp((v[i] - h_vh[i]) / h_k[i]))
                 h_state[i] = hinf + (h_state[i] - hinf) * math.exp(-dt / h_tau[i])
@@ -227,12 +228,15 @@ class BrainV6(Brain):
         self.h_state = np.zeros(n, np.float64)
         self.rel_kappa = np.zeros(n, np.float64); self.rel_tau_s = np.full(n, 200.0)
         self.rel_m = np.full(n, V_REST_MV, np.float64)
+        self.e_leak = np.full(n, V_REST_MV, np.float64)
         applied = {}
         ct = np.asarray(cell_type)
         for t, p in params.get('types', {}).items():
             m = (ct == t) & (self.graded != 0)
             idx = np.flatnonzero(m)
             applied[t] = int(len(idx))
+            if 'e_leak_mV' in p:
+                self.e_leak[idx] = p['e_leak_mV']
             if 'tau_m_ms' in p:
                 self.tau_m[idx] = p['tau_m_ms']
             rel = p.get('release')
@@ -302,7 +306,7 @@ class BrainV6(Brain):
                                      self.g_unit_exc, self.g_unit_inh, self.graded, self.graded_idx,
                                      self.rel_ring, self.tau_m, self.g_light, self.rel_gain, self.rel_vh,
                                      self.rel_s, self.gh, self.h_vh, self.h_k, self.h_tau, self.h_e,
-                                     self.h_state, self.rel_kappa, self.rel_tau_s, self.rel_m)
+                                     self.h_state, self.rel_kappa, self.rel_tau_s, self.rel_m, self.e_leak)
         self.total_spikes += int(self.counts.sum())
         self.sim_ms += ms
         return self.counts.copy(), 0.0

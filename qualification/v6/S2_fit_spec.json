@@ -1,0 +1,23 @@
+{
+  "contract": "v6 S2 FIT SPEC: bounded EXPLORATORY arm under ASTRA_TO_CLAUDE_V6_S1_RESCOPE_RULING_20261008. Frozen and committed before any S2 fit or evaluation.",
+  "baseline": "S1-A3 parameters (qualification/v6/params_v6_S1_A3.json sha256 490749f21230380bb210d55772a259783d447b699aa70186f849143462c82257) are inherited ONLY as a labelled exploratory baseline. S1-A3 remains FIT REJECTED, held-out 2/4, TRANSFER FAIL.",
+  "arms": {
+    "S2-A": "medulla+lamina per-type SHAPE/SIGN fit (below) on top of the S1-A3 baseline",
+    "S2-A-leak40": "SENSITIVITY ONLY, separately versioned: S2-A parameters unchanged (no refit) plus leak reversal e_leak = -40 mV for L1, L2, L3. -40 mV is the depolarised bound of the pooled ZHENG2006 LMC resting range (-40..-70 mV). Population bound, not an identified per-type value; NON-IDENTIFIABLE; hypothetical. Default leak reversal = the engine rest -52 mV."
+  },
+  "fixed": "inhibitory reversal E_inh -70 mV (global, unchanged; no pinned reversal measurement); excitatory reversal 0 mV; graph and all base weights; S1-A3 R1-R6 parameters. Rest, leak reversal and inhibitory reversal are distinct parameters; only leak reversal is varied, and only in S2-A-leak40.",
+  "data": "BORST2025 summary numbers (S0_data_pin.json) for L1, L2, L3, L4, L5, Mi1, Tm3, Mi4, Mi9, Tm1, Tm2, Tm4, Tm9: target(t) = RF_sign * normalize_data(ImpR) built with Borst's first-order discrete filters at 10 ms bins (signal = step at bin 50, low-passed with tau 5 bins; ImpR = lowpass(signal, IR_lp) or highpass(lowpass(signal, IR_lp), IR_hp)). Borst's 40 % DC for L1/L2 and his 20 mV scale are NOT used.",
+  "observation_model": "calcium, SHAPE and SIGN only: model V of the central-column cell of each type, binned to 10 ms, minus its mean over the 500 ms before the step, passed through a first-order low-pass with tau 50 ms (5 bins, Borst's discrete form; stands for indicator kinetics), then divided by its own max |value|. No absolute mV and no membrane-time-constant claim follows from this fit; fitted tau_m are effective shape parameters only. Uncertainty: the summaries carry no error bars; descriptive 'shape match' if per-type normalised error <= 0.20 (declared, not data).",
+  "stimulus": "7-column cutout, BG-1 background (encoder 10) on all cutout R1-R6 for a 1000 ms settle and the 500 ms pre-step, then the CENTRAL column's R1-R6 step to encoder 20 (2 x BG-1) for 1500 ms; 2000 ms recorded at 1 ms.",
+  "cutout": "central right-eye column (17, 27): the COMPLETE column nearest the median of COMPLETE columns whose six neighbours are COMPLETE, plus its 6 neighbours. Cells: the 13 types above with assignedOlHex in those 7 columns (right eye) and R1-R6 whose cartridge (photoreceptor_io) is one of them; every graph edge among them with its engine v4 weight; inputs from outside the cutout are ABSENT (disclosed limitation: tonic external inputs differ from the full graph). All cutout cells graded (all are v4 tier-1 graded types).",
+  "free_parameters": {
+    "tau_m_ms": "one per type for the 13 types, log-scaled, bounds [2, 200]",
+    "ih_L1_L2": "per type L1 and L2: g in [0, 3] leak units, activation midpoint vh in [-70, -40] mV, tau_h in [20, 1000] ms; slope k = 5 mV and reversal E_h = -30 mV FIXED (engineering assumptions; HCN not characterised, Borst 2025)"
+  },
+  "objective": "mean over the 13 types of sum_t (c_model - target)^2 / sum_t target^2 over the 200 bins (Borst 2025's normalised cost)",
+  "optimiser": "Powell on the bounded transformed parameters from the default start (tau_m 20 ms, Ih off at g = 0.01), max 2500 function evaluations, CPU, one thread, nice, taskset 0-3",
+  "validation": "NOT EVALUABLE: no untouched non-motion recordings are pinned. The S1 hold-outs (H1-H4) are development data now and are reported only as regression checks. The Borst RF (spatial) numbers are not used and are not claimed as validation.",
+  "diagnostics_not_targets": "after freezing, the Path B transfer protocol is run for S2-A and for S2-A-leak40 (contract S2_transfer_contract.json, committed before those runs). Transfer gains are diagnostics, never optimisation targets.",
+  "motion": "UNOPENED. No S3, no grating, no DS, no T4/T5 tuning used anywhere.",
+  "stop_rule": "stop after these two arms and report"
+}
