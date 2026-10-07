@@ -5,6 +5,57 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
+## [0.5.0rc2] - 2026-10-07 (PRERELEASE)
+
+Second release candidate, on top of `v0.5.0rc1`. **Experimental prerelease; not
+biological validation.** Details: `docs/RELEASE_NOTES_v0.5.0rc2.md`.
+
+### Fixed
+
+- **Cohort resume uses the recorded engine.** In rc1, `cohort resume` without
+  `--engine` ran on the CPU even when the cohort was recorded on the GPU. The rc1
+  workaround was to pass `--engine gpu`. Now resume selects the recorded backend by
+  its exact id. It refuses, before writing anything, when that backend is unavailable
+  or unknown. An explicit `--engine` switch is recorded as a mixed-engine numerical
+  realisation.
+- `cohort verify` without CuPy prints `FAIL  engine-available` and exits 1.
+- **Run inputs are checked before any directory is created.** `step_ms` must be a
+  finite, positive whole number of 0.1 ms ticks. Non-finite `--seconds` and checkpoint
+  intervals are refused.
+- **Engine states are checked more strictly.** An engine state whose active list
+  disagrees with its active flags, holds duplicates, or has negative refractory
+  counters is refused atomically.
+- **Cohort manifest I/O.** The manifest declares only the cohort's own optomotor/yaw
+  I/O and its encoder/decoder. It refers to the daemon I/O declaration by version and
+  sha256 only.
+- **Writer identity.** Module hashes are taken at load time. Later changes on disk are
+  reported as `disk_drift_since_load`.
+- **Opt-in split mode.**
+  - Snapshots, status and pending requests are tied to one connection.
+  - A command pending across a disconnect resolves as "outcome unknown".
+  - Telemetry from an earlier run is never shown after a restart.
+
+### Changed
+
+- **Faster GPU delivery.** A per-fly arrival bitmap replaces the scan over every
+  incoming edge. Results are byte-identical to the rc1 strict kernel on the same
+  device.
+  - A whole 8-fly × 2 s GPU cohort runs **2.64×** faster (113.19 s → 42.88 s, median
+    of 3).
+  - Engine-only B8 is 3.9× faster.
+  - The dynamics signature is unchanged, so rc1 GPU cohorts still resume.
+- **Checkpoint compression.** Checkpoint members are compressed with deterministic
+  deflate, level 1. A real-graph checkpoint shrinks from 16.6 MB to 1.53 MB, and saving
+  takes about 10 ms more per fly. rc1 checkpoints still verify and resume. A committed
+  rc1-format store resumes byte-exactly.
+
+### Scientific results
+
+- **Unchanged:** the 200-tick (20 ms) CPU-reference contract is the only established
+  CPU/GPU agreement. There is no claim of long-run CPU/GPU equivalence. On the faster
+  kernel the contract passes 6/6, with g relative error 5.35e-7 and restore 4.53e-7
+  (preregistered bound 1e-6).
+
 ## [0.5.0rc1] - 2026-10-07 (PRERELEASE)
 
 Release candidate on top of `v0.4.0`. **Experimental prerelease; not biological
@@ -266,6 +317,7 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 
 Tagged as `v0.3.0` (`b6031b7`); no changelog was kept before this version.
 
+[0.5.0rc2]: https://github.com/average-user-887/flybrain/compare/v0.5.0rc1...v0.5.0rc2
 [0.5.0rc1]: https://github.com/average-user-887/flybrain/compare/v0.4.0...v0.5.0rc1
 [0.4.0]: https://github.com/average-user-887/flybrain/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/average-user-887/flybrain/tree/v0.3.0
