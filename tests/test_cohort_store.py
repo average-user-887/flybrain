@@ -182,3 +182,19 @@ def test_checkpoint_engine_disagreeing_with_manifest_is_refused(cohort_dir):
     with pytest.raises(CohortError, match='checkpoint engine'):
         resume_cohort(cohort_dir, seconds=0.1, engine='cpu', graph=synthetic_graph(), progress=quiet)
     assert snapshot_tree(cohort_dir) == before
+
+
+def test_resume_refused_when_running_dynamics_differ(cohort_dir, monkeypatch):
+    """Same code, different model (TAU_M 20 -> 21 ms): refused, nothing touched."""
+    from brainlab import engine as lif
+    manifest = json.loads((cohort_dir / store.MANIFEST_NAME).read_text())
+    meta, _, _ = store.read_checkpoint(cohort_dir / manifest['flies'][0]['checkpoints'][-1]['file'])
+    assert meta['dynamics_signature'] == manifest['dynamics_signature']
+    assert manifest['dynamics_signature']['values']['constants']['TAU_M_MS'] == 20.0
+    before = snapshot_tree(cohort_dir)
+    monkeypatch.setattr(lif, 'TAU_M_MS', 21.0)
+    with pytest.raises(CohortError, match='TAU_M_MS: recorded 20.0, running 21.0'):
+        resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(), progress=quiet)
+    assert snapshot_tree(cohort_dir) == before
+    monkeypatch.setattr(lif, 'TAU_M_MS', 20.0)
+    resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(), progress=quiet)   # same model: accepted
