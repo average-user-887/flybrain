@@ -37,6 +37,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / 'scripts'))
+
+import pathA_provenance as prov  # noqa: E402
 
 
 def sha256_file(path) -> str:
@@ -123,8 +126,12 @@ def main():
     contract = json.loads(cpath.read_text())
     gdir = Path(os.environ['NEUROFLY_GRAPH_DIR'])
     cdir = Path(os.environ['NEUROFLY_CONNECTOME_DIR'])
-    if sha256_file(gdir / 'graph.npz') != contract['data']['graph_npz_sha256']:
+    graph_sha = sha256_file(gdir / 'graph.npz')
+    if graph_sha != contract['data']['graph_npz_sha256']:
         raise SystemExit('graph.npz sha256 differs from the contract')
+    # Immutable run provenance (scripts/pathA_provenance.py): bound into every row.
+    base = prov.expected(args.contract_sha256, graph_sha, contract['protocol']['dynamics'],
+                         contract['protocol']['backend'], prov.engine_sha256(), prov.code_sha())
 
     from brainlab.brain import Brain
     arrays = load_v3_arrays(gdir, cdir)
@@ -139,10 +146,20 @@ def main():
     out = Path(args.out)
     (out / 'counts').mkdir(parents=True, exist_ok=True)
     log = out / 'runs.jsonl'
+    manifest = out / 'provenance.json'
+    if manifest.exists():
+        if json.loads(manifest.read_text()) != base:
+            raise SystemExit(f'{manifest} records a different contract/engine/graph/source: refusing to resume')
+    else:
+        manifest.write_text(json.dumps(base, indent=1) + '\n')
     done = set()
     if log.exists():
         for line in log.read_text().splitlines():
             r = json.loads(line)
+            try:
+                prov.check_row(r, base)
+            except prov.ProvenanceError as exc:
+                raise SystemExit(f'refusing to resume: {exc}')
             done.add((r['condition'], r['seed']))
     only = set(args.only.split(',')) if args.only else None
     cf_brain = {}
@@ -164,7 +181,7 @@ def main():
             nz = np.flatnonzero(total)
             np.savez_compressed(out / 'counts' / f"{cond['id']}_s{seed}.npz", node_index=nz.astype(np.int32),
                                 counts=total[nz].astype(np.int32))
-            rec = dict(condition=cond['id'], test=cond['test'], seed=seed, rate_hz=cond['rate_hz'],
+            rec = dict(provenance=prov.stamp(base, seed), condition=cond['id'], test=cond['test'], seed=seed, rate_hz=cond['rate_hz'],
                        activate=cond['activate'], silence=cond.get('silence', []),
                        counterfactual=cond.get('counterfactual'), wall_s=wall,
                        activated_cells=int(len(stim)), activated_mean_rate_hz=stim_rate,
