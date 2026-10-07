@@ -1339,7 +1339,10 @@ class ContinuousExperimentRunner:
         # Runtime state
         self.start_time = time.time()
         self.total_steps = 0
-        self.current_trial = 1
+        self.current_trial = 1          # active assay's trial number (its saved trial clock)
+        # Session-wide trial number of trial records: starts at 1 in every process and
+        # stays monotonic across assay switches (the learning recorder's append key).
+        self.session_trial = 1
         self.trial_sim_time = 0.0
         self.last_checkpoint_time = time.time()
         self.trial_history: List[Dict[str, Any]] = []
@@ -3820,7 +3823,8 @@ class ContinuousExperimentRunner:
             "backend": ident.get("backend"),
             "brain_id": self.active_brain.brain_id,
             "brain_trial": self.active_brain.trials,
-            "trial": self.current_trial,
+            "trial": self.session_trial,
+            "assay_trial": self.current_trial,
             "trial_known": self.active_brain.trial_clock["trial_known"],
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
@@ -3830,6 +3834,7 @@ class ContinuousExperimentRunner:
             "timestamp": time.time()
         })
         self.current_trial += 1
+        self.session_trial += 1
 
     def dispatch_command(self, cmd: dict) -> dict:
         """Apply an external command and acknowledge the step at which it took effect.
@@ -4265,6 +4270,7 @@ class ContinuousExperimentRunner:
         if plan['action'] == 'reset_trial':
             if plan['advance']:
                 self.current_trial += 1
+                self.session_trial += 1
             if not plan['keep_memory']:
                 self.arena.fly.circuit.reset_state(keep_memory=False)
             paradigm = self.arena.paradigm
