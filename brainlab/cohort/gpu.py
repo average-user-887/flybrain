@@ -399,6 +399,16 @@ class GpuCohortEngine(CohortEngine):
                 self.total_spikes[k] = 0
                 self.sim_ms[k] = 0.0
 
+    def _kernel_args(self, ticks: int) -> tuple:
+        return (self.d_ptr, self.d_post, self.d_v, self.d_g,
+                self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
+                self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
+                self.d_in_ptr, self.d_csc_pos, self.d_in_w, self.d_due, self.d_recv,
+                self.d_bits, np.int64(self.n_words), np.int64(self.n),
+                np.int32(self.n_flies), np.int32(self.delay_slots),
+                np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh),
+                np.float64(self.g_unit_exc), np.float64(self.g_unit_inh))
+
     def step(self, drive: np.ndarray, ticks: int) -> np.ndarray:
         drive = self._check_step_args(drive, ticks)   # whole batch, before any fly moves
         ticks = int(ticks)
@@ -408,14 +418,7 @@ class GpuCohortEngine(CohortEngine):
                 self._last_drive = drive.copy()
             self.d_counts.fill(0)
             self.d_cursor.set(np.asarray(self.cursor, dtype=np.int64))
-            args = (self.d_ptr, self.d_post, self.d_v, self.d_g,
-                    self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
-                    self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
-                    self.d_in_ptr, self.d_csc_pos, self.d_in_w, self.d_due, self.d_recv,
-                    self.d_bits, np.int64(self.n_words), np.int64(self.n), np.int32(self.n_flies), np.int32(self.delay_slots),
-                    np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh),
-                    np.float64(self.g_unit_exc), np.float64(self.g_unit_inh))
-            self.kernel((self._grid_blocks(),), (THREADS_PER_BLOCK,), args)
+            self.kernel((self._grid_blocks(),), (THREADS_PER_BLOCK,), self._kernel_args(ticks))
             counts = self.d_counts.get()
         for k in range(self.n_flies):
             self.cursor[k] += ticks

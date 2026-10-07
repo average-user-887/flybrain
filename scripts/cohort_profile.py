@@ -114,13 +114,16 @@ def profiling_engine_class(mode: int, sink: list, kernel_source: str = None):
                 self.d_counts.fill(0)
                 self.d_cursor.set(np.asarray(self.cursor, dtype=np.int64))
                 prof = cp.zeros(ticks * NSLOT, dtype=cp.uint64)
-                args = (self.d_ptr, self.d_post, self.d_v, self.d_g,
-                        self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
-                        self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
-                        self.d_in_ptr, self.d_in_pre, self.d_in_w, self.d_due, self.d_recv,
-                        np.int64(self.n), np.int32(self.n_flies), np.int32(self.delay_slots),
-                        np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh),
-                        np.float64(self.g_unit_exc), np.float64(self.g_unit_inh), prof, np.int32(mode))
+                if hasattr(self, '_kernel_args'):
+                    args = self._kernel_args(ticks) + (prof, np.int32(mode))
+                else:   # the strict full-scan kernel (v0.5.0rc1)
+                    args = (self.d_ptr, self.d_post, self.d_v, self.d_g,
+                            self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
+                            self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
+                            self.d_in_ptr, self.d_in_pre, self.d_in_w, self.d_due, self.d_recv,
+                            np.int64(self.n), np.int32(self.n_flies), np.int32(self.delay_slots),
+                            np.int32(ticks), np.float64(self.dt), np.float64(self.e_inh),
+                            np.float64(self.g_unit_exc), np.float64(self.g_unit_inh), prof, np.int32(mode))
                 self.kernel((self._grid_blocks(),), (THREADS_PER_BLOCK,), args)
                 counts = self.d_counts.get()
                 sink.append(prof.get().reshape(ticks, NSLOT))
