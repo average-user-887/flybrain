@@ -75,7 +75,10 @@ common header are copied verbatim from the runner:
 | `assay_trial` | int | the assay's own trial number from its saved trial clock (see "Clocks"); continues across restarts |
 | `trial_known` | bool | false when `assay_trial` is not a true ordinal because the state predates trial clocks |
 | `brain_trial` | int | the assay brain's saved count of completed trials |
-| `sim_seconds` | float | the trial's elapsed time when it ended, including time restored from a checkpoint |
+| `sim_seconds` | float | the trial clock's elapsed time when it ended, including time restored from a checkpoint |
+| `observation_segment_id` | string | the observation segment whose terminal ended the trial |
+| `observation_measured_s` | float or null | that segment's measured window (`measurement_end_rel_s` of its terminal); after a restore it can be shorter than `sim_seconds` |
+| `segment_lineage` | object or null | that segment's lineage when it started inside a restored trial (see "Clocks") |
 | `paradigm` | string | active paradigm id (`t-maze`, `heat-maze`, ...) |
 | `step` | int | daemon-session simulation step at which the milestone was recorded |
 | `metric` | float | `performance_index` / `pi` / `learning_index` from the paradigm metrics, else `0.5` |
@@ -217,7 +220,8 @@ not carry `clocks`; their values are kept as recorded.
 | Field | Meaning |
 | --- | --- |
 | `session` | `scope` `"daemon_session"`, `daemon_run_id`, `step`, `elapsed_s`: this daemon process's step count and simulated time (the packet's `step`/`sim_time_s`) |
-| `trial` | the active assay's trial clock, `neurofly.assay-trial-clock.v1`: `elapsed_s`, `current_trial`, `elapsed_known`, `trial_known`, `reason` |
+| `trial` | the active assay's trial clock, `neurofly.assay-trial-clock.v1`: `elapsed_s`, `current_trial`, `elapsed_known`, `trial_known`, `reason`, `segment_id` (the observation segment in progress when it was saved) |
+| `observation` | the measurement window: `scope` `"observation_segment"`, `segment_id`, `config_id`, `segment_elapsed_s`, `presentation_index`, `presentation_elapsed_s`, `effective_window_s`, `lineage` |
 | `graph` | graph runs only: `scope` `"retained_graph_instance"`, `instance_id`, `step` (the instance's saved step index), `elapsed_s` (its neural simulated time). Restored from the checkpoint with the brain; it is not the trial's elapsed time |
 
 The trial clock is saved with the state it belongs to: in the same atomic,
@@ -235,9 +239,24 @@ saved as unknown again. A trial that starts while the daemon runs (a natural
 end or `reset_trial`) makes `elapsed_known` true; an unknown trial ordinal stays
 unknown. The dashboard shows Unknown for exactly these flags.
 
-The observation window (metric-contract/1.2) still starts again with a new
-segment after a restart, so a restored trial runs one more full window; its
-`sim_seconds` includes the restored elapsed time.
+The observation window (metric-contract/1.2) is not continued: a restored
+trial starts a new segment (new `segment_id`, `presentation_id` and
+`config_id`) with a full window and fresh metric accumulators, and runs one
+more full window. Nothing is restitched. That segment carries an immutable
+`lineage` (in `clocks.observation`, `observation_lifecycle.segment_lineage`
+and the trial record): `segment_id`, `parent_segment_id` (the saved clock's
+segment; null for older saves), `reason` (`daemon_restart` or
+`assay_reactivated`), `parent_observation`
+(`interrupted_incomplete_no_terminal` or `ended_before_assay_switch`),
+`daemon_run_id`, `trial`, `trial_known`, `restored_trial_elapsed_s`,
+`trial_elapsed_known`, `observation_window` `"restarted"` and
+`metric_accumulators` `"not_restored"`. After a daemon restart the same record
+is appended to the assay's `<paradigm>.events.jsonl` as `kind`
+`observation_interrupted`: the parent has no terminal observation and is
+incomplete. The parent may have been continued by the earlier process after
+the checkpoint; the restored trial repeats from the checkpoint. The dashboard
+shows "Trial elapsed" and, under it, "Window … · restarted after daemon
+restart".
 
 ### Path (`path`)
 
