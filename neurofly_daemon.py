@@ -5710,7 +5710,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                 {"id": "circadian-dam", "title": "10. Circadian DAM Sleep Monitor"},
                 {"id": "courtship", "title": "11. Courtship Conditioning & Wing Song"},
                 {"id": "labyrinth", "title": "12. Corridor Obstacle Labyrinth"},
-                {"id": "multisensory-sandbox", "title": "13. Multisensory 6-Limb Benchmark"}
+                {"id": "multisensory-sandbox", "title": "13. Multisensory Sandbox · Heuristic Body Proxy"}
             ]
             self.wfile.write(json.dumps({"paradigms": all_p}).encode("utf-8"))
 
