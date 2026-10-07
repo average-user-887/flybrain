@@ -12,6 +12,7 @@ Usage:
   neurofly capability
   neurofly validate <spec>
   neurofly record --paradigm P --seconds S --out FILE
+  neurofly cohort run|resume|verify [options]
 """
 from __future__ import annotations
 
@@ -172,6 +173,12 @@ def cmd_record(args: list[str]) -> int:
     return recording.main(args)
 
 
+def cmd_cohort(args: list[str]) -> int:
+    """Many independent fixed-v3 brains: run, resume or verify a cohort."""
+    from brainlab.cohort import runner
+    return runner.main(args)
+
+
 def cmd_capability(args: list[str]) -> int:
     """Display the 14-paradigm capability matrix."""
     argparse.ArgumentParser(prog="neurofly capability", description=cmd_capability.__doc__).parse_args(args)
@@ -213,6 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("capability", help="Print the 14-paradigm capability matrix")
     subparsers.add_parser("validate", help="Run or check a preregistered validation spec (run|check <spec>)")
     subparsers.add_parser("record", help="Record a paradigm run (.nfrec) for 1x replay in the dashboard")
+    subparsers.add_parser("cohort", help="Run/resume/verify many independent fixed-v3 brains (run|resume|verify)")
 
     if not argv:
         parser.print_help()
@@ -241,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_validate(rest)
     elif cmd == "record":
         return cmd_record(rest)
+    elif cmd == "cohort":
+        return cmd_cohort(rest)
     elif cmd == "--version":
         from neurofly import __version__
         print(f"neurofly {__version__}")
