@@ -7,8 +7,8 @@ ones, get their own section, because for this project they matter as much as cod
 
 ## [0.5.0rc1] - 2026-10-07 (PRERELEASE)
 
-Release candidate on top of `v0.4.0`. **Prerelease, pending review and the owner's
-decision.** The first GPU cohort kernel failed its preregistered CPU-reference gate.
+Release candidate on top of `v0.4.0`. **Experimental prerelease; not biological
+validation.** The first GPU cohort kernel failed its preregistered CPU-reference gate.
 This candidate changes its arrival arithmetic and passes the unchanged gate, but the GPU
 is now only about 1.1–1.4× faster than the CPU (see Scientific results). Details:
 `docs/RELEASE_NOTES_v0.5.0rc1.md`.
@@ -17,8 +17,10 @@ is now only about 1.1–1.4× faster than the CPU (see Scientific results). Deta
 
 - **Cohort runs:** `neurofly cohort run|resume|verify` (`brainlab/cohort`). Many
   independent fixed-weight v3 brains share one read-only graph, each with its own seed,
-  arena, encoder and decoder. The only assay is optomotor. Checkpoint/resume is
-  byte-exact and works across engines. The CPU engine is the reference; `--engine gpu`
+  arena, encoder and decoder. The only assay is optomotor. Resume on the same GPU engine
+  is byte-identical. CPU↔GPU continuation is not bit-identical; it is verified only
+  within the contract bounds (g relative error ≤ 4.5e-7, 0 spike mismatches over
+  ticks 100–199). The CPU engine is the reference; `--engine gpu`
   (CUDA/CuPy) is optional.
 - **Opt-in two-process mode:** `neurofly run --split` runs the simulation and the web
   server as separate processes, and `neurofly sim-serve` and `neurofly web-serve` start
@@ -40,8 +42,9 @@ is now only about 1.1–1.4× faster than the CPU (see Scientific results). Deta
     0 spike mismatches over 200 ticks.
 - **Compatibility:** cohorts written under the fixed-point kernel are refused on resume
   by the dynamics signature, and their files are left untouched.
-- **Checks that pass:** cross-engine restore, batch invariance, isolation between
-  flies, and byte-identical resume.
+- **Checks that pass:** cross-engine restore within the contract bounds (not
+  bit-identical), batch invariance, isolation between flies, and byte-identical
+  same-GPU resume.
 - **Throughput** (GTX 1660 Ti): batched GPU runs 545–643 brain ticks/s (0.1 ms ticks),
   against about 480 on the CPU. The fixed-point kernel's 4,150–4,850 ticks/s are
   historical.

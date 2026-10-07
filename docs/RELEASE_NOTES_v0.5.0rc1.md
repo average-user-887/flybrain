@@ -2,11 +2,10 @@
 
 *Release candidate, 7 October 2026. Base: tag `v0.4.0` (`5bd16d6`).*
 
-> **PRERELEASE.** This candidate is not a release. The first GPU cohort engine
+> **Experimental prerelease; not biological validation.** The first GPU cohort engine
 > (fixed-point arrivals, frozen at `af87006`) **failed** its preregistered CPU-reference
 > gate. This candidate replaces its arrival arithmetic and **passes** the unchanged gate,
-> at about one eighth of the earlier GPU speed (below). Release waits on review and the
-> owner's decision.
+> at about one eighth of the earlier GPU speed (below).
 
 ## In short
 
@@ -35,7 +34,11 @@ neurofly cohort verify [--engine cpu|gpu]
 
 - `run` writes a new cohort into an empty directory: per-fly recordings, checkpoints
   and `cohort_manifest.json`.
-- `resume` verifies a cohort directory and continues it exactly, on either engine.
+- `resume` verifies a cohort directory and continues it.
+  - **Same GPU engine:** the continuation is byte-identical to an uninterrupted run.
+  - **CPU↔GPU continuation is not bit-identical.** It is verified only within the
+    contract's stated bounds: g relative error ≤ 4.5e-7 and 0 spike mismatches in the
+    tick 100–199 window after the switch.
 - `verify` runs the preregistered CPU/GPU numerical contract
   (`brainlab/cohort/cohort_contract.json`).
 - `--engine gpu` needs an NVIDIA GPU with CuPy. The CPU engine is the reference.
@@ -100,8 +103,8 @@ Measured on one host with a GTX 1660 Ti (6 GB), the only device visible to the r
 - The two are **not bit-identical**. On the contract workload they agree to a g relative
   error of at most 5.35e-7.
 - Equations, constants, weights, delay, refractory period and phase order are unchanged.
-- **Superseded:** the first GPU cohort kernel (`af87006`) summed arrivals in 64-bit fixed
-  point and folded them once per tick.
+- **Superseded:** the first GPU cohort kernel (`af87006`) accumulated arrivals as
+  deterministic quantized 64-bit fixed-point values, rounded on folding once per tick.
 - The cohort dynamics signature now records the arrival arithmetic. A cohort written
   under the fixed-point kernel is refused on resume, before anything is restored or
   written, and its files are left untouched.
@@ -115,9 +118,11 @@ stimulus, seeds, window, tolerances and predicates are unchanged.
   172, fly 4: g relative error 1.006e-6 against a bound of 1e-6. Descriptively over 200
   ticks: 7 g points above 1e-6 (worst 1.047e-6), 0 spike or refractory mismatches, max
   |ΔV| 1.14e-5 mV. That result stands.
-- **Cause:** the CPU rounds to float32 after each arrival; the fixed-point kernel summed
-  exactly and rounded once. At the first divergent neuron, 64 arrivals at tick 104 left
-  an 11-ulp difference, which persisted through decay.
+- **Cause:** the CPU rounds to float32 after each arrival. The fixed-point kernel used
+  deterministic quantized fixed-point arrivals, rounded on folding. At the first
+  divergent neuron, 64 arrivals at tick 104 left an 11-ulp difference, which persisted
+  through decay. In that one 64-arrival example the fixed-point result agreed with an
+  exact double sum. This is an example, not a general proof.
 - **This candidate (per-arrival float32): PASS**, a new run.
   - 0 spike mismatches.
   - Max |ΔV| 7.6e-6 mV.
@@ -126,7 +131,9 @@ stimulus, seeds, window, tolerances and predicates are unchanged.
 
 ### Checks that pass (this candidate)
 
-- Cross-engine restore works in both directions (max g relative error 4.5e-7).
+- Cross-engine restore works in both directions within the contract bounds: max g
+  relative error 4.5e-7 and 0 spike mismatches over ticks 100–199. It is not
+  bit-identical.
 - Results do not depend on batch size: with B = 1, 8 and 32, all 32 flies are
   byte-identical.
 - Flies are isolated from each other.
@@ -137,7 +144,9 @@ stimulus, seeds, window, tolerances and predicates are unchanged.
 ### Throughput
 
 **Units.** The brain advances in **ticks of 0.1 ms**. The cohort loop runs the Arena in
-**steps of 20 ms**, and each Arena step is 200 brain ticks. The summary that `neurofly
+**steps of 20 ms**, and each Arena step is 200 brain ticks. The column *20 ms
+step-equivalents/s (engine only)* is derived: brain ticks/s ÷ 200. It is not a measured
+count of Arena-loop steps. The summary that `neurofly
 cohort run` prints counts "fly-steps/s" in 20 ms Arena steps, including the Arena,
 encoder and decoder work.
 
@@ -146,7 +155,7 @@ preregistered constant drive. It runs 2000 ticks per fly per run, in calls of 20
 Each figure is the median of 3 runs. The real Arena, encoder and decoder work is not
 timed.
 
-| Engine | Flies (B) | Brain ticks/s (0.1 ms) | Arena steps/s (20 ms) | Simulated s per wall s, per fly |
+| Engine | Flies (B) | Brain ticks/s (0.1 ms), measured | 20 ms step-equivalents/s (engine only) | Simulated s per wall s, per fly |
 |---|---|---|---|---|
 | CPU | 1 | 484 | 2.4 | 0.048 |
 | CPU | 8 | 474 | 2.4 | 0.0059 |
