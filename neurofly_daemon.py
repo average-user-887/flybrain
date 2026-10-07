@@ -4070,7 +4070,7 @@ class ContinuousExperimentRunner:
         self.current_trial += 1
         self.session_trial += 1
 
-    def dispatch_command(self, cmd: dict) -> dict:
+    def dispatch_command(self, cmd: dict, on_queued=None) -> dict:
         """Apply an external command and acknowledge the step at which it took effect.
 
         While the scheduler runs, the command is queued and applied by the simulation
@@ -4097,6 +4097,10 @@ class ContinuousExperimentRunner:
                          "client_command_id": client_id}
                 self._commands.append(entry)
             self._wake.set()
+            if on_queued is not None:
+                # Split mode: the web process learns the command id at once and can
+                # answer "queued" without waiting for the step boundary.
+                on_queued(entry["id"])
             if not entry["done"].wait(self.command_reply_wait_s):
                 # A long step is running.  The command stays queued and is applied at
                 # the next step boundary; its acknowledgement arrives in the stream.
@@ -5933,6 +5937,9 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
         return
 
 
+PROCESS_MODES = ("split", "single", "sim", "web")
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Project NeuroFly Continuous Headless Learning Daemon")
     parser.add_argument("--host", default="127.0.0.1",
@@ -6047,6 +6054,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
                               help="Record one frame every N steps (default 1: every 20 ms step)")
     replay_group.add_argument("--record-raster", choices=("none", "io", "all"), default="io",
                               help="Spike raster: IO/annotated neurons (default), all neurons, or none")
+    proc_group = parser.add_argument_group(
+        "process layout", "Default: one process (simulation and web server together). --split runs "
+                          "them as separate processes (neurofly/split.py; v0.5 prototype).")
+    proc_group.add_argument("--process-mode", choices=PROCESS_MODES, default="single",
+                            help="single (default): the one-process daemon; split: spawn a headless "
+                                 "simulation process and a web process; sim / web: one side only")
+    proc_group.add_argument("--split", dest="process_mode", action="store_const", const="split",
+                            help="Same as --process-mode split")
+    proc_group.add_argument("--single-process", dest="process_mode", action="store_const", const="single",
+                            help="Same as --process-mode single (already the default; accepted for scripts)")
+    proc_group.add_argument("--ipc-socket", default=None, metavar="PATH",
+                            help="Unix socket between the simulation and web processes "
+                                 "(default: chosen by the launcher; sim/web modes: derived from --port)")
     return parser
 
 
@@ -6087,6 +6107,14 @@ def preflight_compute_startup(args):
 def run_daemon():
     parser = build_arg_parser()
     args = parser.parse_args()
+    if args.process_mode in ("sim", "web"):
+        # Started by a split launcher: exit with it, even if it is SIGKILLed.
+        from neurofly.split import bind_to_launcher
+        bind_to_launcher()
+    if args.process_mode == "web":
+        # The web process never builds a runner, loads a graph or writes run state.
+        from neurofly.split import run_web
+        sys.exit(run_web(args))
     # argparse never checks a default against ``choices``, so the dynamics default is
     # resolved here: an environment value (NEUROFLY_LIF_DYNAMICS=v6a, v4, or any unknown
     # string) is refused before the PID file, data dir or any checkpoint is touched.
@@ -6115,6 +6143,10 @@ def run_daemon():
         stream_hz=args.stream_hz,
         allowed_origin=args.allowed_origin,
     )
+    if args.process_mode == "split":
+        # Startup refusals above already ran here, before any child or file exists.
+        from neurofly.split import run_split
+        sys.exit(run_split(args, sys.argv[1:]))
 
     # PID writing if requested
     pid_path = Path(args.pid_file) if args.pid_file else (PROJECT_ROOT / "outputs" / "neurofly_daemon.pid")
@@ -6221,10 +6253,6 @@ def run_daemon():
         print(f"[Daemon] Learning records: {data_dir}", flush=True)
     runner.start()
 
-    NeuroflyHTTPHandler.runner = runner
-    NeuroflyHTTPHandler.gateway = StreamGateway(stream_policy)
-    server = ThreadingHTTPServer((args.host, args.port), NeuroflyHTTPHandler)
-
     def _cleanup() -> bool:
         """Stop once (F5): final checkpoint, recorder flush and PID file, each guarded,
         so a failed final checkpoint never skips the rest."""
@@ -6243,6 +6271,16 @@ def run_daemon():
         except OSError:
             pass
         return ok
+
+    if args.process_mode == "sim":
+        # Headless simulation process: the same runner, recorder and shutdown path,
+        # published to a web process over a local socket instead of served over HTTP.
+        from neurofly.split import serve_sim
+        sys.exit(serve_sim(runner, _cleanup, args))
+
+    NeuroflyHTTPHandler.runner = runner
+    NeuroflyHTTPHandler.gateway = StreamGateway(stream_policy)
+    server = ThreadingHTTPServer((args.host, args.port), NeuroflyHTTPHandler)
 
     def _signal_handler(signum, frame):
         print(f"\n[Daemon] Received signal {signum}. Initiating graceful shutdown...", flush=True)
