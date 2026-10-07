@@ -1,0 +1,41 @@
+{
+  "schema": "neurofly.cohort-contract.v1",
+  "preregistered": "2026-10-07, before any GPU cohort run; not to be edited after results are seen",
+  "engines": {"reference": "brainlab.cohort.api.CpuLoopCohortEngine (cpu-loop-v3)",
+              "candidate": "brainlab.cohort.gpu.GpuCohortEngine (GTX 1660 Ti only)"},
+  "graph": "real MaleCNS v1.0 with the v3 transmitter policy: experiment_registry.SharedGraph.load_for_dynamics(dynamics='v3')",
+  "dynamics": "v3, fixed weights, default constants (no E_inh override)",
+  "initial_state": "every fly at rest, exactly as a freshly built Brain",
+  "stimulus": {
+    "kind": "declared tonic drive on declared neurons (no encoder, no feedback)",
+    "amplitude": 20.0,
+    "neurons_per_fly": "n // 50, drawn without replacement by numpy.random.default_rng(seed).choice(n, n // 50, replace=False)",
+    "schedule": [
+      {"ticks": [0, 99], "seed": "20261007 + k"},
+      {"ticks": [100, 199], "seed": "20261007 + 1000 + k"}
+    ],
+    "k": "fly index; every other neuron has drive 0.0"
+  },
+  "reference_comparison": {
+    "n_flies": 8,
+    "ticks": 200,
+    "tick_ms": 0.1,
+    "call_pattern": "step(drive, ticks=1) 200 times; full state compared after every tick",
+    "spike_counts_and_raster": "0 mismatches, per fly, per neuron, per tick",
+    "max_abs_dV_mV": 1e-3,
+    "g_rel_error_max": 1e-6,
+    "g_zero_handling": "where the reference g is exactly 0.0 the candidate must satisfy |g| <= 1e-12 (absolute); elsewhere |g_gpu - g_ref| / |g_ref| <= 1e-6",
+    "refractory": "exactly equal (int16)",
+    "verdict_rule": "the first tick at which any fly breaks any bound is reported and the comparison stops: FAIL. No later statistics can turn it into a PASS. No engine, tolerance or stimulus changes after a FAIL.",
+    "precondition": "the workload must spike (total spikes > 0) or the comparison is void"
+  },
+  "gpu_identity_checks": {
+    "byte_identical_means": "every array of read_state (v, g, refractory, queue, queue_count, counts, active, active_flag, nactive) plus cursor, total_spikes, sim_ms, and the per-call spike counts",
+    "batch_invariance": "fly k at B=8 and at B=32 equals its B=1 run, ticks 200 as 10 calls of 20",
+    "cross_fly_isolation": "B=8; fly 3 drive replaced by the seed 20261007 + 5000 pattern; flies != 3 byte-identical to the unperturbed run",
+    "resume": "B=8; 120 ticks, read_state of every fly, write_state into a fresh engine, 80 more ticks == 200 uninterrupted",
+    "write_state_refusals": "non-v3 dynamics, missing or extra key, wrong shape, wrong dtype"
+  },
+  "batch_sizes": [1, 8, 32],
+  "gpu_memory_limit_bytes": 4500000000
+}
