@@ -67,8 +67,15 @@ per-arrival float32 rounding are unchanged.
   resume.
 - **Provenance:** the engine description adds `delivery_index=csc-arrival-bitmap-v1`.
 
-These speeds were measured on the lane branch before integration. They will be
-measured again on this candidate.
+**Measured again on this candidate,** with the installed wheels, the same workload
+(8 flies × 2 s, `--engine gpu`, GTX 1660 Ti only), interleaved runs and fresh stores,
+median of 3:
+
+| Wheel | Process wall (s) | Cohort loop wall (s) |
+|---|---|---|
+| v0.5.0rc1 | 111.46 | 105.93 |
+| v0.5.0rc2 | 42.19 | 36.79 |
+| Speed-up | **2.64×** | 2.88× |
 
 ## Checkpoint compression
 
