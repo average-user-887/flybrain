@@ -4991,12 +4991,14 @@ class ContinuousExperimentRunner:
             return
         entry = transaction['entry']
         result = self._ack_command_result(entry['cmd'], result)
-        self._stamp_command_ack(entry, result)
         terminal = transaction.get('terminal')
         if terminal is not None:
             result['observation_key'] = copy.deepcopy(terminal['observation_key'])
             result['payload_sha256'] = terminal['payload_sha256']
         self._note_latency(result, entry['received'])
+        # Indexed only once every final field (terminal evidence, latency) is set, so
+        # GET /api/command_ack returns exactly the acknowledgement the stream carries.
+        self._stamp_command_ack(entry, result)
         entry['result'] = result
         self._pending_assay_control = None
         self.command_acks.append(result)

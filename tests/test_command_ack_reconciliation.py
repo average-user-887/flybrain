@@ -131,3 +131,67 @@ def test_command_ack_endpoint_is_read_only_and_needs_no_simulation_lock(tmp_path
         server.server_close()
     assert got['state'] == 'acknowledged' and got['ack']['client_command_id'] == 'nf-http'
     assert missing['state'] == 'unknown'
+
+
+def test_lookup_returns_the_complete_final_ack_of_a_durable_control(tmp_path):
+    """CARD74: the indexed copy was taken before observation_key, payload_sha256 and
+    latency were added, so the lookup omitted the terminal evidence."""
+    runner = graph_runner(tmp_path, paradigm='open-arena')
+    early = []
+
+    def pending(reply, tx):
+        # Every intermediate phase until the final ack: nothing is acknowledged early.
+        assert not tx['entry']['done'].is_set()
+        early.append(runner.command_ack_lookup(client_command_id='nf-durable')['state'])
+        assert 'nf-durable' not in runner.command_ack_index
+        assert reply['command_id'] not in runner.command_ack_index
+        assert not any(a.get('client_command_id') == 'nf-durable' for a in runner.command_acks)
+
+    reply, final = _dispatch(runner, {'action': 'switch_paradigm', 'paradigm': 't-maze',
+                                      'client_command_id': 'nf-durable'}, while_pending=pending)
+    assert early and set(early) <= {'pending', 'queued', 'applying'}
+    assert final['status'] == 'ok' and final['ack']['applied'] is True
+    assert final['observation_key'] and final['payload_sha256']
+    assert 'latency_ms' in final['ack']
+    stream = [a for a in runner.command_acks if a.get('client_command_id') == 'nf-durable']
+    assert len(stream) == 1
+    looked = runner.command_ack_lookup(client_command_id='nf-durable')
+    assert looked['state'] == 'acknowledged'
+    canon = lambda d: json.loads(json.dumps(d, sort_keys=True))
+    assert canon(looked['ack']) == canon(final) == canon(stream[0])
+    assert looked['ack']['observation_key'] == final['observation_key']
+    assert looked['ack']['payload_sha256'] == final['payload_sha256']
+    assert canon(runner.command_ack_lookup(command_id=final['command_id'])['ack']) == canon(final)
+
+
+def test_no_acknowledgement_is_indexed_at_any_step_before_the_save_completes(tmp_path):
+    runner = graph_runner(tmp_path, paradigm='open-arena')
+    records = LearningRecorder(runner.output_dir / 'stepwise-records', session={'daemon_run_id': runner.run_id})
+    drain = RecorderThread(runner, records, summary_interval=999)
+    previous = runner.learning_records
+    runner.attach_learning_records(drain)
+    states = []
+    try:
+        reply = runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': 't-maze',
+                                         'client_command_id': 'nf-stepwise'})
+        assert reply['status'] == 'queued'
+        tx = runner._pending_assay_control
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            done = tx['entry']['done'].is_set()
+            state = runner.command_ack_lookup(client_command_id='nf-stepwise')['state']
+            states.append((tx.get('phase'), state, done))
+            if not done:
+                assert state != 'acknowledged', states
+            else:
+                break
+            drain.poll_once()
+            tx['entry']['done'].wait(0.005)
+        for key in ('writer', 'failure_writer'):
+            if tx.get(key):
+                tx[key].join(10)
+    finally:
+        records.close()
+        runner.learning_records = previous
+    assert states[-1][2] is True and states[-1][1] == 'acknowledged'
+    assert any(not done for _, _, done in states)
