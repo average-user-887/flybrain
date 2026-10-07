@@ -20,6 +20,22 @@
         "neurotransmitters.feather": "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-neurotransmitters-male-cns-v1.0.feather",
         "edges.feather": "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/connectome-weights-male-cns-v1.0-minconf-0.5.feather"
       }
+    },
+    "flywire_783_female": {
+      "label": "FlyWire 783 (female)",
+      "default": false,
+      "sex": "female",
+      "release": "FlyWire materialization 783 (Zenodo 10676866, version 783.0)",
+      "coverage": "brain_only_no_vnc",
+      "source": "https://doi.org/10.5281/zenodo.10676866",
+      "paper": "https://doi.org/10.1038/s41586-024-07558-y",
+      "node_policy": "Every proofread root ID (proofread_root_ids_783.npy); isolated and unannotated cells kept with explicit unknown fields.",
+      "edge_policy": "Per-neuropil rows of a neuron pair summed into one edge; no additional weight threshold or removal of self-connections.",
+      "sign_policy": "known_nt first, top_nt fallback, then brainlab.transmitters unchanged; '<x>-negative' is not read as inhibitory.",
+      "separate_dataset": "Own graph id, pins (brainlab/graph_pins_flywire_783_female.json) and store namespace; never spliced with MaleCNS.",
+      "source_lock": "data-provenance/flywire_783_female/source.lock.json",
+      "importer": "brainlab.flywire",
+      "annotation_licence": "UNKNOWN: user download only; not redistributed"
     }
   }
 }

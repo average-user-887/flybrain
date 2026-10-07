@@ -44,6 +44,7 @@ from .graph_identity import (DYNAMICS_VERSIONS, E_INH_ENV, E_INH_VARIANT_VERSION
 
 
 MALECNS_NEURONS = 166_700
+FLYWIRE_783_NEURONS = 139_255   # separate dataset (brainlab.flywire); never mixed
 log = logging.getLogger('brainlab')
 _announced = set()
 
@@ -124,6 +125,10 @@ def _v3_policy_weight(arrays: dict) -> np.ndarray:
     if labels is not None and len(labels) == n:
         weight, _ = apply_policy(arrays['ptr'], arrays['post'], arrays['weight'], labels)
         return weight
+    if n == FLYWIRE_783_NEURONS:
+        raise ValueError('This looks like the FlyWire 783 (female) graph; under v3 load it with '
+                         'brainlab.flywire.load_shared(), which applies the policy to FlyWire labels. '
+                         'It is never run on the MaleCNS transmitter table or on unpolicied weights.')
     if n == MALECNS_NEURONS:
         raise ValueError('v3 needs the MaleCNS transmitter table (connectome_data/.../neurons.feather) '
                          'to apply its transmitter policy; pass dynamics="v1" to run the pinned weights')
