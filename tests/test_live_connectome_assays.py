@@ -4,6 +4,7 @@ import numpy as np
 import math
 
 from neurofly_daemon import ContinuousExperimentRunner, GraphArenaController
+from tests.transition_control_helpers import transition_command
 
 
 def test_synthetic_graph_multi_assay_stepping(tmp_path):
@@ -46,8 +47,10 @@ def test_switch_backend_live(tmp_path):
     assert runner.graph_mode is False
 
     # Switch to connectome-fixed
+    # Since 730059e a backend switch needs a durable observation recorder and
+    # completes as a queued transaction; the shared helper supplies both.
     cmd = {"action": "switch_backend", "params": {"backend": "connectome-fixed"}}
-    ack = runner.dispatch_command(cmd)
+    ack = transition_command(runner, cmd)
     assert ack["status"] == "ok"
     assert runner.backend == "connectome-fixed"
     assert runner.graph_mode is True
@@ -59,7 +62,7 @@ def test_switch_backend_live(tmp_path):
 
     # Switch back to modular
     cmd2 = {"action": "switch_backend", "params": {"backend": "modular"}}
-    ack2 = runner.dispatch_command(cmd2)
+    ack2 = transition_command(runner, cmd2)
     assert ack2["status"] == "ok"
     assert runner.backend == "modular"
     assert runner.graph_mode is False
