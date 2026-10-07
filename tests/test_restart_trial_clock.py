@@ -218,12 +218,13 @@ def test_restart_opens_a_new_segment_with_lineage_and_records_the_old_one_interr
     lineage = restarted.current_segment_lineage()
     assert lineage == {
         'segment_id': child, 'parent_segment_id': parent, 'reason': 'daemon_restart',
-        'parent_observation': 'interrupted_incomplete_no_terminal',
+        'continuation': 'new_window_not_continuing_parent', 'parent_observation': 'unknown',
+        'parent_observation_evidence': {'source': 'assay_event_ledger', 'detail': 'ledger missing'},
         'daemon_run_id': restarted.run_id, 'trial': 1, 'trial_known': True,
         'restored_trial_elapsed_s': pytest.approx(4 * DT), 'trial_elapsed_known': True,
         'observation_window': 'restarted', 'metric_accumulators': 'not_restored'}
-    # Durable, append-only incomplete marker for the interrupted parent.
-    interrupted = [e for e in ledger(restarted) if e['kind'] == 'observation_interrupted']
+    # Durable, append-only record of the discontinuity (it claims nothing about the parent).
+    interrupted = [e for e in ledger(restarted) if e['kind'] == 'observation_segment_restarted']
     assert len(interrupted) == 1
     assert {k: interrupted[0][k] for k in lineage} == lineage
     # The new window is a different presentation identity with fresh accumulators.
@@ -253,6 +254,80 @@ def test_restart_opens_a_new_segment_with_lineage_and_records_the_old_one_interr
     assert restarted.clock_status()['observation']['lineage'] is None
 
 
+# Parent status comes only from durable records (Astra card 22 / root repro probe).
+def test_restore_of_an_older_checkpoint_keeps_a_completed_parent_completed(daemon, tmp_path):
+    first = daemon(trial_length_s=0.2)
+    advance(first, 4)
+    parent = first.segment_id
+    first.save_checkpoint('before-completion')
+    saved = first.active_brain.path.read_bytes()
+    advance(first, 6)                               # the parent ends with a durable terminal
+    rows = observation_records(tmp_path)
+    assert [r['observation_key']['segment_id'] for r in rows] == [parent]
+    first.active_brain.path.write_bytes(saved)      # restore the older checkpoint bytes
+    restarted = daemon(trial_length_s=0.2)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] == parent
+    assert lineage['parent_observation'] == 'terminal_recorded'
+    assert lineage['continuation'] == 'new_window_not_continuing_parent'
+    evidence = lineage['parent_observation_evidence']
+    assert evidence['source'] == 'assay_event_ledger' and evidence['ledger_kind'] == 'trial'
+    assert evidence['end_reason'] == rows[0]['observation']['end_reason']
+    assert len(evidence['payload_sha256']) == 64
+    assert observation_records(tmp_path) == rows    # the parent's terminal is untouched
+    assert restarted.trial_sim_time == pytest.approx(4 * DT)   # the checkpoint's own clock
+
+
+def test_abrupt_interruption_leaves_the_parent_unknown(daemon):
+    first = daemon(trial_length_s=0.2)
+    advance(first, 10 + 4)                          # trial 1 is in the ledger; trial 2 runs
+    parent = first.segment_id
+    first.save_checkpoint('mid-trial')              # then the process dies: no terminal
+    restarted = daemon(trial_length_s=0.2)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] == parent
+    assert lineage['parent_observation'] == 'unknown'     # absence proves no interruption
+    assert lineage['continuation'] == 'new_window_not_continuing_parent'
+    assert lineage['parent_observation_evidence'] == {
+        'source': 'assay_event_ledger', 'detail': "no terminal for the parent in this assay's ledger"}
+
+
+def test_clean_shutdown_parent_is_found_with_its_shutdown_terminal(daemon):
+    first = daemon(trial_length_s=600.0)
+    advance(first, 4)
+    parent = first.segment_id
+    assert transition_command(first, {'action': 'shutdown'})['status'] == 'ok'
+    restarted = daemon(trial_length_s=600.0)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] == parent
+    assert lineage['parent_observation'] == 'terminal_recorded'
+    evidence = lineage['parent_observation_evidence']
+    assert evidence['source'] == 'assay_event_ledger' and evidence['ledger_kind'] == 'assay_control'
+    assert evidence['end_reason'] == 'shutdown'
+
+
+@pytest.mark.parametrize('damage', ['missing', 'unreadable'])
+def test_missing_or_unreadable_ledger_leaves_the_parent_unknown(daemon, damage):
+    first = daemon(trial_length_s=0.2)
+    advance(first, 4)
+    parent = first.segment_id
+    first.save_checkpoint('before-completion')
+    saved = first.active_brain.path.read_bytes()
+    advance(first, 6)                               # a terminal exists, but its ledger is lost
+    first.active_brain.path.write_bytes(saved)
+    path = first.active_brain.directory / 'multisensory-sandbox.events.jsonl'
+    if damage == 'missing':
+        path.rename(path.with_name(path.name + '.moved-aside'))
+    else:
+        # Damaged bytes: the terminal record cannot be read, so nothing is concluded.
+        path.write_bytes(path.read_bytes().replace(parent.encode(), parent.encode() + b'\xff'))
+    restarted = daemon(trial_length_s=0.2)
+    lineage = restarted.current_segment_lineage()
+    assert lineage['parent_segment_id'] == parent and lineage['parent_observation'] == 'unknown'
+    assert lineage['parent_observation_evidence']['detail'].startswith(
+        'ledger missing' if damage == 'missing' else 'ledger unreadable')
+
+
 def test_lineage_chains_across_repeated_restarts(daemon):
     first = daemon(trial_length_s=600.0)
     advance(first, 3)
@@ -264,7 +339,7 @@ def test_lineage_chains_across_repeated_restarts(daemon):
     assert third.current_segment_lineage()['parent_segment_id'] == second.segment_id
     assert second.current_segment_lineage()['parent_segment_id'] == first.segment_id
     assert third.current_segment_lineage()['restored_trial_elapsed_s'] == pytest.approx(6 * DT)
-    events = [e for e in ledger(third) if e['kind'] == 'observation_interrupted']
+    events = [e for e in ledger(third) if e['kind'] == 'observation_segment_restarted']
     assert [e['parent_segment_id'] for e in events] == [first.segment_id, second.segment_id]
 
 
@@ -302,8 +377,10 @@ def test_switching_back_marks_the_reactivated_segment(daemon):
     lineage = runner.current_segment_lineage()
     assert lineage['parent_segment_id'] == sandbox_segment
     assert lineage['reason'] == 'assay_reactivated'
-    assert lineage['parent_observation'] == 'ended_before_assay_switch'
-    assert not [e for e in ledger(runner) if e['kind'] == 'observation_interrupted']
+    # The switch committed only after the parent's terminal was durable in this process.
+    assert lineage['parent_observation'] == 'terminal_recorded'
+    assert lineage['parent_observation_evidence']['source'] == 'durable_receipt_this_process'
+    assert not [e for e in ledger(runner) if e['kind'] == 'observation_segment_restarted']
 
 
 # -- legacy state stays unknown --------------------------------------------------------
