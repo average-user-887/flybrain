@@ -930,6 +930,14 @@
         .guide-table tr:hover td {
             background: rgba(56, 189, 248, 0.04);
         }
+
+        .guide-intro { margin: 0; padding: 10px 14px; border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.08); border-radius: 4px; }
+        .guide-part-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.45); color: #7dd3fc; }
+        .guide-part-tag.guide-part-engineered { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.5); color: #fbbf24; }
+        .guide-part-tag.guide-part-supported { background: rgba(74, 222, 128, 0.12); border-color: rgba(74, 222, 128, 0.45); color: #86efac; }
+        .guide-cite { color: #94a3b8; font-size: 10.5px; }
+        .guide-cite-needed { color: #fca5a5; font-style: italic; }
+        .guide-planned { color: #fbbf24; font-weight: 700; }
     
     
         /* Run replay and brain activity (web/replay.js) */
@@ -1113,7 +1121,7 @@
             <!-- Genetic Lesion / Knockout Selector -->
             <div class="lesion-panel">
                 <div class="sub-header">
-                    <span>Genetic Knockout / Lesion</span>
+                    <span>Knockout Toggles (preview only)</span>
                     <span id="activeLesionLabel" style="color:#4ade80;">WT CONTROL</span>
                 </div>
                 <div class="lesion-btn-grid">
@@ -1127,14 +1135,14 @@
                 <!-- Interactive Genotype Deficit & Biological Driver Card -->
                 <div id="lesionInfoCard" style="margin-top:6px; padding:8px 10px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:5px; font-size:9.5px; line-height:1.35;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <span id="lesionCardName" style="font-weight:700; color:#4ade80; font-size:10px;">Wild-Type Control (Canton-S)</span>
-                        <span id="lesionCardDriver" style="color:#94a3b8; font-size:8.5px; font-family:monospace; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px;">Intact Baseline</span>
+                        <span id="lesionCardName" style="font-weight:700; color:#4ade80; font-size:10px;">WT Control (preview)</span>
+                        <span id="lesionCardDriver" style="color:#94a3b8; font-size:8.5px; font-family:monospace; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px;">Nothing switched off</span>
                     </div>
                     <div id="lesionCardDesc" style="color:#cbd5e1; font-size:9px; margin-bottom:4px;">
-                        Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.
+                        Engineered browser preview: 120 Kenyon-cell units, a 16-wedge heading compass, locomotion and reflex modules. It is illustrative and is not the connectome, which runs separately and unmodified.
                     </div>
                     <div style="color:#f59e0b; font-size:8.5px;">
-                        <b>Expected Deficit:</b> <span id="lesionCardDeficit" style="color:#e2e8f0;">None (Normal baseline behavior across all 14 assays).</span>
+                        <b>Preview effect:</b> <span id="lesionCardDeficit" style="color:#e2e8f0;">Nothing is switched off. No performance is predicted or targeted; measure each assay.</span>
                     </div>
                 </div>
 
@@ -1716,152 +1724,233 @@
         <div class="modal-window">
             <div class="modal-header">
                 <div class="modal-title">
-                    <span>🔬 Drosophila Connectomics & Genetics Science Guide</span>
-                    <span class="badge badge-cyan">NEUROETHOLOGY HANDBOOK</span>
+                    <span>🔬 Genetics &amp; Assays Science Guide</span>
+                    <span class="badge badge-amber">RESEARCH CONTEXT &middot; PREVIEW &middot; v0.4 SUPPORT</span>
                 </div>
                 <button class="modal-close-btn" id="btnCloseScienceGuide">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Section 1: What is a Genetic Knockout? -->
-                <div class="guide-section">
-                    <h3>🧬 1. What is a Genetic Knockout in Drosophila Research?</h3>
-                    <p style="margin-bottom:8px;">
-                        In neurobiology, asking <i>"What does this brain region do?"</i> requires <b>causal perturbation</b>. 
-                        In <i>Drosophila melanogaster</i>, genetic tools like the <b>GAL4/UAS system</b>, <b>CRISPR/Cas9</b>, 
-                        and <b>Tetanus Toxin (TNT)</b> allow scientists to selectively silence or ablate specific classes of neurons 
-                        without damaging the rest of the organism.
-                    </p>
-                    <p style="margin-bottom:8px;">
-                        By testing the mutant fly in standardized behavioral assays (like the T-maze, Buridan arena, or Wind Tunnel), 
-                        we observe <b>which specific behavioral competence vanishes</b>. If silencing a circuit causes memory loss while locomotion 
-                        remains 100% normal, that circuit is <b>causally necessary</b> for associative learning.
-                    </p>
-                    <p style="margin:0; color:#38bdf8; font-size:11px;">
-                        💡 <b>In NeuroFly:</b> Clicking a genotype button disables the corresponding component in this compact modular model,
-                        instantly showing you the resulting behavioral deficit in real time!
-                    </p>
-                </div>
+                <p class="guide-intro" id="guideReadingKey">
+                    This guide has three parts, and they must not be mixed up.
+                    <b>Part A</b> is what published experiments on real flies report; none of it is NeuroFly output.
+                    <b>Part B</b> is the engineered browser preview, which is illustrative.
+                    <b>Part C</b> is what this release actually supports. No circuit computation (learning, compass navigation,
+                    escape decisions, wind tracking, circadian rhythm or courtship) has been demonstrated in the NeuroFly connectome.
+                </p>
 
-                <!-- Section 2: Genotype Reference Table -->
-                <div class="guide-section">
-                    <h3>🧪 2. Genotypes & Neuronal Lesions in NeuroFly</h3>
+                <!-- Part A: cited biological research context (published fly results, never model output) -->
+                <div class="guide-section" id="guideResearch" data-guide-part="research">
+                    <h3><span class="guide-part-tag">Part A</span> Published fly research: context, not model output</h3>
+                    <p style="margin-bottom:8px;">
+                        To ask whether a cell type is necessary for a behaviour, fly neuroscientists silence it genetically and compare
+                        the flies with controls in a standard assay. Common tools are the GAL4/UAS expression system and effectors such as
+                        tetanus toxin light chain (TNT), <i>shibire<sup>ts</sup></i> and Kir2.1
+                        <span class="guide-cite-needed">citation needed: primary sources for these tools are not recorded in this repository</span>.
+                        For example, von Reyn et al. (2014) compared giant-fibre split-GAL4 &times; UAS-Kir2.1 flies with genetic controls
+                        (source in the table). Silencing evidence shows necessity in that assay; it does not by itself show how the circuit computes.
+                    </p>
+                    <p style="margin-bottom:8px;">
+                        Numbers below are <b>published fly results</b>, quoted with the uncertainty the source gives. They are not targets
+                        for NeuroFly and NeuroFly has not reproduced them. "Read" says how much of the source this project has checked.
+                    </p>
                     <table class="guide-table">
                         <thead>
                             <tr>
-                                <th>Genotype</th>
-                                <th>Biological Driver / Allele</th>
-                                <th>Target Neurons</th>
-                                <th>Expected Phenotype & Deficit</th>
+                                <th>Circuit / assay</th>
+                                <th>Reported in flies</th>
+                                <th>Source (how it was checked)</th>
+                                <th>Uncertainty</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><b style="color:#4ade80;">WT Control</b></td>
-                                <td><i>Canton-S / w1118</i> baseline</td>
-                                <td>None (Intact connectome)</td>
-                                <td>High learning (PI > 0.70), robust landmark fixation, rapid looming escape.</td>
+                            <tr data-research-row="mb-learning">
+                                <td><b>Mushroom body, odour&ndash;shock learning (T-maze)</b></td>
+                                <td>After odour&ndash;shock pairing, "typically, 95% of trained flies avoided the shock-associated odor".</td>
+                                <td class="guide-cite">Tully T, Quinn WG (1985) <i>J Comp Physiol A</i> 157:263&ndash;277. doi:10.1007/BF01350033. Read: abstract only.</td>
+                                <td>The paper's exact performance indices were not read; a PI derived from the 95% figure is approximate. Which mutants and lesions abolish this learning: <span class="guide-cite-needed">citation needed</span>.</td>
                             </tr>
-                            <tr>
-                                <td><b style="color:#fda4af;">ΔMB (Kenyon)</b></td>
-                                <td><i>MB247-GAL4 > UAS-TNT</i> / <i>rutabaga</i></td>
-                                <td>Mushroom Body Kenyon Cells (~4,000 KCs)</td>
-                                <td><b>Complete associative amnesia:</b> Fails T-maze odor learning (PI ≈ 0.00), fails heat-maze place memory.</td>
+                            <tr data-research-row="mb-plasticity">
+                                <td><b>Dopamine-instructed KC&rarr;MBON plasticity</b></td>
+                                <td>One pairing of a 1-s odour with PPL1-&gamma;1pedc dopamine-neuron activation cut MBON-&gamma;1pedc's response to that odour by 80 &plusmn; 5.7% (unpaired odour: 27 &plusmn; 7.1%).</td>
+                                <td class="guide-cite">Hige T, Aso Y, Modi MN, Rubin GM, Turner GC (2015) <i>Neuron</i> 88:985&ndash;998. doi:10.1016/j.neuron.2015.11.003. Read: Fig. 1. Compartment differences: Aso Y, Rubin GM (2016) <i>eLife</i> 5:e16135, doi:10.7554/eLife.16135 (read).</td>
+                                <td>One output-neuron type; the dispersion measure behind &plusmn; is not recorded in this project's notes. Other compartments learn at different rates (Aso &amp; Rubin 2016).</td>
                             </tr>
-                            <tr>
-                                <td><b style="color:#f43f5e;">ΔCX (Compass)</b></td>
-                                <td><i>R60D05-GAL4 > UAS-TNT</i> / <i>ccd</i></td>
-                                <td>Central Complex E-PG compass & PFL3 steering</td>
-                                <td><b>Loss of allocentric orientation:</b> Fails Buridan landmark oscillation, cannot triangulate heat-maze refuge.</td>
+                            <tr data-research-row="naive-odour">
+                                <td><b>Naive odour avoidance (T-maze, no training)</b></td>
+                                <td>Wild-type <i>w1118</i> (iso1CJ) avoidance index against air at training dilutions: OCT 54.92 &plusmn; 3.43, MCH 58.33 &plusmn; 6.79.</td>
+                                <td class="guide-cite">Li W, Cressy M, Qin H, Fulga T, Van Vactor D, Dubnau J (2013) <i>J Neurosci</i> 33(13):5821. doi:10.1523/JNEUROSCI.4004-12.2013. Read: Methods, Results, Fig. 1I table.</td>
+                                <td>Mean &plusmn; SEM, N &asymp; 6&ndash;10 groups; the index rises at 10&times; concentration. Only the sign is used by NeuroFly's preregistered (not yet run) T-maze spec.</td>
                             </tr>
-                            <tr>
-                                <td><b style="color:#fb923c;">ΔGF (Escape)</b></td>
-                                <td><i>R68A06-GAL4 > UAS-shi[ts]</i> / <i>Passover</i></td>
-                                <td>Giant Fiber descending neurons (DNp01/GF)</td>
-                                <td><b>Blind to looming predators:</b> Fails to trigger rapid 5ms tergotrochanteral jump takeoff; captured by predators.</td>
+                            <tr data-research-row="giant-fibre">
+                                <td><b>Giant fibre (DNp01) looming escape</b></td>
+                                <td>A GF spike forces a takeoff, and every short-mode (GF-mediated) takeoff needs a GF spike. The fraction of short-mode takeoffs falls with log(r/v) (R&sup2; = 0.903). GF spikes and GF-mediated takeoffs occur on average at a fixed delay after a looming disk passes 39&deg;.</td>
+                                <td class="guide-cite">von Reyn CR, et al., Card GM (2014) <i>Nat Neurosci</i> 17:962&ndash;970. doi:10.1038/nn.3741. Read: main text pp. 962&ndash;963, figure captions, supplement; Methods not read. von Reyn CR, et al., Card GM (2017) <i>Neuron</i> 94:1190&ndash;1204. doi:10.1016/j.neuron.2017.05.036. Read: full text.</td>
+                                <td>n = 102&ndash;202 flies per r/v. In controls only 95 of 638 flies made short-mode takeoffs at r/v 14&ndash;70 ms; "looming stimuli generate GF spikes in only a small subset of tethered flies" (2017).</td>
                             </tr>
-                            <tr>
-                                <td><b style="color:#a78bfa;">ΔJO (Wind)</b></td>
-                                <td><i>tilB</i> / <i>nompA</i> / <i>JO-GAL4</i></td>
-                                <td>Johnston's organ antennal mechanoreceptors</td>
-                                <td><b>Loss of anemotaxis & hearing:</b> Fails upwind surge-cast tracking in wind tunnel, deaf to courtship songs.</td>
+                            <tr data-research-row="optomotor">
+                                <td><b>Optomotor response</b></td>
+                                <td>Flies turn with wide-field rotation. In flight, responses rise steeply to a plateau at 3&ndash;10 Hz temporal frequency. Walking flies (60&deg; wavelength, 1 Hz) turn with high-contrast gratings for about 1 s, then reverse.</td>
+                                <td class="guide-cite">Duistermars BJ, Chow DM, Condro M, Frye MA (2007) <i>J Exp Biol</i> 210(18):3218. doi:10.1242/jeb.007807. Read: full text. Mano O, et al., Clark DA (2023) <i>eLife</i> 12:e86076. doi:10.7554/eLife.86076. Read: full text.</td>
+                                <td>Depends on flight versus walking, wavelength, temporal frequency and contrast; the turning direction can reverse during long stimuli.</td>
+                            </tr>
+                            <tr data-research-row="t4t5">
+                                <td><b>Motion detectors (T4/T5)</b></td>
+                                <td>T4/T5 subtypes a&ndash;d respond to front-to-back, back-to-front, upward and downward motion.</td>
+                                <td class="guide-cite">Maisak MS, et al., Borst A (2013) <i>Nature</i> 500:212&ndash;216. doi:10.1038/nature12320. Read: abstract only.</td>
+                                <td>In NeuroFly this tuning is imposed by an engineered encoder, not computed by the connectome (Part C).</td>
+                            </tr>
+                            <tr data-research-row="steering">
+                                <td><b>Steering descending neurons (DNa02)</b></td>
+                                <td>DNa02 activity predicts turning toward its own side.</td>
+                                <td class="guide-cite">Rayshubskiy A, et al., Wilson RI (2025) <i>eLife</i> 13:RP102230. doi:10.7554/eLife.102230. Statement carried from this project's studio notes; not re-read for this guide.</td>
+                                <td>Absolute firing rates appear in figures only; reported burst rates are unverified.</td>
+                            </tr>
+                            <tr data-research-row="heading">
+                                <td><b>Central complex heading</b></td>
+                                <td>Heading representations in the central complex are reported to stay stable across diverse visual scenes.</td>
+                                <td class="guide-cite">Kim SS, Hermundstad AM, Romani S, Abbott LF, Jayaraman V (2019) <i>Nature</i> 576:126&ndash;131. doi:10.1038/s41586-019-1767-1. Retrieved 20 Sep 2026; title-level claim.</td>
+                                <td>The E-PG "compass bump" and PFL3 steering papers are not recorded here: <span class="guide-cite-needed">citation needed</span>.</td>
+                            </tr>
+                            <tr data-research-row="place-learning">
+                                <td><b>Visual place learning (heat maze)</b></td>
+                                <td>Flies can learn to find a cool spot using visual landmarks.</td>
+                                <td class="guide-cite">Ofstad TA, Zuker CS, Reiser MB (2011) <i>Nature</i> 474:204&ndash;207. DOI not recorded in this repository; cited only for the existence of the behaviour.</td>
+                                <td>No performance number is quoted. Its 5-minute trials allowed leaving the cool tile, unlike NeuroFly's heat maze.</td>
+                            </tr>
+                            <tr data-research-row="plume">
+                                <td><b>Odour plume navigation (wind tunnel)</b></td>
+                                <td>Odour onset evokes upwind movement; odour offset evokes search.</td>
+                                <td class="guide-cite">&Aacute;lvarez-Salvado E, et al. (2018) <i>eLife</i>, article 37815 (elifesciences.org/articles/37815). Recorded in this project's behaviour review; not re-read for this guide.</td>
+                                <td>Treat as a lead until re-read.</td>
+                            </tr>
+                            <tr data-research-row="uncited">
+                                <td><b>Buridan stripe fixation; Johnston's organ wind and sound sensing; s-LNv/PDF circadian clock; P1 and cVA courtship circuits; gap-crossing leg reach</b></td>
+                                <td>Described in the fly literature.</td>
+                                <td class="guide-cite"><span class="guide-cite-needed">citation needed</span> &mdash; no verified primary source is recorded in this repository.</td>
+                                <td>Not stated quantitatively here until sourced.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Section 3: Assay & Circuit Cross-Reference -->
-                <div class="guide-section">
-                    <h3>🎯 3. Paradigm & Brain Circuit Cross-Reference</h3>
-                    <p style="margin-bottom:8px;">Every assay tests a specific sensory ingress, computational hub, or motor output:</p>
+                <!-- Part B: engineered modular preview (illustrative, not connectome results) -->
+                <div class="guide-section" id="guidePreview" data-guide-part="preview">
+                    <h3><span class="guide-part-tag guide-part-engineered">Part B</span> Engineered modular preview: illustrative, not connectome results</h3>
+                    <p style="margin-bottom:8px;">
+                        Without a daemon the dashboard runs a small hand-built JavaScript model: 120 Kenyon-cell units, a 16-wedge heading compass,
+                        locomotion and reflex modules. The daemon's <b>modular</b> backend is also hand-built, with explicit assay reflexes.
+                        Neither is the connectome. Their behaviour has not been compared with fly data.
+                    </p>
+                    <p style="margin-bottom:8px;">
+                        The genotype buttons are <b>named after</b> the experiments in Part A, but each one only switches off a part of the
+                        browser preview. They are not genetic interventions on the connectome, no deficit size is predicted, and they are
+                        disabled whenever a daemon drives the view.
+                    </p>
                     <table class="guide-table">
                         <thead>
                             <tr>
-                                <th>Assay Paradigm</th>
-                                <th>Key Brain Circuit</th>
-                                <th>Critical Knobs & What They Test</th>
+                                <th>Button</th>
+                                <th>What it switches off in the preview</th>
+                                <th>Connectome lesion</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td><b>T-Maze</b></td>
-                                <td>Mushroom Body + PPL1/PAM Dopamine</td>
-                                <td><b>Shock Voltage:</b> Modulates PPL1 punishment rate and learning speed.</td>
+                                <td><b style="color:#4ade80;">WT Control</b></td>
+                                <td>Nothing; all preview modules run.</td>
+                                <td>The connectome runs unmodified; there is no genotype to choose.</td>
                             </tr>
                             <tr>
-                                <td><b>Y-Maze</b></td>
-                                <td>Central Complex (Protocerebral Bridge Δ7)</td>
-                                <td><b>Premotor Turn Bias:</b> Imbalances DNa02 descending firing to model individual handedness.</td>
+                                <td><b style="color:#fda4af;">&Delta;MB (Kenyon)</b></td>
+                                <td>The preview's Kenyon-cell learning update stops. Kenyon-cell activity is still computed.</td>
+                                <td class="guide-planned" data-planned="NEXT-02 NEXT-03">Planned &mdash; not in v0.4 (NEXT-02, NEXT-03)</td>
                             </tr>
                             <tr>
-                                <td><b>Heat-Maze</b></td>
-                                <td>Central Complex Compass + MB Place Memory</td>
-                                <td><b>Floor Temp & Refuge Radius:</b> Tests landmark triangulation under thermal nociceptive drive.</td>
+                                <td><b style="color:#f43f5e;">&Delta;CX (Compass)</b></td>
+                                <td>The preview compass is replaced by random jitter, so its steering term becomes random.</td>
+                                <td class="guide-planned" data-planned="NEXT-02">Planned &mdash; not in v0.4 (NEXT-02)</td>
                             </tr>
                             <tr>
-                                <td><b>Buridan’s Assay</b></td>
-                                <td>Central Complex Ellipsoid Body (E-PG / Ring)</td>
-                                <td><b>Stripe Width & Moat Repulsion:</b> Evaluates landmark fixation index and centrophobism.</td>
+                                <td><b style="color:#fb923c;">&Delta;GF (Escape)</b></td>
+                                <td>A looming trigger no longer starts the preview's escape.</td>
+                                <td class="guide-planned" data-planned="NEXT-02">Planned &mdash; not in v0.4 (NEXT-02)</td>
                             </tr>
                             <tr>
-                                <td><b>Visual Operant</b></td>
-                                <td>Operant Learning Loop (Yaw Torque → Drum)</td>
-                                <td><b>Laser Power & Drum Friction:</b> Tests closed-loop motor torque learning to avoid heat sectors.</td>
+                                <td><b style="color:#a78bfa;">&Delta;JO (Wind)</b></td>
+                                <td>In the Open Arena preview only, the wind-direction input to the preview compass is set to zero. The Wind Tunnel and Sandbox previews ignore this button.</td>
+                                <td class="guide-planned" data-planned="NEXT-02">Planned &mdash; not in v0.4 (NEXT-02)</td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Part C: what this release supports -->
+                <div class="guide-section" id="guideSupported" data-guide-part="supported">
+                    <h3><span class="guide-part-tag guide-part-supported">Part C</span> What v0.4 actually supports</h3>
+                    <p style="margin-bottom:8px;">
+                        <b>Connectome.</b> The MaleCNS v1.0 graph runs unmodified: 166,700 neurons and 25,582,938 edges, with no connections added.
+                        No paradigm has reached "Tested on v3". Optomotor is "Provisional on v3, input-imposed": the encoder imposes direction
+                        selectivity, so it is not evidence that the connectome computes the behaviour. The other 13 paradigms are
+                        "Mapped, untested on v3". No circuit computation has been demonstrated. The canonical capability matrix ships with
+                        the package; print it with <code>neurofly capability</code>.
+                    </p>
+                    <p style="margin-bottom:8px;">
+                        <b>Connected controls</b> (Assay Tools &amp; Levers) change the stimulus or environment, and the daemon acknowledges
+                        each change. They do not make the model learn and do not set a behaviour.
+                    </p>
+                    <table class="guide-table">
+                        <thead>
                             <tr>
-                                <td><b>Wind Tunnel</b></td>
-                                <td>Johnston’s Organ + Lateral Horn + DNp09/DNa02</td>
-                                <td><b>Wind Velocity & Plume Width:</b> Tests upwind surge vs crosswind casting search strategy.</td>
+                                <th>Assay</th>
+                                <th>Connected controls in this release</th>
                             </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><b>Open Arena</b></td><td><span data-guide-control="open-arena:windStrength">Airflow toward &minus;x</span>; <span data-guide-control="open-arena:food">Place food near fly</span>; food and alarm odour placement with the arena tools.</td></tr>
+                            <tr><td><b>T-Maze</b></td><td><span data-guide-control="t-maze:reverse_arms">Reverse reward / shock arms</span></td></tr>
+                            <tr><td><b>Heat-Maze</b></td><td><span data-guide-control="heat-maze:floorTemp">Floor temperature</span></td></tr>
+                            <tr><td><b>Buridan</b></td><td><span data-guide-control="buridan:rotate_stripes">Rotate stripes 90&deg;</span>; <span data-guide-control="buridan:contrast">Toggle stripe contrast</span></td></tr>
+                            <tr><td><b>Visual Operant</b></td><td><span data-guide-control="visual-operant:reverse_heat">Reverse heat sectors</span></td></tr>
+                            <tr><td><b>Wind Tunnel</b></td><td><span data-guide-control="wind-tunnel:windVelocity">Airflow toward &minus;x</span>; <span data-guide-control="wind-tunnel:plumeWidth">Plume standard deviation</span>; <span data-guide-control="wind-tunnel:shift_plume">Shift plume laterally</span></td></tr>
+                            <tr><td><b>Looming Escape</b></td><td><span data-guide-control="looming-escape:loom">Present looming disk again</span></td></tr>
+                            <tr><td><b>Optomotor</b></td><td><span data-guide-control="optomotor:patternSpeed">Grating velocity</span>; <span data-guide-control="optomotor:reverse_grating">Reverse grating direction</span>; <span data-guide-control="optomotor:contrast">Toggle grating contrast</span></td></tr>
+                            <tr><td><b>Gap Crossing</b></td><td><span data-guide-control="gap-crossing:gapWidth">Gap width (reset before changing near edge)</span></td></tr>
+                            <tr><td><b>Courtship</b></td><td><span data-guide-control="courtship:receptivity">Toggle virgin / mated female</span></td></tr>
+                            <tr><td><b>Y-Maze, Circadian DAM, Labyrinth, Multisensory</b></td><td>No connected adjustable controls; observation only.</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="margin:8px 0;">
+                        <b>Observations.</b> Live position, trajectory and session clock; per-assay metric records with their stated
+                        limitations (What to Watch); descending-neuron readouts in the graph panel when a connectome backend runs; recording
+                        and 1&times; replay. The separate Experiment Studio (<code>python -m neurofly_studio serve</code>) runs optomotor on the
+                        full connectome with cell-type silencing; under v3 the silencing clamp can leak, and runs say so.
+                    </p>
+                    <p style="margin-bottom:8px;">
+                        <b>Planned &mdash; not in v0.4.</b> These knobs were previously listed here as if they worked. They stay as goals in
+                        the post-v0.4 backlog (<code>docs/POST_V04_FEATURES.md</code>), and no button for them is enabled in this release.
+                    </p>
+                    <table class="guide-table" id="guidePlannedKnobs">
+                        <thead>
                             <tr>
-                                <td><b>Looming Escape</b></td>
-                                <td>Lobula Col4/LPLC2 → Giant Fiber (DNp01)</td>
-                                <td><b>Looming l/v Ratio & GF Threshold:</b> Tests optical expansion detection and all-or-none jump trigger.</td>
+                                <th>Assay</th>
+                                <th>Knob or capability</th>
+                                <th>Status</th>
                             </tr>
-                            <tr>
-                                <td><b>Optomotor Drum</b></td>
-                                <td>Optic Lobe (T4/T5) → HS/VS Tangential Cells</td>
-                                <td><b>Grating Velocity:</b> Tests gaze stabilization and saccadic efference copy cancellation.</td>
-                            </tr>
-                            <tr>
-                                <td><b>Gap Crossing</b></td>
-                                <td>Central Complex Fan-Shaped Body & Forelegs</td>
-                                <td><b>Chasm Width:</b> Tests tactile depth estimation (cross if &le;3.8mm, abort if &gt;4.2mm).</td>
-                            </tr>
-                            <tr>
-                                <td><b>Circadian DAM</b></td>
-                                <td>s-LNv Pigment Dispersing Factor (PDF) Clock</td>
-                                <td><b>Light Phase (LD vs DD):</b> Tracks morning/evening anticipation and 5-min sleep bouts.</td>
-                            </tr>
-                            <tr>
-                                <td><b>Courtship Chamber</b></td>
-                                <td>P1 Courtship Command + cVA Avoidance</td>
-                                <td><b>Female Mated State:</b> Tests song suppression conditioning triggered by repulsive cVA pheromone.</td>
-                            </tr>
-                            <tr>
-                                <td><b>Labyrinth Maze</b></td>
-                                <td>Mechanosensory Obstacle Sliding + Antennal Taxis</td>
-                                <td><b>Wall Friction:</b> Tests continuous Coulomb sliding physics without wall-sticking or tunneling.</td>
-                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>T-Maze</td><td>Shock voltage; dopamine (PPL1/PAM) learning on the connectome</td><td class="guide-planned" data-planned="NEXT-01 NEXT-03">Planned &mdash; not in v0.4 (NEXT-01, NEXT-03)</td></tr>
+                            <tr><td>Y-Maze</td><td>Premotor turn bias (DNa02 imbalance); working memory</td><td class="guide-planned" data-planned="NEXT-02 NEXT-07">Planned &mdash; not in v0.4 (NEXT-02, NEXT-07)</td></tr>
+                            <tr><td>Heat-Maze</td><td>Refuge radius (preview only); landmark place memory</td><td class="guide-planned" data-planned="NEXT-01 NEXT-07">Planned &mdash; not in v0.4 (NEXT-01, NEXT-07)</td></tr>
+                            <tr><td>Buridan</td><td>Stripe width; moat repulsion</td><td class="guide-planned" data-planned="NEXT-01">Planned &mdash; not in v0.4 (NEXT-01)</td></tr>
+                            <tr><td>Visual Operant</td><td>Laser power; drum friction; operant torque learning</td><td class="guide-planned" data-planned="NEXT-01 NEXT-07">Planned &mdash; not in v0.4 (NEXT-01, NEXT-07)</td></tr>
+                            <tr><td>Wind Tunnel</td><td>Turbulent odour plumes</td><td class="guide-planned" data-planned="NEXT-09">Planned &mdash; not in v0.4 (NEXT-09)</td></tr>
+                            <tr><td>Looming Escape</td><td>Looming r/v ratio (preview only); GF threshold</td><td class="guide-planned" data-planned="NEXT-01 NEXT-02">Planned &mdash; not in v0.4 (NEXT-01, NEXT-02)</td></tr>
+                            <tr><td>Optomotor</td><td>Motion direction computed by the connectome from photoreceptor input; saccadic efference copy (nearest backlog item)</td><td class="guide-planned" data-planned="NEXT-06">Planned &mdash; not in v0.4 (NEXT-06)</td></tr>
+                            <tr><td>Gap Crossing</td><td>Tactile gap estimation and leg-reach planning</td><td class="guide-planned" data-planned="NEXT-10">Planned &mdash; not in v0.4 (NEXT-10)</td></tr>
+                            <tr><td>Circadian DAM</td><td>Light phase (LD/DD) control; clock anticipation; endogenous oscillator</td><td class="guide-planned" data-planned="NEXT-08">Planned &mdash; not in v0.4 (NEXT-08)</td></tr>
+                            <tr><td>Courtship</td><td>Courtship conditioning; moving female</td><td class="guide-planned" data-planned="NEXT-08">Planned &mdash; not in v0.4 (NEXT-08)</td></tr>
+                            <tr><td>Labyrinth</td><td>Wall friction (preview only); stored map and planning</td><td class="guide-planned" data-planned="NEXT-01 NEXT-07">Planned &mdash; not in v0.4 (NEXT-01, NEXT-07)</td></tr>
+                            <tr><td>All assays</td><td>Genotype lesions on the connectome</td><td class="guide-planned" data-planned="NEXT-02">Planned &mdash; not in v0.4 (NEXT-02)</td></tr>
                         </tbody>
                     </table>
                 </div>

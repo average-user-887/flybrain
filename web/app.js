@@ -5546,39 +5546,42 @@ const ASSAY_CONFIGS = {
 // =============================================================================
 
 const LESION_INFO = {
+    // Preview-only toggles named after published experiments (Science Guide, Part A).
+    // They switch off parts of the hand-built browser preview, never the connectome,
+    // and predict no deficit size. Connectome lesions are planned: POST_V04 NEXT-02.
     'WT': {
-        name: 'Wild-Type Control (Canton-S / w1118)',
-        driver: 'Intact Baseline Genotype',
-        mechanism: 'Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.',
-        expectedDeficit: 'No components disabled. Performance must be measured per assay; no target score is assumed.',
+        name: 'WT Control (preview)',
+        driver: 'Nothing switched off',
+        mechanism: 'Engineered browser preview: 120 Kenyon-cell units, a 16-wedge heading compass, locomotion and reflex modules. It is illustrative and is not the connectome, which runs separately and unmodified.',
+        expectedDeficit: 'Nothing is switched off. No performance is predicted or targeted; measure each assay.',
         color: '#4ade80'
     },
     'DELTA_MB': {
-        name: 'ΔMB Kenyon Cell Silencing',
-        driver: 'MB247-GAL4 > UAS-TNT / rutabaga / dunce',
-        mechanism: 'Genetic ablation of ~4,000 Mushroom Body Kenyon Cells and MBONs. Completely abolishes anti-Hebbian dopamine (PPL1/PAM) synaptic plasticity.',
-        expectedDeficit: 'Total loss of associative olfactory & thermal learning: Fails odor avoidance conditioning (PI ~ 0.00 in T-maze), fails heat-maze place learning, fails courtship memory.',
+        name: 'ΔMB (preview toggle)',
+        driver: 'Named after mushroom-body silencing experiments',
+        mechanism: 'Stops the preview\'s Kenyon-cell learning update. Kenyon-cell activity is still computed.',
+        expectedDeficit: 'Preview only; no deficit size is predicted. Connectome lesions are planned, not in v0.4 (NEXT-02).',
         color: '#fda4af'
     },
     'DELTA_CX': {
-        name: 'ΔCX Central Complex Compass Knockout',
-        driver: 'R60D05-GAL4 > UAS-TNT / ccd (central complex deranged)',
-        mechanism: 'Silences 16-wedge E-PG ring attractor compass neurons and PFL3 steering decoders, destroying the fly\'s internal allocentric heading coordinate frame.',
-        expectedDeficit: 'Loss of spatial orientation & landmark navigation: Cannot fixate visual stripes (fails Buridan), cannot triangulate cool refuge in heat-maze, wanders aimlessly.',
+        name: 'ΔCX (preview toggle)',
+        driver: 'Named after central-complex silencing experiments',
+        mechanism: 'Replaces the preview compass with random jitter, so its steering term becomes random.',
+        expectedDeficit: 'Preview only; no deficit size is predicted. Connectome lesions are planned, not in v0.4 (NEXT-02).',
         color: '#f43f5e'
     },
     'DELTA_GF': {
-        name: 'ΔGF Giant Fiber Looming Ablation',
-        driver: 'R68A06-GAL4 > UAS-shi[ts] / Passover / shakB',
-        mechanism: 'Silences descending Giant Fiber pair (DNp01/GF) that integrates looming optical expansion from lobula columnar neurons LPLC2 and Col4.',
-        expectedDeficit: 'Blind to approaching predatory shadows: Fails to trigger rapid 5ms tergotrochanteral motor jump takeoff, resulting in 100% predatory strike capture.',
+        name: 'ΔGF (preview toggle)',
+        driver: 'Named after giant-fibre silencing experiments',
+        mechanism: 'A looming trigger no longer starts the preview\'s escape.',
+        expectedDeficit: 'Preview only; no deficit size is predicted. Connectome lesions are planned, not in v0.4 (NEXT-02).',
         color: '#fb923c'
     },
     'DELTA_JO': {
-        name: 'ΔJO Johnston’s Organ Mechanosensory Knockout',
-        driver: 'tilB (touch-insensitive-larva-B) / nompA / JO-GAL4',
-        mechanism: 'Silences Johnston’s organ chordotonal neurons in the second antennal segment (pedicel), abolishing wind drag and acoustic vibration transduction.',
-        expectedDeficit: 'Loss of wind anemotaxis and courtship hearing: Fails upwind surge-and-cast flight in wind tunnel, fails courtship song recognition, disorients in airflow.',
+        name: 'ΔJO (preview toggle)',
+        driver: 'Named after Johnston\'s organ experiments',
+        mechanism: 'In the Open Arena preview only, sets the wind-direction input to the preview compass to zero.',
+        expectedDeficit: 'Preview only; no deficit size is predicted. Connectome lesions are planned, not in v0.4 (NEXT-02).',
         color: '#a78bfa'
     }
 };
