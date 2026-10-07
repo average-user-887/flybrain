@@ -708,6 +708,15 @@ def _ids_digest(ids: np.ndarray) -> str:
     return hashlib.sha256(np.ascontiguousarray(ids, dtype='<i8').tobytes()).hexdigest()
 
 
+def _declared_dataset(graph_dir: Path) -> Optional[str]:
+    """``dataset_id`` declared by a prepared graph's manifest.json, if any.
+    MaleCNS manifests predate the field and declare none."""
+    try:
+        return json.loads((Path(graph_dir) / 'manifest.json').read_text()).get('dataset_id')
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def verify_graph(graph_dir: Optional[os.PathLike] = None,
                  connectome_dir: Optional[os.PathLike] = None,
                  *, pins: Optional[dict] = None, check_hashes: bool = True) -> GraphIdentity:
@@ -723,6 +732,12 @@ def verify_graph(graph_dir: Optional[os.PathLike] = None,
     gdir, gsource = resolve_graph_dir(graph_dir)
     cdir, _ = resolve_connectome_dir(connectome_dir)
     graph = gdir / 'graph.npz'
+    foreign = _declared_dataset(gdir)
+    if foreign not in (None, 'malecns_v1'):
+        raise GraphUnavailable(
+            f'{gdir} holds the {foreign!r} graph, not MaleCNS v1.0. This path (daemon, dashboard, '
+            'embodied I/O) is MaleCNS-only; its I/O mapping is unavailable for that dataset and '
+            'MaleCNS IDs are never substituted. Brain-only runs: brainlab.flywire.load_shared.')
     nodes_path = cdir / 'normalized/neurons.feather'
     if not graph.is_file():
         raise GraphUnavailable(

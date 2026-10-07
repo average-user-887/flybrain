@@ -1,0 +1,45 @@
+{
+  "dataset_id": "flywire_783_female",
+  "dataset": "FlyWire 783 (female)",
+  "coverage": "brain_only_no_vnc",
+  "prepared_by": "brainlab.flywire (sign policy flywire-known_nt-first-top_nt-fallback-v1, synaptic_scale 0.275)",
+  "graph_content_sha256": "e74e3747725b098fe46159e67acb04b8e9b655d7b77fb5adc63398c1009e4ab0",
+  "neuron_map_content_sha256": "9fcf708c0e4b1796dcaca2a972bdf53ec47149bbb7cc769b07eebbf1f53c5ed6",
+  "graph_sha256_reference_bytes": "a8f9fef67a36a0965fb7f6a784c5153085911b8f5fe6ac23d4ba94475db564dd",
+  "ids_sha256": "84bc9ec32c4f797e3f6e6557b30b5fc7f447b5852aeb9553f7dd18ed6bd3321d",
+  "neurons": 139255,
+  "edges": 15091983,
+  "method_sha256": "7eb3c68d0a8285386f715097e71b9c37769099de504a07d5b037f7ea0a1828f2",
+  "source_sha256": {
+    "proofread_connections_783.feather": {
+      "sha256": "24f960ae3e7d4f8cd30db3b62e99fb5179cc3d1e76d8c155bfb441e9737d3faf",
+      "bytes": 852022274
+    },
+    "proofread_root_ids_783.npy": {
+      "sha256": "7c7b7e818e9232e5ab64793d52ba20574dbe9da3a6509fbc74193b0f259a01be",
+      "bytes": 1114168
+    },
+    "per_neuron_neuropil_count_pre_783.feather": {
+      "sha256": "35442a46f076892dff91bd6e55fa1489b3acc64fda1d35cee7dbbbbc509a3dff",
+      "bytes": 16853770
+    },
+    "per_neuron_neuropil_count_post_783.feather": {
+      "sha256": "e2418f4794fe47984bb4bc15ffc194003ea8e349a428551f30af94947d85d712",
+      "bytes": 233843050
+    },
+    "Supplemental_file1_neuron_annotations.tsv": {
+      "sha256": "b214970b55d2fbe0853bba536fdcb9e28730f4eb7ab06f600491df795da683cd",
+      "bytes": 31720298
+    }
+  },
+  "pin_kinds": {
+    "graph_content_sha256": "REQUIRED. neurofly-npz-content-v1 fingerprint of outputs/brainlab/flywire_783_female/graph.npz (built locally by python -m brainlab.flywire import). It is also this dataset's graph_sha256 identity in receipts and checkpoints.",
+    "neuron_map_content_sha256": "REQUIRED. neurofly-table-content-v1 fingerprint of connectome_data/flywire_783_female/normalized/neurons.feather.",
+    "graph_sha256_reference_bytes": "Informational: byte sha256 of the reference graph.npz (Linux, numpy 2.x); not required of a local file.",
+    "ids_sha256": "Content digest of graph.npz ids as little-endian int64.",
+    "method_sha256": "sha256 of brainlab.flywire.METHOD (node universe, edge rule, sign policy, synaptic scale). A different method is a different graph.",
+    "source_sha256": "Byte sha256 of the downloaded sources (data-provenance/flywire_783_female/source.lock.json)."
+  },
+  "licence_note": "These are hashes only. The annotation-derived files they describe are local, git-ignored and not redistributed (annotation licence UNKNOWN).",
+  "separate_from": "brainlab/graph_pins.json (MaleCNS v1.0, the default); never merged"
+}
