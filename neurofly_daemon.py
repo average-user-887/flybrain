@@ -364,6 +364,9 @@ def identity_rejection(packet_identity: Optional[Dict[str, Any]], packet_daemon_
     return None
 
 
+GRAPH_NO_STEP_YET = "No graph step for this assay since it was selected"
+
+
 class GraphArenaController:
     """Arena motor controller for graph backends (connectome-fixed/-plastic/-readout).
 
@@ -3969,6 +3972,11 @@ class ContinuousExperimentRunner:
             "connectome": conn_telem if conn_telem else None,
             "metrics": p_metrics
         }
+        if self.graph_mode and not self._graph_step_current():
+            # The arena fly's speed has not been produced by a graph step for this owner yet
+            # (e.g. a switch target's constructor default); do not present it as a cadence.
+            packet["biomechanics"]["cadence_hz"] = None
+            packet["biomechanics"]["cadence_unavailable"] = GRAPH_NO_STEP_YET
         packet["activity"] = self.activity_snapshot(packet)
         return packet
 
@@ -5181,6 +5189,15 @@ class ContinuousExperimentRunner:
             self._region_map_cache = cached
         return cached[1]
 
+    def _graph_step_current(self) -> bool:
+        """True when the shared graph controller's last step belongs to the displayed owner."""
+        controller = self.graph_controller
+        active = self.registry.active if self.registry is not None else None
+        if controller is None or active is None or getattr(controller, "last_counts", None) is None:
+            return False
+        current = (active.instance_id, self.active_paradigm_id, int(active.step_index))
+        return getattr(controller, "last_counts_owner", None) == current
+
     def activity_snapshot(self, packet: Dict[str, Any]) -> Dict[str, Any]:
         """Per-region activity for the Brain Activity panel and recordings.
 
@@ -5191,15 +5208,12 @@ class ContinuousExperimentRunner:
         if regions is not None:
             controller = self.graph_controller
             counts = getattr(controller, "last_counts", None)
-            active = self.registry.active if self.registry is not None else None
-            current = ((active.instance_id, self.active_paradigm_id, int(active.step_index))
-                       if active is not None else None)
             unavailable = None
-            if counts is not None and (current is None or getattr(controller, "last_counts_owner", None) != current):
+            if counts is not None and not self._graph_step_current():
                 # The shared controller still holds another assay's (or an earlier state's)
                 # last step; publishing it under this identity would mislabel it as current.
                 counts = None
-                unavailable = "No graph step for this assay since it was selected"
+                unavailable = GRAPH_NO_STEP_YET
             rates = regions.rates(counts, controller.step_ms / 1000.0) if counts is not None else None
             snapshot = {"grouping": regions.grouping, "names": regions.names, "sizes": regions.sizes.tolist(),
                         "units": "Hz", "rates": rates}

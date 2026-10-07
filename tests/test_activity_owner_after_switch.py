@@ -57,3 +57,36 @@ def test_modular_activity_unchanged(tmp_path):
         runner.step_once()
         activity = runner._assemble_telemetry(runner._last_step_result)["activity"]
     assert activity["grouping"] == "modular-circuit" and "unavailable" not in activity
+
+
+def test_gait_cadence_withheld_until_the_switch_target_steps(tmp_path):
+    runner = graph_runner(tmp_path)
+    with runner.lock:
+        for _ in range(3):
+            runner.step_once()
+        stepped = runner._assemble_telemetry(runner._last_step_result)["biomechanics"]
+    assert isinstance(stepped["cadence_hz"], float) and "cadence_unavailable" not in stepped
+    transition_command(runner, {"action": "switch_paradigm", "params": {"paradigm": "labyrinth"}})
+    assert runner.active_paradigm_id == "labyrinth"
+    with runner.lock:
+        fly = runner.arena.fly
+        assert fly.speed > 0                      # constructor default would read as a cadence
+        unstepped = runner._assemble_telemetry({})["biomechanics"]
+    assert unstepped["cadence_hz"] is None
+    assert unstepped["cadence_unavailable"] == "No graph step for this assay since it was selected"
+    with runner.lock:
+        runner.step_once()
+        fly = runner.arena.fly
+        expected = round(8.0 * (fly.speed / 12.0) if fly.speed > 0 else 0.0, 1)
+        measured = runner._assemble_telemetry(runner._last_step_result)["biomechanics"]
+    assert measured["cadence_hz"] == expected and "cadence_unavailable" not in measured
+
+
+def test_modular_cadence_formula_unchanged(tmp_path):
+    runner = ContinuousExperimentRunner(initial_paradigm="open-arena", sim_speed=1, checkpoint_interval=3600,
+                                        output_dir=tmp_path, backend="modular")
+    with runner.lock:
+        bio = runner._assemble_telemetry({})["biomechanics"]
+        fly = runner.arena.fly
+    assert bio["cadence_hz"] == round(8.0 * (fly.speed / 12.0) if fly.speed > 0 else 0.0, 1)
+    assert "cadence_unavailable" not in bio

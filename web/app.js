@@ -6680,11 +6680,14 @@ class ScientificHUD {
         const cpgFreqEl = document.getElementById('valCpgFreq');
         if (cpgFreqEl) {
             const cadence = this.arena.remotePacket?.biomechanics?.cadence_hz;
+            const noStep = this.arena.remotePacket?.biomechanics?.cadence_unavailable;
             cpgFreqEl.textContent = panelCaps.graph
-                ? (Number.isFinite(cadence) ? `${cadence.toFixed(1)} Hz · proxy` : 'Unavailable')
+                ? (Number.isFinite(cadence) ? `${cadence.toFixed(1)} Hz · proxy` : (noStep ? 'No step yet' : 'Unavailable'))
                 : this.arena.cpg.steppingFreq.toFixed(1) + ' Hz';
             cpgFreqEl.title = panelCaps.graph
-                ? 'Model-derived body cadence from the streamed biomechanics channel; not a measured connectome CPG readout.' : '';
+                ? (Number.isFinite(cadence) || !noStep
+                    ? 'Model-derived body cadence from the streamed biomechanics channel; not a measured connectome CPG readout.'
+                    : `No measurement yet: ${noStep}.`) : '';
         }
         const gaitHeading = document.getElementById('gaitPanelTitle');
         if (gaitHeading) gaitHeading.textContent = `[3] ${panelCaps.gaitLabel}`;
