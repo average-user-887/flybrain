@@ -79,3 +79,19 @@ def test_cpu_resume_is_exact():
     b.write_state(0, mid)
     b.step(_drive(b), 30)
     assert _same(a.read_state(0), b.read_state(0))
+
+
+def test_state_semantic_holes_refused():
+    eng = CpuLoopCohortEngine(_graph(), 1)
+    eng.step(_drive(eng), 20)
+    live = eng.read_state(0)
+    bad_queue = {k: (np.array(v, copy=True) if isinstance(v, np.ndarray) else v) for k, v in live.items()}
+    bad_queue["queue_count"][0] = 1
+    bad_queue["queue"][0, 0] = eng.n + 939
+    extra = dict(live, surprise=1)
+    clocks = dict(live, sim_ms=float(live["sim_ms"]) + 100.0)
+    for bad in (bad_queue, extra, clocks):
+        with pytest.raises(ValueError):
+            eng.write_state(0, bad)
+        assert _same(live, eng.read_state(0))
+    eng.write_state(0, live)   # the genuine state is still accepted

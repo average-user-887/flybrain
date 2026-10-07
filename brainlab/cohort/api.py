@@ -64,9 +64,11 @@ class CohortEngine(abc.ABC):
             raise ValueError(f"fly must be in [0, {self.n_flies})")
         if state.get("dynamics") != "v3":
             raise ValueError("Cohort states are fixed v3 only; refused, not reinterpreted")
-        missing = [k for k in template if k not in state]
-        if missing:
-            raise ValueError(f"State is missing required fields {sorted(missing)}; refused")
+        missing = sorted(set(template) - set(state))
+        extra = sorted(set(state) - set(template))
+        if missing or extra:
+            raise ValueError(f"State keys do not match the v3 state exactly "
+                             f"(missing {missing}, unexpected {extra}); refused")
         staged = {}
         for key, ref in template.items():
             value = state[key]
@@ -86,10 +88,30 @@ class CohortEngine(abc.ABC):
                 raise ValueError(f"State field {key} must be a non-negative integer; refused")
         if not np.isfinite(float(staged.get("sim_ms", 0.0))) or float(staged["sim_ms"]) < 0:
             raise ValueError("State field sim_ms must be finite and >= 0; refused")
+        cursor = int(staged["cursor"])
+        if not np.isclose(float(staged["sim_ms"]), cursor * TICK_MS, rtol=0.0, atol=1e-6 * max(1.0, cursor)):
+            raise ValueError(f"State clocks disagree: sim_ms={staged['sim_ms']} but cursor={cursor} "
+                             f"ticks of {TICK_MS} ms; refused")
+        n = self.n
         if "queue_count" in staged and "queue" in staged:
             qc, q = np.asarray(staged["queue_count"]), np.asarray(staged["queue"])
             if qc.size and (qc.min() < 0 or qc.max() > q.shape[-1]):
                 raise ValueError("State queue_count is outside the queue bounds; refused")
+            for slot, count in enumerate(qc.tolist()):
+                entries = q[slot, :count]
+                if count and (entries.min() < 0 or entries.max() >= n):
+                    raise ValueError(f"State queue slot {slot} holds neuron indices outside [0, {n}); refused")
+        if "active_flag" in staged:
+            flag = np.asarray(staged["active_flag"])
+            if flag.size and not np.isin(flag, (0, 1)).all():
+                raise ValueError("State active_flag must be 0 or 1; refused")
+        if "nactive" in staged and "active" in staged:
+            nact = int(np.asarray(staged["nactive"]).reshape(-1)[0])
+            act = np.asarray(staged["active"])
+            if nact < 0 or nact > act.size:
+                raise ValueError("State nactive is outside the active list; refused")
+            if nact and (act[:nact].min() < 0 or act[:nact].max() >= n):
+                raise ValueError(f"State active list holds neuron indices outside [0, {n}); refused")
         return staged
 
     @abc.abstractmethod
