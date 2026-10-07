@@ -7,7 +7,9 @@ belong to a CELL TYPE:
 
 * ``R1-R6`` receive light through a graded phototransduction model (a
   light-gated conductance reversing at 0 mV) instead of an injected current;
-* a graded presynaptic type may release through a fitted sigmoid
+* a graded presynaptic type may release through a fitted sigmoid, optionally
+  light-adapting (``vh_eff = vh + kappa*(m - V_rest)``, ``m`` a low-pass of V
+  with ``tau_s``),
   ``x = gain * R_MAX * dt * 1/(1 + exp(-(V - vh)/s))`` instead of v4's linear
   ``r(V)``; a type without a sigmoid keeps v4's linear release times ``gain``
   (gain 1 = v4 exactly).  ``gain`` is an EFFECTIVE release gain recorded per
@@ -40,7 +42,7 @@ E_LIGHT_MV = E_EXC_MV          # light-gated TRP/TRPL conductance; capped by the
 def advance_v6(ptr, post, weight, v, g, refractory, drive, queue, queue_count, cursor, steps, dt,
                counts, active, active_flag, nactive, e_inh, g_unit_exc, g_unit_inh, graded,
                graded_idx, rel_ring, tau_m, g_light, rel_gain, rel_vh, rel_s,
-               gh, h_vh, h_k, h_tau, h_e, h_state):
+               gh, h_vh, h_k, h_tau, h_e, h_state, rel_kappa, rel_tau_s, rel_m):
     """``advance_v4`` with per-neuron graded-cell parameters (see module doc).
 
     Spiking cells are integrated exactly as in v4 (global TAU_M_MS).  For a
@@ -101,7 +103,11 @@ def advance_v6(ptr, post, weight, v, g, refractory, drive, queue, queue_count, c
             v[i] = vi
             g[0, i] = ge * ag; g[1, i] = gi * ag
             if rel_s[i] > 0.0:
-                rel_ring[future, i] = rel_gain[i] * sig_scale / (1.0 + math.exp(-(vi - rel_vh[i]) / rel_s[i]))
+                vh = rel_vh[i]
+                if rel_kappa[i] != 0.0:
+                    rel_m[i] += (vi - rel_m[i]) * (1.0 - math.exp(-dt / rel_tau_s[i]))
+                    vh += rel_kappa[i] * (rel_m[i] - V_REST_MV)
+                rel_ring[future, i] = rel_gain[i] * sig_scale / (1.0 + math.exp(-(vi - vh) / rel_s[i]))
             else:
                 rel_ring[future, i] = rel_gain[i] * (vi - e_inh) * rel_scale
         for q in range(queue_count[slot]):
@@ -219,6 +225,8 @@ class BrainV6(Brain):
         self.h_vh = np.full(n, -60.0); self.h_k = np.full(n, 5.0)
         self.h_tau = np.full(n, 100.0); self.h_e = np.full(n, -30.0)
         self.h_state = np.zeros(n, np.float64)
+        self.rel_kappa = np.zeros(n, np.float64); self.rel_tau_s = np.full(n, 200.0)
+        self.rel_m = np.full(n, V_REST_MV, np.float64)
         applied = {}
         ct = np.asarray(cell_type)
         for t, p in params.get('types', {}).items():
@@ -232,6 +240,8 @@ class BrainV6(Brain):
                 self.rel_gain[idx] = rel.get('gain', 1.0)
                 if rel.get('kind') == 'sigmoid':
                     self.rel_vh[idx] = rel['vh_mV']; self.rel_s[idx] = rel['s_mV']
+                    if rel.get('kappa'):
+                        self.rel_kappa[idx] = rel['kappa']; self.rel_tau_s[idx] = rel['tau_s_ms']
             ih = p.get('ih')
             if ih:
                 self.gh[idx] = ih['g']; self.h_vh[idx] = ih['vh_mV']; self.h_k[idx] = ih['k_mV']
@@ -244,7 +254,7 @@ class BrainV6(Brain):
         self.dynamics_label = 'v6'
 
     def _state_arrays(self):
-        return super()._state_arrays() + ('h_state', 'g_light')
+        return super()._state_arrays() + ('h_state', 'g_light', 'rel_m')
 
     def snapshot_state(self):
         s = super().snapshot_state()
@@ -262,7 +272,7 @@ class BrainV6(Brain):
 
     def reset_state(self, v_rest_mV=-52.0):
         super().reset_state(v_rest_mV)
-        self.h_state.fill(0.0); self.g_light.fill(0.0)
+        self.h_state.fill(0.0); self.g_light.fill(0.0); self.rel_m.fill(V_REST_MV)
         if self.pt is not None:
             self.pt.set_state(Phototransduction(self.v6_params['phototransduction'], len(self.light_nodes)).state())
 
@@ -292,7 +302,7 @@ class BrainV6(Brain):
                                      self.g_unit_exc, self.g_unit_inh, self.graded, self.graded_idx,
                                      self.rel_ring, self.tau_m, self.g_light, self.rel_gain, self.rel_vh,
                                      self.rel_s, self.gh, self.h_vh, self.h_k, self.h_tau, self.h_e,
-                                     self.h_state)
+                                     self.h_state, self.rel_kappa, self.rel_tau_s, self.rel_m)
         self.total_spikes += int(self.counts.sum())
         self.sim_ms += ms
         return self.counts.copy(), 0.0

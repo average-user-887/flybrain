@@ -1,0 +1,158 @@
+{
+ "contract": "v6 S1 FIT SPEC v3 (input stage). Supersedes v2 (arm S1-A2 REJECTED, see REJECTED_ARMS.md); frozen and committed before this fit runs",
+ "data_pin": "qualification/v6/S0_data_pin.json sha256 61d09fb0d93c25d25330caecced6d6bc429d306b6917b81f112cbcec510531d9",
+ "scope": "Per-type parameters of R1-R6 only: phototransduction (G, Ka, tau_p0) and the R1-R6 release sigmoid (gain, vh, s). No edge, no base weight, no other type changes. Base weights untouched; 'gain' is recorded as an EFFECTIVE release gain of the presynaptic type R1-R6.",
+ "engine": "brainlab/v6_calibrated.py (advance_v6 == advance_v4 with empty parameters; tests/test_v6_calibrated.py)",
+ "compute_limit": "CPU only, <= 4 cores (taskset 0-3, nice), reduced single-cell models; no GPU",
+ "intensity_units": "light I in units of JH2001 BG0 (~3e6 photons/s)",
+ "encoder_to_intensity": 0.01,
+ "encoder_mapping_rationale": "the Path B encoder levels (BASE 10, ON 20, OFF 0) become light 0.1 (= BG-1), 0.2 and darkness. Declared before any fit; not tuned.",
+ "phototransduction": {
+  "model": "dead time D, n first-order stages with tau = tau_p0/(1+a/Kt) (speed-up) , adaptation a = low-pass(y, tau_a), light conductance G*y/(1+a/Ka) (gain control) reversing at 0 mV; R membrane tau_m 20 ms",
+  "fixed": {
+   "n_stages": 4,
+   "dead_time_ms": 10,
+   "tau_a_ms": 200
+  },
+  "fixed_rationale": "D = JH2001 BG0 dead time (~10 ms). n = 4 and tau_a = 200 ms are ENGINEERING ASSUMPTIONS (not in the pinned text).",
+  "free": [
+   "G",
+   "Ka",
+   "tau_p0_ms",
+   "Kt"
+  ],
+  "bounds_lo": [
+   0.1,
+   1e-05,
+   1.0,
+   0.0001
+  ],
+  "bounds_hi": [
+   10000.0,
+   10.0,
+   60.0,
+   100.0
+  ],
+  "observation_model": "engine R rest -52 mV, ceiling 0 mV (52 mV available). JH2001 max dark impulse 60-75 mV of a ~75-85 mV range to the light reversal -> mapped to 0.85 of the available range = 44 mV.",
+  "train_targets": {
+   "T1_dark_flash_peak_mV": {
+    "target": 44.0,
+    "tol": 4.0,
+    "source": "JH2001 max dark impulse (1-ms flash, 3.3 x BG0), mapped as above"
+   },
+   "T2_BG0_plateau_frac": {
+    "target": 0.39,
+    "tol": 0.09,
+    "source": "JH2001: BG0 steady state = 39 +- 9 % of max dark impulse"
+   },
+   "T3_tp_BG0_ms": {
+    "target": 20.0,
+    "tol": 4.0,
+    "source": "JH2001 Fig. 6H text: impulse time to peak ~20 ms at BG0"
+   }
+  },
+  "optimiser": "Nelder-Mead on log-parameters WITH bounds, 3 fixed starts",
+  "refit": "NOT refitted: the S1-A2 phototransduction (it met every train target) is carried over unchanged and its held-out result (H1 pass, H2 fail) stands",
+  "carried_params": {
+   "G": 68.78467273164175,
+   "Ka": 0.007212198720419329,
+   "tau_p0_ms": 4.327696304840035,
+   "Kt": 0.997779268452982
+  }
+ },
+ "release": {
+  "model": "ADAPTIVE sigmoid: x = gain*R_MAX*dt/(1+exp(-(V_R - vh_eff)/s)), vh_eff = vh0 + kappa*(m - V_rest), m = low-pass(V_R, tau_s). Light adaptation of the R->LMC synapse (JUUSOLA1995: synaptic amplification depends on background).",
+  "reduced_lamina_model": "one L cell per type (L1, L2, L3; right eye, COMPLETE columns, >= 1 R input): W = median summed |w| from R1-R6 (engine v4 policy weights, scripts/v6/r_to_l_weights.py); the non-R tonic conductances ge_o, gi_o are solved from the Path B v4 sham V_B and gtot_B after subtracting the v4 R contribution, then held fixed",
+  "fit_types": [
+   "L1",
+   "L2",
+   "L3"
+  ],
+  "train_targets": {
+   "V_dark": {
+    "target": -55.0,
+    "tol": 7.5,
+    "source": "ZHENG2006 LMC rest -40..-70 mV (midpoint; engine floor -70)"
+   },
+   "frac": {
+    "target": 0.9,
+    "tol": 0.05,
+    "source": "ZHENG2006 LMC saturating light-pulse hyperpolarisation >40, up to 45 mV from a -40..-70 rest: near the full range; observation = fraction of (V_dark - E_inh) reached by the dark-adapted 1-ms 3.3 x BG0 flash"
+   },
+   "amp_BG0": {
+    "target": 4.0,
+    "tol": 1.5,
+    "source": "JUUSOLA1995 (blowfly) synaptic amplification ~4 at the brightest background, mapped to BG0; observation = peak |dV_L| / peak dV_R for a +0.5 contrast step (I: B -> 1.5 B, 300 ms) after 3 s adaptation to B"
+   }
+  },
+  "gain_bounds": [
+   0.01,
+   100.0
+  ],
+  "vh_bounds_mV": [
+   -52.0,
+   0.0
+  ],
+  "s_grid_mV_descending": [
+   20,
+   16,
+   12,
+   10,
+   8,
+   6,
+   5,
+   4,
+   3,
+   2,
+   1.5,
+   1
+  ],
+  "selection_rule": "minimum cost over the s grid (all three targets constrain s through amp_BG0); ties within 0.05 resolved to the larger s",
+  "accept_cost": 1.0,
+  "frac_guard": "if V_dark - E_inh < 0.01 mV the fraction is scored 0",
+  "fixed": {
+   "kappa": 1.0,
+   "tau_s_ms": 200.0
+  },
+  "fixed_rationale": "kappa = 1 (the curve re-centres fully on the slow mean) and tau_s = 200 ms are ENGINEERING ASSUMPTIONS; the pinned texts give no number for either",
+  "free": [
+   "gain",
+   "vh0_mV",
+   "s_mV"
+  ]
+ },
+ "held_out": {
+  "H1_tp_BG-4_ms": {
+   "target": 40.0,
+   "accept": [
+    30.0,
+    50.0
+   ],
+   "source": "JH2001: tp ~40 ms at the lowest background"
+  },
+  "H2_plateau_ratio_BG-1_over_BG0": {
+   "target": 0.71,
+   "accept": [
+    0.5,
+    0.9
+   ],
+   "source": "JH2001: BG-1 ~20 mV above rest; BG0 28 mV above BG-4"
+  },
+  "H3_LMC_sign_on_increment": {
+   "target": "negative for L1, L2, L3",
+   "accept": "dV < 0",
+   "source": "BORST2025 RF_sign -1 for L1-L3 (calcium sign only)"
+  },
+  "H4_amp_BG-3.5": {
+   "target": 10.0,
+   "accept": [
+    6.0,
+    15.0
+   ],
+   "source": "JUUSOLA1995 ~10 at 3.5 log units below the brightest background (mapped to BG-3.5)"
+  }
+ },
+ "fit_pass_rule": "S1 fit PASSES if every train target is within tol (release cost <= accept_cost, averaged over L1-L3) and >= 3 of the 4 held-out checks (H1, H2, H3, H4) are inside accept; otherwise REJECTED and recorded. H2 is already known to fail (S1-A2).",
+ "supersedes": "qualification/v6/S1_fit_spec_v2.json sha256 76896820da21864563891edfafb09e2cff6677de001f5ddadd18b83f74cee444",
+ "data_pin_addendum": "qualification/v6/S0_data_pin_addendum_1.json"
+}

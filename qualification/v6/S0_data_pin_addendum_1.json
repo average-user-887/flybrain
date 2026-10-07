@@ -1,0 +1,17 @@
+{
+  "contract": "v6 S0 addendum 1 (added after arm S1-A2 was rejected; the reason is recorded in REJECTED_ARMS.md). Pins one more NON-MOTION source; nothing in S0 is changed.",
+  "JUUSOLA1995": {
+    "citation": "Juusola M, Uusitalo RO, Weckstrom M (1995) Transfer of graded potentials at the photoreceptor-interneuron synapse. J Gen Physiol 105(1):117-148",
+    "doi": "10.1085/jgp.105.1.117", "pmcid": "PMC2216927", "licence": "CC BY-NC-SA 4.0; only numbers stated in the text are used",
+    "file": "Juusola1995_PMC2216927_fullTextXML.xml",
+    "sha256": "49f428c13fa4646b8afefdc8671e4fa12f906ea65ac1c50da9805fe3c4f26ff0",
+    "species": "BLOWFLY Calliphora vicina, NOT Drosophila (cross-species, disclosed)",
+    "recording": "intracellular R1-6 and LMC voltage; light steps in the dark, contrast steps and pseudorandom contrast at backgrounds over 6 log units (non-motion)",
+    "numbers": {
+      "synaptic_amplification_contrast_steps": "LMC peak / R peak for contrast steps falls ~2.5-fold, from ~10 to ~4, when the background rises 3.5 log units (Fig. 8C text); the brightest background is ~500,000 photons/s, the lowest ~160 photons/s",
+      "low_frequency_gain_dimmest": "~13-fold at ~160 photons/s (Fig. 9A text)",
+      "dark_adapted_LMC_saturation": "on-transients saturated by small steps, 40-58 mV below the dark rest; R steps saturate at 55-70 mV"
+    },
+    "mapping": "blowfly brightest tested background -> Drosophila BG0; 3.5 log units dimmer -> BG-3.5. Declared, not fitted."
+  }
+}
