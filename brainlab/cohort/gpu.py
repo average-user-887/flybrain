@@ -165,6 +165,8 @@ STATE_KEYS = ('v', 'g', 'refractory', 'queue', 'queue_count', 'counts',
               'active', 'active_flag', 'nactive')
 SCALAR_KEYS = ('cursor', 'total_spikes', 'sim_ms')
 GPU_ENV = 'NEUROFLY_COHORT_GPU'
+# Arrival arithmetic, recorded so states from the earlier fixed-point kernel are distinguishable.
+DELIVERY = 'per-arrival-float32-ascending-pre-edge'
 
 # One device copy of each read-only graph per (device, host buffer).
 _GRAPH_CACHE: dict = {}
@@ -324,7 +326,7 @@ class GpuCohortEngine(CohortEngine):
 
     def describe(self) -> dict:
         info = super().describe()
-        info.update(device=self.device_name, device_index=self.device_index,
+        info.update(delivery=DELIVERY, device=self.device_name, device_index=self.device_index,
                     device_bytes=self.device_bytes(), grid_blocks=self._grid_blocks(),
                     threads_per_block=THREADS_PER_BLOCK)
         return info

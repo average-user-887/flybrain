@@ -162,6 +162,14 @@ def main(argv=None) -> int:
         if B not in (1, 8, 32):
             raise SystemExit('B is limited to 1, 8 and 32')
 
+    # Guard: never create a context on anything but the named device. Every
+    # visible device must match --device, so stray calls cannot reach another GPU.
+    import cupy as cp
+    names = [cp.cuda.runtime.getDeviceProperties(k)['name'].decode() for k in range(cp.cuda.runtime.getDeviceCount())]
+    if a.device and not a.device.isdigit() and not all(a.device in nm for nm in names):
+        raise SystemExit(f'refusing: visible devices {names}; set CUDA_VISIBLE_DEVICES to the {a.device} only')
+    if a.device and not a.device.isdigit():
+        cp.cuda.Device(names.index(next(nm for nm in names if a.device in nm))).use()
     from brainlab.cohort.contract import real_graph
     clock = time.perf_counter()
     arrays = real_graph()
