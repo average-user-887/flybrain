@@ -45,7 +45,7 @@ import sys
 import threading
 import time
 import uuid
-from collections import deque
+from collections import OrderedDict, deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -1347,6 +1347,8 @@ class ContinuousExperimentRunner:
         # Immutable lineage of the current observation segment when it starts inside a
         # restored trial (see _open_restored_segment); None for an ordinary segment.
         self.segment_lineage: Optional[Dict[str, Any]] = None
+        # segment_id -> durable terminal receipt summary acknowledged in this process.
+        self._durable_terminals: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
         self.last_checkpoint_time = time.time()
         self.trial_history: List[Dict[str, Any]] = []
         self.learning_curve: List[float] = []
@@ -1543,12 +1545,16 @@ class ContinuousExperimentRunner:
         self.segment_lineage = None
         if not restart and (parent is None or parent == self.segment_id):
             return
+        status, evidence = self._parent_observation_status(parent)
         lineage = {
             "segment_id": self.segment_id,
             "parent_segment_id": parent,
             "reason": "daemon_restart" if restart else "assay_reactivated",
-            "parent_observation": ("interrupted_incomplete_no_terminal" if restart
-                                   else "ended_before_assay_switch"),
+            # Known: this segment's window does not continue the parent's measurement.
+            "continuation": "new_window_not_continuing_parent",
+            # The parent's own status, only as far as durable evidence shows it.
+            "parent_observation": status,
+            "parent_observation_evidence": evidence,
             "daemon_run_id": self.run_id,
             "trial": clock["current_trial"],
             "trial_known": clock["trial_known"],
@@ -1559,7 +1565,51 @@ class ContinuousExperimentRunner:
         }
         self.segment_lineage = copy.deepcopy(lineage)
         if restart:
-            self._ledger("observation_interrupted", **lineage)
+            # Append-only discontinuity record; it never replaces a parent terminal.
+            self._ledger("observation_segment_restarted", **lineage)
+
+    def _parent_observation_status(self, parent: Optional[str]):
+        """(status, evidence) of a parent segment from durable records only.
+
+        ``terminal_recorded`` when this process acknowledged its durable terminal or
+        the assay's append-only event ledger holds a record keyed to it; otherwise
+        ``unknown``.  Restoring a checkpoint taken before the parent ended proves
+        nothing about it, and a missing ledger record does not prove interruption:
+        the earlier session's recorder may hold a terminal it never logged here.
+        """
+        if parent is None:
+            return "unknown", {"source": None, "detail": "saved state names no parent segment"}
+        receipt = self._durable_terminals.get(parent)
+        if receipt is not None:
+            return "terminal_recorded", dict(receipt, source="durable_receipt_this_process")
+        path = self.active_brain.directory / f"{self.active_brain.paradigm}.events.jsonl"
+        unreadable = 0
+        try:
+            with open(path, "r", encoding="utf-8", errors="strict") as fh:
+                for line in fh:
+                    if parent not in line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except ValueError:
+                        unreadable += 1
+                        continue
+                    key = record.get("observation_key") if isinstance(record, dict) else None
+                    if isinstance(key, dict) and key.get("segment_id") == parent:
+                        return "terminal_recorded", {
+                            "source": "assay_event_ledger", "ledger_kind": record.get("kind"),
+                            "end_reason": record.get("reason"),
+                            "payload_sha256": record.get("payload_sha256")}
+        except FileNotFoundError:
+            return "unknown", {"source": "assay_event_ledger", "detail": "ledger missing"}
+        except (OSError, UnicodeDecodeError) as exc:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"ledger unreadable ({type(exc).__name__})"}
+        if unreadable:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"{unreadable} unreadable ledger record(s) name the parent"}
+        return "unknown", {"source": "assay_event_ledger",
+                           "detail": "no terminal for the parent in this assay's ledger"}
 
     def current_segment_lineage(self) -> Optional[Dict[str, Any]]:
         lineage = self.segment_lineage
@@ -2545,6 +2595,11 @@ class ContinuousExperimentRunner:
                 and durable["observation_key"] == terminal["observation_key"]
                 and durable["payload_sha256"] == terminal["payload_sha256"]):
             terminal["durable"] = copy.deepcopy(durable)
+            self._durable_terminals[durable["observation_key"]["segment_id"]] = {
+                "end_reason": terminal["observation"].get("end_reason"),
+                "payload_sha256": durable["payload_sha256"]}
+            while len(self._durable_terminals) > 256:
+                self._durable_terminals.popitem(last=False)
             self._maybe_finish_observation_transition()
         self._publish_due = True
         return durable
@@ -3870,13 +3925,16 @@ class ContinuousExperimentRunner:
         self.learning_curve.append(metric_val)
         self.active_brain.trials += 1
         # Guarded (F2): a full disk degrades the run; the trial still counts in memory.
+        terminal = self._observation_terminal or {}
         self._ledger("trial", trial=self.active_brain.trials, metric=metric_val,
                      metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
-                     reason=reason, metrics=metrics, probe=self.active_brain.probe())
+                     reason=reason, metrics=metrics, probe=self.active_brain.probe(),
+                     observation_key=copy.deepcopy(terminal.get("observation_key")),
+                     payload_sha256=terminal.get("payload_sha256"))
         ident = self.identity()
         # The frozen terminal observation is the measurement's authority (the producer
         # itself has been reset by the respawn); None when no terminal ended the trial.
-        observed = (self._observation_terminal or {}).get("observation") or {}
+        observed = terminal.get("observation") or {}
         self.trial_history.append({
             "run_id": ident.get("run_id"),
             "instance_id": ident.get("instance_id"),
