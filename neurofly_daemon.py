@@ -364,6 +364,9 @@ def identity_rejection(packet_identity: Optional[Dict[str, Any]], packet_daemon_
     return None
 
 
+GRAPH_NO_STEP_YET = "No graph step for this assay since it was selected"
+
+
 class GraphArenaController:
     """Arena motor controller for graph backends (connectome-fixed/-plastic/-readout).
 
@@ -392,6 +395,9 @@ class GraphArenaController:
         self._currents = None
         self.last_total_spikes = 0
         self.last_counts = None              # per-neuron spike counts of the last graph step
+        # (instance_id, assay, step_index) that produced last_counts. One controller is
+        # shared by every assay, so counts must never be shown under another owner.
+        self.last_counts_owner = None
         # WP5 optomotor loop, resolved once: an OptomotorIOMap, or False when this
         # graph has none (the reason is kept in ``optomotor_unavailable``).
         self._optomotor_io = None
@@ -526,8 +532,12 @@ class GraphArenaController:
         self._optomotor_loop = (instance, loop)
         return loop
 
+    def _own_counts(self, instance):
+        self.last_counts_owner = (instance.instance_id, self.runner.active_paradigm_id, int(instance.step_index))
+
     def __call__(self, fly=None, sensory=None, dt=0.02, **kwargs):
         self.last_counts = None
+        self.last_counts_owner = None
         registry = self.runner.registry
         instance = registry.active if registry is not None else None
         if instance is None or instance.assay != self.runner.active_paradigm_id:
@@ -544,6 +554,7 @@ class GraphArenaController:
                                    float(kwargs.get("optomotor_contrast", 1.0)))
                 self.last_total_spikes = int(record["total_spikes"])
                 self.last_counts = getattr(loop, "last_counts", None)
+                self._own_counts(instance)
                 epg_wedges = [0.0] * 16
                 bump_phase = 0.0
                 wp6_mean_delta = 0.0
@@ -700,6 +711,7 @@ class GraphArenaController:
         result = instance.step(currents, self.step_ms)
         counts = result.counts
         self.last_counts = counts
+        self._own_counts(instance)
         self.last_total_spikes = int(counts.sum())
 
         # Decode descending neuron firing rates (Hz)
@@ -3960,6 +3972,11 @@ class ContinuousExperimentRunner:
             "connectome": conn_telem if conn_telem else None,
             "metrics": p_metrics
         }
+        if self.graph_mode and not self._graph_step_current():
+            # The arena fly's speed has not been produced by a graph step for this owner yet
+            # (e.g. a switch target's constructor default); do not present it as a cadence.
+            packet["biomechanics"]["cadence_hz"] = None
+            packet["biomechanics"]["cadence_unavailable"] = GRAPH_NO_STEP_YET
         packet["activity"] = self.activity_snapshot(packet)
         return packet
 
@@ -5172,6 +5189,15 @@ class ContinuousExperimentRunner:
             self._region_map_cache = cached
         return cached[1]
 
+    def _graph_step_current(self) -> bool:
+        """True when the shared graph controller's last step belongs to the displayed owner."""
+        controller = self.graph_controller
+        active = self.registry.active if self.registry is not None else None
+        if controller is None or active is None or getattr(controller, "last_counts", None) is None:
+            return False
+        current = (active.instance_id, self.active_paradigm_id, int(active.step_index))
+        return getattr(controller, "last_counts_owner", None) == current
+
     def activity_snapshot(self, packet: Dict[str, Any]) -> Dict[str, Any]:
         """Per-region activity for the Brain Activity panel and recordings.
 
@@ -5182,9 +5208,18 @@ class ContinuousExperimentRunner:
         if regions is not None:
             controller = self.graph_controller
             counts = getattr(controller, "last_counts", None)
+            unavailable = None
+            if counts is not None and not self._graph_step_current():
+                # The shared controller still holds another assay's (or an earlier state's)
+                # last step; publishing it under this identity would mislabel it as current.
+                counts = None
+                unavailable = GRAPH_NO_STEP_YET
             rates = regions.rates(counts, controller.step_ms / 1000.0) if counts is not None else None
-            return {"grouping": regions.grouping, "names": regions.names, "sizes": regions.sizes.tolist(),
-                    "units": "Hz", "rates": rates}
+            snapshot = {"grouping": regions.grouping, "names": regions.names, "sizes": regions.sizes.tolist(),
+                        "units": "Hz", "rates": rates}
+            if unavailable:
+                snapshot["unavailable"] = unavailable
+            return snapshot
         neural = packet.get("neural") or {}
         kc = neural.get("kc_hz") or []
         rates = [round(float(np.mean(kc)), 4) if len(kc) else 0.0,
