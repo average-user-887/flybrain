@@ -7,9 +7,11 @@ ones, get their own section, because for this project they matter as much as cod
 
 ## [0.5.0rc1] - 2026-10-07 (PRERELEASE)
 
-Release candidate on top of `v0.4.0`. **Prerelease, pending the owner's decision:** the
-GPU cohort engine **fails** its preregistered CPU-reference gate (see Scientific
-results). Details: `docs/RELEASE_NOTES_v0.5.0rc1.md`.
+Release candidate on top of `v0.4.0`. **Prerelease, pending review and the owner's
+decision.** The first GPU cohort kernel failed its preregistered CPU-reference gate.
+This candidate changes its arrival arithmetic and passes the unchanged gate, but the GPU
+is now only about 1.1–1.4× faster than the CPU (see Scientific results). Details:
+`docs/RELEASE_NOTES_v0.5.0rc1.md`.
 
 ### Added
 
@@ -29,12 +31,20 @@ results). Details: `docs/RELEASE_NOTES_v0.5.0rc1.md`.
 
 ### Scientific results
 
-- **GPU cohort CPU-reference gate: FAIL.** 7 g points exceed 1e-6, worst 1.047e-6;
-  0 spike/refractory mismatches over 200 ticks; max |ΔV| 1.14e-5 mV.
+- **GPU cohort CPU-reference gate:**
+  - **Original fixed-point kernel (`af87006`): FAIL.** First breach at tick 172, a g
+    relative error of 1.006e-6.
+  - **This candidate: PASS** (new run, same unchanged contract). Arrivals are added one
+    at a time in float32, in ascending (pre, edge) order. The CPU uses its own
+    active/queue order, so the two are not bit-identical: max g relative error 5.35e-7,
+    0 spike mismatches over 200 ticks.
+- **Compatibility:** cohorts written under the fixed-point kernel are refused on resume
+  by the dynamics signature, and their files are left untouched.
 - **Checks that pass:** cross-engine restore, batch invariance, isolation between
   flies, and byte-identical resume.
-- **Throughput** (GTX 1660 Ti): batched GPU runs about 4,800 brain ticks/s (0.1 ms ticks), against
-  about 480 on the CPU. Batching adds only about 1.2x over serial GPU runs.
+- **Throughput** (GTX 1660 Ti): batched GPU runs 545–643 brain ticks/s (0.1 ms ticks),
+  against about 480 on the CPU. The fixed-point kernel's 4,150–4,850 ticks/s are
+  historical.
 - **Disclosure:** the cohort's input and output are declared, not native. The encoder
   drives T4/T5 directly, and the DNa02 yaw decoder is an engineered linear readout.
 

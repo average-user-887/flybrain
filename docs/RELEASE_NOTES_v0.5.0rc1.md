@@ -2,9 +2,11 @@
 
 *Release candidate, 7 October 2026. Base: tag `v0.4.0` (`5bd16d6`).*
 
-> **PRERELEASE.** This candidate is not a release. Its new GPU cohort engine **fails**
-> its preregistered CPU-reference gate (below). Whether v0.5.0 ships with this result,
-> and how it is described, waits on the owner's decision.
+> **PRERELEASE.** This candidate is not a release. The first GPU cohort engine
+> (fixed-point arrivals, frozen at `af87006`) **failed** its preregistered CPU-reference
+> gate. This candidate replaces its arrival arithmetic and **passes** the unchanged gate,
+> at about one eighth of the earlier GPU speed (below). Release waits on review and the
+> owner's decision.
 
 ## In short
 
@@ -86,79 +88,92 @@ and writes it into `cohort_manifest.json`.
 
 ## GPU cohort engine: measured results
 
-These were measured on one host with a GTX 1660 Ti (6 GB).
+Measured on one host with a GTX 1660 Ti (6 GB), the only device visible to the runs.
 
-### CPU-reference gate: **FAIL**
+### Arrival arithmetic (what changed and what did not)
 
-The gate was preregistered before measurement, and nothing was tuned afterwards.
+- **This engine:** each neuron that receives spikes adds them one at a time,
+  `g = float32(double(g) + double(w) × g_unit)` (inhibitory: minus), in ascending
+  (presynaptic index, edge index) order.
+- **CPU reference (unchanged):** the same per-arrival float32 rounding, but in its
+  history-dependent active/queue order, which is not in general ascending.
+- The two are **not bit-identical**. On the contract workload they agree to a g relative
+  error of at most 5.35e-7.
+- Equations, constants, weights, delay, refractory period and phase order are unchanged.
+- **Superseded:** the first GPU cohort kernel (`af87006`) summed arrivals in 64-bit fixed
+  point and folded them once per tick.
+- The cohort dynamics signature now records the arrival arithmetic. A cohort written
+  under the fixed-point kernel is refused on resume, before anything is restored or
+  written, and its files are left untouched.
 
-- **FAIL:** 7 g points exceed 1e-6, worst 1.047e-6.
-- 0 spike or refractory mismatches over 200 ticks.
-- Max |ΔV| 1.14e-5 mV.
-- The first breach was at tick 172, fly 4: g relative error 1.006e-6 against a bound of
-  1e-6.
-- The cause: the CPU accumulates in float32 and the GPU in fixed point.
+### CPU-reference gate
 
-The spike and voltage figures are descriptive and do not change the FAIL.
+The gate (`tests/cohort_contract.json`) was preregistered before any run. The reference,
+stimulus, seeds, window, tolerances and predicates are unchanged.
 
-### Checks that pass
+- **Original run, fixed-point kernel (`af87006`): FAIL.** The first breach was at tick
+  172, fly 4: g relative error 1.006e-6 against a bound of 1e-6. Descriptively over 200
+  ticks: 7 g points above 1e-6 (worst 1.047e-6), 0 spike or refractory mismatches, max
+  |ΔV| 1.14e-5 mV. That result stands.
+- **Cause:** the CPU rounds to float32 after each arrival; the fixed-point kernel summed
+  exactly and rounded once. At the first divergent neuron, 64 arrivals at tick 104 left
+  an 11-ulp difference, which persisted through decay.
+- **This candidate (per-arrival float32): PASS**, a new run.
+  - 0 spike mismatches.
+  - Max |ΔV| 7.6e-6 mV.
+  - Max g relative error 5.35e-7.
+  - Refractory exact over all 200 ticks.
 
-- Cross-engine restore works in both directions.
+### Checks that pass (this candidate)
+
+- Cross-engine restore works in both directions (max g relative error 4.5e-7).
 - Results do not depend on batch size: with B = 1, 8 and 32, all 32 flies are
   byte-identical.
 - Flies are isolated from each other.
-- Resume is byte-identical.
+- GPU resume is byte-identical.
 - Refusals are atomic.
+- Fixed-point-era cohorts are refused.
 
 ### Throughput
 
 **Units.** The brain advances in **ticks of 0.1 ms**. The cohort loop runs the Arena in
-**steps of 20 ms**, and each Arena step is 200 brain ticks. The summary that `neurofly cohort run`
-prints counts "fly-steps/s" in 20 ms Arena steps, including the Arena, encoder and
-decoder work.
+**steps of 20 ms**, and each Arena step is 200 brain ticks. The summary that `neurofly
+cohort run` prints counts "fly-steps/s" in 20 ms Arena steps, including the Arena,
+encoder and decoder work.
 
 **How it was measured.** `scripts/cohort_bench.py` steps the engine alone, with the
-preregistered constant drive. It runs 2000 ticks (0.2 simulated seconds) per fly per
-run, in calls of 20 ticks. Each figure is the median of 3 runs on the GTX 1660 Ti and
-on this host's CPU.
-
-**Not included.** The Arena, encoder and decoder work in a real `cohort run` is not
-timed. A real run is therefore somewhat slower than these figures.
-
-**Columns.**
-- *Brain ticks/s* is fly × ticks per wall second, summed over the cohort.
-- *Arena steps/s* is the same rate in 20 ms Arena steps (brain ticks/s ÷ 200).
-- *Simulated s per wall s, per fly* is how far each fly gets in one wall-clock second.
+preregistered constant drive. It runs 2000 ticks per fly per run, in calls of 20 ticks.
+Each figure is the median of 3 runs. The real Arena, encoder and decoder work is not
+timed.
 
 | Engine | Flies (B) | Brain ticks/s (0.1 ms) | Arena steps/s (20 ms) | Simulated s per wall s, per fly |
 |---|---|---|---|---|
 | CPU | 1 | 484 | 2.4 | 0.048 |
 | CPU | 8 | 474 | 2.4 | 0.0059 |
 | CPU | 32 | 473 | 2.4 | 0.0015 |
-| GPU, serial (8 runs of B1) | 8 | 4068 | 20.3 | 0.051 |
-| GPU, serial (32 runs of B1) | 32 | 4041 | 20.2 | 0.013 |
-| GPU, batched | 1 | 4151 | 20.8 | 0.415 |
-| GPU, batched | 8 | 4803 | 24.0 | 0.060 |
-| GPU, batched | 32 | 4854 | 24.3 | 0.015 |
+| GPU, serial (8 runs of B1) | 8 | 536 | 2.7 | 0.0067 |
+| GPU, serial (32 runs of B1) | 32 | 535 | 2.7 | 0.0017 |
+| GPU, batched | 1 | 545 | 2.7 | 0.055 |
+| GPU, batched | 8 | 643 | 3.2 | 0.0080 |
+| GPU, batched | 32 | 606 | 3.0 | 0.0019 |
 
-- **Where the numbers come from.** The rows for CPU B1/B8, serial 8 and batched B1/B8/B32
-  were measured at `35859da`. CPU B32 and serial 32 were measured at the release
-  candidate, with the machine otherwise idle (load average about 1) and after the GPU
-  tests.
-- **Serial and batched B1 are the same thing.** One run of B1 is the batched B1 row.
-- **Peak device memory in use:** 1.05 GB batched (B32) and 0.42 GB serial.
-
-- **CPU versus GPU:** batched GPU reaches about 4,800 brain ticks/s, against about 480 on
-  the CPU.
-- **Batching:** batching adds only about **1.2×** over running the same flies one after
-  another on the GPU: 4803 against 4068 for 8 flies, and 4854 against 4041 for 32. Most of the gain comes from the GPU kernel itself, not from
-  batching.
+- **Where the numbers come from:**
+  - GPU rows: this candidate (`d7ce108`).
+  - CPU rows: reused, because the CPU code is unchanged. B1/B8 were measured at
+    `35859da` and B32 at `af87006`.
+- **This GPU engine is only about 1.1–1.4× faster than the CPU.** The new delivery
+  pass walks every incoming edge of each receiving neuron in a single thread.
+- **Historical, not this engine's speed:** the fixed-point kernel measured about 4,150
+  to 4,850 brain ticks/s at B1/B8/B32.
+- **Invalid:** an interrupted benchmark of the probe also opened a context on the
+  desktop GPU. It is labelled invalid and not used.
+- **Peak device memory:** 1.03 GB (B32) and 0.42 GB (B1).
 - **Start-up costs:**
-  - GPU start-up: 0.2–0.65 s.
-  - Graph upload: 0.2–0.4 s.
-  - Kernel compile: 0.02 s (cached).
-  - Warm-up: 3–54 ms.
-  - Graph preparation on the host: 1.8 s.
+  - GPU start-up: about 3.1 s, mostly building and uploading the graph and its
+    incoming-edge index.
+  - Kernel compile: 0.15 s.
+  - Warm-up: 3–62 ms.
+  - Host graph preparation: 2.2 s.
 
 ## Opt-in two-process mode (`--split`)
 
