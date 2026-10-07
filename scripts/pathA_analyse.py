@@ -10,9 +10,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pathA_provenance as prov  # noqa: E402
 
 
 def main():
@@ -24,10 +28,27 @@ def main():
     contract = json.loads(Path(args.contract).read_text())
     csha = hashlib.sha256(Path(args.contract).read_bytes()).hexdigest()
     seeds = contract['protocol']['seeds']
+    # Provenance gate: every row must be bound to THIS contract, its graph and
+    # dynamics, and all rows to one engine/source identity; otherwise refuse.
+    base = dict(contract_sha256=csha, graph_npz_sha256=contract['data']['graph_npz_sha256'],
+                dynamics=contract['protocol']['dynamics'], backend=contract['protocol']['backend'])
+    known = {c['id'] for c in contract['conditions']}
+    ident = None
     data = {}
     for d in args.runs:
         for line in (Path(d) / 'runs.jsonl').read_text().splitlines():
             r = json.loads(line)
+            p = r.get('provenance') or {}
+            if ident is None:
+                ident = dict(engine_sha256=p.get('engine_sha256'), code_sha=p.get('code_sha'))
+            try:
+                prov.check_row(r, dict(base, **ident))
+            except prov.ProvenanceError as exc:
+                raise SystemExit(f'refusing to analyse: {exc}')
+            if r['condition'] not in known or r['seed'] not in seeds:
+                raise SystemExit(f"refusing to analyse: row {r['condition']} seed {r['seed']} is not in the contract")
+            if r['seed'] in data.get(r['condition'], {}):
+                raise SystemExit(f"refusing to analyse: duplicate row {r['condition']} seed {r['seed']}")
             data.setdefault(r['condition'], {})[r['seed']] = r
 
     # Rate 0 means "no input"; every series at level 0 shares its test's single no-input condition.
@@ -62,7 +83,7 @@ def main():
             return None
         return all(xs)
 
-    res = dict(contract_sha256=csha, tests={})
+    res = dict(contract_sha256=csha, run_identity=ident, tests={})
     tables = {}
     for tname, test in contract['tests'].items():
         crit = test['criteria']
