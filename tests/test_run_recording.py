@@ -97,25 +97,27 @@ def test_header_restored_reports_the_graph_checkpoint_restore(tmp_path):
     assert fresh["graph_step_index"] == 0
 
     learned = tmp_path / "learned"
+    # Checkpoint v1 at step 10; the clean exit saves v2 at the final step 11.
     record_run(out=tmp_path / "learn", steps=11, state_dir=learned,
                schedule=[{"step": 10, "cmd": {"action": "save_checkpoint"}}], **kw)
     assert (learned / "graph-bookkeeping").is_dir()
     # Registry only: exactly the state layout of the defect report.
+    (registry,) = list(learned.glob("registry*"))
     registry_only = tmp_path / "registry-only"
-    shutil.copytree(learned / "registry-v3", registry_only / "registry-v3")
+    shutil.copytree(registry, registry_only / registry.name)
     assert not (registry_only / "graph-bookkeeping").exists()
-    before = _restore_events(registry_only / "registry-v3")
+    before = _restore_events(registry_only / registry.name)
     state = _initial_state(record_run(out=tmp_path / "continued", steps=2, state_dir=registry_only, **kw)["path"])
-    restores = _restore_events(registry_only / "registry-v3")[len(before):]
-    assert [(e["version"], e["step"]) for e in restores] == [(1, 10)]
-    assert state["graph_step_index"] == 10
+    restores = _restore_events(registry_only / registry.name)[len(before):]
+    assert [(e["version"], e["step"]) for e in restores] == [(2, 11)]
+    assert state["graph_step_index"] == 11
     assert state["restored"] is True
-    assert state["restore_source"] == dict(kind="graph_checkpoint", checkpoint_version=1, step_index=10,
+    assert state["restore_source"] == dict(kind="graph_checkpoint", checkpoint_version=2, step_index=11,
                                            fallback=False)
 
     # With the bookkeeping file present the answer is the same (it never decided it).
     full = _initial_state(record_run(out=tmp_path / "continued-full", steps=2, state_dir=learned, **kw)["path"])
-    assert full["restored"] is True and full["restore_source"]["step_index"] == 10
+    assert full["restored"] is True and full["restore_source"]["step_index"] == 11
 
 
 def test_header_restored_for_modular_brain_file(tmp_path):
@@ -127,7 +129,7 @@ def test_header_restored_for_modular_brain_file(tmp_path):
     assert (state_dir / "brains" / "t-maze.json").is_file()
     again = _initial_state(record_run(paradigm="t-maze", out=tmp_path / "b", steps=2, state_dir=state_dir)["path"])
     assert again["restored"] is True and again["restore_source"] == {"kind": "modular_brain_file"}
-    assert again["brain_steps"] == 2
+    assert again["brain_steps"] == 3          # the clean exit saved the brain at its final step
 
 
 def test_writer_identity_is_the_running_code_not_the_parent_origin(tmp_path):
@@ -141,7 +143,7 @@ def test_writer_identity_is_the_running_code_not_the_parent_origin(tmp_path):
     state = tmp_path / "state"
     record_run(out=tmp_path / "learn", steps=4, state_dir=state,
                schedule=[{"step": 3, "cmd": {"action": "save_checkpoint"}}], **kw)
-    manifests = sorted((state / "registry-v3").rglob("manifest.json"))
+    manifests = sorted(state.glob("registry*/**/manifest.json"))
     assert len(manifests) == 1
     data = json.loads(manifests[0].read_text())
     origin = dict(data["source"], commit="0" * 40, dirty=False,

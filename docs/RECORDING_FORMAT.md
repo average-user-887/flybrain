@@ -23,6 +23,20 @@ header records it as `provenance.lif_dynamics`. `--state-dir` continues a saved 
 paradigm's naive brain in a temporary directory, so two identical commands give
 the same file.
 
+With `--state-dir`, a run that finishes normally ends like a daemon shutdown: after
+the recording is closed it saves the final state (a new checkpoint version; earlier
+versions are kept) and then writes the clean `session_end` marker to
+`run_validity.jsonl`, so the next run continues from the last recorded step. The
+command's JSON summary reports this as `shutdown` (`clean`, `steps_run`,
+`graph_step_index` at exit, `graph_checkpoint` with the saved final version and step
+or `null` when nothing was saved, `error`); without `--state-dir` it is `null`. When the final save fails or is refused (for example a halted
+controller), no marker is written, the run is `incomplete` (exit 1) and the last
+good checkpoint stays current; the next run restores it and reports
+`interrupted_unclean_shutdown`, as it does after a killed process. Before
+October 2026 the command saved nothing at exit, so every continuation of a state
+directory reported `interrupted_unclean_shutdown` and lost the steps after the last
+checkpoint.
+
 From the running daemon: start it with `--record NAME` (records from the first
 step), or send `{"action": "record_start", "name": "NAME"}` and
 `{"action": "record_stop"}` to `POST /api/command`. Files land in
