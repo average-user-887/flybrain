@@ -126,3 +126,116 @@ test('the rendered guide carries the engineered-preview label', () => {
     }
     assert.match(html, /id="guideWhatToWatch"[^>]*>\s*Engineered preview, not connectome results\./);
 });
+
+// ---- CARD67: catalog badges, preview tool panel, exported metadata, lesion text ----
+
+const CAPABILITY = /conditioning|learning|memory|\bMEM\b|planning|\bPLAN\b|efference|stabili[sz]ation|benchmark|surge-cast|alternation|foreleg|sleep\/wake/i;
+
+test('catalog cards name implemented assays with neutral badges and labelled references', () => {
+    const cards = [...html.matchAll(/<div class="experiment-card[^"]*" data-paradigm="([a-z-]+)"[\s\S]*?<span class="exp-card-title">([^<]+)<\/span>\s*<span class="badge[^"]*">([^<]+)<\/span>[\s\S]*?<div class="exp-card-ref">([^<]+)<\/div>/g)]
+        .map(([, id, title, badge, ref]) => ({id, title, badge, ref}));
+    assert.equal(cards.length, 14);
+    assert.deepEqual(cards.map((c) => c.badge), ['BASELINE', 'OLFACTION', 'EXPLORATION', 'THERMAL', 'VISION', 'CLOSED LOOP',
+        'ODOUR PLUME', 'LOOMING', 'MOTION', 'GAP', 'ACTIVITY', 'PHEROMONE', 'SLIDING OBSTACLE', 'BODY PROXY']);
+    const verified = ['Tully &amp; Quinn (1985) J Comp Physiol A', 'Tully & Quinn (1985) J Comp Physiol A', 'Ofstad, Zuker & Reiser (Nature 2011)',
+        'Álvarez-Salvado et al. (2018) eLife', 'von Reyn et al. (2014) Nat Neurosci'];
+    for (const c of cards) {
+        assert.doesNotMatch(c.title + ' ' + c.badge, CAPABILITY, c.id);
+        assert.ok(verified.includes(c.ref) || /unverified$|^Engineered /.test(c.ref), c.id + ': ' + c.ref);
+    }
+});
+
+function previewContext() {
+    const ctx = new Proxy({}, {get: (o, k) => o[k] || (() => {})});
+    const canvas = {getContext: () => ctx, getBoundingClientRect: () => ({width: 500, height: 400}), addEventListener() {}};
+    const captured = [];
+    const c = {window: {addEventListener() {}, devicePixelRatio: 1, hud: {daemonBridge: {connected: false}}},
+        document: {getElementById: (id) => id === 'arenaCanvas' ? canvas : null,
+            createElement: () => ({click() {}}), body: {appendChild() {}, removeChild() {}}},
+        Blob: class { constructor(parts) { captured.push(JSON.parse(parts.join(''))); } },
+        URL: {createObjectURL: () => 'blob:x', revokeObjectURL() {}}, setTimeout() { return 1; }, clearTimeout() {}, console};
+    vm.createContext(c);
+    for (const [a, b] of [['class MushroomBodyCircuit', 'const EXPERIMENT_GUIDES'], ['const EXPERIMENT_GUIDES', 'class DaemonBridgeClient'],
+        ['const ASSAY_CONFIGS =', 'const LESION_INFO ='], ['const LESION_INFO =', 'class ScientificHUD'],
+        ['class ScientificHUD', '// 9. APPLICATION INITIALIZATION']]) vm.runInContext(slice(a, b), c);
+    vm.runInContext('this.A = ScientificBioArena; this.H = ScientificHUD; this.tools = ASSAY_CONFIGS; this.LESION_INFO = LESION_INFO;', c);
+    return {c, captured};
+}
+
+test('preview tool panel: neutral titles and badges, guide references, no foreleg or JO claims', () => {
+    const {c} = previewContext();
+    assert.equal(Object.keys(c.tools).length, 14);
+    for (const [id, spec] of Object.entries(c.tools)) {
+        assert.doesNotMatch(spec.title + ' ' + spec.badge, CAPABILITY, id);
+        if (id !== 'multisensory-sandbox') assert.equal(spec.ref, GUIDES[id].ref, id);
+        else assert.match(spec.ref, /^Engineered preview: .*not a biological nerve cord\)$/);
+        const words = [...(spec.sliders || []).map((s) => s.label + ' ' + s.desc), ...(spec.metrics || []).map((m) => m.label)].join(' | ');
+        assert.doesNotMatch(words, /foreleg|Johnston’s organ mechanoreceptors|triangulation by|intermittent|toward cool refuge/i, id);
+    }
+    assert.ok(c.tools['gap-crossing'].metrics.some((m) => m.label === 'Preview crossing threshold'));
+});
+
+// Exact strings exported in the JSON download's metadata.paradigmTitle / metadata.reference.
+const NV = ' (citation not verified in this repository)';
+const EXPORTED = {
+    'open-arena': ['Open Arena Multi-Modal Foraging', 'Background: Budick & Dickinson (2006); Maimon et al. (2010)' + NV],
+    't-maze': ['T-Maze Odour Choice', 'Background: Tully & Quinn (1985) J Comp Physiol A 157:263–277 (abstract read); Dudai (1976)' + NV],
+    'y-maze': ['Y-Maze Exploration', 'Background: Buchanan et al. (2015) is a handedness study, not an alternation study; Churgin (2017)' + NV],
+    'heat-maze': ['Thermal Heat-Maze', 'Background: Ofstad, Zuker & Reiser (2011) Nature 474:204–207 (cited only for the existence of visual place learning)'],
+    'buridan': ["Buridan's Paradigm", 'Background: Götz (1980); Colomb et al. (2012)' + NV],
+    'visual-operant': ['Visual Operant Flight Simulator', 'Background: Wolf & Heisenberg (1991); Liu et al. (2006)' + NV],
+    'wind-tunnel': ['Wind Tunnel Plume', 'Background: Álvarez-Salvado et al. (2018) eLife (recorded, not re-read); Demir et al. (2020)' + NV],
+    'looming-escape': ['Looming Escape', 'Background: von Reyn et al. (2014) Nat Neurosci 17:962–970; Card & Dickinson (2008)' + NV],
+    'optomotor': ['Optomotor Drum', 'Background: Götz (1964); Kim et al. (2017) on efference copy' + NV],
+    'gap-crossing': ['Gap Crossing', 'Background: Pick & Strauss (2005); Triphan et al. (2010)' + NV],
+    'circadian-dam': ['Circadian DAM Monitor', 'Background: Konopka & Benzer (1971); Allada & Chung (2010)' + NV],
+    'courtship': ['Courtship Chamber', 'Background: Siegel & Hall (1979); Keleman et al. (2007)' + NV],
+    'labyrinth': ['Corridor Obstacle Labyrinth', 'Engineered maze with Coulomb sliding contacts (no biological reference)'],
+    'multisensory-sandbox': ['Multisensory Sandbox', 'Project NeuroFly compact modular sensorimotor model'],
+};
+
+test('JSON download metadata exports the exact neutral title and reference for every assay', () => {
+    const {c, captured} = previewContext();
+    const arena = new c.A('arenaCanvas');
+    for (const [id, [title, ref]] of Object.entries(EXPORTED)) {
+        arena.initParadigm(id);
+        c.H.prototype.downloadJson.call({arena, daemonBridge: null});
+        const meta = captured.at(-1).metadata;
+        assert.equal(meta.activeParadigm, id);
+        assert.equal(meta.dataSource, 'local_preview');
+        assert.equal(meta.paradigmTitle, title, id);
+        assert.equal(meta.reference, ref, id);
+        assert.equal(GUIDES[id].title, title, id);
+        assert.equal(GUIDES[id].ref, ref, id);
+    }
+    // The constructor's initial Open Arena metadata matches too.
+    const fresh = new c.A('arenaCanvas');
+    assert.deepEqual([fresh.activeParadigmTitle, fresh.activeParadigmRef], EXPORTED['open-arena']);
+});
+
+test('per-frame lesion description stays the selected preview toggle text', () => {
+    const {c} = previewContext();
+    const block = slice("        const lesionDescription = document.getElementById('lesionCardDesc');", "        const guideRef = document.getElementById('guideRef');");
+    const el = {textContent: ''};
+    const frame = new vm.Script('(function(panelCaps){' + block + '})');
+    for (const type of ['WT', 'DELTA_MB', 'DELTA_CX', 'DELTA_GF', 'DELTA_JO']) {
+        const ctx = {document: {getElementById: (id) => id === 'lesionCardDesc' ? el : null}, LESION_INFO: c.LESION_INFO};
+        vm.createContext(ctx);
+        const fn = frame.runInContext(ctx);
+        for (let i = 0; i < 3; i++) {
+            fn.call({arena: {lesion: type}}, {graph: false, label: 'Modular'});
+            assert.equal(el.textContent, c.LESION_INFO[type].mechanism, type);
+        }
+    }
+    const ctx = {document: {getElementById: () => el}, LESION_INFO: c.LESION_INFO};
+    vm.createContext(ctx);
+    frame.runInContext(ctx).call({arena: {lesion: 'DELTA_MB'}}, {graph: true, label: 'Connectome (fixed)'});
+    assert.match(el.textContent, /cannot alter this graph run/);
+});
+
+test('preview optomotor and looming readouts call their mechanisms hand-set or proxies', () => {
+    assert.match(app, /'PREVIEW SACCADE \(HAND-SET SLIP CUT\)'/);
+    assert.match(app, /Preview HS proxy: \$\{p\.hsFiringRate\.toFixed\(0\)\} Hz \| Hand-set saccade slip cut: 85%/);
+    assert.match(app, /Preview Vm proxy: /);
+    assert.doesNotMatch(app, /SACCADIC EFFERENCE SHUNT|Efference: 85%/);
+});
