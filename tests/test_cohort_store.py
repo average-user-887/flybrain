@@ -1,0 +1,149 @@
+"""Cohort persistence: atomic deterministic checkpoints, refusals, lock, v0.4 refusal.
+
+SYNTHETIC TEST GRAPH with the CPU reference engine; no scientific claim.
+"""
+import json
+import os
+
+import numpy as np
+import pytest
+
+from brainlab.cohort import store
+from brainlab.cohort.runner import CohortError, resume_cohort, run_cohort, synthetic_graph
+
+
+def quiet(_):
+    pass
+
+
+def snapshot_tree(root):
+    out = {}
+    for dirpath, _, files in os.walk(root):
+        for name in files:
+            if name == store.LOCK_NAME:
+                continue
+            path = os.path.join(dirpath, name)
+            with open(path, 'rb') as fh:
+                out[os.path.relpath(path, root)] = fh.read()
+    return out
+
+
+@pytest.fixture
+def cohort_dir(tmp_path):
+    root = tmp_path / 'c'
+    run_cohort(root, flies=3, seconds=0.2, seed_base=1, checkpoint_every_ms=100,
+               graph=synthetic_graph(), progress=quiet)
+    return root
+
+
+def last_ckpt(root, fly):
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    return root / manifest['flies'][fly]['checkpoints'][-1]['file']
+
+
+def test_checkpoint_encoding_is_deterministic_and_self_verifying():
+    state = {'v': np.arange(4, dtype=np.float32), 'cursor': 3, 'total_spikes': 1, 'sim_ms': 0.3, 'dynamics': 'v3'}
+    a = store.encode_checkpoint({'fly_id': 0, 'tick': 3}, state)
+    b = store.encode_checkpoint({'fly_id': 0, 'tick': 3}, dict(state))
+    assert a == b
+    meta, back = store.decode_checkpoint(a)
+    assert np.array_equal(back['v'], state['v']) and back['v'].dtype == np.float32
+    assert {k: back[k] for k in ('cursor', 'total_spikes', 'sim_ms', 'dynamics')} == \
+        {k: state[k] for k in ('cursor', 'total_spikes', 'sim_ms', 'dynamics')}
+
+
+def test_atomic_write_leaves_no_temp(tmp_path):
+    digest = store.atomic_write_bytes(tmp_path / 'x.bin', b'abc')
+    assert (tmp_path / 'x.bin').read_bytes() == b'abc'
+    assert digest == store.sha256_bytes(b'abc')
+    assert [p.name for p in tmp_path.iterdir()] == ['x.bin']
+
+
+@pytest.mark.parametrize('damage', ['corrupt', 'truncate', 'schema', 'graph'])
+def test_damaged_checkpoint_is_refused_and_preserved(cohort_dir, damage):
+    path = last_ckpt(cohort_dir, 1)
+    if damage == 'corrupt':
+        data = bytearray(path.read_bytes())
+        data[len(data) // 2] ^= 0xFF
+        path.write_bytes(bytes(data))
+    elif damage == 'truncate':
+        path.write_bytes(path.read_bytes()[:-100])
+    elif damage == 'schema':
+        # A self-consistent checkpoint under another schema, chain sha updated too:
+        # the schema check itself must refuse it.
+        meta, state = store.decode_checkpoint(path.read_bytes())
+        data = store.encode_checkpoint({k: v for k, v in meta.items() if k != 'content_sha256'}, state)
+        data = data.replace(b'neurofly.cohort.v1', b'neurofly.cohort.v0')
+        path.write_bytes(data)
+        manifest = json.loads((cohort_dir / store.MANIFEST_NAME).read_text())
+        manifest['flies'][1]['checkpoints'][-1]['sha256'] = store.sha256_bytes(data)
+        (cohort_dir / store.MANIFEST_NAME).write_text(json.dumps(manifest))
+    before = snapshot_tree(cohort_dir)
+    if damage == 'graph':
+        with pytest.raises(CohortError, match='graph_sha256 mismatch'):
+            resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(seed=5), progress=quiet)
+    else:
+        with pytest.raises(store.CohortStoreError):
+            resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(), progress=quiet)
+    assert snapshot_tree(cohort_dir) == before
+
+
+def test_failure_on_last_fly_leaves_every_fly_and_file_untouched(tmp_path):
+    root = tmp_path / 'c8'
+    run_cohort(root, flies=8, seconds=0.1, seed_base=1, graph=synthetic_graph(), progress=quiet)
+    # Fly 7's final checkpoint carries a state that passes the file checks but
+    # fails the engine's state validation (non-finite membrane).
+    path = last_ckpt(root, 7)
+    meta, state = store.decode_checkpoint(path.read_bytes())
+    state['v'] = state['v'].copy()
+    state['v'][0] = np.nan
+    data = store.encode_checkpoint({k: v for k, v in meta.items() if k != 'content_sha256'}, state)
+    path.write_bytes(data)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    manifest['flies'][7]['checkpoints'][-1]['sha256'] = store.sha256_bytes(data)
+    (root / store.MANIFEST_NAME).write_text(json.dumps(manifest))
+    before = snapshot_tree(root)
+    with pytest.raises(CohortError, match='fly 7'):
+        resume_cohort(root, seconds=0.1, graph=synthetic_graph(), progress=quiet)
+    assert snapshot_tree(root) == before
+
+
+def test_registry_and_saved_brain_paths_are_refused(tmp_path):
+    reg = tmp_path / 'out' / 'registry-v3'
+    reg.mkdir(parents=True)
+    (reg / 'registry.json').write_text('{"format": "neurofly.experiment-registry.v2"}')
+    for path in (reg, tmp_path / 'out', reg / 'optomotor'):
+        with pytest.raises(store.CohortStoreError, match='never read'):
+            run_cohort(path, flies=1, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    with pytest.raises(store.CohortStoreError, match='never read'):
+        resume_cohort(reg, graph=synthetic_graph(), progress=quiet)
+    brain = tmp_path / 'saved_brain.npz'
+    brain.write_bytes(b'x')
+    with pytest.raises(store.CohortStoreError):
+        resume_cohort(brain, graph=synthetic_graph(), progress=quiet)
+    assert (reg / 'registry.json').read_text().startswith('{"format"')
+    assert brain.read_bytes() == b'x'
+
+
+def test_lock_refuses_a_second_writer(cohort_dir):
+    with store.CohortLock(cohort_dir):
+        with pytest.raises(store.CohortLocked):
+            store.CohortLock(cohort_dir).acquire()
+        before = snapshot_tree(cohort_dir)
+        with pytest.raises(store.CohortLocked):
+            resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(), progress=quiet)
+        assert snapshot_tree(cohort_dir) == before
+    store.CohortLock(cohort_dir).acquire().release()   # free again afterwards
+
+
+def test_run_refuses_non_empty_directory(cohort_dir):
+    with pytest.raises(CohortError, match='not empty'):
+        run_cohort(cohort_dir, flies=1, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+
+
+def test_cross_engine_resume_is_refused(cohort_dir):
+    manifest = json.loads((cohort_dir / store.MANIFEST_NAME).read_text())
+    manifest['engine_backend_id'] = 'some-gpu-engine'
+    (cohort_dir / store.MANIFEST_NAME).write_text(json.dumps(manifest))
+    with pytest.raises(CohortError):
+        resume_cohort(cohort_dir, seconds=0.1, engine='cpu', graph=synthetic_graph(), progress=quiet)
