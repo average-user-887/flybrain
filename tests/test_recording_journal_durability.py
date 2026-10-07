@@ -607,8 +607,31 @@ class TestIncrementalIndex:
             fresh = len(calls)
             rec.record_observation(current)          # idempotent retry: input only
             costs[history] = (fresh, len(calls) - fresh)
-            assert len(rec._index.entries) == history + 1
-            assert all(len(v[0]) == 32 for v in rec._index.entries.values())  # digests only
+            assert rec._index.count() == history + 1
+            sizes = rec._index._db.execute(
+                "SELECT DISTINCT length(key), length(payload) FROM observations").fetchall()
+            assert sizes == [(32, 32)]  # digests only, never payloads
             monkeypatch.undo()
             rec.close()
         assert costs[5] == costs[60] == (2, 1)
+
+    def test_index_file_is_a_derived_cache_rebuilt_at_every_open(self, tmp_path):
+        import sqlite3
+
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-cache")
+        rec.record_observation(envelope)
+        rec.close()
+        db = sqlite3.connect(str(tmp_path / ".neurofly-observation-index.sqlite"))
+        db.execute("DELETE FROM observations")
+        db.execute("INSERT INTO observations VALUES (?, ?, 1, 1, 0, 1)",
+                   (b"\0" * 32, b"\1" * 32))
+        db.commit()
+        db.close()
+        with LearningRecorder(tmp_path, fsync=False) as again:
+            assert again._index.count() == 1
+            assert again.record_observation(envelope)["idempotent"] is True
+            changed = copy.deepcopy(envelope)
+            changed["provenance"]["controller_specific"]["raw_motor_command"]["yaw"] = 2.0
+            with pytest.raises(ObservationConflictError):
+                again.record_observation(changed)

@@ -32,6 +32,7 @@ import json
 import os
 import platform
 import secrets
+import sqlite3
 import sys
 import threading
 import time
@@ -603,34 +604,85 @@ class _LedgerChanged(ObservationJournalError):
 class _LedgerFile:
     """Validated prefix of one physical trials ledger file."""
 
-    __slots__ = ("name", "ident", "size", "lines", "nonblank")
+    __slots__ = ("name", "ident", "fid", "size", "lines", "nonblank")
 
-    def __init__(self, name: str, ident: Tuple[int, int]):
+    def __init__(self, name: str, ident: Tuple[int, int], fid: int = 0):
         self.name = name
         self.ident = ident
+        self.fid = fid
         self.size = 0          # bytes validated (always ends on a newline)
         self.lines = 0         # physical lines validated
         self.nonblank = 0
 
 
 class _ObservationIndex:
-    """Bounded index of validated observation rows.
+    """Disk-backed index of validated observation rows, with bounded memory.
 
-    Per observation it keeps a key digest, a payload digest and a location (a
-    few hundred bytes, independent of payload size); payloads are never kept.
+    Rows live in a private SQLite file inside the owned data directory (one
+    row per observation: key digest, payload digest, location; never the
+    payload). It is a derived cache: rebuilt from the ledger on every open and
+    every full re-validation, never trusted across processes. Lookups are exact
+    (primary key on the full SHA-256 key digest), so duplicate and conflict
+    detection is not lossy. Python memory is O(number of ledger files) plus a
+    fixed SQLite page cache.
     """
 
-    __slots__ = ("files", "entries")
+    FILE_NAME = ".neurofly-observation-index.sqlite"
+    CACHE_KIB = 4096
 
-    def __init__(self):
+    def __init__(self, directory: Path):
+        self.path = Path(directory) / self.FILE_NAME
+        self._db = sqlite3.connect(str(self.path), isolation_level=None, check_same_thread=False)
+        for pragma in ("journal_mode=OFF", "synchronous=OFF", "temp_store=FILE",
+                       "mmap_size=0", f"cache_size=-{self.CACHE_KIB}"):
+            self._db.execute(f"PRAGMA {pragma}")
         self.files: Dict[Tuple[int, int], _LedgerFile] = {}
-        # key sha256 -> (payload sha256, file, line, offset, row length)
-        self.entries: Dict[bytes, Tuple[bytes, _LedgerFile, int, int, int]] = {}
+        self._by_fid: Dict[int, _LedgerFile] = {}
+        self.reset()
+
+    def reset(self) -> None:
+        if self._db.in_transaction:
+            self._db.execute("COMMIT")
+        self._db.execute("DROP TABLE IF EXISTS observations")
+        self._db.execute(
+            "CREATE TABLE observations (key BLOB PRIMARY KEY, payload BLOB NOT NULL, "
+            "fid INTEGER NOT NULL, line INTEGER NOT NULL, offset INTEGER NOT NULL, "
+            "length INTEGER NOT NULL) WITHOUT ROWID")
+        self.files.clear()
+        self._by_fid.clear()
+        self._db.execute("BEGIN")
+
+    def new_file(self, name: str, ident: Tuple[int, int]) -> _LedgerFile:
+        lf = _LedgerFile(name, ident, len(self._by_fid) + 1)
+        self.files[ident] = lf
+        self._by_fid[lf.fid] = lf
+        return lf
 
     @staticmethod
     def key_digest(key: Tuple[str, ...]) -> bytes:
         return hashlib.sha256(json.dumps(list(key), ensure_ascii=False,
                                          separators=(",", ":")).encode("utf-8")).digest()
+
+    def get(self, key: bytes) -> Optional[Tuple[bytes, _LedgerFile, int, int, int]]:
+        row = self._db.execute(
+            "SELECT payload, fid, line, offset, length FROM observations WHERE key = ?",
+            (key,)).fetchone()
+        if row is None:
+            return None
+        return (row[0], self._by_fid[row[1]], row[2], row[3], row[4])
+
+    def add(self, key: bytes, payload: bytes, lf: _LedgerFile, line: int, offset: int,
+            length: int) -> None:
+        self._db.execute("INSERT INTO observations VALUES (?, ?, ?, ?, ?, ?)",
+                         (key, payload, lf.fid, line, offset, length))
+
+    def checkpoint(self) -> None:
+        """Hand inserted pages to SQLite's file so its page cache stays bounded."""
+        self._db.execute("COMMIT")
+        self._db.execute("BEGIN")
+
+    def count(self) -> int:
+        return self._db.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
 
     def active(self, path: Path) -> Optional[_LedgerFile]:
         try:
@@ -638,6 +690,9 @@ class _ObservationIndex:
         except FileNotFoundError:
             return None
         return self.files.get((st.st_dev, st.st_ino))
+
+    def close(self) -> None:
+        self._db.close()
 
 
 def _owned_operation(method):
@@ -674,6 +729,7 @@ class LearningRecorder:
         self.trials = None
         self.summaries = None
         self._sessions_log = None
+        self._index_store = None
         try:
             self.session_id = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{secrets.token_hex(3)}"
             self.trials = JsonlWriter(self.data_dir / self.TRIALS_FILE, max_bytes=max_bytes, fsync=fsync)
@@ -688,6 +744,7 @@ class LearningRecorder:
             # trials.jsonl is validated in full first: a torn tail is cut only if
             # every complete line before it is valid.
             self._index: Optional[_ObservationIndex] = None
+            self._index_store = _ObservationIndex(self.data_dir)
             self.full_scans = 0
             with self.trials._lock:
                 trials_repair = self._open_ledger_locked()
@@ -714,7 +771,7 @@ class LearningRecorder:
                 self.session.update(session)
             self._write_session()
         except Exception:
-            for writer in (self.trials, self.summaries, self._sessions_log):
+            for writer in (self.trials, self.summaries, self._sessions_log, self._index_store):
                 if writer is not None:
                     writer.close()
             self._owner.release()
@@ -837,13 +894,13 @@ class LearningRecorder:
         if row["observation_key"] != declared:
             raise ObservationJournalError(f"observation key disagrees with payload at {location}")
         key_digest = _ObservationIndex.key_digest(key)
-        first = index.entries.get(key_digest)
+        first = index.get(key_digest)
         if first is not None:
             raise ObservationJournalError(
                 f"duplicate observation key at {location}; first seen at "
                 f"{first[1].name}:line {first[2]}")
-        index.entries[key_digest] = (
-            hashlib.sha256(canonical.encode("utf-8")).digest(), lf, line_number, offset, len(raw))
+        index.add(key_digest, hashlib.sha256(canonical.encode("utf-8")).digest(),
+                  lf, line_number, offset, len(raw))
 
     def _validate_from_locked(self, index: "_ObservationIndex", lf: "_LedgerFile", path: Path,
                               *, allow_torn: bool = False) -> Optional[int]:
@@ -868,6 +925,8 @@ class LearningRecorder:
                 self._strict_row_locked(index, lf, raw, lf.lines + 1, offset)
                 lf.lines += 1
                 lf.size = offset + len(raw)
+                if lf.lines % 4096 == 0:
+                    index.checkpoint()
             end = os.fstat(fh.fileno())
             # Read to EOF and nothing changed under us: this state is accounted for.
             if torn is None and end.st_size == lf.size:
@@ -882,15 +941,16 @@ class LearningRecorder:
 
     def _full_scan_locked(self, *, allow_torn: bool = False) -> Tuple["_ObservationIndex", Optional[int]]:
         """Validate every physical trials ledger from byte 0; caller owns the writer lock."""
-        index = _ObservationIndex()
+        self._index = None
+        index = self._index_store
+        index.reset()
         torn = None
         self.full_scans += 1
         self.trials._trusted.clear()
         paths = self._ledger_paths()
         for path in paths:
             st = os.stat(path)
-            lf = _LedgerFile(path.name, (st.st_dev, st.st_ino))
-            index.files[lf.ident] = lf
+            lf = index.new_file(path.name, (st.st_dev, st.st_ino))
             torn = self._validate_from_locked(
                 index, lf, path, allow_torn=allow_torn and path == self.trials.path)
         return index, torn
@@ -915,8 +975,7 @@ class LearningRecorder:
             ident = (st.st_dev, st.st_ino)
             lf = index.files.get(ident)
             if lf is None:  # an empty file this writer created (rotation)
-                lf = _LedgerFile(path.name, ident)
-                index.files[ident] = lf
+                lf = index.new_file(path.name, ident)
             lf.name = path.name  # our own rotation renamed it
             if st.st_size < lf.size:
                 raise _LedgerChanged(f"{path.name} shrank")
@@ -944,6 +1003,7 @@ class LearningRecorder:
         except BaseException:
             self._index = None  # never trust a partially updated index
             raise
+        index.checkpoint()
         self._index = index
         return index
 
@@ -958,6 +1018,7 @@ class LearningRecorder:
             if index.files[(active.st_dev, active.st_ino)].size == active.st_size:
                 self.trials.trust_locked(active)
         self.trials._tail_checked = True
+        index.checkpoint()
         self._index = index
         return receipt
 
@@ -977,7 +1038,7 @@ class LearningRecorder:
         payload_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         key_digest = _ObservationIndex.key_digest(key)
         with self.trials._lock:
-            match = self._refresh_index_locked().entries.get(key_digest)
+            match = self._refresh_index_locked().get(key_digest)
             if match is not None:
                 stored_digest, lf, line, offset, length = match
                 if stored_digest.hex() != payload_sha256:
@@ -1006,7 +1067,7 @@ class LearningRecorder:
             line = self._canonical_json(row) + "\n"
             self.trials._append_strict_locked(line)
             # Re-read the new bytes from disk and validate them before acknowledging.
-            written = self._refresh_index_locked().entries.get(key_digest)
+            written = self._refresh_index_locked().get(key_digest)
             if written is None or written[0].hex() != payload_sha256:
                 raise ObservationJournalError("durable observation could not be re-read after append")
             return {
@@ -1038,6 +1099,8 @@ class LearningRecorder:
         self.trials.close()
         self.summaries.close()
         self._sessions_log.close()
+        with self.trials._lock:
+            self._index_store.close()
         self._owner.release()
         self._closed = True
 
