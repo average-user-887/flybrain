@@ -1,8 +1,10 @@
 {
   "schema": "neurofly.cohort-contract.v1",
   "preregistered": "2026-10-07, before any GPU cohort run; not to be edited after results are seen",
-  "engines": {"reference": "brainlab.cohort.api.CpuLoopCohortEngine (cpu-loop-v3)",
-              "candidate": "brainlab.cohort.gpu.GpuCohortEngine (GTX 1660 Ti only)"},
+  "engines": {
+    "reference": "brainlab.cohort.api.CpuLoopCohortEngine (cpu-loop-v3)",
+    "candidate": "brainlab.cohort.gpu.GpuCohortEngine (GTX 1660 Ti only)"
+  },
   "graph": "real MaleCNS v1.0 with the v3 transmitter policy: experiment_registry.SharedGraph.load_for_dynamics(dynamics='v3')",
   "dynamics": "v3, fixed weights, default constants (no E_inh override)",
   "initial_state": "every fly at rest, exactly as a freshly built Brain",
@@ -11,8 +13,20 @@
     "amplitude": 20.0,
     "neurons_per_fly": "n // 50, drawn without replacement by numpy.random.default_rng(seed).choice(n, n // 50, replace=False)",
     "schedule": [
-      {"ticks": [0, 99], "seed": "20261007 + k"},
-      {"ticks": [100, 199], "seed": "20261007 + 1000 + k"}
+      {
+        "ticks": [
+          0,
+          99
+        ],
+        "seed": "20261007 + k"
+      },
+      {
+        "ticks": [
+          100,
+          199
+        ],
+        "seed": "20261007 + 1000 + k"
+      }
     ],
     "k": "fly index; every other neuron has drive 0.0"
   },
@@ -22,8 +36,8 @@
     "tick_ms": 0.1,
     "call_pattern": "step(drive, ticks=1) 200 times; full state compared after every tick",
     "spike_counts_and_raster": "0 mismatches, per fly, per neuron, per tick",
-    "max_abs_dV_mV": 1e-3,
-    "g_rel_error_max": 1e-6,
+    "max_abs_dV_mV": 0.001,
+    "g_rel_error_max": 1e-06,
     "g_zero_handling": "where the reference g is exactly 0.0 the candidate must satisfy |g| <= 1e-12 (absolute); elsewhere |g_gpu - g_ref| / |g_ref| <= 1e-6",
     "refractory": "exactly equal (int16)",
     "verdict_rule": "the first tick at which any fly breaks any bound is reported and the comparison stops: FAIL. No later statistics can turn it into a PASS. No engine, tolerance or stimulus changes after a FAIL.",
@@ -36,6 +50,17 @@
     "resume": "B=8; 120 ticks, read_state of every fly, write_state into a fresh engine, 80 more ticks == 200 uninterrupted",
     "write_state_refusals": "non-v3 dynamics, missing or extra key, wrong shape, wrong dtype"
   },
-  "batch_sizes": [1, 8, 32],
-  "gpu_memory_limit_bytes": 4500000000
+  "batch_sizes": [
+    1,
+    8,
+    32
+  ],
+  "gpu_memory_limit_bytes": 4500000000,
+  "cross_engine_restore": {
+    "n_flies": 2,
+    "split_tick": 100,
+    "ticks": 200,
+    "procedure": "CPU runs ticks 0-99 in calls of 20, its states are written into a fresh GPU engine, then both continue tick by tick to 199 under the reference_comparison bounds and verdict rule; and the reverse (GPU first, state written into a fresh CPU engine)",
+    "added": "2026-10-07 before any real-graph run, on the coordinator's request (Astra atomicity findings)"
+  }
 }
