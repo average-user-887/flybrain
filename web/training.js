@@ -30,6 +30,8 @@ function lineChart(id, series, xlabel) {
 let snapshot = null, writable = false, busy = false, refreshing = false, research = null, connected = false;
 const number = (v, digits=3) => Number.isFinite(v) ? v.toFixed(digits) : '—';
 const message = (text, error=false) => { $('trainingMessage').textContent=text; $('trainingMessage').classList.toggle('error',error); };
+/** Caption and accessible name of the weight tile follow the data actually drawn in it. */
+const weightsLabel = (aria, caption) => { $('trainingWeights').setAttribute('aria-label',aria); $('trainingWeightsCaption').textContent=caption; };
 const trainingReplayActive = () => !!window.app?.hud?.daemonBridge?.replayMode;
 const trainingWriteAllowed = (stream={}, replayMode=trainingReplayActive()) =>
  !replayMode&&!stream.read_only&&!stream.commands_require_token;
@@ -58,6 +60,7 @@ function unavailableTraining() {
  for(const id of ['Question','Description','Interpretation','Control'])$('training'+id).textContent='';
  for(const id of ['ProbeChart','TrialChart'])lineChart('training'+id,[],'Unavailable for displayed owner');
  $('trainingWeightsTitle').textContent='Weights unavailable';$('trainingWeights').innerHTML='';
+ weightsLabel('Weight readout unavailable','No weight readout is available for the displayed owner.');
  $('trainingBrains').innerHTML='';$('trainingEvents').innerHTML='';$('trainingMetric').textContent='No training history for the displayed owner.';
 }
 function clearOwnerMessage(){message(trainingReplayActive()?'Replay is read only; no live training command result belongs to this recording.':'Awaiting training measurements for the displayed live owner.');}
@@ -129,6 +132,8 @@ function render() {
  $('trainingDeltaLabel').firstChild.textContent='Weight change (L2)';
  $('trainingDiscriminationLabel').firstChild.textContent='Cue A − B valence';
  $('trainingWeightsTitle').textContent='120 KC → 2 output synapses';
+ weightsLabel('Saved weight heatmap of the 120-KC modular mushroom body',
+  'Blue: below baseline · Amber: above baseline. Hover for exact weights. These are the daemon’s saved weights of the 120-KC modular mushroom body. The live cue matrix shows its current activity.');
  $('trainingTitle').textContent=n[0]+' · retained brain';
  $('trainingBrainId').textContent=b.brain_id+' · seed '+b.seed;
  $('trainingPhase').textContent=b.teaching ? `Teaching pair ${b.teaching.pair+1}/${b.teaching.pairs} · arena paused` : `Arena learning ${b.learning_enabled?'enabled':'frozen'}`;
@@ -172,6 +177,10 @@ function renderGraph(n,caps){
  $('trainingMetric').textContent='Legacy training history belongs to the retained modular helper and is hidden for this graph run.';
  $('trainingWeightsTitle').textContent=caps.wp6Measured?'Measured WP6 ER→EPG subset':'Graph plasticity readout unavailable';
  $('trainingWeights').innerHTML=`<text x="280" y="100" text-anchor="middle" fill="#94a3b8" font-size="12">${caps.wp6Measured?`${wp6.n_edges.toLocaleString()} edges; mean ΔW ${number(wp6.mean_delta,6)}`:'No measured plastic subset in current telemetry'}</text>`;
+ if(caps.wp6Measured) weightsLabel('Measured WP6 ER→EPG subset summary: edge count and mean weight change',
+  'Summary of the WP6 ER→EPG subset declared in the current telemetry packet: edge count and mean weight change only. No per-synapse heatmap is drawn.');
+ else weightsLabel('No graph weight readout available',
+  `No saved weight readout is available: the current telemetry packet declares no measured plastic subset for ${String(caps.label).replace(/\.$/,'')}. The 120-KC modular weights are not shown because they do not belong to this graph run.`);
  $('trainingBrains').innerHTML=`<p style="color:#fbbf24">${caps.modularReason}</p>`;
  $('trainingEvents').innerHTML='<tr><td>—</td><td>Graph event journal not exposed by this panel</td><td>—</td></tr>';
  $('researchStatus').textContent='Background modular training cohorts are not graph-controller evidence.';
