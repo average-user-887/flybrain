@@ -1,7 +1,10 @@
 """Canonical CLI entry points for Project NeuroFly.
 
 Usage:
-  neurofly run [daemon options]
+  neurofly run [daemon options]      (simulation and web server as two processes;
+                                      --single-process for the old one-process daemon)
+  neurofly sim-serve [daemon options]   headless simulation process only
+  neurofly web-serve [daemon options]   web process only (dashboard, REST, SSE)
   neurofly full-sim              (retired: prints why and exits non-zero)
   neurofly embodied [options]
   neurofly download-data
@@ -201,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers.add_parser("storage", help="Adopt/show persistent existing training directories")
     subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
+    subparsers.add_parser("sim-serve", help="Run only the headless simulation process (run --process-mode sim)")
+    subparsers.add_parser("web-serve", help="Run only the web process (run --process-mode web)")
     subparsers.add_parser("full-sim", help="RETIRED: not a full connectome simulation; prints why and exits")
     subparsers.add_parser("embodied", help="Run embodied physics co-simulation with FlyGym and MuJoCo")
     subparsers.add_parser("download-data", help="Download & verify MaleCNS connectome tables")
@@ -220,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_storage(rest)
     elif cmd == "run":
         return cmd_run(rest)
+    elif cmd in ("sim-serve", "web-serve"):
+        return cmd_run(rest + ["--process-mode", cmd.split("-")[0]])
     elif cmd == "full-sim":
         return cmd_full_sim(rest)
     elif cmd == "embodied":
