@@ -1344,6 +1344,9 @@ class ContinuousExperimentRunner:
         # stays monotonic across assay switches (the learning recorder's append key).
         self.session_trial = 1
         self.trial_sim_time = 0.0
+        # Immutable lineage of the current observation segment when it starts inside a
+        # restored trial (see _open_restored_segment); None for an ordinary segment.
+        self.segment_lineage: Optional[Dict[str, Any]] = None
         self.last_checkpoint_time = time.time()
         self.trial_history: List[Dict[str, Any]] = []
         self.learning_curve: List[float] = []
@@ -1488,7 +1491,10 @@ class ContinuousExperimentRunner:
             self.active_brain.learning_enabled = self.arena.fly.learning_enabled = False
         self.active_paradigm_id = paradigm_name
         self.active_paradigm_title = getattr(self.arena.paradigm, "name", "Open Arena Assay")
-        self._restore_trial_clock(brain, self.registry.active if self.graph_mode else None)
+        restored_from_disk = (bool(getattr(self.registry.active, "checkpoint_version", 0))
+                              if self.graph_mode else bool(brain.restored))
+        self._restore_trial_clock(brain, self.registry.active if self.graph_mode else None,
+                                  restart=self.activation == 1 and restored_from_disk)
         self.learning_curve = brain.curve
         self._path.clear()
         self._last_step_result = {}
@@ -1501,7 +1507,7 @@ class ContinuousExperimentRunner:
             self._persist("provenance", manifest.write, manifest_path, path=manifest_path)
         self.latest_telemetry = self._assemble_telemetry({})
 
-    def _restore_trial_clock(self, brain, instance=None) -> None:
+    def _restore_trial_clock(self, brain, instance=None, *, restart: bool = False) -> None:
         """Adopt the trial clock saved with the state that was just restored.
 
         Graph runs use only the clock in the selected verified checkpoint (including
@@ -1517,11 +1523,49 @@ class ContinuousExperimentRunner:
             clock = unknown_trial_clock()
         else:
             clock = trial_clock()              # a new instance: nothing saved yet
+        parent = clock['segment_id']
+        clock['segment_id'] = self.segment_id
         brain.trial_clock = clock
         if instance is not None:
             instance.trial_clock = clock       # one record for the NPZ and the helper JSON
         self.trial_sim_time = clock['elapsed_s']
         self.current_trial = clock['current_trial']
+        self._open_restored_segment(parent, clock, restart=restart)
+
+    def _open_restored_segment(self, parent: Optional[str], clock: dict, *, restart: bool) -> None:
+        """Give a segment that starts inside a restored trial its immutable lineage.
+
+        The observation producer starts a fresh segment and a full window; it does not
+        continue the parent's measurement.  Nothing is restitched: the parent's metric
+        accumulators are not restored, and a parent ended by a daemon restart has no
+        terminal observation, so it is recorded here as interrupted and incomplete.
+        """
+        self.segment_lineage = None
+        if not restart and (parent is None or parent == self.segment_id):
+            return
+        lineage = {
+            "segment_id": self.segment_id,
+            "parent_segment_id": parent,
+            "reason": "daemon_restart" if restart else "assay_reactivated",
+            "parent_observation": ("interrupted_incomplete_no_terminal" if restart
+                                   else "ended_before_assay_switch"),
+            "daemon_run_id": self.run_id,
+            "trial": clock["current_trial"],
+            "trial_known": clock["trial_known"],
+            "restored_trial_elapsed_s": clock["elapsed_s"],
+            "trial_elapsed_known": clock["elapsed_known"],
+            "observation_window": "restarted",
+            "metric_accumulators": "not_restored",
+        }
+        self.segment_lineage = copy.deepcopy(lineage)
+        if restart:
+            self._ledger("observation_interrupted", **lineage)
+
+    def current_segment_lineage(self) -> Optional[Dict[str, Any]]:
+        lineage = self.segment_lineage
+        if lineage is None or lineage["segment_id"] != self.segment_id:
+            return None
+        return copy.deepcopy(lineage)
 
     def _sync_trial_clock(self, *, new_trial: bool = False, brain=None) -> None:
         """Write the runner's trial counters into the active assay's clock record.
@@ -1532,6 +1576,7 @@ class ContinuousExperimentRunner:
         clock = (brain or self.active_brain).trial_clock
         clock['elapsed_s'] = float(self.trial_sim_time)
         clock['current_trial'] = int(self.current_trial)
+        clock['segment_id'] = self.segment_id
         if new_trial and not clock['elapsed_known']:
             clock['elapsed_known'] = True
             if clock['trial_known']:
@@ -1549,6 +1594,17 @@ class ContinuousExperimentRunner:
             "session": {"scope": SESSION_CLOCK_SCOPE, "daemon_run_id": self.run_id,
                         "step": self.total_steps, "elapsed_s": round(self.total_steps * self.dt, 5)},
             "trial": dict(self.active_brain.trial_clock)}
+        owner = getattr(self.arena, "observation_owner", None)
+        if owner is not None and self.observation_config is not None:
+            status = owner.observation_status()
+            clocks["observation"] = {
+                "scope": "observation_segment", "segment_id": self.segment_id,
+                "config_id": status["config_id"],
+                "segment_elapsed_s": status["segment_elapsed_s"],
+                "presentation_index": status["presentation_index"],
+                "presentation_elapsed_s": status["presentation_elapsed_s"],
+                "effective_window_s": status["effective_window_s"],
+                "lineage": self.current_segment_lineage()}
         instance = self.registry.active if self.graph_mode and self.registry is not None else None
         sim_ms = getattr(getattr(instance, "brain", None), "sim_ms", None)
         if instance is not None and sim_ms is not None:
@@ -1636,6 +1692,7 @@ class ContinuousExperimentRunner:
         return {
             "segment_id": self.segment_id,
             "segment_start_sim_s": self.observation_segment_start_sim_s,
+            "segment_lineage": self.current_segment_lineage(),
             "observation_available": not self._teaching_suspended,
             "teaching_clock_s": self._teaching_clock_s if self._teaching_suspended else None,
             "phase": ("teaching" if self._teaching_suspended and not waiting else
@@ -3817,6 +3874,8 @@ class ContinuousExperimentRunner:
                      metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
                      reason=reason, metrics=metrics, probe=self.active_brain.probe())
         ident = self.identity()
+        owner = getattr(self.arena, "observation_owner", None)
+        observed = owner.observation_status() if owner is not None else {}
         self.trial_history.append({
             "run_id": ident.get("run_id"),
             "instance_id": ident.get("instance_id"),
@@ -3829,6 +3888,9 @@ class ContinuousExperimentRunner:
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
             "sim_seconds": round(self.trial_sim_time, 3),
+            "observation_segment_id": self.segment_id,
+            "observation_measured_s": observed.get("measurement_end_rel_s"),
+            "segment_lineage": self.current_segment_lineage(),
             "reason": reason,
             "metric": metric_val,
             "timestamp": time.time()
@@ -4021,6 +4083,7 @@ class ContinuousExperimentRunner:
                     self._observation_policy_set_at_sim_s = self.total_steps * self.dt
                 if action in ('set_learning', 'set_observation_policy', 'return_from_teaching'):
                     self.segment_id = uuid.uuid4().hex
+                    self._sync_trial_clock()       # a save below names the new segment
                     self._configure_observation_owner()
                     self.transition = {'reason': 'policy_change', 'step': self.total_steps}
                 if action == 'shutdown':
@@ -4278,8 +4341,8 @@ class ContinuousExperimentRunner:
                 paradigm.reset_trial()
             self.arena.reset_fly_to_spawn()
             self.trial_sim_time = 0.0
-            self._sync_trial_clock(new_trial=True)
             self.segment_id = uuid.uuid4().hex
+            self._sync_trial_clock(new_trial=True)
             self._path.clear()
         else:
             if prepared['activation'] is not None:
@@ -4305,10 +4368,10 @@ class ContinuousExperimentRunner:
                                        daemon_run_id=self.run_id, clock_scope=SESSION_CLOCK_SCOPE)
             self.active_paradigm_id = plan['target']
             self.active_paradigm_title = getattr(self.arena.paradigm, 'name', 'Open Arena Assay')
+            self.segment_id = uuid.uuid4().hex
             self._restore_trial_clock(self.active_brain,
                                       self.registry.active if self.graph_mode else None)
             self.learning_curve = self.active_brain.curve
-            self.segment_id = uuid.uuid4().hex
             self._path.clear()
             self._last_step_result = {}
             self._reconcile_validity(flush=False)
@@ -5186,7 +5249,8 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "trials_completed": len(self.runner.trial_history),
             "recording": getattr(self.runner, "recording_status", lambda: None)(),
             "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
-            "clocks": getattr(self.runner, "clock_status", lambda: None)(),
+            # The published snapshot's clocks: this view never inspects producer state unlocked.
+            "clocks": (getattr(self.runner, "latest_telemetry", None) or {}).get("clocks"),
             "trial_length_s": getattr(self.runner, "trial_length_s", None),
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
             "stream": self.gateway.describe()
