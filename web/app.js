@@ -8172,7 +8172,7 @@ function startNeuroflyApp() {
                 return;
             }
             if (hud.daemonBridge?.connected) {
-                hud.daemonBridge.sendCommand('set_paused', {paused:!arena.remotePacket?.paused});
+                hud.daemonBridge.sendCommand('set_paused', {paused:!(arena.referencePacket || arena.remotePacket)?.paused});
                 return;
             }
             isPaused = !isPaused;

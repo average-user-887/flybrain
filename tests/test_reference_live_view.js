@@ -82,3 +82,25 @@ test('packet validation accepts reference packets without an assay pose and reje
     assert.match(c.window.v({...refPacket, reference_fly: {...refPacket.reference_fly, pos_mm: [NaN, 0]}}), /reference fly position/);
     assert.match(c.window.v({type: 'telemetry', step: 1, paradigm: 'open-arena', identity: {backend: 'connectome-fixed'}}), /fly position/);
 });
+
+test('pause the connectome, select the reference, then Resume sends paused:false (reference packet state)', () => {
+    const start = app.indexOf("    const btnPause = document.getElementById('btnPauseToggle');");
+    const end = app.indexOf('    // Expose convenient top-level app handle', start);
+    assert.ok(start >= 0 && end > start);
+    const sent = [];
+    let click = null;
+    const button = {addEventListener: (name, fn) => { click = fn; }, classList: {toggle() {}}, textContent: ''};
+    const arena = {remotePacket: {paused: true, identity: {backend: 'connectome-fixed'}}};
+    const hud = {daemonBridge: {connected: true, replayMode: false, sendCommand: (a, p) => sent.push([a, p])}};
+    const c = {arena, hud, window: {}, document: {getElementById: id => (id === 'btnPauseToggle' ? button : null)}};
+    vm.createContext(c);
+    vm.runInContext('let isPaused = false;\n' + app.slice(start, end), c);
+    // Reference view: the assay packet is cleared, its own (paused) packet is live.
+    arena.remotePacket = null;
+    arena.referencePacket = {...refPacket, paused: true};
+    click();
+    assert.equal(JSON.stringify(sent.at(-1)), JSON.stringify(['set_paused', {paused: false}]));
+    arena.referencePacket = {...refPacket, paused: false};
+    click();
+    assert.equal(JSON.stringify(sent.at(-1)), JSON.stringify(['set_paused', {paused: true}]));
+});
