@@ -102,6 +102,8 @@ def test_region_rates_and_sparse_spikes(tmp_path):
         counts[[10, 11, 50]] = [2, 1, 3]
         runner.total_steps += 1
         runner.graph_controller.last_counts = counts
+        active = runner.registry.active      # injected counts belong to the displayed owner
+        runner.graph_controller.last_counts_owner = (active.instance_id, runner.active_paradigm_id, int(active.step_index))
         assert recorder.capture(runner, {})
         recorder.close()
     rec = read_recording(tmp_path / "r.nfrec")

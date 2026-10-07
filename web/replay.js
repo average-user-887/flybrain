@@ -106,7 +106,14 @@
                         return `<span class="name" title="${name}${size}">${name}</span><div class="bar"><div id="actBar${i}"></div></div><span class="val" id="actVal${i}">--</span>`;
                     }).join('');
                 }
-                if (grouping) grouping.textContent = `${activity.grouping} · ${activity.units}`;
+                if (grouping) {
+                    // The daemon withholds rates it cannot attribute to the displayed owner
+                    // (e.g. an assay selected but not yet stepped); say so instead of showing old values.
+                    const why = typeof activity.unavailable === 'string' ? activity.unavailable : '';
+                    grouping.textContent = why ? `${activity.grouping} · ${activity.units} · no data for this assay yet`
+                        : `${activity.grouping} · ${activity.units}`;
+                    grouping.title = why;
+                }
                 const rates = Array.isArray(activity.rates) ? activity.rates : null;
                 const finite = rates ? rates.filter(Number.isFinite).map(Math.abs) : [];
                 const scale = Math.max(1e-9, ...finite, activity.units === 'Hz' ? 1 : 1e-3);
