@@ -1,0 +1,51 @@
+{
+  "schema": "neurofly.cohort-horizon-prereg.v1",
+  "preregistered": "2026-10-07 before any real-graph run of scripts/cohort_horizon.py; not to be edited after results are seen",
+  "lane": "v0.5.0rc2 Lane 3, long-horizon characterisation",
+  "base": "tag v0.5.0rc1 (a4368a2); no product code touched",
+  "question": "Over 2,000 and 20,000 ticks of the real optomotor loop on the real graph, does a CPU emulation of the GPU's ascending-(pre, edge) per-arrival float32 order depart from the CPU reference (advance_v3), when, and by how much? Then the same for actual CUDA.",
+  "not_claimed": "No general long-horizon CPU/GPU equivalence claim, in either direction, from any outcome. Observations of this finite set of flies and windows only.",
+  "inputs": {
+    "graph": "real MaleCNS v1.0, v3 transmitter policy, via brainlab.cohort.runner.load_real_graph (read-only)",
+    "io_map": "pinned WP5 optomotor io map",
+    "stimulus": "the cohort runner's closed optomotor loop (FlyWorld: Arena paradigm 'optomotor', OptomotorEncoder, DNa02YawDecoder), step_ms 20 = 200 ticks of 0.1 ms. The CPU reference drives the loop; the candidate (emulation or CUDA) replays the identical per-step drive open-loop, so a candidate divergence never alters the stimulus.",
+    "fly_seeds": [1, 2, 3, 4, 5, 6, 7, 8],
+    "fly_seed_rule": "fly k has seed k+1 (cohort default seed_base 1), Arena and encoder RNG seeded with it, exactly as the cohort runner",
+    "initial_state": "every fly at rest, as a freshly built Brain"
+  },
+  "clock_units": "one tick = 0.1 ms; one arena step = 20 ms = 200 ticks. 2,000 ticks = 200 ms = 10 arena steps. 20,000 ticks = 2 s = 100 arena steps (the default cohort run). Tick numbers below are ticks, not steps and not milliseconds.",
+  "windows_ticks": [2000, 20000],
+  "window_rule": "the 2,000-tick window is the prefix of the 20,000-tick run; one run of 20,000 ticks reports both",
+  "primary_run": {"flies": 8, "ticks": 20000, "mode": "emulation", "chunk_ticks": 1},
+  "observation_resolution": {
+    "emulation": "per tick (chunk 1): spike counts of every neuron and the full v, g, refractory state compared after every tick; a first divergence is reported as an exact tick",
+    "cuda": "per chunk of 200 ticks (one arena step): counts summed per call, state compared at the end of each call. A first divergence is then only known to lie in [tick_start, tick_end] and is NEVER reported as an exact tick. Optional bisection: if a CUDA divergence is seen, re-run only that fly's inputs with chunk 1 up to the end of the divergent chunk (GPU is contract-deterministic) and label the result as a bisection",
+    "tick_convention": "tick t = the t-th 0.1 ms tick completed (1-based); a divergence 'at tick t' means observed after t ticks"
+  },
+  "metrics": {
+    "first_spike_divergence": "first observation at which any neuron's spike count differs from the reference: tick (or chunk range), fly, up to 10 neuron ids and both counts",
+    "max_abs_dV": "max over neurons of |v_candidate - v_reference| (float64 of float32 states) in mV, maximum over time per fly; also the maximum up to the first spike divergence",
+    "max_g_rel_error": "max over neurons and both channels with reference g != 0 of |g_c - g_r| / |g_r|, running maximum over time per fly; also up to the first spike divergence; where reference g == 0 the maximum |g_c| is reported separately",
+    "refractory": "first observation where the int16 refractory arrays differ",
+    "divergence_fraction_curves": "every 200 ticks, over the flies run: fraction with a spike divergence so far, fraction whose g relative error has exceeded 1e-6 so far, fraction whose |dV| has exceeded 1e-3 mV so far; plus running max g_rel and max |dV| per fly and cumulative mismatched-neuron observations",
+    "reported_against": "the cohort contract bounds, unchanged: max|dV| 1e-3 mV, g relative 1e-6, g==0 -> |g|<=1e-12. No bound is relaxed or tuned. The run does not stop at the first break (characterisation, not a gate); numbers after a spike divergence are labelled as post-divergence."
+  },
+  "emulation": {
+    "engine": "CPU emulation of the GPU kernel order: ascending (pre, edge) per-arrival float32 via double, phase structure of brainlab/cohort/gpu.py, after the F2 probe (probe_order_emulation.py)",
+    "labelling": "every emulation number is labelled EMULATION and is not a CUDA result",
+    "environment": "CUDA_VISIBLE_DEVICES=\"\" (CPU only); RSS guard aborts above 3 GB",
+    "flies_fallback": "A pilot timing of the first 2,000 ticks (printed progress, no divergence results used) is allowed. The 20,000-tick run keeps all 8 flies if the whole run is projected under 60 minutes wall; otherwise the 20,000-tick window runs seeds 1-4 only and the 2,000-tick window keeps all 8 (run separately, same code). Nothing else decides the fly count."
+  },
+  "declared_extension": {
+    "extension_100k": {"ticks": 100000, "seed_flies": [1, 2, 3, 4], "mode": "emulation", "chunk_ticks": 1,
+                       "rule": "launched only after the primary run has completed and only if it can finish before 20:20 Warsaw; if it does not finish it is reported as incomplete with its last progress line. Same metrics. Motivation (declared before results): the F2 review saw a synthetic-graph divergence at tick 28,311, beyond 20,000. It is a separate, labelled run, not a pooled one."},
+    "no_other_extension": "No other window, fly count or mode is added after seeing results."
+  },
+  "cuda_plan": {
+    "status": "NOT RUN by Lane 3 until the owner/root says the GPU is free (Lane 2 holds it)",
+    "device": "GTX 1660 Ti only: CUDA_VISIBLE_DEVICES=<UUID of the GTX 1660 Ti>, CUPY_GPU_MEMORY_LIMIT=4500000000",
+    "run": {"flies": 8, "ticks": 20000, "chunk_ticks": 200, "engine": "brainlab.cohort.gpu.GpuCohortEngine (the existing strict kernel at the time of the run; the commit under test is recorded)"},
+    "separation": "reported in its own section, never pooled with emulation"
+  },
+  "no_tuning": "No physics, constants, kernel, tolerance or stimulus is altered. Smoke tests of the harness on a tiny synthetic graph (no real-graph result) were done before this commit; any harness bug fix after this commit is a separate commit stating that it changed no metric definition."
+}

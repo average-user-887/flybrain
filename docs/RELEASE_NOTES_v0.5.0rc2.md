@@ -4,7 +4,7 @@
 
 > **Experimental prerelease; not biological validation.** This candidate fixes cohort
 > resume and other correctness issues found in rc1, makes GPU cohorts faster with
-> byte-identical results, and compresses checkpoints. Everything in
+> byte-identical outputs (the kernel source changed), and compresses checkpoints. Everything in
 > [`RELEASE_NOTES_v0.5.0rc1.md`](RELEASE_NOTES_v0.5.0rc1.md) still applies unless it is
 > changed here.
 
@@ -42,14 +42,15 @@ its own engine description. A CPU↔GPU continuation is not bit-identical (see b
   - A command still pending when the connection drops resolves as "outcome unknown".
   - After a restart, telemetry from the earlier run is never shown.
 
-## Faster GPU cohorts, byte-identical
+## Faster GPU cohorts, byte-identical outputs
 
 In rc1, 80 % of GPU engine time went into delivery: each receiving neuron scanned all
 its incoming edges, about 253 edges scanned per arrival applied. rc2 keeps a per-fly
 arrival bitmap, so delivery visits only the arrivals present. The order and the
 per-arrival float32 rounding are unchanged.
 
-- **Byte-identical to the rc1 strict kernel on the same device.** This was checked for:
+- **The kernel source changed; its outputs are byte-identical** to the rc1 strict
+  kernel's on the same device. This was checked for:
   - the per-tick reference workload;
   - cross-engine restore;
   - B = 1, 8 and 32;
@@ -91,6 +92,12 @@ restore is 4.53e-7, against a preregistered bound of 1e-6. Both values are uncha
 from rc1.
 
 - **Same engine:** resume is byte-identical.
+- **Subnormals:** the GPU flushes subnormal float32 values to zero (CuPy compiles with
+  -ftz=true); the CPU reference keeps them. No effect on V or spikes was observed within
+  the 200-tick contract. The CPU reference and the contract are unchanged.
+- **Long-horizon characterisation:** [`COHORT_HORIZON.md`](COHORT_HORIZON.md) describes
+  observations beyond the contract window, for a finite set of flies, using emulation and
+  CUDA. It makes no general equivalence claim in either direction.
 - **CPU↔GPU:** continuation is not exact. It is verified only within the contract
   bounds.
 

@@ -21,13 +21,18 @@ preregistered contract workload they agree to a max g relative error of
 and enters the cohort dynamics signature, so cohorts written under the
 earlier fixed-point cohort kernel are refused, not reinterpreted.
 
+Subnormals: the GPU flushes subnormal float32 values to zero (CuPy compiles
+with -ftz=true); the CPU reference keeps them. Effect on V/spikes not
+observed within the 200-tick contract.
+
 Finding the arrivals (``DELIVERY_INDEX``): phase 2a sets one bit per due
 arrival at that edge's position in the incoming-edge view (a per-fly arrival
 bitmap); phase 2b walks only the bitmap words of each receiving target's own
 incoming range, in ascending position, applies the set bits and clears them.
 Up to rc1 phase 2b read every incoming edge of each receiving target and
-tested its source; it found the same arrivals in the same order, so states and
-spikes are byte-identical to that kernel on the same device (checked by
+tested its source; it found the same arrivals in the same order, so its OUTPUTS
+(states and spikes) are byte-identical to that kernel on the same device; the
+kernel source itself differs (checked by
 ``scripts/cohort_profile.py --mode identity``).  The arithmetic is unchanged,
 so the dynamics signature is unchanged; ``describe()`` reports the index.
 

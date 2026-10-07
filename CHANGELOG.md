@@ -38,8 +38,8 @@ biological validation.** Details: `docs/RELEASE_NOTES_v0.5.0rc2.md`.
 ### Changed
 
 - **Faster GPU delivery.** A per-fly arrival bitmap replaces the scan over every
-  incoming edge. Results are byte-identical to the rc1 strict kernel on the same
-  device.
+  incoming edge. The kernel source changed; its outputs are byte-identical to the
+  rc1 strict kernel's on the same device.
   - A whole 8-fly × 2 s GPU cohort runs **2.64×** faster (113.19 s → 42.88 s, median
     of 3).
   - Engine-only B8 is 3.9× faster.
@@ -51,6 +51,13 @@ biological validation.** Details: `docs/RELEASE_NOTES_v0.5.0rc2.md`.
 
 ### Scientific results
 
+- **Subnormals:** the GPU flushes subnormal float32 values to zero (CuPy compiles with
+  -ftz=true); the CPU reference keeps them. No effect on V or spikes was observed within
+  the 200-tick contract.
+- **Long-horizon characterisation** (`docs/COHORT_HORIZON.md`, `scripts/cohort_horizon.py`)
+  covers a finite set of flies and makes no general equivalence claim. Its comparison now
+  treats reference subnormal g as zero. This removes a g relative error of 1.0 that was an
+  artefact of the GPU's subnormal flush.
 - **Unchanged:** the 200-tick (20 ms) CPU-reference contract is the only established
   CPU/GPU agreement. There is no claim of long-run CPU/GPU equivalence. On the faster
   kernel the contract passes 6/6, with g relative error 5.35e-7 and restore 4.53e-7
