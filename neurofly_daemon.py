@@ -85,6 +85,9 @@ from provenance import (GRAPH_BACKENDS, RunManifest, get_backend, graph_io_decla
                         resolve_keep_checkpoints, source_revision, trial_clock,
                         unknown_trial_clock, validate_trial_clock)
 from neurofly.privacy import redact_local
+from neurofly_body.reference import (BACKEND_ID as REFERENCE_BACKEND, DISPLAY_LABEL as REFERENCE_LABEL,
+                                     NAMESPACE_DIRNAME as REFERENCE_NAMESPACE,
+                                     UNAVAILABLE_REASON as REFERENCE_UNAVAILABLE)
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
 # Packet ``step``/``sim_time_s`` count from zero in every daemon process; they are
@@ -1302,6 +1305,13 @@ class ContinuousExperimentRunner:
         self._view_built: Dict[str, float] = {}
         self.published: Optional[_Snapshot] = None
         self._snapshot_seq = 0
+        # Reference fly (not connectome): a separate presentation session
+        # (neurofly_body/reference_live.py).  While it is set, the connectome or
+        # modular run stays exactly as it was and is not stepped.
+        self.reference = None
+        self.reference_body_factory = None     # tests inject a fake body here
+        self._ref_anchor = None
+        self._ref_speed_samples: deque = deque(maxlen=64)
         self._publish_due = True
         self._last_step_result: Dict[str, Any] = {}
         self._path: deque = deque(maxlen=240)   # (step, x, y) of every recent step
@@ -1473,6 +1483,214 @@ class ContinuousExperimentRunner:
         self._init_arena(self.active_paradigm_id)
         print(f"[Daemon] Switched controller backend to {self.backend} (graph_mode={self.graph_mode})", flush=True)
         print(f"[Daemon] Brain compute: {self.compute_info()['detail']}", flush=True)
+
+
+    # ------------------------------------------------------------------ reference fly
+    # Reference fly (not connectome) -- illustrative reference controller.  One route
+    # only (flat-ground walking, neurofly_body/reference_live.py).  It is never the
+    # default, never a graph or brain store user, and the 14 assays are refused for it.
+    REFERENCE_SWITCH_ACTIONS = ("switch_backend", "switch_controller")
+
+    def _reference_command(self, action: str, cmd: dict) -> Optional[dict]:
+        """Handle a command that enters, leaves or is refused by the reference fly.
+
+        Returns None when the normal command path should handle it.  Caller holds the lock.
+        """
+        p = cmd.get("params") if isinstance(cmd.get("params"), dict) else {}
+        target = cmd.get("backend", p.get("backend")) if action in self.REFERENCE_SWITCH_ACTIONS else None
+        if self.reference is None:
+            if target == REFERENCE_BACKEND:
+                return self._enter_reference(cmd, p)
+            return None
+        if action == "set_paused":
+            paused = cmd.get("paused", p.get("paused"))
+            if not isinstance(paused, bool):
+                return {"status": "error", "message": "paused must be a boolean"}
+            self.paused = paused
+            self._publish_due = True
+            return {"status": "ok", "paused": self.paused}
+        if action == "set_speed":
+            return None
+        if action in self.REFERENCE_SWITCH_ACTIONS:
+            if target == REFERENCE_BACKEND:
+                return {"status": "ok", "backend": REFERENCE_BACKEND, "reference_fly": self.reference_status()}
+            if type(target) is not str or target not in DAEMON_BACKENDS:
+                return {"status": "error", "applied": False, "message": "Choose a supported controller backend"}
+            self._exit_reference()
+            if target == self.backend:
+                return {"status": "ok", "backend": self.backend, "identity": self.identity(), "cleared_error": None}
+            return None     # a different connectome/modular backend: the normal rebuild path
+        if action == "shutdown":
+            self._exit_reference()
+            return None
+        if action == "switch_paradigm":
+            paradigm = cmd.get("paradigm", p.get("paradigm"))
+            if type(paradigm) is str and paradigm in PARADIGMS:
+                return {"status": "error", "applied": False,
+                        "message": f"{paradigm} is {REFERENCE_UNAVAILABLE}. Switch the controller back to the "
+                                   f"connectome to run it."}
+            return {"status": "error", "applied": False, "message": "Choose a known experiment"}
+        return {"status": "error", "applied": False,
+                "message": f"{action or 'this command'} is not available for the {REFERENCE_LABEL}: it has no "
+                           f"assay, brain or connectome state. Its run is recorded automatically under "
+                           f"{self.reference.store_path()}."}
+
+    def _enter_reference(self, cmd: dict, p: dict) -> dict:
+        assay = cmd.get("assay", p.get("assay", cmd.get("paradigm", p.get("paradigm"))))
+        if assay is not None and assay != "flat-ground-walking":
+            if assay in PARADIGMS:
+                return {"status": "error", "applied": False, "message": f"{assay} is {REFERENCE_UNAVAILABLE}"}
+            return {"status": "error", "applied": False,
+                    "message": "The reference fly offers only flat-ground-walking"}
+        if self.recorder is not None:
+            return {"status": "error", "applied": False,
+                    "message": "Stop the recording before switching to the reference fly (a recording covers one run)"}
+        if self.last_error is not None or self._state_uncertain:
+            return {"status": "error", "applied": False,
+                    "message": "Resolve the halt first: the reference fly is not started over a halted run"}
+        if self._teaching_suspended or getattr(self.active_brain, "teaching", False):
+            return {"status": "error", "applied": False, "message": "Finish teaching before switching controller"}
+        # The run being replaced is saved first, so nothing depends on the reference session.
+        if self.checkpoint_now("before_reference") is None:
+            failing = self.persistence.describe()["failing"].get("checkpoint") or {}
+            return {"status": "error", "applied": False,
+                    "message": f"Reference fly not started: the current run could not be saved "
+                               f"({failing.get('error', 'unknown error')})"}
+        from neurofly_body.reference import ReferenceRefused
+        from neurofly_body.reference_live import ReferenceLive
+        try:
+            self.reference = ReferenceLive(self.output_dir / REFERENCE_NAMESPACE, session_id=self.run_id,
+                                           body_factory=self.reference_body_factory)
+        except (ReferenceRefused, ImportError, OSError, RuntimeError, ValueError) as exc:
+            self.reference = None
+            return {"status": "error", "applied": False,
+                    "message": f"Reference fly unavailable: {type(exc).__name__}: {exc}"}
+        self._ref_anchor = None
+        self._ref_speed_samples.clear()
+        self._publish_due = True
+        print(f"[Daemon] Showing {REFERENCE_LABEL}; {self.backend} run kept unchanged, not stepped. "
+              f"Store: {self.reference.store_path()}", flush=True)
+        return {"status": "ok", "backend": REFERENCE_BACKEND, "reference_fly": self.reference_status()}
+
+    def _exit_reference(self) -> Optional[dict]:
+        """Close the reference session (files finished) and show the kept run again."""
+        reference, self.reference = self.reference, None
+        if reference is None:
+            return None
+        try:
+            summary = reference.close()
+        except Exception as exc:  # noqa: BLE001 -- the session is over either way
+            summary = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+        self._ref_anchor = None
+        now = time.perf_counter()
+        self._steppable_since = now
+        self._advance_samples.clear()
+        self._speed_samples.clear()
+        self._publish_due = True
+        self.latest_telemetry = self._assemble_telemetry(self._last_step_result)
+        print(f"[Daemon] Reference fly closed ({summary.get('status')}); showing {self.backend} again", flush=True)
+        return summary
+
+    def reference_status(self) -> Optional[dict]:
+        """Reference session summary for /api/status (the walked trail is streamed only)."""
+        if self.reference is None:
+            return None
+        status = self.reference.status()
+        status.pop("trail_mm", None)
+        return status
+
+    def _reference_liveness(self) -> Dict[str, Any]:
+        ref = self.reference
+        thread = getattr(self, "sim_thread", None)
+        alive = bool(thread is not None and thread.is_alive())
+        if self.running and thread is not None and not alive:
+            state = "dead"
+        elif ref.error is not None:
+            state = "halted"
+        elif self.paused or self._stopped:
+            state = "paused"
+        else:
+            state = "advancing"
+        return {"state": state, "step": ref.frames, "last_advance_age_s": None, "sim_thread_alive": alive,
+                "step_in_progress_s": 0.0, "stall_threshold_s": None, "step_hard_limit_s": self.step_hard_limit_s,
+                "clock": "reference fly (not connectome)"}
+
+    def _reference_iteration(self) -> None:
+        """One scheduler iteration while the reference fly is shown (paced by sim_speed)."""
+        from neurofly_body.reference_live import FRAME_DT_S
+        ref = self.reference
+        now = time.perf_counter()
+        last = getattr(self, "_ref_last_publish", 0.0)
+        if self.paused or ref.error is not None or self._stopped:
+            self._ref_anchor = None
+            self._ref_speed_samples.clear()
+            if self._publish_due or now - last >= 1.0 / self.paused_publish_hz:
+                self._publish_snapshot()
+            self._wake.wait(0.05)
+            return
+        speed = self.sim_speed
+        if self._ref_anchor is None or self._ref_anchor[2] != speed:
+            self._ref_anchor = (now, ref.frames, speed)
+        anchor_wall, anchor_frames, _ = self._ref_anchor
+        behind = anchor_frames + int((now - anchor_wall) * speed / FRAME_DT_S) - ref.frames
+        if behind > max(1, int(self.max_lag_wall_s * speed / FRAME_DT_S)):
+            self._ref_anchor = (now - FRAME_DT_S / speed, ref.frames, speed)   # forgive overload, no bursts
+            behind = 1
+        if behind > 0:
+            start = time.perf_counter()
+            with self.lock:
+                while behind > 0 and self.reference is ref and ref.error is None:
+                    ref.step_frame()
+                    behind -= 1
+                    if time.perf_counter() - start >= self.max_batch_wall_s:
+                        break
+            self._yield_lock()
+        now = time.perf_counter()
+        if self._publish_due or now - last >= 1.0 / self.publish_hz:
+            self._publish_snapshot()
+        elif behind <= 0:
+            self._wake.wait(min(0.01, FRAME_DT_S / max(speed, 1e-6)))
+
+    def _publish_reference(self) -> None:
+        """Publish one reference-fly frame: its own identity, clock and labelled state only."""
+        with self.lock:
+            ref = self.reference
+            if ref is None:
+                return
+            now = time.perf_counter()
+            self._ref_last_publish = now
+            samples = self._ref_speed_samples
+            samples.append((now, ref.frames))
+            while len(samples) > 2 and now - samples[0][0] > 2.0:
+                samples.popleft()
+            achieved = 0.0
+            if len(samples) > 1 and now - samples[0][0] > 0.2 and not self.paused:
+                achieved = round((ref.frames - samples[0][1]) * 0.002 / (now - samples[0][0]), 3)
+            self._snapshot_seq += 1
+            status = ref.status()
+            identity = self.identity()
+            telemetry = {
+                "type": "telemetry", "timestamp": time.time(), "run_id": self.run_id,
+                "paradigm": status["assay"], "paradigm_title": REFERENCE_LABEL,
+                "step": ref.frames, "sim_time_s": status["sim_time_s"], "trial": None,
+                "identity": identity, "backend": REFERENCE_BACKEND, "reference_fly": status,
+                "paused": self.paused, "halted": ref.error is not None,
+                "error": f"Reference fly stopped: {ref.error}" if ref.error else None,
+                "liveness": self._reference_liveness(), "mode": getattr(self, "mode", None),
+                "timing": {"requested_speed": self.sim_speed, "achieved_speed": achieved,
+                           "integration_dt_s": 0.002, "sim_time_s": status["sim_time_s"],
+                           "sim_time_scope": "reference fly session (not connectome)",
+                           "step": ref.frames, "snapshot_seq": self._snapshot_seq,
+                           "publish_hz": self.publish_hz, "steps_in_frame": 0},
+                "command_acks": list(self.command_acks),
+            }
+            self._refresh_views()
+            self.latest_telemetry = telemetry
+            data = json.dumps(telemetry).encode("utf-8")
+            self.published = _Snapshot(self._snapshot_seq, self.total_steps, data, telemetry["timestamp"])
+            self.sched_stats["published_snapshots"] += 1
+            self._publish_due = False
+        return self.published
 
     def _init_arena(self, paradigm_name: str):
         """Activate an experiment's own arena and learned state; never share weights."""
@@ -2020,9 +2238,16 @@ class ContinuousExperimentRunner:
 
     def identity(self) -> Dict[str, Any]:
         """Compact run identity carried by every packet, /api/status and each ack."""
+        if self.reference is not None:
+            return self.reference.identity(activation=self.activation, daemon_run_id=self.run_id)
         ident = self.manifest.identity() if self.manifest is not None else {}
         ident.update(activation=self.activation, daemon_run_id=self.run_id)
         return ident
+
+    @property
+    def presented_backend(self) -> str:
+        """The controller the dashboard is shown: the reference fly or ``backend``."""
+        return REFERENCE_BACKEND if self.reference is not None else self.backend
 
     MOTOR_RECORD_FIELDS = ("step", "state", "controller_yaw", "controller_speed", "wall_reflex_yaw",
                            "controller_yaw_suppressed", "contact_turn_rad", "attempted_mm", "realized_mm",
@@ -2278,6 +2503,12 @@ class ContinuousExperimentRunner:
                 self._wake.clear()
                 self._loop_phase = "command"
                 self._drain_commands()
+                if self.reference is not None:
+                    # Reference fly (not connectome): its own clock and frames; the
+                    # connectome or modular run is not stepped while it is shown.
+                    self._reference_iteration()
+                    anchor_wall, anchor_steps, anchor_speed = time.perf_counter(), self.total_steps, self.sim_speed
+                    continue
                 now = time.perf_counter()
                 if not self._can_step():
                     # Not expected to advance (paused, halted, held): restart the stall clock
@@ -2470,6 +2701,8 @@ class ContinuousExperimentRunner:
 
     def liveness(self) -> Dict[str, Any]:
         """Is the simulation advancing?  advancing / paused / halted / slow / stalled / dead."""
+        if self.reference is not None:
+            return self._reference_liveness()
         now = time.perf_counter()
         thread = getattr(self, "sim_thread", None)
         alive = bool(thread is not None and thread.is_alive())
@@ -3018,6 +3251,8 @@ class ContinuousExperimentRunner:
 
     def _publish_snapshot(self):
         """Assemble, serialize and publish one immutable telemetry frame (takes the lock)."""
+        if self.reference is not None:
+            return self._publish_reference()
         with self.lock:
             now = time.perf_counter()
             if self._can_step():
@@ -5209,6 +5444,9 @@ class ContinuousExperimentRunner:
         if self._pending_assay_control is not None and action not in ("set_paused", "set_speed"):
             return {"status": "error", "applied": False,
                     "message": "An assay control is waiting for its exact durable observation; retry afterward"}
+        reference_result = self._reference_command(action, cmd)
+        if reference_result is not None:
+            return reference_result
         # Allow both flat arguments and nested 'params' dictionary from client libraries
         p = cmd.get("params", {})
         if not isinstance(p, dict):
@@ -5550,7 +5788,8 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["identity"] = latest.get("identity") or self.runner.identity()
             payload["motor"] = latest.get("motor")
             payload["controller_fault"] = latest.get("controller_fault")
-            payload["backend"] = getattr(self.runner, "backend", "modular")
+            payload["backend"] = getattr(self.runner, "presented_backend", getattr(self.runner, "backend", "modular"))
+            payload["reference_fly"] = getattr(self.runner, "reference_status", lambda: None)()
             # How the startup backend was chosen (explicit, or the fresh-launch default
             # and its reason, e.g. the visible modular fallback without a prepared graph).
             payload["launch_backend"] = getattr(self.runner, "launch_backend", None)

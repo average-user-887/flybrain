@@ -341,6 +341,16 @@
         #customSpeed { width: 72px; cursor: text; }
         #speedFeedback { max-width: 220px; font: 9px monospace; color: #94a3b8; }
 
+        .reference-fly-view { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; gap: 4px; padding: 8px; background: #050a14; }
+        .reference-fly-view[hidden] { display: none; }
+        .reference-fly-banner { color: #fcd34d; border: 1px solid #b45309; background: rgba(245,158,11,0.14); border-radius: 6px; padding: 4px 8px; font: 700 12px monospace; }
+        .reference-fly-note { color: #cbd5e1; font: 10px/1.4 sans-serif; }
+        #referenceFlyCanvas { flex: 1; width: 100%; min-height: 160px; border: 1px solid #1e293b; border-radius: 6px; }
+        .reference-fly-readout { margin: 0; color: #e2e8f0; font: 10px/1.4 monospace; white-space: pre-wrap; }
+        .reference-fly-notice { color: #fca5a5; font: 10px monospace; }
+        body.reference-mode .hud-column, body.reference-mode .bottom-stage-panel { opacity: .25; pointer-events: none; }
+        body.reference-mode .catalog-column .experiment-card { opacity: .45; }
+        body.reference-mode .arena-overlay-tools, body.reference-mode .arena-legend { visibility: hidden; }
         .arena-wrapper {
             flex: 1;
             position: relative;
@@ -1206,6 +1216,7 @@
                             <option value="connectome-plastic">Connectome Plastic (WP6 3,081)</option>
                             <option value="connectome-with-trained-readout">Fixed graph + external trained readout (no synaptic learning)</option>
                             <option value="modular">Modular: hand-built engineered preview (not the connectome)</option>
+                            <option value="reference-flygym">Reference fly (not connectome) — illustrative reference controller</option>
                         </select>
                     </div>
                     <span id="backendCommandStatus" role="status" aria-live="polite" aria-atomic="true" style="font-size:10px;color:#94a3b8;">Waiting for a verified live controller identity.</span>
@@ -1275,6 +1286,13 @@
                     <p id="arenaToolHelp" role="status" aria-live="polite" style="flex-basis:100%;margin:0;padding:3px 6px;font-size:10px;color:#94a3b8;background:rgba(15,23,42,0.8);pointer-events:none;">Tools wait for current capabilities.</p>
                 </div>
 
+                <div id="referenceFlyView" class="reference-fly-view" role="region" aria-label="Reference fly (not connectome)" hidden>
+                    <div class="reference-fly-banner">Reference fly (not connectome) — illustrative reference controller</div>
+                    <div class="reference-fly-note">FlyGym's published walking controller (a CPG with leg reflexes replaying recorded steps) on the NeuroMechFly body, constant command, flat ground. It is not the connectome, not connectome evidence and not a prediction of real fly behaviour. The 14 assays are unavailable for it: switch the controller back to the connectome to run them. The connectome run is kept unchanged and not stepped meanwhile.</div>
+                    <canvas id="referenceFlyCanvas"></canvas>
+                    <pre id="referenceFlyReadout" class="reference-fly-readout" role="status"></pre>
+                    <div id="referenceFlyNotice" class="reference-fly-notice" role="alert"></div>
+                </div>
                 <div class="arena-drawing-surface">
                     <canvas id="arenaCanvas"></canvas>
                     <div id="viewport3DContainer">

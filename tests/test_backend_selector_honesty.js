@@ -26,11 +26,12 @@ for(const mode of ['disconnected','frozen','local'])test('no controller shown as
  const s=state(arena,bridge);
  assert.equal(s.backend,'');assert.equal(s.allowed,false);assert.match(s.placeholder,/Not connected/);
 });
-test('modular is labelled a hand-built engineered preview and connectome-fixed is listed first',()=>{
+test('modular is labelled a hand-built engineered preview, connectome-fixed is listed first and the reference fly last',()=>{
  assert.match(html,/<option value="modular">Modular: hand-built engineered preview \(not the connectome\)<\/option>/);
  const sel=html.slice(html.indexOf('id="selectBackend"'),html.indexOf('</select>',html.indexOf('id="selectBackend"')));
  const values=[...sel.matchAll(/<option value="([^"]*)"/g)].map(m=>m[1]);
- assert.deepEqual(values,['','connectome-fixed','connectome-plastic','connectome-with-trained-readout','modular']);
+ assert.deepEqual(values,['','connectome-fixed','connectome-plastic','connectome-with-trained-readout','modular','reference-flygym']);
+ assert.match(sel,/<option value="reference-flygym">Reference fly \(not connectome\) — illustrative reference controller<\/option>/);
  assert.doesNotMatch(sel,/Legacy Heuristic/);
 });
 

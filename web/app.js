@@ -3678,14 +3678,83 @@ function liveAssayMountKey(packet) {
         {...capability, parameters: capability.parameters.map(({value, ...parameter}) => parameter)}]);
 }
 
-const SELECTABLE_BACKENDS = ['modular', 'connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout'];
+const SELECTABLE_BACKENDS = ['modular', 'connectome-fixed', 'connectome-plastic', 'connectome-with-trained-readout', 'reference-flygym'];
+// Reference fly (not connectome): one presentation route (flat-ground walking with
+// FlyGym's published controller, neurofly_body/reference_live.py). Never the default.
+const REFERENCE_BACKEND = 'reference-flygym';
+const REFERENCE_LABEL = 'Reference fly (not connectome) \u2014 illustrative reference controller';
+function isReferencePacket(pkt) {
+    return !!pkt && pkt.identity?.backend === REFERENCE_BACKEND && !!pkt.reference_fly;
+}
+window.neuroflyIsReferencePacket = isReferencePacket;
+
+/** Draw the reference fly's flat-ground walk (own canvas; never the assay arena). */
+function renderReferenceFly(canvas, status) {
+    if (!canvas || !status) return null;
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    const w = Math.max(50, canvas.clientWidth || canvas.width || 300), h = Math.max(50, canvas.clientHeight || canvas.height || 200);
+    if (canvas.width !== Math.round(w * dpr)) canvas.width = Math.round(w * dpr);
+    if (canvas.height !== Math.round(h * dpr)) canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) return null;
+    const trail = (Array.isArray(status.trail_mm) ? status.trail_mm : []).filter(p => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]));
+    const pos = Array.isArray(status.pos_mm) && status.pos_mm.every(Number.isFinite) ? status.pos_mm : (trail[trail.length - 1] || [0, 0]);
+    const pts = trail.concat([pos]);
+    let x0 = Math.min(...pts.map(p => p[0])), x1 = Math.max(...pts.map(p => p[0]));
+    let y0 = Math.min(...pts.map(p => p[1])), y1 = Math.max(...pts.map(p => p[1]));
+    const span = Math.max(10, x1 - x0, y1 - y0) * 1.2;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const scale = Math.min(w, h) / span;
+    const sx = x => w / 2 + (x - cx) * scale, sy = y => h / 2 - (y - cy) * scale;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#050a14'; ctx.fillRect(0, 0, w, h);
+    const gridMm = span > 80 ? 20 : span > 30 ? 10 : 5;
+    ctx.strokeStyle = 'rgba(148,163,184,0.12)'; ctx.lineWidth = 1;
+    for (let g = Math.floor((cx - span) / gridMm) * gridMm; g <= cx + span; g += gridMm) {
+        ctx.beginPath(); ctx.moveTo(sx(g), 0); ctx.lineTo(sx(g), h); ctx.stroke();
+    }
+    for (let g = Math.floor((cy - span) / gridMm) * gridMm; g <= cy + span; g += gridMm) {
+        ctx.beginPath(); ctx.moveTo(0, sy(g)); ctx.lineTo(w, sy(g)); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(251,191,36,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1]))));
+    ctx.stroke();
+    const yaw = Number.isFinite(status.yaw_rad) ? status.yaw_rad : 0, r = 9;
+    const fx = sx(pos[0]), fy = sy(pos[1]);
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath();
+    ctx.moveTo(fx + r * Math.cos(yaw), fy - r * Math.sin(yaw));
+    ctx.lineTo(fx + r * 0.6 * Math.cos(yaw + 2.5), fy - r * 0.6 * Math.sin(yaw + 2.5));
+    ctx.lineTo(fx + r * 0.6 * Math.cos(yaw - 2.5), fy - r * 0.6 * Math.sin(yaw - 2.5));
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fcd34d'; ctx.font = '11px monospace';
+    ctx.fillText(REFERENCE_LABEL, 8, 16);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`flat ground · grid ${gridMm} mm`, 8, h - 8);
+    return {points: pts.length, gridMm, scale};
+}
+window.neuroflyRenderReferenceFly = renderReferenceFly;
+
+function referenceReadout(pkt) {
+    const st = pkt?.reference_fly || {};
+    const t = Number.isFinite(st.sim_time_s) ? st.sim_time_s.toFixed(2) : '--';
+    const v = Number.isFinite(st.forward_speed_mm_s) ? st.forward_speed_mm_s.toFixed(1) : '--';
+    const contacts = (st.contacts || []).map(c => (c ? '\u25cf' : '\u25cb')).join(' ') || '--';
+    const achieved = pkt?.timing?.achieved_speed;
+    const speed = Number.isFinite(achieved) ? `${achieved}x achieved of ${pkt.timing.requested_speed}x requested` : '';
+    const state = pkt?.error ? pkt.error : pkt?.paused ? 'PAUSED' : 'walking';
+    return [`${REFERENCE_LABEL} · ${state}`,
+            `simulated ${t} s · mean forward speed ${v} mm/s · leg contacts ${contacts}${speed ? ' · ' + speed : ''}`,
+            `Recorded (labelled) to ${st.store || '--'} · run ${String(st.run_id || '--').slice(-12)}`].join('\n');
+}
+window.neuroflyReferenceReadout = referenceReadout;
 function verifiedBackendIdentity(identity) {
     return !!identity && SELECTABLE_BACKENDS.includes(identity.backend)
         && ['run_id', 'instance_id', 'daemon_run_id'].every(key => typeof identity[key] === 'string' && identity[key].length > 0)
         && Number.isInteger(identity.activation) && identity.activation >= 0;
 }
 function backendSelectorState(arena, bridge, waiting = false) {
-    const pkt = arena?.remotePacket;
+    const reference = arena?.referencePacket || null;
+    const pkt = reference || arena?.remotePacket;
     const current = verifiedBackendIdentity(pkt?.identity) && pkt.identity.daemon_run_id === pkt.run_id
         ? pkt.identity : null;
     const ack = bridge?.lastBackendAck?.identity;
@@ -3695,14 +3764,14 @@ function backendSelectorState(arena, bridge, waiting = false) {
     if (bridge?.replayMode || pkt?.timing?.replay) reason = 'Replay is read-only; exit replay to change the controller.';
     else if (!bridge?.connected || !bridge?.activeUrl) reason = 'Connect to the live daemon to change the controller.';
     else if (bridge.readOnly) reason = 'This daemon is read-only.';
-    else if (arena?.awaitingDaemon || !arena?.remoteDriven || !identity) reason = 'Waiting for a verified live controller identity.';
+    else if (((arena?.awaitingDaemon || !arena?.remoteDriven) && !reference) || !identity) reason = 'Waiting for a verified live controller identity.';
     else if (waiting || bridge.switchPending) reason = 'Waiting for the final switch acknowledgement.';
     // The selector shows only the controller a connected live daemon reports (or, in
     // replay, the recording's own controller): offline, with a frozen view of a lost
     // daemon or before a verified identity, no option (connectome or modular) is shown as
     // selected, and the placeholder says why.
     const replay = !!(bridge?.replayMode || pkt?.timing?.replay);
-    const offline = !bridge?.connected || !bridge?.activeUrl || !!arena?.awaitingDaemon || !arena?.remoteDriven;
+    const offline = !bridge?.connected || !bridge?.activeUrl || ((!!arena?.awaitingDaemon || !arena?.remoteDriven) && !reference);
     const placeholder = offline ? 'Not connected: no live controller' : 'Waiting for daemon identity';
     return {backend: identity && (replay || !offline) ? identity.backend : '', identity, reason,
             allowed: !reason, placeholder};
@@ -3799,6 +3868,22 @@ function renderIdentity(pkt) {
     const set = (elId, text, title) => { const el = document.getElementById(elId); if (el) { el.textContent = text; if (title !== undefined) el.title = title; } };
     set('identBackend', id.backend || 'unknown');
     set('identLabel', id.label || '', id.label || '');
+    if (id.backend === 'reference-flygym' && pkt?.reference_fly) {
+        const label = id.label || 'Reference fly (not connectome) \u2014 illustrative reference controller';
+        set('identAssists', 'n/a', 'The reference fly has no assay arena and no engineered arena assists.');
+        set('identMotor', 'FlyGym published walking controller', 'CPG + reflex controller shipped with FlyGym 2.1; not a brain.');
+        set('identAssistance', 'n/a (not connectome)', 'Assistance OFF/ON applies to connectome runs only; this is not one.');
+        set('identOptoMap', '--', 'No optomotor IO map: not a connectome run.');
+        set('identFault', pkt.error || 'none');
+        set('identRun', `run ${(id.run_id || '--').slice(-12)}`, `run_id ${id.run_id || '?'}\nbackend reference-flygym\ngraph none (not connectome)\nactivation ${id.activation ?? '?'}`);
+        const banner = document.getElementById('identityBanner');
+        if (banner) {
+            const text = `${label.toUpperCase()} · not the connectome · not connectome evidence · not a prediction of real fly behaviour · the 14 assays are unavailable for it`;
+            if (banner.textContent !== text) banner.textContent = text;
+            banner.style.display = 'block';
+        }
+        return;
+    }
     const assists = motor.motor_assists || {};
     const on = Object.keys(assists).filter(k => assists[k]);
     set('identAssists', motor.motor_assists_enabled ? `ON (${on.join(', ')})` : 'OFF', 'Engineered motor assists: they turn the fly away from walls on the controller\'s behalf and are not credited to any brain.');
@@ -3912,6 +3997,13 @@ function validateDaemonPacket(pkt) {
     if (pkt.type !== 'telemetry') return `unexpected packet type ${JSON.stringify(pkt.type)}`;
     if (!Number.isFinite(pkt.step)) return 'step is missing or not a finite number';
     if (typeof pkt.paradigm !== 'string' || !pkt.paradigm) return 'paradigm is missing';
+    if (pkt.identity?.backend === 'reference-flygym') {
+        // Reference fly (not connectome): no assay arena pose; its own flat-ground state instead.
+        const st = pkt.reference_fly;
+        if (!st || !Array.isArray(st.pos_mm) || !st.pos_mm.every(Number.isFinite)) return 'reference fly position is missing or not finite';
+        if (st.trail_mm !== undefined && !Array.isArray(st.trail_mm)) return 'reference trail is not an array';
+        return null;
+    }
     if (!pkt.fly || !Number.isFinite(pkt.fly.x) || !Number.isFinite(pkt.fly.y)) return 'fly position is missing or not finite';
     if (pkt.path !== undefined && !Array.isArray(pkt.path)) return 'path is not an array';
     return null;
@@ -4774,6 +4866,12 @@ class DaemonBridgeClient {
             if (pkt.mode) this.daemonMode = pkt.mode;
             this.daemonError = pkt.error || null;
         }
+        if (isReferencePacket(pkt)) {
+            renderIdentity(pkt);
+            this.showReferencePacket(pkt);
+            return true;
+        }
+        if (this.arena.referencePacket) this.hideReferenceView();
         renderIdentity(pkt);
         if (pkt.identity?.run_id && pkt.identity.run_id !== this.manifestRunId) this.fetchManifest(pkt.identity.run_id);
 
@@ -4986,6 +5084,54 @@ class DaemonBridgeClient {
         window.neuroflyActivityPanel?.update(pkt);
     }
 
+    /** Reference fly (not connectome): its own view; the assay arena and its data are not shown. */
+    showReferencePacket(pkt) {
+        const arena = this.arena;
+        arena.referencePacket = pkt;
+        // Nothing of the kept connectome run is displayed under the reference identity.
+        arena.remotePacket = null;
+        arena.remoteDriven = false;
+        arena.awaitingDaemon = true;
+        document.body?.classList?.add('reference-mode');
+        const view = document.getElementById('referenceFlyView');
+        if (view) view.hidden = false;
+        renderReferenceFly(document.getElementById('referenceFlyCanvas'), pkt.reference_fly);
+        const readout = document.getElementById('referenceFlyReadout');
+        const text = referenceReadout(pkt);
+        if (readout && readout.textContent !== text) readout.textContent = text;
+        const runState = document.getElementById('arenaRunState');
+        if (runState) runState.textContent = pkt.error ? `SIMULATION ERROR: ${pkt.error}`
+            : `${REFERENCE_LABEL} · flat-ground walking · ${pkt.paused ? 'PAUSED' : 'LIVE'}`;
+        const badge = document.getElementById('navbarParadigmBadge');
+        if (badge) badge.textContent = 'REFERENCE FLY (NOT CONNECTOME)';
+        const pause = document.getElementById('btnPauseToggle');
+        if (pause) pause.textContent = pkt.paused ? 'Resume' : 'Pause';
+        try { this.renderTiming(pkt); } catch (e) { /* timing view is optional here */ }
+        const st = pkt.reference_fly;
+        if (Number.isFinite(pkt.step) && (this.lastRecordedSegment !== st.run_id || this.lastRecordedStep !== pkt.step)) {
+            if (arena.telemetryBuffer[0]?.source === 'local_preview') arena.telemetryBuffer = [];
+            arena.telemetryBuffer.push({source: 'daemon', run_id: pkt.run_id || '', segment: st.run_id,
+                controller_run_id: pkt.identity?.run_id || '', backend: REFERENCE_BACKEND, label: REFERENCE_LABEL,
+                is_connectome: false, step: pkt.step, simTime: st.sim_time_s, paradigm: st.assay,
+                x: st.pos_mm?.[0], y: st.pos_mm?.[1], heading: st.yaw_rad, paused: !!pkt.paused, error: pkt.error || ''});
+            arena.telemetryBuffer = arena.telemetryBuffer.slice(-4500);
+            this.lastRecordedStep = pkt.step; this.lastRecordedSegment = st.run_id;
+        }
+        this.hud?.reconcileBackendSelector?.();
+    }
+
+    hideReferenceView() {
+        const arena = this.arena;
+        arena.referencePacket = null;
+        document.body?.classList?.remove('reference-mode');
+        const view = document.getElementById('referenceFlyView');
+        if (view) view.hidden = true;
+        const notice = document.getElementById('referenceFlyNotice');
+        if (notice) notice.textContent = '';
+        const badge = document.getElementById('navbarParadigmBadge');
+        if (badge && arena.activeParadigmId) badge.textContent = arena.activeParadigmId.toUpperCase().replace(/-/g, ' ');
+    }
+
     /** Playback controls belong to the active player, not historical frame pause. */
     renderPlaybackState(pkt) {
         if (this.replayMode) { window.neuroflyReplay?.updateButtons(); return; }
@@ -5071,6 +5217,8 @@ class DaemonBridgeClient {
                 if (result?.status !== 'ok') {
                     const label=document.getElementById('arenaRunState');
                     if(label)label.textContent='Switch not applied: '+(result?.message||'daemon unavailable or read only');
+                    const notice=document.getElementById('referenceFlyNotice');
+                    if(notice&&this.arena.referencePacket)notice.textContent=`${target}: not applied. ${result?.message||'daemon unavailable or read only'}`;
                 }
             }
         } finally { this.switchQueueRunning = false; }
@@ -6461,7 +6609,9 @@ class ScientificHUD {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `neurofly_${this.arena.activeParadigmId}_telemetry_${Date.now()}.csv`;
+        link.download = this.arena.referencePacket
+            ? `neurofly_reference-fly-not-connectome_telemetry_${Date.now()}.csv`
+            : `neurofly_${this.arena.activeParadigmId}_telemetry_${Date.now()}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -6469,7 +6619,17 @@ class ScientificHUD {
     }
 
     downloadJson() {
-        const data = {
+        const ref = this.arena.referencePacket;
+        const data = ref ? {
+            metadata: {
+                project: `Project NeuroFly — ${REFERENCE_LABEL}`,
+                dataSource: 'daemon: Reference fly (not connectome); not connectome evidence, not a prediction of real fly behaviour',
+                activeParadigm: ref.reference_fly?.assay, date: new Date().toISOString(), totalSteps: ref.step
+            },
+            identity: ref.identity, referenceFly: ref.reference_fly, manifest: null, canonicalMetrics: null,
+            telemetrySampleCount: this.arena.telemetryBuffer ? this.arena.telemetryBuffer.length : 0,
+            telemetry: (this.arena.telemetryBuffer || []).slice(-500)
+        } : {
             metadata: {
                 project: `Project NeuroFly — ${this.arena.remotePacket?.identity?.label || this.arena.remotePacket?.identity?.backend || 'compact modular model'}`,
                 dataSource: this.arena.remoteDriven ? 'daemon' : 'local_preview',
@@ -6497,7 +6657,8 @@ class ScientificHUD {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `neurofly_${this.arena.activeParadigmId}_trial_${Date.now()}.json`;
+        a.download = ref ? `neurofly_reference-fly-not-connectome_${Date.now()}.json`
+            : `neurofly_${this.arena.activeParadigmId}_trial_${Date.now()}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

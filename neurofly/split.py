@@ -171,7 +171,8 @@ def sim_state(runner) -> Dict[str, Any]:
         "trial_length_s": getattr(runner, "trial_length_s", None),
         "world_bounds": list(getattr(arena, "world_bounds", ()) or ()),
         "identity": runner.identity(),
-        "backend": getattr(runner, "backend", "modular"),
+        "backend": getattr(runner, "presented_backend", getattr(runner, "backend", "modular")),
+        "reference_fly": getattr(runner, "reference_status", lambda: None)(),
         "launch_backend": getattr(runner, "launch_backend", None),
         "compute": compute,
         "timing": runner.timing_snapshot(),
@@ -700,6 +701,10 @@ class SimProxy:
     trial_sim_time = property(lambda self: self._get("trial_sim_time", 0.0))
     trial_length_s = property(lambda self: self._get("trial_length_s"))
     backend = property(lambda self: self._get("backend", "modular"))
+    presented_backend = backend    # the simulation process already reports the presented one
+
+    def reference_status(self):
+        return self._get("reference_fly")
     launch_backend = property(lambda self: self._get("launch_backend"))
     last_step_wall_s = property(lambda self: self._get("last_step_wall_s", 0.0))
     arena = property(lambda self: SimpleNamespace(world_bounds=self._get("world_bounds", [])))
