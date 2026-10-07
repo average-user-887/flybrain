@@ -86,7 +86,7 @@ def dynamics_signature(engine: CohortEngine) -> dict:
     resume under different constants is refused even when the code version is equal.
     """
     from brainlab import engine as lif
-    from brainlab.cuda_engine import FIXED_SCALE
+    from brainlab.cohort.gpu import CPU_DELIVERY, DELIVERY
     from brainlab.graph_identity import dynamics_pin
     from brainlab.transmitter_policy import POLICY_V3
     if hasattr(engine, 'brains'):
@@ -106,7 +106,10 @@ def dynamics_signature(engine: CohortEngine) -> dict:
         'reversal': {'E_EXC_MV': float(lif.E_EXC_MV), 'engine_E_INH_MV': None if e_inh is None else float(e_inh)},
         'transmitter_policy': POLICY_V3,
         'declared_dynamics_pin': dynamics_pin('v3'),
-        'gpu_fixed_point_scale': float(FIXED_SCALE),
+        # Arrival arithmetic of BOTH engines (one signature, so cross-engine
+        # resume stays possible). Cohorts from the earlier fixed-point GPU
+        # kernel carried 'gpu_fixed_point_scale' instead and are refused.
+        'arrival_arithmetic': {'cpu': CPU_DELIVERY, 'gpu': DELIVERY},
     }
     return {'values': values, 'sha256': _sha256_json(values)}
 

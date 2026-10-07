@@ -1,25 +1,40 @@
 """GPU cohort engine: B independent fixed-v3 brains on one CUDA device.
 
-The kernel is the existing deterministic v3 CUDA kernel
-(``brainlab.cupy_engine``) with a fly axis added.  Equations, constants,
-phase order (integrate/threshold/enqueue, deliver, fold/reset) and the
-64-bit fixed-point arrival accumulation are copied unchanged; only the
-indexing differs.  The single-brain kernel is not touched.
+Built beside the single-brain v3 CUDA kernel (``brainlab.cupy_engine``,
+which is not touched) with a fly axis added.  Equations, constants, phase
+order (integrate/threshold/enqueue, deliver, reset) and the 1.8 ms delay
+queue follow that kernel.  The ARRIVAL arithmetic is different from it:
+
+* single-brain CUDA kernel: arrivals summed as 64-bit integers at 2**-32
+  and folded into g once per tick;
+* this engine: each receiving target adds its due arrivals one at a time,
+  ``g = float32(double(g) + double(w) * g_unit)`` (inhibitory: minus), in
+  ascending (pre index, edge index) order over an incoming-edge index;
+* the CPU reference (``engine.advance_v3``) does the same per-arrival float32
+  rounding, but in its history-dependent active/queue order, which is not in
+  general ascending by pre index.
+
+So this engine and the CPU reference are NOT bit-identical.  On the
+preregistered contract workload they agree to a max g relative error of
+5.35e-7 with 0 spike mismatches over 200 ticks
+(``tests/cohort_contract.json``).  The policy is recorded as ``DELIVERY``
+and enters the cohort dynamics signature, so cohorts written under the
+earlier fixed-point cohort kernel are refused, not reinterpreted.
 
 Layout: every per-fly array carries a leading fly axis (v ``(B, n)``,
-g/acc ``(B, 2, n)``, queue ``(B, slots, n)``, ...).  The CSR graph (ptr,
-post, fixed-point edge increments) is uploaded once and shared read-only.
-Work is distributed over the flattened ``fly * n + neuron`` index, which is
-the flat equivalent of a ``blockIdx.y`` fly axis but works for any B with a
-co-resident cooperative grid.
+g ``(B, 2, n)``, queue ``(B, slots, n)``, ...).  The CSR graph and its
+incoming-edge view are uploaded once and shared read-only.  Work is spread
+over the flattened ``fly * n + neuron`` index (the flat equivalent of a
+``blockIdx.y`` fly axis), which works for any B on a co-resident
+cooperative grid.
 
-Determinism and batch invariance: arrivals are integer sums, so their order
-does not matter; every other operation is per neuron and per fly.  A fly's
-result therefore does not depend on B, on the other flies or on the grid
-shape.  The one order-dependent artefact is the order of spikers inside a
-delay-queue slot (an atomic append); it never affects dynamics, and
-``read_state`` returns the queue canonically (live entries sorted, dead tail
-zeroed) so states are byte-comparable.
+Determinism and batch invariance: the accumulation order is fixed per
+target and fly, with no atomics on g, so a fly's result does not depend on
+B, on the other flies or on the grid shape.  The one order-dependent
+artefact is the order of spikers inside a delay-queue slot (an atomic
+append); it never affects dynamics, and ``read_state`` returns the queue
+canonically (live entries sorted, dead tail zeroed) so states are
+byte-comparable.
 """
 from __future__ import annotations
 
@@ -29,7 +44,7 @@ from typing import Dict, Optional, Sequence
 
 import numpy as np
 
-from ..cuda_engine import FIXED_SCALE, THREADS_PER_BLOCK, edge_increments
+from ..cuda_engine import THREADS_PER_BLOCK
 from ..engine import (DELAY_MS, E_EXC_MV, REFRACTORY_MS, TAU_M_MS, TAU_SYN_MS,
                       V_RESET_MV, V_THRESHOLD_MV, V_REST_MV)
 from .api import TICK_MS, CohortEngine
@@ -40,8 +55,7 @@ namespace cg = cooperative_groups;
 
 extern "C" __global__ void advance_v3_cohort(
     const long long* __restrict__ ptr, const int* __restrict__ post,
-    const long long* __restrict__ edge_inc,
-    float* v, float* g, unsigned long long* acc, short* refractory,
+    float* v, float* g, short* refractory,
     const float* __restrict__ drive, int* queue, int* queue_count,
     int* counts, unsigned char* active_flag, unsigned char* spiked,
     const long long* __restrict__ cursor0,
@@ -59,7 +73,6 @@ extern "C" __global__ void advance_v3_cohort(
     const long long warp_id = tid / 32;
     const int lane = (int)(tid % 32);
     const long long nwarps = nthreads / 32;
-    const double inv_scale = 1.0 / @FIXED_SCALE@;
     const long long total = n * (long long)n_flies;
 
     for (int step = 0; step < steps; ++step) {
@@ -154,7 +167,7 @@ extern "C" __global__ void advance_v3_cohort(
 }
 '''
 for _name, _value in dict(DELAY_MS=DELAY_MS, REFRACTORY_MS=REFRACTORY_MS, TAU_SYN_MS=TAU_SYN_MS,
-                          TAU_M_MS=TAU_M_MS, FIXED_SCALE=FIXED_SCALE, V_REST_MV=V_REST_MV,
+                          TAU_M_MS=TAU_M_MS, V_REST_MV=V_REST_MV,
                           E_EXC_MV=E_EXC_MV, V_THRESHOLD_MV=V_THRESHOLD_MV,
                           V_RESET_MV=V_RESET_MV).items():
     # Same literal spelling as the single-brain kernel (``%r`` of the float).
@@ -165,8 +178,10 @@ STATE_KEYS = ('v', 'g', 'refractory', 'queue', 'queue_count', 'counts',
               'active', 'active_flag', 'nactive')
 SCALAR_KEYS = ('cursor', 'total_spikes', 'sim_ms')
 GPU_ENV = 'NEUROFLY_COHORT_GPU'
-# Arrival arithmetic, recorded so states from the earlier fixed-point kernel are distinguishable.
+# Arrival arithmetic of this engine and of the CPU reference (see the module
+# docstring).  Part of the cohort dynamics signature.
 DELIVERY = 'per-arrival-float32-ascending-pre-edge'
+CPU_DELIVERY = 'per-arrival-float32-cpu-active-queue-order'
 
 # One device copy of each read-only graph per (device, host buffer).
 _GRAPH_CACHE: dict = {}
@@ -221,7 +236,6 @@ def _graph_on_device(cp, dev: int, arrays: dict, g_unit_exc: float, g_unit_inh: 
     in_ptr = np.zeros(n + 1, dtype=np.int64)
     np.cumsum(np.bincount(post, minlength=n), out=in_ptr[1:])
     graph = (cp.asarray(ptr), cp.asarray(post),
-             cp.asarray(edge_increments(weight, g_unit_exc, g_unit_inh)),
              cp.asarray(in_ptr), cp.asarray(src[order]),
              cp.asarray(np.ascontiguousarray(weight[order], dtype=np.float32)))
     if key is not None:
@@ -269,7 +283,7 @@ class GpuCohortEngine(CohortEngine):
             self.kernel.compile()
             self.timings['compile_s'] = time.perf_counter() - clock
             clock = time.perf_counter()
-            (self.d_ptr, self.d_post, self.d_edge_inc,
+            (self.d_ptr, self.d_post,
              self.d_in_ptr, self.d_in_pre, self.d_in_w) = _graph_on_device(
                 cp, self.device_index, arrays, self.g_unit_exc, self.g_unit_inh)
             cp.cuda.Device().synchronize()
@@ -277,7 +291,6 @@ class GpuCohortEngine(CohortEngine):
             clock = time.perf_counter()
             self.d_v = cp.full((B, n), V_INIT_MV, dtype=cp.float32)
             self.d_g = cp.zeros((B, 2, n), dtype=cp.float32)
-            self.d_acc = cp.zeros((B, 2, n), dtype=cp.uint64)
             self.d_due = cp.zeros((B, n), dtype=cp.int64)
             self.d_recv = cp.zeros((B, n), dtype=cp.int64)
             self.d_refractory = cp.zeros((B, n), dtype=cp.int16)
@@ -318,8 +331,8 @@ class GpuCohortEngine(CohortEngine):
 
     def device_bytes(self) -> int:
         """Bytes held by this engine's state plus the shared graph."""
-        arrays = (self.d_ptr, self.d_post, self.d_edge_inc, self.d_in_ptr, self.d_in_pre, self.d_in_w,
-                  self.d_due, self.d_recv, self.d_v, self.d_g, self.d_acc,
+        arrays = (self.d_ptr, self.d_post, self.d_in_ptr, self.d_in_pre, self.d_in_w,
+                  self.d_due, self.d_recv, self.d_v, self.d_g,
                   self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
                   self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor)
         return int(sum(a.nbytes for a in arrays))
@@ -337,7 +350,7 @@ class GpuCohortEngine(CohortEngine):
             for k in fly_ids:
                 k = self._check_fly(k)
                 self.d_v[k].fill(V_INIT_MV)
-                for arr in (self.d_g, self.d_acc, self.d_due, self.d_recv, self.d_refractory, self.d_queue,
+                for arr in (self.d_g, self.d_due, self.d_recv, self.d_refractory, self.d_queue,
                             self.d_queue_count, self.d_counts, self.d_active_flag, self.d_spiked):
                     arr[k].fill(0)
                 self.cursor[k] = 0
@@ -353,7 +366,7 @@ class GpuCohortEngine(CohortEngine):
                 self._last_drive = drive.copy()
             self.d_counts.fill(0)
             self.d_cursor.set(np.asarray(self.cursor, dtype=np.int64))
-            args = (self.d_ptr, self.d_post, self.d_edge_inc, self.d_v, self.d_g, self.d_acc,
+            args = (self.d_ptr, self.d_post, self.d_v, self.d_g,
                     self.d_refractory, self.d_drive, self.d_queue, self.d_queue_count,
                     self.d_counts, self.d_active_flag, self.d_spiked, self.d_cursor,
                     self.d_in_ptr, self.d_in_pre, self.d_in_w, self.d_due, self.d_recv,
@@ -427,7 +440,6 @@ class GpuCohortEngine(CohortEngine):
             self.d_queue_count[k].set(arrays['queue_count'])
             self.d_counts[k].set(arrays['counts'])
             self.d_active_flag[k].set(arrays['active_flag'])
-            self.d_acc[k].fill(0)
             self.d_due[k].fill(0)
             self.d_recv[k].fill(0)
             self.d_spiked[k].fill(0)

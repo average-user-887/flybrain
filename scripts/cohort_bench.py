@@ -154,7 +154,7 @@ def main(argv=None) -> int:
     p.add_argument('--reps', type=int, default=3)
     p.add_argument('--cpu-batches', default='1,8')
     p.add_argument('--gpu-batches', default='1,8,32')
-    p.add_argument('--serial', type=int, default=8)
+    p.add_argument('--serial', default='8', help='comma list of serial fly counts (B1 runs each)')
     p.add_argument('--vram-limit', type=float, default=4.5e9)
     p.add_argument('--out', type=Path, required=True)
     a = p.parse_args(argv)
@@ -190,8 +190,8 @@ def main(argv=None) -> int:
 
         for B in [int(x) for x in a.gpu_batches.split(',') if x]:
             emit(bench_gpu_batched(arrays, B, a.ticks, a.call, a.reps, a.device, a.vram_limit, graph_s))
-        if a.serial:
-            emit(bench_gpu_serial(arrays, a.serial, a.ticks, a.call, a.reps, a.device, a.vram_limit,
+        for n_serial in [int(x) for x in str(a.serial).split(',') if x and int(x) > 0]:
+            emit(bench_gpu_serial(arrays, n_serial, a.ticks, a.call, a.reps, a.device, a.vram_limit,
                                   graph_s))
         for B in [int(x) for x in a.cpu_batches.split(',') if x]:
             emit(bench_cpu(arrays, B, a.ticks, a.call, a.reps, graph_s))

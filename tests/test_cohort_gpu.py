@@ -88,7 +88,7 @@ def test_graph_is_read_only_and_uploaded_once():
     arrays = _synthetic()
     a, b = _make(arrays, 2), _make(arrays, 3)
     assert not arrays['weight'].flags.writeable
-    assert a.d_edge_inc is b.d_edge_inc and a.d_post is b.d_post
+    assert a.d_in_w is b.d_in_w and a.d_post is b.d_post
 
 
 @needs_gpu
@@ -177,3 +177,46 @@ def test_cross_fly_isolation_real_graph():
 @needs_gpu
 def test_resume_is_byte_identical_real_graph():
     assert C.resume(real_graph(), _make) == []
+
+
+# --------------------------------------------- arrival-arithmetic compatibility
+def _tree_bytes(root):
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob('*')) if p.is_file()}
+
+
+def test_fixed_point_era_cohort_is_refused_before_any_change(tmp_path, monkeypatch):
+    """A cohort written while the signature carried the fixed-point GPU kernel
+    (``gpu_fixed_point_scale``, no ``arrival_arithmetic``) is refused on resume,
+    on either engine, and its files stay byte-identical."""
+    from brainlab.cohort import runner
+    real = runner.dynamics_signature
+
+    def fixed_point_era(engine):
+        values = dict(real(engine)['values'])
+        values.pop('arrival_arithmetic')
+        values['gpu_fixed_point_scale'] = float(2 ** 32)
+        return {'values': values, 'sha256': runner._sha256_json(values)}
+
+    root = tmp_path / 'old'
+    monkeypatch.setattr(runner, 'dynamics_signature', fixed_point_era)
+    runner.run_cohort(root, flies=2, seconds=0.04, graph=runner.synthetic_graph(), progress=lambda _: None)
+    monkeypatch.setattr(runner, 'dynamics_signature', real)
+    before = _tree_bytes(root)
+    engines = ['cpu'] + (['gpu'] if _gpu_ok() else [])
+    for engine in engines:
+        with pytest.raises(runner.CohortError, match='arrival_arithmetic|gpu_fixed_point_scale'):
+            runner.resume_cohort(root, seconds=0.02, engine=engine, graph=runner.synthetic_graph(),
+                                 progress=lambda _: None)
+        assert _tree_bytes(root) == before, 'a refused resume changed the cohort store'
+
+
+def test_signature_names_both_arrival_policies_and_is_engine_independent():
+    from brainlab.cohort import runner
+    from brainlab.cohort.gpu import CPU_DELIVERY, DELIVERY
+    arrays = runner.synthetic_graph().arrays
+    cpu = runner.dynamics_signature(runner.make_engine('cpu', arrays, 1))
+    assert cpu['values']['arrival_arithmetic'] == {'cpu': CPU_DELIVERY, 'gpu': DELIVERY}
+    assert 'gpu_fixed_point_scale' not in cpu['values']
+    if _gpu_ok():
+        gpu = runner.dynamics_signature(runner.make_engine('gpu', arrays, 1))
+        assert gpu['sha256'] == cpu['sha256']
