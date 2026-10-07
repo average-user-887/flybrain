@@ -24,6 +24,7 @@ runner truncating or replacing ``trial_history``.
 
 from __future__ import annotations
 
+import base64
 import errno
 import functools
 import hashlib
@@ -31,6 +32,7 @@ import json
 import os
 import platform
 import secrets
+import sqlite3
 import sys
 import threading
 import time
@@ -46,6 +48,7 @@ __all__ = [
     "summarise_runner",
     "ObservationJournalError",
     "ObservationConflictError",
+    "DurabilityUncertainError",
     "RecorderOwnershipError",
     "LearningRecorder",
     "RecorderThread",
@@ -163,32 +166,106 @@ def _json_default(obj: Any) -> Any:
     return str(obj)
 
 
+class DurabilityUncertainError(ObservationJournalError):
+    """A complete row exists, but an fsync covering its bytes already failed.
+
+    After a failed file fsync the kernel may have dropped the dirty pages while
+    a later read still returns them from cache, and a later fsync can report
+    success. Bytes in such a range are never acknowledged by this process.
+    """
+
+
+QUARANTINE_SUBDIR = "quarantine"
+_MAX_UNCERTAIN_FILES = 1024
+
+
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 class JsonlWriter:
     """Append-only JSON Lines file with size-based rotation.
 
     When the active file would exceed ``max_bytes`` it is renamed to
-    ``name.jsonl.<UTC timestamp>`` and a fresh file is started.  Nothing is
-    ever rewritten, truncated or deleted; rotated files sort chronologically.
-    Each ``append`` flushes and, when ``fsync=True``, calls ``os.fsync`` so a
-    line is durable once ``append`` returns.
+    ``name.jsonl.<UTC timestamp>`` and a fresh file is started.  Complete lines
+    are never rewritten, truncated or deleted; rotated files sort
+    chronologically.  Each ``append`` writes unbuffered bytes and, when
+    ``fsync=True``, calls ``os.fsync`` so a line is durable once ``append``
+    returns.  A failed fsync is raised, never swallowed.
+
+    The only bytes this writer ever removes are an *unterminated* final record
+    (a torn write).  Before the first write, and again after one of its own
+    writes failed part way, it copies those exact bytes durably into
+    ``quarantine/`` and only then truncates the file back to the last newline.
     """
 
-    def __init__(self, path: Path, *, max_bytes: int = DEFAULT_MAX_BYTES, fsync: bool = True):
+    def __init__(self, path: Path, *, max_bytes: int = DEFAULT_MAX_BYTES, fsync: bool = True,
+                 quarantine_dir: Optional[Path] = None):
         self.path = Path(path)
         self.max_bytes = int(max_bytes)
         self.fsync = bool(fsync)
-        # The observation transaction scans and appends under this same lock;
-        # its internal helpers are explicitly lock-held and never reacquire it.
+        self.quarantine_dir = (Path(quarantine_dir) if quarantine_dir is not None
+                               else self.path.parent / QUARANTINE_SUBDIR)
+        # Every writer path (legacy append, strict append, tail repair and the
+        # observation index) runs under this one lock; lock-held helpers never
+        # reacquire it.
         self._lock = threading.Lock()
         self._fh = None
         self.lines_written = 0
         self.rotations = 0
+        # Torn-tail repair state: checked once before the first write, and again
+        # after one of this writer's own writes failed part way.
+        self._tail_checked = False
+        self._torn_pending = False
+        self.tail_repairs: List[Dict[str, Any]] = []
+        # Bytes of the active file proven by this writer's last successful fsync.
+        self._synced_size: Optional[int] = None
+        # (st_dev, st_ino) -> (start, end, reason) of bytes whose fsync failed.
+        self._uncertain: Dict[Tuple[int, int], Tuple[int, int, str]] = {}
+        # (st_dev, st_ino) -> (size, mtime_ns, ctime_ns) of a file whose current
+        # state is fully accounted for: validated by the reader, then changed only
+        # by this writer's own writes, renames and truncations. Any change not
+        # made here breaks the chain and the reader re-validates from byte 0.
+        self._trusted: Dict[Tuple[int, int], Tuple[int, int, int]] = {}
         self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    # -- own-change accounting ------------------------------------------------
+    @staticmethod
+    def _ident(st: os.stat_result) -> Tuple[int, int]:
+        return (st.st_dev, st.st_ino)
+
+    @staticmethod
+    def _signature(st: os.stat_result) -> Tuple[int, int, int]:
+        return (st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+    def trust_locked(self, st: os.stat_result) -> None:
+        self._trusted[self._ident(st)] = self._signature(st)
+
+    def is_trusted_locked(self, st: os.stat_result) -> bool:
+        return self._trusted.get(self._ident(st)) == self._signature(st)
+
+    def _carry_trust_locked(self, before: os.stat_result, after: os.stat_result) -> None:
+        """Extend trust across one of our own changes only if it was trusted before."""
+        if self.is_trusted_locked(before):
+            self.trust_locked(after)
+        else:
+            self._trusted.pop(self._ident(before), None)
 
     # -- file management -----------------------------------------------------
     def _open(self) -> None:
         if self._fh is None:
-            self._fh = open(self.path, "a", encoding="utf-8")
+            created = not self.path.exists()
+            # Unbuffered: a failed write can never leave bytes in a user-space
+            # buffer that a later flush or close would append out of order.
+            self._fh = open(self.path, "a+b", buffering=0)
+            self._synced_size = None
+            if created:  # an empty file this writer just made is fully accounted for
+                self.trust_locked(os.fstat(self._fh.fileno()))
 
     def _size(self) -> int:
         try:
@@ -196,8 +273,13 @@ class JsonlWriter:
         except FileNotFoundError:
             return 0
 
+    def _rename_locked(self, target: Path) -> None:
+        before = os.stat(self.path)
+        os.replace(self.path, target)
+        self._carry_trust_locked(before, os.stat(target))
+
     def rotated_files(self) -> List[Path]:
-        return sorted(self.path.parent.glob(self.path.name + ".*"))
+        return sorted(p for p in self.path.parent.glob(self.path.name + ".*") if p.is_file())
 
     def _rotate(self) -> None:
         if self._fh is not None:
@@ -209,36 +291,223 @@ class JsonlWriter:
         while target.exists():
             target = self.path.with_name(f"{self.path.name}.{stamp}-{n}")
             n += 1
-        os.replace(self.path, target)
+        self._rename_locked(target)
         self.rotations += 1
         self._open()
+
+    # -- torn final record ----------------------------------------------------
+    def _quarantine_locked(self, content: bytes, offset: int, size: int,
+                           st: os.stat_result, reason: str) -> Dict[str, Any]:
+        """Durably copy torn bytes to an evidence file before any truncation."""
+        digest = hashlib.sha256(content).hexdigest()
+        now = time.time()
+        stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime(now))
+        evidence = {
+            "schema": "neurofly.jsonl_torn_tail_quarantine.v1",
+            "reason": reason,
+            "source_file": self.path.name,
+            "source_device": st.st_dev,
+            "source_inode": st.st_ino,
+            "source_size_before": size,
+            "offset": offset,
+            "length": len(content),
+            "sha256": digest,
+            "quarantined_at": now,
+            "quarantined_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+            "content_base64": base64.b64encode(content).decode("ascii"),
+        }
+        encoded = (json.dumps(evidence, sort_keys=True, indent=2) + "\n").encode("utf-8")
+        qdir = self.quarantine_dir
+        created = not qdir.is_dir()
+        qdir.mkdir(parents=True, exist_ok=True)
+        if created:
+            _fsync_directory(qdir.parent)
+        target = qdir / f"{self.path.name}.torn-{stamp}-{offset}-{digest[:12]}.json"
+        n = 1
+        # A failed earlier attempt may have left its unverified .tmp; keep it and
+        # pick a fresh name (the source journal was not touched by that attempt).
+        while target.exists() or target.with_name(target.name + ".tmp").exists():
+            target = qdir / f"{self.path.name}.torn-{stamp}-{offset}-{digest[:12]}-{n}.json"
+            n += 1
+        tmp = target.with_name(target.name + ".tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            view, total = memoryview(encoded), 0
+            while total < len(encoded):
+                n = os.write(fd, view[total:])
+                if not n:  # no progress: fail before the journal is touched
+                    raise OSError(errno.EIO, f"short quarantine write: wrote {total} of "
+                                             f"{len(encoded)} bytes")
+                total += n
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.replace(tmp, target)
+        _fsync_directory(qdir)
+        # Prove the evidence, as stored, holds exactly the bytes about to be cut.
+        stored = json.loads(target.read_bytes().decode("utf-8"))
+        if (base64.b64decode(stored["content_base64"]) != content
+                or stored["sha256"] != digest or stored["offset"] != offset):
+            raise OSError(f"torn-tail quarantine evidence did not verify: {target.name}")
+        try:
+            shown = str(target.relative_to(self.path.parent))
+        except ValueError:
+            shown = target.name
+        return {"file": self.path.name, "offset": offset, "length": len(content),
+                "sha256": digest, "evidence": shown, "reason": reason}
+
+    def _repair_torn_tail_locked(self, *, expected_offset: Optional[int] = None,
+                                 reason: str = "unterminated final record") -> Optional[Dict[str, Any]]:
+        """Quarantine then truncate bytes after the last newline; caller owns ``_lock``.
+
+        Only an unterminated final record is ever cut. Complete lines, valid or
+        not, are left for the reader to accept or refuse.
+        """
+        try:
+            fd = os.open(self.path, os.O_RDWR)
+        except FileNotFoundError:
+            return None
+        try:
+            st = os.fstat(fd)
+            size = st.st_size
+            pos, start = size, 0
+            while pos > 0:
+                n = min(1 << 16, pos)
+                pos -= n
+                chunk = os.pread(fd, n, pos)
+                idx = chunk.rfind(b"\n")
+                if idx >= 0:
+                    start = pos + idx + 1
+                    break
+            if start == size:
+                return None
+            if expected_offset is not None and start != expected_offset:
+                raise ObservationJournalError(
+                    f"torn tail of {self.path.name} starts at byte {start}, "
+                    f"not at the validated boundary {expected_offset}")
+            content = b""
+            while len(content) < size - start:
+                more = os.pread(fd, size - start - len(content), start + len(content))
+                if not more:
+                    raise OSError(f"{self.path.name} shrank while reading its torn tail")
+                content += more
+            if b"\n" in content:  # pragma: no cover - guarded by the backward scan
+                raise ObservationJournalError(f"torn tail of {self.path.name} contains a newline")
+            receipt = self._quarantine_locked(content, start, size, st, reason)
+            if os.fstat(fd).st_size != size or os.pread(fd, len(content), start) != content:
+                raise ObservationJournalError(
+                    f"{self.path.name} changed while its torn tail was quarantined; not truncated")
+            os.ftruncate(fd, start)
+            os.fsync(fd)
+            self._carry_trust_locked(st, os.fstat(fd))
+        finally:
+            os.close(fd)
+        self.tail_repairs.append(receipt)
+        del self.tail_repairs[:-16]
+        print(f"[Recorder] quarantined {receipt['length']} torn bytes at "
+              f"{self.path.name}:byte {start} to {receipt['evidence']}", file=sys.stderr, flush=True)
+        return receipt
+
+    def repair_tail(self) -> Optional[Dict[str, Any]]:
+        """Startup repair of an unterminated final record (serialized with writers)."""
+        with self._lock:
+            receipt = self._repair_torn_tail_locked(reason="unterminated final record found at open")
+            self._tail_checked = True
+            self._torn_pending = False
+            return receipt
+
+    def _prepare_write_locked(self) -> None:
+        """Repair any torn tail that is ours, then refuse to extend a foreign one."""
+        if not self._tail_checked or self._torn_pending:
+            reason = ("this writer's failed write" if self._tail_checked
+                      else "unterminated final record found at open")
+            self._repair_torn_tail_locked(reason=reason)
+            self._tail_checked = True
+            self._torn_pending = False
+        self._open()
+        fd = self._fh.fileno()
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b"\n":
+            raise ObservationJournalError(
+                f"{self.path.name} ends with an unterminated record at byte {size}; "
+                "refusing to append onto it (it is repaired on the next recorder start)")
+
+    def _write_bytes_locked(self, data: bytes) -> None:
+        fd = self._fh.fileno()
+        before = os.fstat(fd)
+        view, total = memoryview(data), 0
+        try:
+            while total < len(data):
+                n = self._fh.write(view[total:])
+                if not n:
+                    raise OSError(errno.EIO, f"short JSONL write: wrote {total} of {len(data)} bytes")
+                total += n
+        except BaseException:
+            self._torn_pending = True
+            raise
+        finally:
+            after = os.fstat(fd)
+            if after.st_size != before.st_size + total:  # someone else wrote too
+                self._trusted.pop(self._ident(before), None)
+            else:
+                self._carry_trust_locked(before, after)
+
+    # -- fsync and ambiguity ---------------------------------------------------
+    def _mark_uncertain_locked(self, st: os.stat_result, start: int, end: int, reason: str) -> None:
+        key = (st.st_dev, st.st_ino)
+        if key in self._uncertain:
+            old_start, old_end, _ = self._uncertain[key]
+            start, end = min(start, old_start), max(end, old_end)
+        elif len(self._uncertain) >= _MAX_UNCERTAIN_FILES:
+            self._uncertain.pop(next(iter(self._uncertain)))
+            self._uncertain_overflow = True
+        self._uncertain[key] = (start, end, reason)
+
+    def assert_proven_locked(self, path: Path, offset: int, length: int) -> None:
+        """Refuse to acknowledge bytes covered by a failed fsync in this process."""
+        if getattr(self, "_uncertain_overflow", False):
+            raise DurabilityUncertainError(
+                "too many files had fsync failures in this process; durability is uncertain")
+        if not self._uncertain:
+            return
+        st = os.stat(path)
+        found = self._uncertain.get((st.st_dev, st.st_ino))
+        if found is not None and offset < found[1] and found[0] < offset + length:
+            raise DurabilityUncertainError(
+                f"durability of {path.name}:byte {offset} is uncertain: an fsync covering "
+                f"bytes {found[0]}-{found[1]} failed ({found[2]}); it is not acknowledged "
+                "by this process")
+
+    def _fsync_active_locked(self, what: str) -> None:
+        """fsync the active file; on any failure mark its unproven bytes uncertain."""
+        fd = self._fh.fileno()
+        st = os.fstat(fd)
+        start = self._synced_size or 0
+        try:
+            self._fsync_strict()
+        except BaseException as exc:
+            self._mark_uncertain_locked(st, start, st.st_size, f"{what}: {type(exc).__name__}: {exc}")
+            raise
+        self._synced_size = st.st_size
 
     def append(self, record: Dict[str, Any]) -> None:
         line = json.dumps(record, separators=(",", ":"), ensure_ascii=False,
                           default=_json_default) + "\n"
+        data = line.encode("utf-8")
         with self._lock:
-            self._open()
+            self._prepare_write_locked()
             size = self._size()
-            if self.max_bytes > 0 and size > 0 and size + len(line.encode("utf-8")) > self.max_bytes:
+            if self.max_bytes > 0 and size > 0 and size + len(data) > self.max_bytes:
                 self._rotate()
-            self._fh.write(line)
-            self._fh.flush()
+            self._write_bytes_locked(data)
             if self.fsync:
-                try:
-                    os.fsync(self._fh.fileno())
-                except OSError:
-                    pass
+                self._fsync_active_locked("append fsync")
             self.lines_written += 1
 
     # -- strict scientific append -------------------------------------------
     def _fsync_parent(self) -> None:
         """Durably publish directory-entry creation and rotation changes."""
-        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-        fd = os.open(self.path.parent, flags)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
+        _fsync_directory(self.path.parent)
 
     def _flush_strict(self) -> None:
         self._fh.flush()
@@ -247,9 +516,7 @@ class JsonlWriter:
         os.fsync(self._fh.fileno())
 
     def _write_strict(self, line: str) -> None:
-        written = self._fh.write(line)
-        if written != len(line):
-            raise OSError(f"short JSONL write: wrote {written} of {len(line)} characters")
+        self._write_bytes_locked(line.encode("utf-8"))
 
     def _sync_path_locked(self, path: Path) -> None:
         """Re-sync an existing complete line before idempotent acknowledgement."""
@@ -257,7 +524,13 @@ class JsonlWriter:
             self._flush_strict()
         fd = os.open(path, os.O_RDONLY)
         try:
-            os.fsync(fd)
+            st = os.fstat(fd)
+            try:
+                os.fsync(fd)
+            except BaseException as exc:
+                self._mark_uncertain_locked(
+                    st, 0, st.st_size, f"re-sync fsync: {type(exc).__name__}: {exc}")
+                raise
         finally:
             os.close(fd)
         self._fsync_parent()
@@ -265,7 +538,7 @@ class JsonlWriter:
     def _rotate_strict_locked(self) -> None:
         if self._fh is not None:
             self._flush_strict()
-            self._fsync_strict()
+            self._fsync_active_locked("pre-rotation fsync")
             self._fh.close()
             self._fh = None
         elif self.path.exists():
@@ -276,7 +549,7 @@ class JsonlWriter:
         while target.exists():
             target = self.path.with_name(f"{self.path.name}.{stamp}-{n}")
             n += 1
-        os.replace(self.path, target)
+        self._rename_locked(target)
         self._fsync_parent()
         self._open()
         self._fsync_parent()
@@ -287,7 +560,7 @@ class JsonlWriter:
         encoded = line.encode("utf-8")
         if not line.endswith("\n"):
             raise ValueError("strict JSONL append requires a terminating newline")
-        self._open()
+        self._prepare_write_locked()
         # Always re-sync the directory. This also makes a retry after an
         # ambiguous file-creation fsync failure safe.
         self._fsync_parent()
@@ -296,7 +569,7 @@ class JsonlWriter:
             self._rotate_strict_locked()
         self._write_strict(line)
         self._flush_strict()
-        self._fsync_strict()
+        self._fsync_active_locked("append fsync")
         self.lines_written += 1
 
     def close(self) -> None:
@@ -304,6 +577,7 @@ class JsonlWriter:
             if self._fh is not None:
                 self._fh.close()
                 self._fh = None
+                self._synced_size = None
 
     def __enter__(self) -> "JsonlWriter":
         return self
@@ -321,6 +595,177 @@ def read_jsonl(path: Path) -> List[Dict[str, Any]]:
             if line:
                 out.append(json.loads(line))
     return out
+
+
+class _LedgerChanged(ObservationJournalError):
+    """A validated ledger file changed other than by an append: re-validate fully."""
+
+
+class _LedgerFile:
+    """Validated prefix of one physical trials ledger file."""
+
+    __slots__ = ("name", "ident", "fid", "size", "lines", "nonblank")
+
+    def __init__(self, name: str, ident: Tuple[int, int], fid: int = 0):
+        self.name = name
+        self.ident = ident
+        self.fid = fid
+        self.size = 0          # bytes validated (always ends on a newline)
+        self.lines = 0         # physical lines validated
+        self.nonblank = 0
+
+
+class _ObservationIndex:
+    """Disk-backed index of validated observation rows, with bounded memory.
+
+    Rows live in a private SQLite file inside the owned data directory (one
+    row per observation: key digest, payload digest, location; never the
+    payload). Lookups are exact (primary key on the full SHA-256 key digest),
+    so duplicate and conflict detection is not lossy. Python memory is
+    O(number of ledger files) plus a fixed SQLite page cache; the file grows
+    by about 95 bytes per observation.
+
+    Derived state only. The trials ledger is the sole source of truth:
+    nothing is ever acknowledged from this file alone, and a durable receipt
+    still requires the ledger row to be written, fsynced and re-read.
+
+    Ownership and cleanup: only the LearningRecorder holding the data
+    directory's exclusive lock (one writer, one process) opens it. Its table
+    is dropped and rebuilt from the ledger at every open and every full
+    re-validation, so contents left by an earlier process are never trusted.
+    The recorder never deletes it; it may be deleted by hand while no
+    recorder owns the directory. A file SQLite reports as not a database or
+    corrupt is renamed aside (never deleted) as ``<name>.corrupt-<UTC>``, and
+    one fresh cache is rebuilt solely from the ledger; genuine disk or
+    permission errors (CANTOPEN, IOERR, READONLY, FULL) refuse instead.
+
+    Failure behaviour: any SQLite error during an observation write discards
+    the in-memory view (the next call rebuilds from byte 0) and raises
+    ObservationJournalError, so the write is refused rather than acknowledged
+    with conflict or duplicate detection missing.
+    """
+
+    FILE_NAME = ".neurofly-observation-index.sqlite"
+    CACHE_KIB = 4096
+
+    def __init__(self, directory: Path):
+        self.path = Path(directory) / self.FILE_NAME
+        self._db: Optional[sqlite3.Connection] = None
+        self.files: Dict[Tuple[int, int], _LedgerFile] = {}
+        self._by_fid: Dict[int, _LedgerFile] = {}
+        self.reset()
+
+    def _connect(self) -> None:
+        db = sqlite3.connect(str(self.path), isolation_level=None, check_same_thread=False)
+        try:
+            for pragma in ("journal_mode=OFF", "synchronous=OFF", "temp_store=FILE",
+                           "mmap_size=0", f"cache_size=-{self.CACHE_KIB}"):
+                db.execute(f"PRAGMA {pragma}")
+        except BaseException:
+            db.close()
+            raise
+        self._db = db
+
+    def _retire_corrupt(self, exc: BaseException) -> None:
+        self._close_quietly()
+        stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
+        target = self.path.with_name(f"{self.path.name}.corrupt-{stamp}")
+        n = 1
+        while target.exists():
+            target = self.path.with_name(f"{self.path.name}.corrupt-{stamp}-{n}")
+            n += 1
+        if self.path.exists():
+            os.replace(self.path, target)
+        print(f"[Recorder] observation index cache unusable ({type(exc).__name__}: {exc}); "
+              f"renamed to {target.name} and rebuilding from the ledger", file=sys.stderr, flush=True)
+
+    # Only these mean "the cache file's contents are unusable". Every other
+    # SQLite error (CANTOPEN, IOERR, READONLY, FULL, PERM, ...) is a genuine
+    # disk or permission failure and is refused, never "repaired".
+    _MALFORMED = frozenset({"SQLITE_NOTADB", "SQLITE_CORRUPT"})
+
+    def _close_quietly(self) -> None:
+        if self._db is not None:
+            try:
+                self._db.close()
+            except sqlite3.Error:  # pragma: no cover - close of a broken handle
+                pass
+            self._db = None
+
+    def reset(self) -> None:
+        """Drop and recreate the table; a malformed cache is retired once and rebuilt."""
+        try:
+            if self._db is None:
+                self._connect()
+            self._reset_table()
+        except sqlite3.DatabaseError as exc:
+            self._close_quietly()
+            if getattr(exc, "sqlite_errorname", None) not in self._MALFORMED:
+                raise
+            self._retire_corrupt(exc)
+            try:  # exactly one rebuild attempt; no loop
+                self._connect()
+                self._reset_table()
+            except BaseException:
+                self._close_quietly()
+                raise
+        except BaseException:
+            self._close_quietly()
+            raise
+
+    def _reset_table(self) -> None:
+        if self._db.in_transaction:
+            self._db.execute("COMMIT")
+        self._db.execute("DROP TABLE IF EXISTS observations")
+        self._db.execute(
+            "CREATE TABLE observations (key BLOB PRIMARY KEY, payload BLOB NOT NULL, "
+            "fid INTEGER NOT NULL, line INTEGER NOT NULL, offset INTEGER NOT NULL, "
+            "length INTEGER NOT NULL) WITHOUT ROWID")
+        self.files.clear()
+        self._by_fid.clear()
+        self._db.execute("BEGIN")
+
+    def new_file(self, name: str, ident: Tuple[int, int]) -> _LedgerFile:
+        lf = _LedgerFile(name, ident, len(self._by_fid) + 1)
+        self.files[ident] = lf
+        self._by_fid[lf.fid] = lf
+        return lf
+
+    @staticmethod
+    def key_digest(key: Tuple[str, ...]) -> bytes:
+        return hashlib.sha256(json.dumps(list(key), ensure_ascii=False,
+                                         separators=(",", ":")).encode("utf-8")).digest()
+
+    def get(self, key: bytes) -> Optional[Tuple[bytes, _LedgerFile, int, int, int]]:
+        row = self._db.execute(
+            "SELECT payload, fid, line, offset, length FROM observations WHERE key = ?",
+            (key,)).fetchone()
+        if row is None:
+            return None
+        return (row[0], self._by_fid[row[1]], row[2], row[3], row[4])
+
+    def add(self, key: bytes, payload: bytes, lf: _LedgerFile, line: int, offset: int,
+            length: int) -> None:
+        self._db.execute("INSERT INTO observations VALUES (?, ?, ?, ?, ?, ?)",
+                         (key, payload, lf.fid, line, offset, length))
+
+    def checkpoint(self) -> None:
+        """Hand inserted pages to SQLite's file so its page cache stays bounded."""
+        self._db.execute("COMMIT")
+        self._db.execute("BEGIN")
+
+    def count(self) -> int:
+        return self._db.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
+
+    def active(self, path: Path) -> Optional[_LedgerFile]:
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            return None
+        return self.files.get((st.st_dev, st.st_ino))
+
+    def close(self) -> None:
+        self._close_quietly()
 
 
 def _owned_operation(method):
@@ -356,14 +801,34 @@ class LearningRecorder:
         self._closed = False
         self.trials = None
         self.summaries = None
+        self._sessions_log = None
+        self._index_store = None
         try:
             self.session_id = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{secrets.token_hex(3)}"
             self.trials = JsonlWriter(self.data_dir / self.TRIALS_FILE, max_bytes=max_bytes, fsync=fsync)
             self.summaries = JsonlWriter(self.data_dir / self.SUMMARY_FILE, max_bytes=max_bytes, fsync=fsync)
+            # Same torn-tail repair and fsync contract as the other journals; never rotated.
+            self._sessions_log = JsonlWriter(self.data_dir / self.SESSIONS_LOG, max_bytes=0, fsync=fsync)
             # Trial numbers restart at 1 on every daemon start, so de-duplication is
             # per session; ``session_id`` on each line disambiguates across restarts.
             self.last_trial_written: int = 0
-            self.prior_trial_lines: int = self._count_prior_trial_lines()
+            # Before anything can append: quarantine-then-truncate an unterminated
+            # final record left by a crash, so no write is ever merged onto it.
+            # trials.jsonl is validated in full first: a torn tail is cut only if
+            # every complete line before it is valid.
+            self._index: Optional[_ObservationIndex] = None
+            self._index_store = _ObservationIndex(self.data_dir)
+            self.full_scans = 0
+            with self.trials._lock:
+                trials_repair = self._open_ledger_locked()
+            self.tail_repairs: List[Dict[str, Any]] = [
+                receipt for receipt in (
+                    trials_repair, self.summaries.repair_tail(),
+                    self._sessions_log.repair_tail())
+                if receipt is not None]
+            # Nonblank lines already in the active trials file (informational only).
+            active = self._index.active(self.trials.path)
+            self.prior_trial_lines: int = active.nonblank if active is not None else 0
             self.session: Dict[str, Any] = {
                 "schema_version": SCHEMA_VERSION,
                 "session_id": self.session_id,
@@ -373,15 +838,15 @@ class LearningRecorder:
                 "python": platform.python_version(),
                 "platform": platform.platform(),
                 "prior_trial_lines_on_disk": self.prior_trial_lines,
+                "torn_tail_repairs": list(self.tail_repairs),
             }
             if session:
                 self.session.update(session)
             self._write_session()
         except Exception:
-            if self.trials is not None:
-                self.trials.close()
-            if self.summaries is not None:
-                self.summaries.close()
+            for writer in (self.trials, self.summaries, self._sessions_log, self._index_store):
+                if writer is not None:
+                    writer.close()
             self._owner.release()
             self._closed = True
             raise
@@ -402,19 +867,7 @@ class LearningRecorder:
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
-        with open(self.data_dir / self.SESSIONS_LOG, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(self.session, separators=(",", ":"), default=_json_default) + "\n")
-
-    def _count_prior_trial_lines(self) -> int:
-        """Lines already in the active trials file (informational only)."""
-        path = self.data_dir / self.TRIALS_FILE
-        if not path.exists():
-            return 0
-        try:
-            with open(path, "rb") as fh:
-                return sum(1 for line in fh if line.strip())
-        except OSError:
-            return 0
+        self._sessions_log.append(self.session)
 
     # -- records -------------------------------------------------------------
     @_owned_operation
@@ -486,105 +939,227 @@ class LearningRecorder:
         canonical = self._canonical_json(validated)
         return validated, key, values, canonical
 
-    def _strict_observations_locked(self) -> Dict[Tuple[str, ...], Dict[str, Any]]:
-        """Scan all physical trial ledgers; caller owns the shared writer lock."""
-        if self.trials._fh is not None:
-            self.trials._flush_strict()
+    def _strict_row_locked(self, index: "_ObservationIndex", lf: "_LedgerFile", raw: bytes,
+                           line_number: int, offset: int) -> None:
+        """Validate one complete physical row exactly as the full ledger scan always has."""
+        location = f"{lf.name}:line {line_number}:byte {offset}"
+        if not raw.strip():
+            return
+        lf.nonblank += 1
+        try:
+            text = raw[:-1].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ObservationJournalError(f"invalid UTF-8 at {location}: {exc}") from exc
+        try:
+            row = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ObservationJournalError(f"invalid JSON at {location}: {exc.msg}") from exc
+        if not isinstance(row, dict):
+            raise ObservationJournalError(f"JSONL row is not an object at {location}")
+        if row.get("type") != "observation":
+            return
+        if not isinstance(row.get("observation_key"), dict) or "observation" not in row:
+            raise ObservationJournalError(f"malformed observation row at {location}")
+        try:
+            _, key, declared, canonical = self._prepare_observation(row["observation"])
+        except ObservationJournalError as exc:
+            raise ObservationJournalError(f"invalid stored observation at {location}: {exc}") from exc
+        if row["observation_key"] != declared:
+            raise ObservationJournalError(f"observation key disagrees with payload at {location}")
+        key_digest = _ObservationIndex.key_digest(key)
+        first = index.get(key_digest)
+        if first is not None:
+            raise ObservationJournalError(
+                f"duplicate observation key at {location}; first seen at "
+                f"{first[1].name}:line {first[2]}")
+        index.add(key_digest, hashlib.sha256(canonical.encode("utf-8")).digest(),
+                  lf, line_number, offset, len(raw))
+
+    def _validate_from_locked(self, index: "_ObservationIndex", lf: "_LedgerFile", path: Path,
+                              *, allow_torn: bool = False) -> Optional[int]:
+        """Validate ``path`` from ``lf.size`` to EOF; return a torn-tail offset if allowed."""
+        with open(path, "rb") as fh:
+            st = os.fstat(fh.fileno())
+            if (st.st_dev, st.st_ino) != lf.ident:
+                raise _LedgerChanged(f"{path.name} was replaced while it was being read")
+            fh.seek(lf.size)
+            torn = None
+            while True:
+                offset = fh.tell()
+                raw = fh.readline()
+                if not raw:
+                    break
+                if not raw.endswith(b"\n"):
+                    if allow_torn:
+                        torn = offset
+                        break
+                    raise ObservationJournalError(
+                        f"partial JSONL row at {lf.name}:line {lf.lines + 1}:byte {offset}")
+                self._strict_row_locked(index, lf, raw, lf.lines + 1, offset)
+                lf.lines += 1
+                lf.size = offset + len(raw)
+                if lf.lines % 4096 == 0:
+                    index.checkpoint()
+            end = os.fstat(fh.fileno())
+            # Read to EOF and nothing changed under us: this state is accounted for.
+            if torn is None and end.st_size == lf.size:
+                self.trials.trust_locked(end)
+        return torn
+
+    def _ledger_paths(self) -> List[Path]:
         paths = self.trials.rotated_files()
         if self.trials.path.exists():
             paths.append(self.trials.path)
-        found: Dict[Tuple[str, ...], Dict[str, Any]] = {}
+        return paths
+
+    def _full_scan_locked(self, *, allow_torn: bool = False) -> Tuple["_ObservationIndex", Optional[int]]:
+        """Validate every physical trials ledger from byte 0; caller owns the writer lock."""
+        self._index = None
+        index = self._index_store
+        index.reset()
+        torn = None
+        self.full_scans += 1
+        self.trials._trusted.clear()
+        paths = self._ledger_paths()
         for path in paths:
-            with open(path, "rb") as fh:
-                line_number = 0
-                while True:
-                    offset = fh.tell()
-                    raw = fh.readline()
-                    if not raw:
-                        break
-                    line_number += 1
-                    location = f"{path.name}:line {line_number}:byte {offset}"
-                    if not raw.endswith(b"\n"):
-                        raise ObservationJournalError(f"partial JSONL row at {location}")
-                    if not raw.strip():
-                        continue
-                    try:
-                        text = raw[:-1].decode("utf-8")
-                    except UnicodeDecodeError as exc:
-                        raise ObservationJournalError(f"invalid UTF-8 at {location}: {exc}") from exc
-                    try:
-                        row = json.loads(text)
-                    except json.JSONDecodeError as exc:
-                        raise ObservationJournalError(f"invalid JSON at {location}: {exc.msg}") from exc
-                    if not isinstance(row, dict):
-                        raise ObservationJournalError(f"JSONL row is not an object at {location}")
-                    if row.get("type") != "observation":
-                        continue
-                    if not isinstance(row.get("observation_key"), dict) or "observation" not in row:
-                        raise ObservationJournalError(f"malformed observation row at {location}")
-                    try:
-                        _, key, declared, canonical = self._prepare_observation(row["observation"])
-                    except ObservationJournalError as exc:
-                        raise ObservationJournalError(
-                            f"invalid stored observation at {location}: {exc}") from exc
-                    if row["observation_key"] != declared:
-                        raise ObservationJournalError(
-                            f"observation key disagrees with payload at {location}")
-                    if key in found:
-                        raise ObservationJournalError(
-                            f"duplicate observation key at {location}; first seen at "
-                            f"{found[key]['file']}:line {found[key]['line']}")
-                    found[key] = {
-                        "canonical": canonical, "path": path, "file": path.name,
-                        "line": line_number, "offset": offset,
-                    }
-        return found
+            st = os.stat(path)
+            lf = index.new_file(path.name, (st.st_dev, st.st_ino))
+            torn = self._validate_from_locked(
+                index, lf, path, allow_torn=allow_torn and path == self.trials.path)
+        return index, torn
+
+    def _incremental_locked(self, index: "_ObservationIndex") -> None:
+        """Validate only bytes this recorder appended itself; raise _LedgerChanged otherwise.
+
+        The fast path applies only while every ledger file's (size, mtime, ctime)
+        equals the state this process accounted for: what it validated, extended
+        solely by its own writes, renames and truncations under directory
+        ownership. Any other growth, change, new, missing or replaced file
+        forces a full re-validation from byte 0.
+        """
+        seen = set()
+        for path in self._ledger_paths():
+            try:
+                st = os.stat(path)
+            except FileNotFoundError as exc:
+                raise _LedgerChanged(f"{path.name} disappeared") from exc
+            if not self.trials.is_trusted_locked(st):
+                raise _LedgerChanged(f"{path.name} changed outside this recorder")
+            ident = (st.st_dev, st.st_ino)
+            lf = index.files.get(ident)
+            if lf is None:  # an empty file this writer created (rotation)
+                lf = index.new_file(path.name, ident)
+            lf.name = path.name  # our own rotation renamed it
+            if st.st_size < lf.size:
+                raise _LedgerChanged(f"{path.name} shrank")
+            if st.st_size > lf.size:  # our own appends: validate before acknowledging
+                self._validate_from_locked(index, lf, path)
+            seen.add(ident)
+        if set(index.files) - seen:
+            raise _LedgerChanged("a validated ledger file disappeared")
+
+    def _refresh_index_locked(self) -> "_ObservationIndex":
+        """Bring the bounded index up to date with disk; caller owns the writer lock."""
+        if self.trials._torn_pending:  # our own failed write: quarantine, then cut
+            self.trials._repair_torn_tail_locked(reason="this writer's failed write")
+            self.trials._torn_pending = False
+        index = self._index
+        try:
+            if index is None:
+                index, _ = self._full_scan_locked()
+            else:
+                try:
+                    self._incremental_locked(index)
+                except _LedgerChanged:
+                    self._index = None
+                    index, _ = self._full_scan_locked()
+        except BaseException:
+            self._index = None  # never trust a partially updated index
+            raise
+        index.checkpoint()
+        self._index = index
+        return index
+
+    def _open_ledger_locked(self) -> Optional[Dict[str, Any]]:
+        """Validate the whole ledger once, then repair only an unterminated final record."""
+        index, torn = self._full_scan_locked(allow_torn=True)
+        receipt = None
+        if torn is not None:
+            receipt = self.trials._repair_torn_tail_locked(
+                expected_offset=torn, reason="unterminated final record found at open")
+            active = os.stat(self.trials.path)
+            if index.files[(active.st_dev, active.st_ino)].size == active.st_size:
+                self.trials.trust_locked(active)
+        self.trials._tail_checked = True
+        index.checkpoint()
+        self._index = index
+        return receipt
 
     @_owned_operation
     def record_observation(self, envelope: Dict[str, Any]) -> Dict[str, Any]:
         """Durably append one validated immutable terminal observation.
 
-        The trials writer is the single in-process writer. Disk is scanned under
-        its shared lock on every call, so retries and recorder restarts recover a
-        complete write whose earlier acknowledgement was lost.
+        The trials writer is the single in-process writer. The whole ledger is
+        validated once at open; each call then validates only bytes appended
+        since (legacy trial rows, its own row, or an external append), and falls
+        back to a full re-validation whenever a known file changed in any other
+        way. Retries and restarts therefore still recover a complete write whose
+        earlier acknowledgement was lost.
         """
         self._assert_owner()
         validated, key, declared, canonical = self._prepare_observation(envelope)
         payload_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        key_digest = _ObservationIndex.key_digest(key)
         with self.trials._lock:
-            existing = self._strict_observations_locked()
-            match = existing.get(key)
-            if match is not None:
-                if match["canonical"] != canonical:
-                    raise ObservationConflictError(
-                        f"different observation payload for key {declared} at "
-                        f"{match['file']}:line {match['line']}:byte {match['offset']}")
-                self.trials._sync_path_locked(match["path"])
-                return {
-                    "durable": True, "idempotent": True,
-                    "observation_key": dict(declared), "file": match["file"],
-                    "line": match["line"], "offset": match["offset"],
-                    "payload_sha256": payload_sha256,
-                }
-            row = {
-                "type": "observation",
-                "schema_version": SCHEMA_VERSION,
-                "session_id": self.session_id,
-                "recorded_at": time.time(),
-                "observation_key": dict(declared),
-                "observation": validated,
-            }
-            line = self._canonical_json(row) + "\n"
-            self.trials._append_strict_locked(line)
-            written = self._strict_observations_locked().get(key)
-            if written is None or written["canonical"] != canonical:
-                raise ObservationJournalError("durable observation could not be re-read after append")
+            try:
+                return self._record_observation_locked(validated, key_digest, declared, canonical, payload_sha256)
+            except sqlite3.Error as exc:
+                self._index = None  # rebuilt from byte 0 on the next call
+                raise ObservationJournalError(
+                    f"observation index cache failed ({type(exc).__name__}: {exc}); "
+                    "nothing was acknowledged") from exc
+
+    def _record_observation_locked(self, validated: Dict[str, Any], key_digest: bytes,
+                                   declared: Dict[str, str], canonical: str,
+                                   payload_sha256: str) -> Dict[str, Any]:
+        match = self._refresh_index_locked().get(key_digest)
+        if match is not None:
+            stored_digest, lf, line, offset, length = match
+            if stored_digest.hex() != payload_sha256:
+                raise ObservationConflictError(
+                    f"different observation payload for key {declared} at "
+                    f"{lf.name}:line {line}:byte {offset}")
+            path = self.data_dir / lf.name
+            # A failed fsync in this process may have lost bytes the page
+            # cache still shows; a later successful fsync proves nothing.
+            self.trials.assert_proven_locked(path, offset, length)
+            self.trials._sync_path_locked(path)
             return {
-                "durable": True, "idempotent": False,
-                "observation_key": dict(declared), "file": written["file"],
-                "line": written["line"], "offset": written["offset"],
+                "durable": True, "idempotent": True,
+                "observation_key": dict(declared), "file": lf.name,
+                "line": line, "offset": offset,
                 "payload_sha256": payload_sha256,
             }
+        row = {
+            "type": "observation",
+            "schema_version": SCHEMA_VERSION,
+            "session_id": self.session_id,
+            "recorded_at": time.time(),
+            "observation_key": dict(declared),
+            "observation": validated,
+        }
+        line = self._canonical_json(row) + "\n"
+        self.trials._append_strict_locked(line)
+        # Re-read the new bytes from disk and validate them before acknowledging.
+        written = self._refresh_index_locked().get(key_digest)
+        if written is None or written[0].hex() != payload_sha256:
+            raise ObservationJournalError("durable observation could not be re-read after append")
+        return {
+            "durable": True, "idempotent": False,
+            "observation_key": dict(declared), "file": written[1].name,
+            "line": written[2], "offset": written[3],
+            "payload_sha256": payload_sha256,
+        }
 
     @_owned_operation
     def record_summary(self, summary: Dict[str, Any]) -> None:
@@ -607,6 +1182,9 @@ class LearningRecorder:
         self._owner.assert_owner()
         self.trials.close()
         self.summaries.close()
+        self._sessions_log.close()
+        with self.trials._lock:
+            self._index_store.close()
         self._owner.release()
         self._closed = True
 

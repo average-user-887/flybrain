@@ -28,6 +28,7 @@ if str(PACKAGE_ROOT) not in sys.path:
 
 from learning_recorder import (  # noqa: E402
     SCHEMA_VERSION,
+    DurabilityUncertainError,
     JsonlWriter,
     LearningRecorder,
     ObservationConflictError,
@@ -327,6 +328,14 @@ class TestDurableObservationJournal:
             with pytest.raises(OSError, match=f"injected {scenario}"):
                 rec.record_observation(envelope)
             monkeypatch.setattr(rec.trials, attr, original)
+            if scenario == "fsync":
+                # A failed file fsync may have dropped the dirty pages while the
+                # cache still shows the line; the same process never acknowledges it.
+                with pytest.raises(DurabilityUncertainError, match="uncertain"):
+                    rec.record_observation(envelope)
+                assert len(_observation_rows(data_dir)) == 1
+                rec.close()
+                rec = LearningRecorder(data_dir, fsync=False)
             receipt = rec.record_observation(envelope)
             assert receipt["durable"] is True
             assert len(_observation_rows(data_dir)) == 1
