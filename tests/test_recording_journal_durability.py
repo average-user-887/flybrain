@@ -635,3 +635,79 @@ class TestIncrementalIndex:
             changed["provenance"]["controller_specific"]["raw_motor_command"]["yaw"] = 2.0
             with pytest.raises(ObservationConflictError):
                 again.record_observation(changed)
+
+
+# =============================================================================
+# 5. The SQLite index is derived state: an I/O failure refuses, never acknowledges
+# =============================================================================
+
+INDEX_FILE = ".neurofly-observation-index.sqlite"
+
+
+def _seed_ledger(tmp_path):
+    rec = LearningRecorder(tmp_path, fsync=False)
+    envelope = _terminal_envelope(run_id="run-cache-fail")
+    rec.record_observation(envelope)
+    rec.record_observation(_next_presentation(envelope))
+    rec.close()
+    return envelope, _ledger_bytes(tmp_path)
+
+
+def _ledger_bytes(tmp_path):
+    return {p.name: p.read_bytes() for p in sorted(tmp_path.glob("trials.jsonl*"))}
+
+
+def _track_connections(monkeypatch):
+    import sqlite3
+
+    opened = []
+    real = sqlite3.connect
+
+    def spy(*args, **kwargs):
+        conn = real(*args, **kwargs)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(learning_recorder.sqlite3, "connect", spy)
+    return opened
+
+
+def _is_closed(conn):
+    import sqlite3
+
+    try:
+        conn.execute("SELECT 1")
+    except sqlite3.ProgrammingError:
+        return True
+    return False
+
+
+class TestDerivedIndexCache:
+    @pytest.mark.parametrize("where", ["add", "get"])
+    def test_cache_io_failure_refuses_then_rebuilds_without_losing_conflicts(
+            self, tmp_path, monkeypatch, where):
+        import sqlite3
+
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id=f"run-io-{where}")
+        rec.record_observation(envelope)
+        fresh = _next_presentation(envelope)
+        original = getattr(rec._index_store, where)
+
+        def broken(*args, **kwargs):
+            raise sqlite3.OperationalError("disk I/O error")
+
+        monkeypatch.setattr(rec._index_store, where, broken)
+        with pytest.raises(ObservationJournalError, match="index cache failed.*nothing was acknowledged"):
+            rec.record_observation(fresh)
+        assert rec._index is None
+        monkeypatch.setattr(rec._index_store, where, original)
+        receipt = rec.record_observation(fresh)  # rebuilt from byte 0
+        assert receipt["durable"] is True
+        assert rec.full_scans == 2
+        assert len(_obs_lines(tmp_path / "trials.jsonl")) == 2
+        changed = copy.deepcopy(envelope)
+        changed["provenance"]["controller_specific"]["raw_motor_command"]["yaw"] = 4.0
+        with pytest.raises(learning_recorder.ObservationConflictError):
+            rec.record_observation(changed)
+        rec.close()

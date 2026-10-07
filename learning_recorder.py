@@ -620,11 +620,26 @@ class _ObservationIndex:
 
     Rows live in a private SQLite file inside the owned data directory (one
     row per observation: key digest, payload digest, location; never the
-    payload). It is a derived cache: rebuilt from the ledger on every open and
-    every full re-validation, never trusted across processes. Lookups are exact
-    (primary key on the full SHA-256 key digest), so duplicate and conflict
-    detection is not lossy. Python memory is O(number of ledger files) plus a
-    fixed SQLite page cache.
+    payload). Lookups are exact (primary key on the full SHA-256 key digest),
+    so duplicate and conflict detection is not lossy. Python memory is
+    O(number of ledger files) plus a fixed SQLite page cache; the file grows
+    by about 95 bytes per observation.
+
+    Derived state only. The trials ledger is the sole source of truth:
+    nothing is ever acknowledged from this file alone, and a durable receipt
+    still requires the ledger row to be written, fsynced and re-read.
+
+    Ownership and cleanup: only the LearningRecorder holding the data
+    directory's exclusive lock (one writer, one process) opens it. Its table
+    is dropped and rebuilt from the ledger at every open and every full
+    re-validation, so contents left by an earlier process are never trusted.
+    The recorder never deletes it; it may be deleted by hand while no
+    recorder owns the directory.
+
+    Failure behaviour: any SQLite error during an observation write discards
+    the in-memory view (the next call rebuilds from byte 0) and raises
+    ObservationJournalError, so the write is refused rather than acknowledged
+    with conflict or duplicate detection missing.
     """
 
     FILE_NAME = ".neurofly-observation-index.sqlite"
@@ -632,15 +647,41 @@ class _ObservationIndex:
 
     def __init__(self, directory: Path):
         self.path = Path(directory) / self.FILE_NAME
-        self._db = sqlite3.connect(str(self.path), isolation_level=None, check_same_thread=False)
-        for pragma in ("journal_mode=OFF", "synchronous=OFF", "temp_store=FILE",
-                       "mmap_size=0", f"cache_size=-{self.CACHE_KIB}"):
-            self._db.execute(f"PRAGMA {pragma}")
+        self._db: Optional[sqlite3.Connection] = None
         self.files: Dict[Tuple[int, int], _LedgerFile] = {}
         self._by_fid: Dict[int, _LedgerFile] = {}
         self.reset()
 
+    def _connect(self) -> None:
+        db = sqlite3.connect(str(self.path), isolation_level=None, check_same_thread=False)
+        try:
+            for pragma in ("journal_mode=OFF", "synchronous=OFF", "temp_store=FILE",
+                           "mmap_size=0", f"cache_size=-{self.CACHE_KIB}"):
+                db.execute(f"PRAGMA {pragma}")
+        except BaseException:
+            db.close()
+            raise
+        self._db = db
+
+    def _close_quietly(self) -> None:
+        if self._db is not None:
+            try:
+                self._db.close()
+            except sqlite3.Error:  # pragma: no cover - close of a broken handle
+                pass
+            self._db = None
+
     def reset(self) -> None:
+        """Drop and recreate the table."""
+        try:
+            if self._db is None:
+                self._connect()
+            self._reset_table()
+        except BaseException:
+            self._close_quietly()
+            raise
+
+    def _reset_table(self) -> None:
         if self._db.in_transaction:
             self._db.execute("COMMIT")
         self._db.execute("DROP TABLE IF EXISTS observations")
@@ -692,7 +733,7 @@ class _ObservationIndex:
         return self.files.get((st.st_dev, st.st_ino))
 
     def close(self) -> None:
-        self._db.close()
+        self._close_quietly()
 
 
 def _owned_operation(method):
@@ -1038,44 +1079,55 @@ class LearningRecorder:
         payload_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         key_digest = _ObservationIndex.key_digest(key)
         with self.trials._lock:
-            match = self._refresh_index_locked().get(key_digest)
-            if match is not None:
-                stored_digest, lf, line, offset, length = match
-                if stored_digest.hex() != payload_sha256:
-                    raise ObservationConflictError(
-                        f"different observation payload for key {declared} at "
-                        f"{lf.name}:line {line}:byte {offset}")
-                path = self.data_dir / lf.name
-                # A failed fsync in this process may have lost bytes the page
-                # cache still shows; a later successful fsync proves nothing.
-                self.trials.assert_proven_locked(path, offset, length)
-                self.trials._sync_path_locked(path)
-                return {
-                    "durable": True, "idempotent": True,
-                    "observation_key": dict(declared), "file": lf.name,
-                    "line": line, "offset": offset,
-                    "payload_sha256": payload_sha256,
-                }
-            row = {
-                "type": "observation",
-                "schema_version": SCHEMA_VERSION,
-                "session_id": self.session_id,
-                "recorded_at": time.time(),
-                "observation_key": dict(declared),
-                "observation": validated,
-            }
-            line = self._canonical_json(row) + "\n"
-            self.trials._append_strict_locked(line)
-            # Re-read the new bytes from disk and validate them before acknowledging.
-            written = self._refresh_index_locked().get(key_digest)
-            if written is None or written[0].hex() != payload_sha256:
-                raise ObservationJournalError("durable observation could not be re-read after append")
+            try:
+                return self._record_observation_locked(validated, key_digest, declared, canonical, payload_sha256)
+            except sqlite3.Error as exc:
+                self._index = None  # rebuilt from byte 0 on the next call
+                raise ObservationJournalError(
+                    f"observation index cache failed ({type(exc).__name__}: {exc}); "
+                    "nothing was acknowledged") from exc
+
+    def _record_observation_locked(self, validated: Dict[str, Any], key_digest: bytes,
+                                   declared: Dict[str, str], canonical: str,
+                                   payload_sha256: str) -> Dict[str, Any]:
+        match = self._refresh_index_locked().get(key_digest)
+        if match is not None:
+            stored_digest, lf, line, offset, length = match
+            if stored_digest.hex() != payload_sha256:
+                raise ObservationConflictError(
+                    f"different observation payload for key {declared} at "
+                    f"{lf.name}:line {line}:byte {offset}")
+            path = self.data_dir / lf.name
+            # A failed fsync in this process may have lost bytes the page
+            # cache still shows; a later successful fsync proves nothing.
+            self.trials.assert_proven_locked(path, offset, length)
+            self.trials._sync_path_locked(path)
             return {
-                "durable": True, "idempotent": False,
-                "observation_key": dict(declared), "file": written[1].name,
-                "line": written[2], "offset": written[3],
+                "durable": True, "idempotent": True,
+                "observation_key": dict(declared), "file": lf.name,
+                "line": line, "offset": offset,
                 "payload_sha256": payload_sha256,
             }
+        row = {
+            "type": "observation",
+            "schema_version": SCHEMA_VERSION,
+            "session_id": self.session_id,
+            "recorded_at": time.time(),
+            "observation_key": dict(declared),
+            "observation": validated,
+        }
+        line = self._canonical_json(row) + "\n"
+        self.trials._append_strict_locked(line)
+        # Re-read the new bytes from disk and validate them before acknowledging.
+        written = self._refresh_index_locked().get(key_digest)
+        if written is None or written[0].hex() != payload_sha256:
+            raise ObservationJournalError("durable observation could not be re-read after append")
+        return {
+            "durable": True, "idempotent": False,
+            "observation_key": dict(declared), "file": written[1].name,
+            "line": written[2], "offset": written[3],
+            "payload_sha256": payload_sha256,
+        }
 
     @_owned_operation
     def record_summary(self, summary: Dict[str, Any]) -> None:
