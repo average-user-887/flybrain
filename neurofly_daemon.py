@@ -87,6 +87,9 @@ from provenance import (GRAPH_BACKENDS, RunManifest, get_backend, graph_io_decla
 from neurofly.privacy import redact_local
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
+# Packet ``step``/``sim_time_s`` count from zero in every daemon process; they are
+# not the retained graph's or the trial's clock (see clock_status).
+SESSION_CLOCK_SCOPE = "daemon_session"
 # LIF dynamics the daemon supports.  brainlab declares more (research engines, used
 # through Brain(..., dynamics=...)); the daemon's registry, manifests and checkpoints
 # are defined for these only, so anything else is refused before any file is touched.
@@ -1473,7 +1476,7 @@ class ContinuousExperimentRunner:
         self.manifest = manifest
         self.activation += 1
         manifest.record_event("activate", step=getattr(self, "total_steps", 0), activation=self.activation,
-                              daemon_run_id=self.run_id)
+                              daemon_run_id=self.run_id, clock_scope=SESSION_CLOCK_SCOPE)
         self.segment_id = uuid.uuid4().hex
         self.transition = {"reason": "experiment_selected", "step": self.total_steps}
         self.active_brain = brain
@@ -1530,6 +1533,25 @@ class ContinuousExperimentRunner:
             clock['elapsed_known'] = True
             if clock['trial_known']:
                 clock['reason'] = None
+
+    def clock_status(self) -> Dict[str, Any]:
+        """The three clocks a display may show, each named for what it counts.
+
+        ``session`` restarts with every daemon process (the packet's ``step`` and
+        ``sim_time_s``).  ``trial`` is the active assay's saved trial clock.  ``graph``
+        is the retained graph instance's own neural step count and simulated time,
+        restored from its checkpoint; it is not the trial's elapsed time.
+        """
+        clocks: Dict[str, Any] = {
+            "session": {"scope": SESSION_CLOCK_SCOPE, "daemon_run_id": self.run_id,
+                        "step": self.total_steps, "elapsed_s": round(self.total_steps * self.dt, 5)},
+            "trial": dict(self.active_brain.trial_clock)}
+        instance = self.registry.active if self.graph_mode and self.registry is not None else None
+        sim_ms = getattr(getattr(instance, "brain", None), "sim_ms", None)
+        if instance is not None and sim_ms is not None:
+            clocks["graph"] = {"scope": "retained_graph_instance", "instance_id": instance.instance_id,
+                               "step": int(instance.step_index), "elapsed_s": round(float(sim_ms) / 1000.0, 5)}
+        return clocks
 
     def _observation_provenance(self) -> Dict[str, Any]:
         """Facts declared by the active arena/controller for metric-contract/1.2."""
@@ -2751,6 +2773,7 @@ class ContinuousExperimentRunner:
             "achieved_speed": achieved,
             "integration_dt_s": self.dt,
             "sim_time_s": round(self.total_steps * self.dt, 5),
+            "sim_time_scope": SESSION_CLOCK_SCOPE,
             "step": self.total_steps,
             "snapshot_seq": self._snapshot_seq,
             "publish_hz": self.publish_hz,
@@ -3017,6 +3040,7 @@ class ContinuousExperimentRunner:
                     "error": f"{type(exc).__name__}: {exc}" if exc is not None else None,
                     "errno": getattr(exc, "errno", None), "step": getattr(self, "total_steps", 0),
                     "sim_time_s": round(getattr(self, "total_steps", 0) * getattr(self, "dt", 0.02), 5),
+                    "sim_time_scope": SESSION_CLOCK_SCOPE, "daemon_run_id": self.run_id,
                     "at": round(time.time(), 3),
                     "mode": "exploratory" if self.exploratory else "scientific", "gap_open": open_gap,
                     "recovered_at": None, "failures": 1}
@@ -3456,7 +3480,8 @@ class ContinuousExperimentRunner:
         detail = {
             "message": message, "type": type(exc).__name__, "phase": phase,
             "failure_class": failure_class, "step": self.total_steps,
-            "sim_time_s": round(self.total_steps * self.dt, 5), "paradigm": self.active_paradigm_id,
+            "sim_time_s": round(self.total_steps * self.dt, 5), "sim_time_scope": SESSION_CLOCK_SCOPE,
+            "paradigm": self.active_paradigm_id,
             "backend": self.backend, "instance_id": active.instance_id if active is not None else None,
             "at": round(time.time(), 3), "recover": self.HALT_RECOVERY,
             "traceback": _traceback_tail(exc)}
@@ -3686,6 +3711,8 @@ class ContinuousExperimentRunner:
             "observation": self._live_observation(),
             "observation_lifecycle": self.observation_lifecycle_status(),
             "sim_time_s": round(self.total_steps * self.dt, 5),
+            "sim_time_scope": SESSION_CLOCK_SCOPE,
+            "clocks": self.clock_status(),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
             "timestamp": round(time.time(), 3),
@@ -4269,7 +4296,7 @@ class ContinuousExperimentRunner:
             self.manifest = prepared['manifest']
             self.activation += 1
             self.manifest.record_event('activate', step=self.total_steps, activation=self.activation,
-                                       daemon_run_id=self.run_id)
+                                       daemon_run_id=self.run_id, clock_scope=SESSION_CLOCK_SCOPE)
             self.active_paradigm_id = plan['target']
             self.active_paradigm_title = getattr(self.arena.paradigm, 'name', 'Open Arena Assay')
             self._restore_trial_clock(self.active_brain,
@@ -4791,6 +4818,8 @@ class ContinuousExperimentRunner:
                              "applied": result.get("status") == "ok",
                              "applied_step": self.total_steps,
                              "applied_sim_time_s": round(self.total_steps * self.dt, 5),
+                             "applied_sim_time_scope": SESSION_CLOCK_SCOPE,
+                             "clocks": self.clock_status(),
                              "paradigm": self.active_paradigm_id,
                              # Built after the command (for a switch: after the target's
                              # brain and world snapshots are restored).  Packets whose
@@ -5041,6 +5070,8 @@ class ContinuousExperimentRunner:
             "uptime_sec": time.time() - self.start_time,
             "paradigm": self.active_paradigm_id,
             "total_steps": self.total_steps,
+            "clock_scope": SESSION_CLOCK_SCOPE,
+            "clocks": self.clock_status(),
             "trial": self.current_trial,
             "learning_curve": self.learning_curve[-100:],
             "result_validity": self.result_validity(),
@@ -5149,6 +5180,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "trials_completed": len(self.runner.trial_history),
             "recording": getattr(self.runner, "recording_status", lambda: None)(),
             "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
+            "clocks": getattr(self.runner, "clock_status", lambda: None)(),
             "trial_length_s": getattr(self.runner, "trial_length_s", None),
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
             "stream": self.gateway.describe()
