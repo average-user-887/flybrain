@@ -246,17 +246,25 @@ more full window. Nothing is restitched. That segment carries an immutable
 `lineage` (in `clocks.observation`, `observation_lifecycle.segment_lineage`
 and the trial record): `segment_id`, `parent_segment_id` (the saved clock's
 segment; null for older saves), `reason` (`daemon_restart` or
-`assay_reactivated`), `parent_observation`
-(`interrupted_incomplete_no_terminal` or `ended_before_assay_switch`),
+`assay_reactivated`), `continuation` `"new_window_not_continuing_parent"`
+(always true), `parent_observation` and `parent_observation_evidence`,
 `daemon_run_id`, `trial`, `trial_known`, `restored_trial_elapsed_s`,
 `trial_elapsed_known`, `observation_window` `"restarted"` and
-`metric_accumulators` `"not_restored"`. After a daemon restart the same record
-is appended to the assay's `<paradigm>.events.jsonl` as `kind`
-`observation_interrupted`: the parent has no terminal observation and is
-incomplete. The parent may have been continued by the earlier process after
-the checkpoint; the restored trial repeats from the checkpoint. The dashboard
-shows "Trial elapsed" and, under it, "Window … · restarted after daemon
-restart".
+`metric_accumulators` `"not_restored"`.
+
+`parent_observation` is set only from durable records, never from the fact
+that a checkpoint was restored (a checkpoint can precede a terminal that was
+saved later): `terminal_recorded` when this process acknowledged the parent's
+durable terminal or the assay's `<paradigm>.events.jsonl` holds a record with
+that `observation_key.segment_id` (a `trial` record, which now carries the
+terminal's `observation_key` and `payload_sha256`, or an `assay_control`
+record such as a clean shutdown); otherwise `unknown`, with the evidence
+`detail` (ledger missing, unreadable, or no terminal found; the earlier
+session's recorder may still hold one). No status claims an interruption, and
+no existing terminal is changed. After a daemon restart the lineage is
+appended to that ledger as `kind` `observation_segment_restarted`. The
+dashboard shows "Trial elapsed" and, under it, "Window … · restarted after
+daemon restart".
 
 ### Path (`path`)
 
