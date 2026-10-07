@@ -156,7 +156,9 @@ class TestBenchmarkScoringEngine:
 class TestClosedLoopArenaIntegration:
     def test_arena_runs_multisensory_benchmark(self):
         arena = Arena(paradigm="multisensory_benchmark")
-        assert arena.paradigm.name == "Multisensory Limb & Body Benchmark"
+        # Display title only (CARD75); the stable key and registry IDs are unchanged.
+        assert arena.paradigm.name == "Multisensory Sandbox · Heuristic Body Proxy"
+        assert Arena.paradigm_key(arena.paradigm) == "multisensory"
 
         for _ in range(30):
             obs = arena.step()

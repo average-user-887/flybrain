@@ -3391,7 +3391,7 @@ class LabyrinthParadigm(_LabyrinthV1, ExperimentParadigm):
 
 
 class MultisensoryLimbBenchmark(_MultisensoryV1, ExperimentParadigm):
-    """Assay 13: Multisensory Ingress & Full-Body Limb Biomechanics Benchmark.
+    """Assay 13: multisensory sandbox with an engineered body and a heuristic body-proxy score.
 
     A comprehensive closed-loop benchmark integrating:
     1. Multi-Sensory Ingress:
@@ -3468,7 +3468,7 @@ class MultisensoryLimbBenchmark(_MultisensoryV1, ExperimentParadigm):
         ]
 
         super().__init__(
-            name="Multisensory Limb & Body Benchmark",
+            name="Multisensory Sandbox · Heuristic Body Proxy",
             description="Comprehensive closed-loop benchmark integrating multi-sensory ingress with direct 6-limb biomechanics.",
             dimensions=dimensions,
             walls=walls,

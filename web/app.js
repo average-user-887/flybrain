@@ -1,27 +1,21 @@
 /**
- * FlyBrain Connectome — In-Silico Neuroethology Scientific Instrument
- * ===================================================================
- * Complete biophysical simulation and electrophysiology HUD:
- * 1. Mushroom Body (120 KCs, Huang/Luo Nature 2024 anti-Hebbian rate rule)
- * 2. Central Complex (16-wedge E-PG ring attractor compass + PFL3/PFL2 steering)
- * 3. Descending Locomotion Decoders (DNa02, DNa01, DNp09, BPN, MDN, DNp01/GF)
- * 4. Biomechanical Kuramoto-Hopf Tripod Gait CPG (Cruse Walknet Rule 1)
- * 5. WallSegment 2D Continuous Sliding Collision Physics (Coulomb friction & restitution)
- * 6. 12 Canonical Neuroethological Paradigms + Open Arena:
- *    - open-arena: Free multi-modal foraging
- *    - t-maze: Tully & Quinn (1985) Olfactory Conditioning (CS+/CS-, vacuum airflow, shock grid)
- *    - y-maze: Buchanan et al. (Nature 2015) Spontaneous Alternation & Handedness
- *    - heat-maze: Ofstad, Zuker & Reiser (Nature 2011) Thermal Place Learning (cool refuge at (22, 18), 4 distal landmarks)
- *    - buridan: Götz (1980) Visual Landmark Fixation & Centrophobism (water moat, 2 opposing black stripes)
- *    - visual-operant: Wolf & Heisenberg (1991) Operant Flight Simulator (360° drum, yaw torque, laser heat beam)
- *    - wind-tunnel: Alvarez-Salvado (2018) / Demir (2020) Plume Navigation (laminar flow, surge-and-cast)
- *    - looming-escape: Card & Dickinson (2008) Looming Predator Escape (optical expansion, GF spike threshold)
- *    - optomotor: Götz (1964) / Kim et al. (Cell 2017) Gaze Stabilization (rotating grating drum, saccadic efference copy)
- *    - gap-crossing: Pick & Strauss (Nature 2005) / Triphan (2010) Gap Crossing & Spatial Motor Planning
- *    - circadian-dam: Konopka (1971) / Allada (2010) DAM Sleep/Wake Monitor (16 tubes, mid-tube IR beam break)
- *    - courtship: Siegel & Hall (1979) / Keleman (Nature 2007) Courtship Conditioning & Wing Extension Song
- *    - labyrinth: Multi-junction Obstacle Labyrinth (16 walls, 4 junctions, dead ends, food goal, sliding physics)
- * 7. Real-Time Electrophysiology HUD & Telemetry Blob Exporters (CSV & JSON)
+ * NeuroFly dashboard and standalone browser preview
+ * ==================================================
+ * When no daemon drives the view, this file runs an ENGINEERED, illustrative preview,
+ * not the connectome and not fitted to fly data:
+ * 1. Mushroom body: 120 Kenyon-cell units with a hand-built reward/punishment rate rule.
+ * 2. Heading compass: a 16-wedge bump that follows the preview heading, plus a goal-steering term.
+ * 3. Descending-drive labels (DNa02, DNp09, MDN, GF ...) computed from the preview's own steering.
+ * 4. Engineered Kuramoto tripod oscillator for leg pose; not a biological nerve cord.
+ * 5. 2D wall contacts with Coulomb sliding (friction mu, restitution).
+ * 6. 14 assay previews (open-arena, t-maze, y-maze, heat-maze, buridan, visual-operant,
+ *    wind-tunnel, looming-escape, optomotor, gap-crossing, circadian-dam, courtship,
+ *    labyrinth, multisensory-sandbox). EXPERIMENT_GUIDES states what each preview actually
+ *    does; scripted choices, hand-set thresholds and stored-coordinate steering are named
+ *    there, and unsupported biology (conditioning, place or working memory, motor
+ *    planning, efference copy, circadian rhythm, courtship memory) is post-v0.4 backlog
+ *    work (docs/POST_V04_FEATURES.md), not a capability of this file or the connectome.
+ * 7. Telemetry display and CSV/JSON exporters.
  */
 
 // =============================================================================
@@ -664,8 +658,8 @@ class ScientificBioArena {
         // Illustrative local preview only: the wall-avoidance reflex is an engineered
         // assist, not physics. On by default (legacy preview), toggled in the identity bar.
         this.previewWallAssist = true;
-        this.activeParadigmTitle = 'Open Arena Multi-Modal Assay';
-        this.activeParadigmRef = 'General Neuroethology Open Arena with multi-sensory foraging';
+        this.activeParadigmTitle = 'Open Arena Multi-Modal Foraging';
+        this.activeParadigmRef = 'Background: Budick & Dickinson (2006); Maimon et al. (2010) (citation not verified in this repository)';
         this.currentTrial = 1;
         this.paradigmElapsedSec = 0.0;
         this.paradigmStatus = 'FORAGING';
@@ -864,8 +858,8 @@ class ScientificBioArena {
 
         switch (paradigmId) {
             case 'open-arena':
-                this.activeParadigmTitle = 'Open Arena Multi-Modal Assay';
-                this.activeParadigmRef = 'General Neuroethology Open Arena with multi-sensory foraging';
+                this.activeParadigmTitle = 'Open Arena Multi-Modal Foraging';
+                this.activeParadigmRef = 'Background: Budick & Dickinson (2006); Maimon et al. (2010) (citation not verified in this repository)';
                 this.worldBounds = { minX: -140, maxX: 140, minY: -100, maxY: 100 };
                 this.fly.x = 0; this.fly.y = 0; this.fly.heading = 0; this.fly.speed = 0;
                 this.windVector = [-15.0, 0.0];
@@ -880,8 +874,8 @@ class ScientificBioArena {
                 break;
 
             case 't-maze':
-                this.activeParadigmTitle = 'T-Maze Olfactory Associative Conditioning';
-                this.activeParadigmRef = 'Tully & Quinn (1985) Science / Cell Pavlovian Conditioning';
+                this.activeParadigmTitle = 'T-Maze Odour Choice';
+                this.activeParadigmRef = 'Background: Tully & Quinn (1985) J Comp Physiol A 157:263–277 (abstract read); Dudai (1976) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 140, minY: 0, maxY: 80 };
                 this.fly.x = 70.0; this.fly.y = 15.0; this.fly.heading = Math.PI / 2; this.fly.speed = 10.0;
                 this.paradigmStatus = 'ASCENDING STEM';
@@ -907,8 +901,8 @@ class ScientificBioArena {
                 break;
 
             case 'y-maze':
-                this.activeParadigmTitle = 'Y-Maze Spontaneous Alternation & Handedness';
-                this.activeParadigmRef = 'Buchanan, Kain & de Bivort (Nature 2015)';
+                this.activeParadigmTitle = 'Y-Maze Exploration';
+                this.activeParadigmRef = 'Background: Buchanan et al. (2015) is a handedness study, not an alternation study; Churgin (2017) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 120, minY: 0, maxY: 120 };
                 this.fly.x = 60.0; this.fly.y = 60.0; this.fly.heading = Math.PI / 2; this.fly.speed = 12.0;
                 this.paradigmStatus = 'EXPLORING ARM 0 (N)';
@@ -943,8 +937,8 @@ class ScientificBioArena {
                 break;
 
             case 'heat-maze':
-                this.activeParadigmTitle = 'Thermal Heat-Maze Place Learning';
-                this.activeParadigmRef = 'Ofstad, Zuker & Reiser (Nature 2011)';
+                this.activeParadigmTitle = 'Thermal Heat-Maze';
+                this.activeParadigmRef = 'Background: Ofstad, Zuker & Reiser (2011) Nature 474:204–207 (cited only for the existence of visual place learning)';
                 this.worldBounds = { minX: 0, maxX: 120, minY: 0, maxY: 120 };
                 this.fly.x = 50.0; this.fly.y = 50.0; this.fly.heading = 0.8; this.fly.speed = 10.0;
                 this.paradigmStatus = 'HOT FLOOR (36.5°C)';
@@ -972,8 +966,8 @@ class ScientificBioArena {
                 break;
 
             case 'buridan':
-                this.activeParadigmTitle = "Buridan's Visual Landmark Fixation & Centrophobism";
-                this.activeParadigmRef = "Götz (1980); Colomb & Brembs (2012)";
+                this.activeParadigmTitle = 'Buridan\'s Paradigm';
+                this.activeParadigmRef = 'Background: Götz (1980); Colomb et al. (2012) (citation not verified in this repository)';
                 this.worldBounds = { minX: 10, maxX: 110, minY: 10, maxY: 110 };
                 this.fly.x = 60.0; this.fly.y = 60.0; this.fly.heading = 0.0; this.fly.speed = 10.0;
                 this.paradigmStatus = 'STRIPE FIXATION';
@@ -1002,8 +996,8 @@ class ScientificBioArena {
                 break;
 
             case 'visual-operant':
-                this.activeParadigmTitle = 'Visual Operant Flight Simulator (Yaw Conditioning)';
-                this.activeParadigmRef = 'Wolf & Heisenberg (1991) J. Comp. Physiol. A';
+                this.activeParadigmTitle = 'Visual Operant Flight Simulator';
+                this.activeParadigmRef = 'Background: Wolf & Heisenberg (1991); Liu et al. (2006) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 80, minY: 0, maxY: 80 };
                 this.fly.x = 40.0; this.fly.y = 40.0; this.fly.heading = 0.0; this.fly.speed = 0.0;
                 this.paradigmStatus = 'SAFE QUADRANT (T)';
@@ -1019,8 +1013,8 @@ class ScientificBioArena {
                 break;
 
             case 'wind-tunnel':
-                this.activeParadigmTitle = 'Wind Tunnel Odor Plume Tracking (Surge-and-Cast)';
-                this.activeParadigmRef = 'Alvarez-Salvado et al. (2018); Demir et al. (2020)';
+                this.activeParadigmTitle = 'Wind Tunnel Plume';
+                this.activeParadigmRef = 'Background: Álvarez-Salvado et al. (2018) eLife (recorded, not re-read); Demir et al. (2020) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 200, minY: 0, maxY: 60 };
                 this.fly.x = 25.0; this.fly.y = 30.0; this.fly.heading = 0.0; this.fly.speed = 10.0;
                 this.paradigmStatus = 'SEARCHING (CAST)';
@@ -1044,8 +1038,8 @@ class ScientificBioArena {
                 break;
 
             case 'looming-escape':
-                this.activeParadigmTitle = 'Visual Looming Predator Escape & Takeoff Assay';
-                this.activeParadigmRef = 'Card & Dickinson (PNAS 2008) Giant Fiber Looming';
+                this.activeParadigmTitle = 'Looming Escape';
+                this.activeParadigmRef = 'Background: von Reyn et al. (2014) Nat Neurosci 17:962–970; Card & Dickinson (2008) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 80, minY: 0, maxY: 80 };
                 this.fly.x = 40.0; this.fly.y = 40.0; this.fly.heading = 0.0; this.fly.speed = 0.0;
                 this.paradigmStatus = 'APPROACHING THREAT';
@@ -1063,8 +1057,8 @@ class ScientificBioArena {
                 break;
 
             case 'optomotor':
-                this.activeParadigmTitle = 'Optomotor Gaze Stabilization & Saccadic Efference Copy';
-                this.activeParadigmRef = 'Götz (1964); Kim, Fenk, Lyu & Maimon (Cell 2017)';
+                this.activeParadigmTitle = 'Optomotor Drum';
+                this.activeParadigmRef = 'Background: Götz (1964); Kim et al. (2017) on efference copy (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 90, minY: 0, maxY: 90 };
                 this.fly.x = 45.0; this.fly.y = 45.0; this.fly.heading = 0.0; this.fly.speed = 0.0;
                 this.paradigmStatus = 'GAZE STABILIZING';
@@ -1081,8 +1075,8 @@ class ScientificBioArena {
                 break;
 
             case 'gap-crossing':
-                this.activeParadigmTitle = 'Gap Crossing & Spatial Motor Planning';
-                this.activeParadigmRef = 'Pick & Strauss (Nature 2005); Triphan (2010)';
+                this.activeParadigmTitle = 'Gap Crossing';
+                this.activeParadigmRef = 'Background: Pick & Strauss (2005); Triphan et al. (2010) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 100, minY: 0, maxY: 20 };
                 this.fly.x = 12.0; this.fly.y = 10.0; this.fly.heading = 0.0; this.fly.speed = 8.0;
                 this.paradigmStatus = 'APPROACHING CHASM';
@@ -1103,8 +1097,8 @@ class ScientificBioArena {
                 break;
 
             case 'circadian-dam':
-                this.activeParadigmTitle = 'Circadian Locomotor Sleep/Wake DAM Monitor';
-                this.activeParadigmRef = 'Konopka & Benzer (1971); Allada & Siegel (2010)';
+                this.activeParadigmTitle = 'Circadian DAM Monitor';
+                this.activeParadigmRef = 'Background: Konopka & Benzer (1971); Allada & Chung (2010) (citation not verified in this repository)';
                 // Fit all monitor tubes; only tube 1 contains the simulated animal.
                 this.worldBounds = { minX: -10, maxX: 75, minY: -10, maxY: 172 };
                 this.fly.x = 15.0; this.fly.y = 5.0; this.fly.heading = 0.0; this.fly.speed = 6.0;
@@ -1128,8 +1122,8 @@ class ScientificBioArena {
                 break;
 
             case 'courtship':
-                this.activeParadigmTitle = 'Courtship Conditioning, Wing Song & cVA Suppression';
-                this.activeParadigmRef = 'Siegel & Hall (1979); Keleman et al. (Nature 2007)';
+                this.activeParadigmTitle = 'Courtship Chamber';
+                this.activeParadigmRef = 'Background: Siegel & Hall (1979); Keleman et al. (2007) (citation not verified in this repository)';
                 this.worldBounds = { minX: 0, maxX: 20, minY: 0, maxY: 20 };
                 this.fly.x = 7.0; this.fly.y = 9.0; this.fly.heading = 0.2; this.fly.speed = 6.0;
                 this.paradigmStatus = 'SEARCHING FOR FEMALE';
@@ -1157,8 +1151,8 @@ class ScientificBioArena {
                 break;
 
             case 'labyrinth':
-                this.activeParadigmTitle = 'Corridor Obstacle Labyrinth (Sliding Physics & Goal)';
-                this.activeParadigmRef = 'Continuous Sliding Physics (Coulomb mu=0.5, eps=0.1)';
+                this.activeParadigmTitle = 'Corridor Obstacle Labyrinth';
+                this.activeParadigmRef = 'Engineered maze with Coulomb sliding contacts (no biological reference)';
                 this.worldBounds = { minX: 0, maxX: 140, minY: 0, maxY: 100 };
                 this.fly.x = 12.0; this.fly.y = 15.0; this.fly.heading = Math.PI / 2; this.fly.speed = 8.0;
                 this.paradigmStatus = 'NAVIGATING MAZE';
@@ -1196,8 +1190,8 @@ class ScientificBioArena {
                 break;
 
             case 'multisensory-sandbox':
-                this.activeParadigmTitle = 'Multisensory Ingress & 6-Limb Biomechanics Benchmark';
-                this.activeParadigmRef = 'Project NeuroFly v1.0 Integrated Sensorimotor Benchmark';
+                this.activeParadigmTitle = 'Multisensory Sandbox';
+                this.activeParadigmRef = 'Project NeuroFly compact modular sensorimotor model';
                 this.worldBounds = { minX: -80, maxX: 80, minY: -80, maxY: 80 };
                 this.fly.x = 0.0; this.fly.y = 0.0; this.fly.heading = 0.0; this.fly.speed = 12.0;
                 this.windVector = [-15.0, 0.0];
@@ -1929,7 +1923,7 @@ class ScientificBioArena {
                 }
 
                 p.hsFiringRate = Math.min(150.0, Math.max(0.0, 40.0 + 1.2 * p.effectiveSlip));
-                this.paradigmStatus = isSaccade ? 'SACCADIC EFFERENCE SHUNT' : 'OPTO-STABILIZATION';
+                this.paradigmStatus = isSaccade ? 'PREVIEW SACCADE (HAND-SET SLIP CUT)' : 'OPTO-STABILIZATION';
                 if (this.paradigmElapsedSec >= 90.0) {
                     this.resetTrial(true, true);
                 }
@@ -2722,13 +2716,13 @@ class ScientificBioArena {
                 return {
                     label: 'GF Escape Latency',
                     value: p.timeToCollisionJumpMs ? p.timeToCollisionJumpMs.toFixed(0) + ' ms' : 'APPROACHING',
-                    sub: `Looming Size: ${p.thetaDeg.toFixed(1)}° | Vm: ${p.vm.toFixed(0)} mV`
+                    sub: `Looming Size: ${p.thetaDeg.toFixed(1)}° | Preview Vm proxy: ${p.vm.toFixed(0)} mV`
                 };
             case 'optomotor':
                 return {
                     label: 'Optomotor Gain',
                     value: (p.gain || 0.88).toFixed(2),
-                    sub: `HS Rate: ${p.hsFiringRate.toFixed(0)} Hz | Efference: 85%`
+                    sub: `Preview HS proxy: ${p.hsFiringRate.toFixed(0)} Hz | Hand-set saccade slip cut: 85%`
                 };
             case 'gap-crossing':
                 return {
@@ -3421,60 +3415,57 @@ class ScientificBioArena {
 const EXPERIMENT_GUIDES = {
     'open-arena': {
         title: "Open Arena Multi-Modal Foraging",
-        ref: "Budick & Dickinson (2006); Maimon et al. (Nature 2010)",
+        ref: "Background: Budick & Dickinson (2006); Maimon et al. (2010) (citation not verified in this repository)",
         whatToWatch: [
-            "Watch fly track green food patches (Odor A) using bilateral antennal gradient comparison.",
-            "Notice avoidance of red alarm pheromone (Odor B) emitted near danger sites.",
-            "Observe emergency ballistic escape sprints when looming predator threats approach."
+            "Preview: food odour (Odor A) and alarm odour (Odor B) are sampled at two antenna points and averaged, so the browser preview has no left–right odour comparison and does not steer toward the food. (The daemon's modular controller does compare both sides.)",
+            "Preview: alarm odour is subtracted from food odour in a single turning term.",
+            "Preview threats are a distance-and-approach-speed trigger in this browser model, not optical-expansion detection; threat placement is unavailable live."
         ],
         params: [
-            { key: 'predatorSpeed', label: 'Predator Speed', min: 10, max: 60, step: 5, val: 25, unit: 'mm/s', desc: 'Linear velocity of approaching predatory mantids. Faster speeds challenge Giant Fiber optical expansion detection.', apply: (a, v) => { a.predators.forEach(p => { const sp = Math.hypot(p.vx, p.vy) || 1; p.vx = (p.vx / sp) * v; p.vy = (p.vy / sp) * v; }); } },
-            { key: 'windVelocity', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Ambient airflow velocity sensed by Johnston’s organ, driving upwind anemotactic course correction.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } }
+            { key: 'predatorSpeed', label: 'Predator Speed', min: 10, max: 60, step: 5, val: 25, unit: 'mm/s', desc: 'Speed of preview threats. The preview escape fires on distance and approach speed, not on optical expansion.', apply: (a, v) => { a.predators.forEach(p => { const sp = Math.hypot(p.vx, p.vy) || 1; p.vx = (p.vx / sp) * v; p.vy = (p.vy / sp) * v; }); } },
+            { key: 'windVelocity', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Preview wind vector. The preview turns it into an upwind steering term; no Johnston’s organ model is simulated.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } }
         ]
     },
     't-maze': {
-        title: "T-Maze Olfactory Conditioning",
-        ref: "Tully & Quinn (1985) J. Comp. Physiol. A; Dudai (1976)",
+        title: "T-Maze Odour Choice",
+        ref: "Background: Tully & Quinn (1985) J Comp Physiol A 157:263–277 (abstract read); Dudai (1976) (citation not verified in this repository)",
         whatToWatch: [
-            "Fly ascends vertical stem and pauses at the decision bifurcation line.",
-            "Left Arm dispenses appetitive Odor A (CS+) paired with green sucrose reward.",
-            "Right Arm dispenses aversive Odor B (CS-) paired with red pulsing electroshock.",
-            "Watch anti-Hebbian depression shift net behavioral valence from 0.00 toward +1.00."
+            "Preview: the fly walks up the stem to the junction.",
+            "Preview: Arm A carries Odor A and a reward signal; Arm B carries Odor B and a shock signal.",
+            "Preview arm choice is scripted: once the preview mushroom-body valence moves past ±0.05 the fly takes Arm A, otherwise it picks at random. This is not learned conditioning.",
+            "Connectome odour–shock learning is planned, not in v0.4 (NEXT-03)."
         ],
         params: []
     },
     'y-maze': {
-        title: "Y-Maze Spontaneous Alternation",
-        ref: "Buchanan, Kain & de Bivort (Nature 2015); Churgin (2017)",
+        title: "Y-Maze Exploration",
+        ref: "Background: Buchanan et al. (2015) is a handedness study, not an alternation study; Churgin (2017) (citation not verified in this repository)",
         whatToWatch: [
-            "Fly explores 3 symmetric arms oriented at 120° intervals.",
-            "Central Complex Protocerebral Bridge Delta7 interneurons promote alternating triads (A->B->C).",
-            "Look for high Spontaneous Alternation Rate (SAR > 0.60) across consecutive choices.",
-            "DNa02 premotor firing asymmetry sets individual fly idiosyncratic turn handedness."
+            "Preview: the fly visits the 3 arms at 120° intervals and returns to the hub.",
+            "Preview alternation is a hand-set rule (72% chance of switching turn direction), so the alternation rate is built in, not computed by any circuit.",
+            "No Delta7 or DNa02 handedness mechanism is simulated in the preview. Working memory is planned, not in v0.4 (NEXT-07)."
         ],
         params: []
     },
     'heat-maze': {
-        title: "Thermal Heat-Maze Place Learning",
-        ref: "Ofstad, Zuker & Reiser (Nature 2011) Nature 474:204–207",
+        title: "Thermal Heat-Maze",
+        ref: "Background: Ofstad, Zuker & Reiser (2011) Nature 474:204–207 (cited only for the existence of visual place learning)",
         whatToWatch: [
-            "Circular floor is an aversive heated bath (36.5°C red glow), driving nociceptive PPL1 dopamine.",
-            "Fly uses 4 distal perimeter visual stripes (0°, 90°, 180°, 270°) to orient its E-PG heading compass.",
-            "Watch the dashed vector guiding the fly toward the 24.0°C cool target refuge.",
-            "Stepping onto the cool tile triggers an immediate PAM pain-relief reward burst!"
+            "Preview: the floor is hot (36.5 °C by default) outside a 24 °C cool refuge.",
+            "Preview: before the first visit the fly searches at random; after it, the preview steers straight to the refuge's stored coordinates. The perimeter stripes are drawn but not used for navigation.",
+            "This is not visual place learning. Landmark place memory is planned, not in v0.4 (NEXT-07)."
         ],
         params: [
-            { key: 'refugeRadius', label: 'Refuge Radius', min: 6, max: 15, step: 1, val: 9, unit: 'mm', desc: 'Target cool tile radius. Smaller targets require tighter landmark triangulation by the Central Complex.', apply: (a, v) => { a.paradigmState.refugeRadius = v; } }
+            { key: 'refugeRadius', label: 'Refuge Radius', min: 6, max: 15, step: 1, val: 9, unit: 'mm', desc: 'Preview cool-tile radius. The preview uses stored coordinates, not landmark triangulation.', apply: (a, v) => { a.paradigmState.refugeRadius = v; } }
         ]
     },
     'buridan': {
-        title: "Buridan's Visual Landmark Fixation",
-        ref: "Götz (1980); Colomb & Brembs (2012) PLoS ONE",
+        title: "Buridan's Paradigm",
+        ref: "Background: Götz (1980); Colomb et al. (2012) (citation not verified in this repository)",
         whatToWatch: [
-            "Elevated circular platform is surrounded by an inescapable dark blue water moat.",
-            "Two opposing vertical high-contrast black stripes are positioned at 0° and 180°.",
-            "Fly fixates on one stripe, walks toward it, then turns 180° to oscillate between them.",
-            "Notice the fly avoids the open center (centrophobism index CI > 0.70)."
+            "Preview: two opposing black stripes at 0° and 180°; the blue ring is drawn, and containment is a geometric boundary.",
+            "Preview: the fly is steered toward one stripe, and the target switches when it passes a fixed position, so walking back and forth is scripted.",
+            "Fixation and centrophobism (time outside the 25 mm centre) are measured from the preview path; no target score applies."
         ],
         params: [
             { key: 'platformRadius', label: 'Platform drawing radius (preview)', min: 35, max: 60, step: 5, val: 50, unit: 'mm', desc: 'Changes the 2D preview disk drawing only; containment and locomotion remain unchanged.', apply: (a, v) => { a.paradigmState.platformRadius = v; } }
@@ -3482,105 +3473,104 @@ const EXPERIMENT_GUIDES = {
     },
     'visual-operant': {
         title: "Visual Operant Flight Simulator",
-        ref: "Wolf & Heisenberg (1991); Liu et al. (Nature 2006)",
+        ref: "Background: Wolf & Heisenberg (1991); Liu et al. (2006) (citation not verified in this repository)",
         whatToWatch: [
-            "A tethered fly controls a 360° panoramic pattern drum via its own yaw torque.",
-            "Facing the inverted 'T' triggers an intense infrared laser heating pulse.",
-            "Facing the upright 'T' is safe.",
-            "Watch yaw torque and safe-zone occupancy; pattern-specific learned memory is not implemented."
+            "Preview: the fly's yaw rotates a 360° drum through a coupling gain.",
+            "Preview: two opposite drum quadrants give a heat-punishment signal; the other two are safe.",
+            "Watch yaw and safe-quadrant occupancy. Pattern-specific operant memory is planned, not in v0.4 (NEXT-07)."
         ],
         params: [
             { key: 'couplingGain', label: 'Yaw Coupling Gain', min: 50, max: 200, step: 10, val: 120, unit: '°/s', desc: 'Closed-loop coupling gain between flight yaw torque and drum rotation. Higher values make steering more responsive.', apply: (a, v) => { a.paradigmState.couplingGain = v; } }
         ]
     },
     'wind-tunnel': {
-        title: "Wind Tunnel Plume Tracking (Surge-Cast)",
-        ref: "Alvarez-Salvado et al. (2018); Demir et al. (eLife 2020)",
+        title: "Wind Tunnel Plume",
+        ref: "Background: Álvarez-Salvado et al. (2018) eLife (recorded, not re-read); Demir et al. (2020) (citation not verified in this repository)",
         whatToWatch: [
-            "Downwind airflow (-25 mm/s) channels intermittent odor puffs from upstream nozzle.",
-            "Upon contacting an odor filament (plume ON), fly UPWIND SURGES (DNp09 active).",
-            "When plume is lost (plume OFF), fly executes CROSSWIND CASTING zigzags (DNa02)!"
+            "Preview: airflow of 25 mm/s and a stationary Gaussian odour plume from the nozzle; it is not intermittent or turbulent.",
+            "Preview states are labels: odour above a fixed threshold is called SURGE, below it CAST. The fly steers upwind in both.",
+            "Turbulent plumes are planned, not in v0.4 (NEXT-09)."
         ],
         params: []
     },
     'looming-escape': {
-        title: "Visual Looming Giant Fiber Escape",
-        ref: "Card & Dickinson (PNAS 2008); von Reyn et al. (Nature 2014)",
+        title: "Looming Escape",
+        ref: "Background: von Reyn et al. (2014) Nat Neurosci 17:962–970; Card & Dickinson (2008) (citation not verified in this repository)",
         whatToWatch: [
-            "An approaching predator shadow expands with angular velocity dTheta/dt.",
-            "Lobula LPLC2/Col4 neurons drive Giant Fiber membrane potential ramp.",
-            "The instant expansion hits 65°, Giant Fiber fires an all-or-none spike, commanding jump takeoff!"
+            "Preview: a disk expands as 2·atan(r/v ÷ time to collision).",
+            "Preview: an escape is triggered when the disk passes a hand-set 65° threshold; the displayed membrane value is a formula of disk size, not a simulated LPLC2/Col4 or Giant Fiber neuron.",
+            "von Reyn et al. (2017) report GF spikes on average at a fixed delay after a disk passes 39°; the preview threshold is not fitted to this. GF threshold control is planned, not in v0.4 (NEXT-02)."
         ],
         params: [
-            { key: 'rOverV', label: 'Looming r/v Ratio', min: 10, max: 50, step: 5, val: 25, unit: 'ms', desc: 'Threat size-to-approach speed ratio (r/v). Smaller values model faster looming predator swoops.', apply: (a, v) => { a.paradigmState.rOverVS = v / 1000; } }
+            { key: 'rOverV', label: 'Looming r/v Ratio', min: 10, max: 50, step: 5, val: 25, unit: 'ms', desc: 'Preview disk size-to-speed ratio (r/v). Smaller values expand faster.', apply: (a, v) => { a.paradigmState.rOverVS = v / 1000; } }
         ]
     },
     'optomotor': {
-        title: "Optomotor Gaze Stabilization",
-        ref: "Götz (1964); Kim et al. (Nature 2017) Nature 551:517–521",
+        title: "Optomotor Drum",
+        ref: "Background: Götz (1964); Kim et al. (2017) on efference copy (citation not verified in this repository)",
         whatToWatch: [
-            "Surrounding cylindrical drum rotates with high-contrast vertical grating stripes.",
-            "T4/T5 motion cells drive Lobula Plate Tangential Cells (HS/VS) compensatory turning.",
-            "When fly makes a voluntary saccade, an ascending efference copy shunts >80% of retinal slip!"
+            "Preview: the drum rotates and the preview fly turns at a fixed 0.88 × drum speed; no T4/T5 or HS/VS cells are simulated in the preview.",
+            "Preview saccades are scripted every 2.2 s, and slip during them is cut by a hand-set 85%. This is not an efference-copy model; efference copy is a post-v0.4 proposal (NEXT-06).",
+            "Connectome: with photoreceptor-only input no T4/T5 direction selectivity appears, and about 55% of lamina cells have no photoreceptor input in the scan. The provisional optomotor result relies on an encoder that imposes direction selectivity."
         ],
         params: []
     },
     'gap-crossing': {
-        title: "Gap Crossing & Spatial Motor Planning",
-        ref: "Pick & Strauss (Current Biology 2005); Triphan et al. (2010)",
+        title: "Gap Crossing",
+        ref: "Background: Pick & Strauss (2005); Triphan et al. (2010) (citation not verified in this repository)",
         whatToWatch: [
-            "Fly advances along an elevated linear runway toward a physical abyss.",
-            "Antennae and front legs reach forward to probe the gap.",
-            "If gap width is < 3.8 mm, Central Complex triggers step-over; if > 4.2 mm, it aborts!"
+            "Preview: the fly walks along a runway toward a gap.",
+            "Preview decision is a hand-set threshold: gaps up to 3.8 mm are crossed, wider gaps trigger a turn back. No central-complex circuit, leg reach or learning is simulated.",
+            "Leg-reach planning is planned, not in v0.4 (NEXT-10)."
         ],
         params: [
-            { key: 'gapWidth', label: 'Chasm Width', min: 2.0, max: 5.5, step: 0.2, val: 3.5, unit: 'mm', desc: 'Abyss chasm width. Fly will attempt step-over if <= 3.8mm, but execute 180° abort turn if > 4.2mm.', apply: (a, v) => { a.paradigmState.gapWidthMm = v; } }
+            { key: 'gapWidth', label: 'Chasm Width', min: 2.0, max: 5.5, step: 0.2, val: 3.5, unit: 'mm', desc: 'Preview gap width. The preview crosses gaps up to its hand-set 3.8 mm threshold and turns back otherwise.', apply: (a, v) => { a.paradigmState.gapWidthMm = v; } }
         ]
     },
     'circadian-dam': {
-        title: "Circadian Locomotor Sleep/Wake Monitor",
-        ref: "Konopka & Benzer (PNAS 1971); Allada & Chung (2010)",
+        title: "Circadian DAM Monitor",
+        ref: "Background: Konopka & Benzer (1971); Allada & Chung (2010) (citation not verified in this repository)",
         whatToWatch: [
-            "Cylindrical glass capillary tube equipped with mid-tube infrared optical beam break.",
-            "Fly shuttles between sucrose food plug and cotton stopper.",
-            "Watch morning and evening anticipation peaks followed by consolidated sleep bouts (>= 5 min)."
+            "Preview: the fly walks in a tube; crossings of the mid-tube beam are counted.",
+            "Preview: immobility of at least 5 preview minutes (2 preview minutes per simulated second) is counted as a sleep bout.",
+            "No clock is simulated, so there are no morning or evening anticipation peaks. An endogenous oscillator is planned, not in v0.4 (NEXT-08)."
         ],
         params: []
     },
     'courtship': {
-        title: "Courtship Conditioning & Pheromone Memory",
-        ref: "Siegel & Hall (1979); Keleman et al. (Nature 2007)",
+        title: "Courtship Chamber",
+        ref: "Background: Siegel & Hall (1979); Keleman et al. (2007) (citation not verified in this repository)",
         whatToWatch: [
-            "Male fly approaches female in circular mating chamber.",
-            "Male extends unilateral wing to vibrate courtship song (P1 neurons active).",
-            "Mated female emits anti-aphrodisiac cVA and kicks, delivering aversive dopaminergic conditioning."
+            "Preview: the male is steered straight toward a stationary female.",
+            "Preview: close to her, a wing-extension angle is drawn; a mated female adds rejection kicks and a punishment signal.",
+            "No P1 neurons or cVA are simulated in the preview, and approach does not change with experience. Courtship memory is planned, not in v0.4 (NEXT-08)."
         ],
         params: []
     },
     'labyrinth': {
         title: "Corridor Obstacle Labyrinth",
-        ref: "Biomimetic Complex Multi-Junction Navigation",
+        ref: "Engineered maze with Coulomb sliding contacts (no biological reference)",
         whatToWatch: [
-            "Challenging 4-decision junction labyrinth with blind alleys and dead ends.",
-            "Watch tangential sliding velocity resolution (mu=0.5, eps=0.1) prevent sticking or tunneling.",
-            "Watch fly use Johnston's organ wall deflection to recover from dead ends toward green goal!"
+            "Preview: a corridor maze with junctions and dead ends.",
+            "Preview walls use Coulomb sliding (friction mu, default 0.5; restitution 0.1) so the fly neither sticks nor tunnels.",
+            "Preview steering heads toward the goal's coordinates, with engineered wall-proximity avoidance; no Johnston's organ, map or planner is simulated (NEXT-07)."
         ],
         params: [
             { key: 'friction', label: 'Wall Friction', min: 0.1, max: 0.9, step: 0.1, val: 0.5, unit: 'mu', desc: 'Coulomb crawling contact friction against corridor walls. Higher friction dampens sliding velocity.', apply: (a, v) => { a.currentWalls.forEach(w => w.friction = v); } }
         ]
     },
     'multisensory-sandbox': {
-        title: "Multisensory Ingress & Limb Biomechanics Sandbox",
+        title: "Multisensory Sandbox",
         ref: "Project NeuroFly compact modular sensorimotor model",
         whatToWatch: [
-            "Full multi-sensory cue integration: Food Odor A, Repellent Odor B, cVA Pheromone, Thermal Gradient, and Vector Wind.",
-            "Inspect 6 articulated tripod legs with real-time Coxa, Femur, and Tibia joint angle flexions.",
+            "Preview: food, repellent, cVA, thermal and wind cues are computed. Steering heads toward the food's coordinates; the other cues do not steer the preview fly.",
+            "Inspect 6 legs whose coxa, femur and tibia angles come from an engineered Kuramoto tripod oscillator, not a biological nerve cord.",
             "Use explicitly labeled local preview cadence, GF escape, and wind gust controls in the Limb & Preview Controls deck.",
             "Inspect a heuristic body proxy across Coordination, Sensory Alignment, Smoothness, and Efficiency; this aggregate does not validate learned biology."
         ],
         params: [
-            { key: 'windMagnitude', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Continuous vector wind speed modulating Johnston’s organ antennal load and upwind anemotaxis drive.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } },
-            { key: 'hotspotTemp', label: 'Hotspot Temp', min: 28, max: 45, step: 1, val: 38.5, unit: '°C', desc: 'Peak temperature of the localized thermal emitter. Tests thermotactic avoidance vs food attraction.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotspotTemp = v; } },
+            { key: 'windMagnitude', label: 'Wind Velocity', min: 0, max: 40, step: 5, val: 15, unit: 'mm/s', desc: 'Preview wind vector speed. In the sandbox it does not steer the preview fly, and no Johnston’s organ model is simulated.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector = [-v, 0]; } },
+            { key: 'hotspotTemp', label: 'Hotspot Temp', min: 28, max: 45, step: 1, val: 38.5, unit: '°C', desc: 'Peak temperature of the preview hot spot. It feeds a punishment signal only; it does not steer the preview fly.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotspotTemp = v; } },
             { key: 'cpgBaseFreq', label: 'CPG Cadence', min: 3, max: 14, step: 0.5, val: 8.5, unit: 'Hz', desc: 'Kuramoto Central Pattern Generator base tripod cadence modulating 6-leg stepping frequency.', apply: (a, v) => { a.cpg.baseFreq = v; } }
         ]
     }
@@ -5108,10 +5098,10 @@ const ASSAY_CONFIGS = {
     'open-arena': {
         title: 'Open Arena Multi-Modal Assay',
         badge: 'FORAGING & TAXIS',
-        ref: 'Budick & Dickinson (2006) Animal Behaviour / Spatial Dispersal',
+        ref: 'Background: Budick & Dickinson (2006); Maimon et al. (2010) (citation not verified in this repository)',
         sliders: [
             { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Gain of existing anticipatory wall-avoidance steering in the local preview.', apply: (a, v) => { a.wallRepulsion = v; } },
-            { key: 'windStrength', label: 'Wind Vector Speed', min: 0.0, max: 40.0, step: 2.0, val: 15.0, unit: ' mm/s', desc: 'Global environmental wind vector speed sensed by Johnston’s organ mechanoreceptors.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector[0] = -v; } }
+            { key: 'windStrength', label: 'Wind Vector Speed', min: 0.0, max: 40.0, step: 2.0, val: 15.0, unit: ' mm/s', desc: 'Preview wind vector, turned into an upwind steering term; no Johnston’s organ model is simulated.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector[0] = -v; } }
         ],
         actions: [
             { label: 'Drop Food Pellet', class: 'primary', handler: (a, h) => { a.spawnFoodNearFly(); } },
@@ -5142,9 +5132,9 @@ const ASSAY_CONFIGS = {
         }
     },
     't-maze': {
-        title: 'T-Maze Associative Conditioning',
-        badge: 'TULLY-QUINN (1985)',
-        ref: 'Tully & Quinn (1985) Science / Pavlovian Olfactory Memory',
+        title: 'T-Maze Odour Choice',
+        badge: 'ODOUR CHOICE',
+        ref: 'Background: Tully & Quinn (1985) J Comp Physiol A 157:263–277 (abstract read); Dudai (1976) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Reset preview MB memory', class: '', handler: (a, h) => { a.mb.reset(false); } }
@@ -5171,9 +5161,9 @@ const ASSAY_CONFIGS = {
         }
     },
     'y-maze': {
-        title: 'Y-Maze Spontaneous Alternation & Handedness',
-        badge: 'BUCHANAN ET AL. (NATURE 2015)',
-        ref: 'Buchanan et al. (Nature 2015) Individual Idiosyncratic Handedness',
+        title: 'Y-Maze Exploration',
+        badge: 'EXPLORATION',
+        ref: 'Background: Buchanan et al. (2015) is a handedness study, not an alternation study; Churgin (2017) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Clear choice history (keeps last SAR)', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.turnDirections = []; a.paradigmState.armSequence = []; } } }
@@ -5203,12 +5193,12 @@ const ASSAY_CONFIGS = {
         }
     },
     'heat-maze': {
-        title: 'Thermal Place Learning (Heat-Maze)',
-        badge: 'OFSTAD ET AL. (NATURE 2011)',
-        ref: 'Ofstad, Zuker & Reiser (Nature 2011) Visual Place Learning',
+        title: 'Thermal Heat-Maze',
+        badge: 'THERMAL',
+        ref: 'Background: Ofstad, Zuker & Reiser (2011) Nature 474:204–207 (cited only for the existence of visual place learning)',
         sliders: [
-            { key: 'floorTemp', label: 'Arena Floor Temperature', min: 32, max: 44, step: 1, val: 36.5, unit: ' °C', desc: 'Aversive heated floor temperature (°C) driving thermotactic escape search toward cool refuge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotTemp = v; } },
-            { key: 'refugeRadius', label: 'Cool Refuge Radius', min: 6, max: 20, step: 1, val: 9, unit: ' mm', desc: 'Target cool tile radius (mm). Smaller radius requires tighter landmark triangulation by Central Complex.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.refugeRadius = v; } }
+            { key: 'floorTemp', label: 'Arena Floor Temperature', min: 32, max: 44, step: 1, val: 36.5, unit: ' °C', desc: 'Preview hot-floor temperature (°C). It sets the preview punishment signal; it does not guide the fly to the refuge.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.hotTemp = v; } },
+            { key: 'refugeRadius', label: 'Cool Refuge Radius', min: 6, max: 20, step: 1, val: 9, unit: ' mm', desc: 'Preview cool-tile radius (mm). The preview uses stored coordinates, not landmark triangulation.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.refugeRadius = v; } }
         ],
         actions: [
             { label: 'Relocate Cool Refuge', class: 'primary', handler: (a, h) => {
@@ -5246,9 +5236,9 @@ const ASSAY_CONFIGS = {
         }
     },
     'buridan': {
-        title: 'Buridan Landmark Fixation & Centrophobism',
-        badge: 'GÖTZ (1980)',
-        ref: 'Götz (1980) / Strauss (1997) Stripe Fixation & Water Moat',
+        title: "Buridan's Paradigm",
+        badge: 'VISION',
+        ref: 'Background: Götz (1980); Colomb et al. (2012) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Reset Platform Transits', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.stripeCrossings = 0; } }
@@ -5277,9 +5267,9 @@ const ASSAY_CONFIGS = {
     },
     'visual-operant': {
         illustrativeChart: true,
-        title: 'Operant Flight Simulator (Drum & Laser)',
-        badge: 'WOLF & HEISENBERG (1991)',
-        ref: 'Wolf & Heisenberg (1991) J. Comp. Physiol. Operant Conditioning',
+        title: 'Visual Operant Drum (heat quadrants)',
+        badge: 'CLOSED LOOP',
+        ref: 'Background: Wolf & Heisenberg (1991); Liu et al. (2006) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Clear preview sector counters', class: '', handler: (a, h) => { if (a.paradigmState) { a.paradigmState.timeSafeMs = 0; a.paradigmState.timePunishedMs = 0; } } }
@@ -5306,12 +5296,12 @@ const ASSAY_CONFIGS = {
     'wind-tunnel': {
         illustrativeChart: true,
         controlNote: 'Wind vector speed and gust affect the drawing/readout; plume transport and steering remain fixed in this preview.',
-        title: 'Anemotaxic Plume Tracking (Surge & Cast)',
-        badge: 'ALVAREZ-SALVADO & DEMIR',
-        ref: 'Alvarez-Salvado (2018) / Demir (2020) Odor Plume Navigation',
+        title: 'Wind Tunnel Plume',
+        badge: 'ODOUR PLUME',
+        ref: 'Background: Álvarez-Salvado et al. (2018) eLife (recorded, not re-read); Demir et al. (2020) (citation not verified in this repository)',
         sliders: [
             { key: 'windVelocity', label: 'Preview wind vector speed', min: 5, max: 40, step: 1, val: 18, unit: ' mm/s', desc: 'Sets the displayed wind vector and wind-speed readout; plume transport and steering use the existing fixed preview model.', apply: (a, v) => { a.cancelPreviewGust?.(); a.windVector[0] = -v; } },
-            { key: 'plumeWidth', label: 'Gaussian Plume Width', min: 6, max: 30, step: 1, val: 14, unit: ' mm', desc: 'Gaussian width of intermittent odor plume filaments dictating surge vs casting transitions.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.filamentSigma = v / 4.0; } }
+            { key: 'plumeWidth', label: 'Gaussian Plume Width', min: 6, max: 30, step: 1, val: 14, unit: ' mm', desc: 'Width of the stationary preview plume. It changes where odour crosses the threshold that labels SURGE or CAST.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.filamentSigma = v / 4.0; } }
         ],
         actions: [
             { label: 'Shift Plume Source', class: 'primary', handler: (a, h) => { if (a.paradigmState) a.paradigmState.nozzlePos[1] = 30.0 + (Math.random() - 0.5) * 30.0; } },
@@ -5339,9 +5329,9 @@ const ASSAY_CONFIGS = {
     },
     'looming-escape': {
         illustrativeChart: true,
-        title: 'Predator Looming Escape (Giant Fiber)',
-        badge: 'CARD & DICKINSON (2008)',
-        ref: 'Card & Dickinson (2008) PNAS Looming Visual Escape & Takeoff',
+        title: 'Looming Escape',
+        badge: 'LOOMING',
+        ref: 'Background: von Reyn et al. (2014) Nat Neurosci 17:962–970; Card & Dickinson (2008) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Clear preview escape flag', class: '', handler: (a, h) => { a.dn.escapeActive = false; } }
@@ -5371,9 +5361,9 @@ const ASSAY_CONFIGS = {
     },
     'optomotor': {
         illustrativeChart: true,
-        title: 'Optomotor Gaze Stabilization & Saccades',
-        badge: 'GÖTZ (1964) / KIM (2017)',
-        ref: 'Götz (1964) Kybernetik / Kim et al. (Cell 2017) Saccadic Efference Copy',
+        title: 'Optomotor Drum',
+        badge: 'MOTION',
+        ref: 'Background: Götz (1964); Kim et al. (2017) on efference copy (citation not verified in this repository)',
         sliders: [
             { key: 'patternSpeed', label: 'Preview grating velocity', min: -120, max: 120, step: 10, val: 30, unit: ' °/s', desc: 'Sets preview drum rotation and the existing slip proxy; not a measured visual response.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.drumVelocityDegS = v; } }
         ],
@@ -5407,11 +5397,11 @@ const ASSAY_CONFIGS = {
     },
     'gap-crossing': {
         illustrativeChart: true,
-        title: 'Spatial Planning & Gap Crossing',
-        badge: 'PICK & STRAUSS (2005)',
-        ref: 'Pick & Strauss (Nature 2005) / Triphan (2010) Gap Crossing Spatial Planning',
+        title: 'Gap Crossing',
+        badge: 'GAP',
+        ref: 'Background: Pick & Strauss (2005); Triphan et al. (2010) (citation not verified in this repository)',
         sliders: [
-            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.5, unit: ' mm', desc: 'Physical chasm width. Fly will probe with forelegs and attempt crossing if <= 3.8mm.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidthMm = v; } }
+            { key: 'gapWidth', label: 'Chasm Void Width', min: 1.5, max: 5.0, step: 0.25, val: 3.5, unit: ' mm', desc: 'Preview gap width. The preview crosses gaps up to its hand-set 3.8 mm threshold and turns back otherwise; no leg reach is simulated.', apply: (a, v) => { if (a.paradigmState) a.paradigmState.gapWidthMm = v; } }
         ],
         actions: [
             { label: 'Widen Gap (+0.5mm)', class: '', handler: (a, h) => { if (a.paradigmState) a.paradigmState.gapWidthMm = Math.min(5.0, (a.paradigmState.gapWidthMm || 3.5) + 0.5); } },
@@ -5419,7 +5409,7 @@ const ASSAY_CONFIGS = {
         ],
         metrics: [
             { label: 'Crossing Outcome', get: (a) => { const p = a.paradigmState || {}; return p.crossingSuccess ? 'CROSSED' : (p.decisionOutcome || (p.isProbing ? 'PROBING' : 'APPROACH')); } },
-            { label: 'Max Foreleg Reach', get: (a) => `${(a.paradigmState && a.paradigmState.reachabilityThreshMm) || 3.8} mm` },
+            { label: 'Preview crossing threshold', get: (a) => `${(a.paradigmState && a.paradigmState.reachabilityThreshMm) || 3.8} mm` },
             { label: 'Tactile Probe Time', get: (a) => `${((a.paradigmState && a.paradigmState.probingDurationMs) || 0).toFixed(0)} ms` }
         ],
         drawChart: (ctx, w, h, a, hInst) => {
@@ -5440,9 +5430,9 @@ const ASSAY_CONFIGS = {
     },
     'circadian-dam': {
         illustrativeChart: true,
-        title: 'DAM Locomotor Sleep/Wake Monitor',
-        badge: 'KONOPKA & ALLADA',
-        ref: 'Konopka & Benzer (1971) / Allada (2010) DAM Sleep & Circadian Biology',
+        title: 'Circadian DAM Monitor',
+        badge: 'ACTIVITY',
+        ref: 'Background: Konopka & Benzer (1971); Allada & Chung (2010) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Set preview speed to 12 mm/s', class: 'danger', handler: (a, h) => { a.fly.speed = 12.0; } },
@@ -5469,9 +5459,9 @@ const ASSAY_CONFIGS = {
     },
     'courtship': {
         illustrativeChart: true,
-        title: 'Courtship Conditioning & Song',
-        badge: 'SIEGEL & HALL (1979)',
-        ref: 'Siegel & Hall (1979) PNAS / Keleman (Nature 2007) Courtship Plasticity',
+        title: 'Courtship Chamber',
+        badge: 'COURTSHIP',
+        ref: 'Background: Siegel & Hall (1979); Keleman et al. (2007) (citation not verified in this repository)',
         sliders: [],
         actions: [
             { label: 'Reset preview MB memory', class: '', handler: (a, h) => { a.mb.reset(false); } }
@@ -5498,8 +5488,8 @@ const ASSAY_CONFIGS = {
     },
     'labyrinth': {
         title: 'Multi-Junction Obstacle Labyrinth',
-        badge: 'SPATIAL DECISION NETWORK',
-        ref: 'Continuous Sliding Collision Physics & Multi-Junction Maze',
+        badge: 'ENGINEERED MAZE',
+        ref: 'Engineered maze with Coulomb sliding contacts (no biological reference)',
         sliders: [
             { key: 'wallFriction', label: 'Wall Coulomb Friction', min: 0.0, max: 0.8, step: 0.05, val: 0.5, unit: '', desc: 'Coulomb crawling friction coefficient along corridor walls during sliding contacts.', apply: (a, v) => { (a.currentWalls || []).forEach(w => { w.friction = v; }); } }
         ],
@@ -5529,9 +5519,9 @@ const ASSAY_CONFIGS = {
     'multisensory-sandbox': {
         title: 'Multisensory Sandbox · Heuristic Body Proxy',
         badge: 'BODY PROXY',
-        ref: 'Simultaneous Visual, Thermal, Olfactory, Wind & Articulated Kinematics',
+        ref: 'Engineered preview: odour, thermal and wind cues with Kuramoto leg pose (not a biological nerve cord)',
         sliders: [
-            { key: 'cpgCadence', label: 'Kuramoto CPG Base Cadence', min: 3.0, max: 14.0, step: 0.5, val: 8.0, unit: ' Hz', desc: 'Kuramoto tripod gait base stepping frequency coordinating 6 articulated limb phases.', apply: (a, v) => { a.cpg.baseFreq = v; } },
+            { key: 'cpgCadence', label: 'Kuramoto CPG Base Cadence', min: 3.0, max: 14.0, step: 0.5, val: 8.0, unit: ' Hz', desc: 'Base frequency of the engineered Kuramoto tripod oscillator that sets the 6 preview leg phases.', apply: (a, v) => { a.cpg.baseFreq = v; } },
             { key: 'wallRepulsion', label: 'Boundary Repulsion', min: 0.2, max: 3.0, step: 0.1, val: 1.0, unit: 'x', desc: 'Gain of the anticipatory wall-avoidance steering (antennal proximity whiskers) that turns the fly away from walls and pillars.', apply: (a, v) => { a.wallRepulsion = v; } }
         ],
         actions: [
@@ -6017,7 +6007,7 @@ class ScientificHUD {
         if (refEl) refEl.textContent = guide.ref;
 
         if (watchEl) {
-            watchEl.innerHTML = '<ul>' + guide.whatToWatch.map(pt => `<li>${pt}</li>`).join('') + '</ul>';
+            watchEl.innerHTML = '<div><b>Engineered preview, not connectome results.</b></div><ul>' + guide.whatToWatch.map(pt => `<li>${pt}</li>`).join('') + '</ul>';
         }
 
         if (container) {
@@ -6727,7 +6717,7 @@ class ScientificHUD {
         if (lesionDescription) {
             lesionDescription.textContent = panelCaps.graph
                 ? `${panelCaps.label} is the active controller. The genotype buttons are standalone modular-preview controls and cannot alter this graph run.`
-                : 'Compact modular model: 120 Kenyon cells, a heading compass, locomotion and sensory-response modules. The downloaded whole connectome runs separately.';
+                : (LESION_INFO[this.arena.lesion] || LESION_INFO.WT).mechanism;
         }
         const guideRef = document.getElementById('guideRef');
         if (guideRef) {
