@@ -14,7 +14,7 @@ function harness() {
         elements[id] = {textContent: '', title: '', style: {}, disabled: false};
     const c = {window: {NeuroFlyObservationRenderer: require('../web/observation_renderer.js')},
         document: {getElementById: id => elements[id] || null, querySelector: () => null},
-        performance: {now: () => 1000}, console, EXPERIMENT_GUIDES: {optomotor: {}},
+        performance: {now: () => 1000}, console, AbortSignal, EXPERIMENT_GUIDES: {optomotor: {}},
         fetch: (...args) => { fetches.push(args); return Promise.reject(new Error('no network in tests')); },
         EventSource: class { constructor() {} addEventListener(name, fn) { listeners[name] = fn; } close() {} }};
     vm.createContext(c);
@@ -96,4 +96,20 @@ test('paused restart: the new run identity is shown and commands are enabled aga
     assert.equal(elements.btnPauseToggle.disabled, false);
     bridge.updateFreshness();
     assert.match(bridge.statusPill.textContent, /DAEMON CONNECTED · PAUSED/);
+});
+
+test('restart that resumes advancing: frames alone clear sim-down and Pause is sent', async () => {
+    // Root's live check: the restarted simulation advances, so the stream sends frames and
+    // no heartbeat; the down state must not keep refusing Pause.
+    const {bridge, elements, fetches, beat, packet} = harness();
+    beat(DOWN);
+    assert.notEqual(bridge.handleDaemonPacket({...packet('run-new', 20, false), liveness: {state: 'advancing'}}), false);
+    assert.equal(bridge.simProcessDown, null);
+    assert.equal(bridge.daemonHalt, null);
+    assert.equal(elements.btnPauseToggle.textContent, 'Pause');
+    assert.equal(elements.btnPauseToggle.disabled, false);
+    await bridge.sendCommand('set_paused', {paused: true});
+    assert.equal(fetches.length, 1);
+    assert.match(fetches[0][0], /\/api\/command$/);
+    assert.deepEqual(JSON.parse(fetches[0][1].body).params, {paused: true});
 });

@@ -4728,6 +4728,9 @@ class DaemonBridgeClient {
             this.lastIdentityRejection = identityProblem;
             return false;
         }
+        // A frame is published only by a running simulation process: it ends a sim-down
+        // state even when no heartbeat follows (an advancing run sends frames, not heartbeats).
+        if (this.simProcessDown) this.applySimProcessLiveness({liveness: pkt.liveness || {state: 'advancing'}});
         const step = Number.isFinite(pkt.step) ? pkt.step : null;
         this.lastPacketTime = performance.now();
         this.lastOrderedPacket = pkt;
