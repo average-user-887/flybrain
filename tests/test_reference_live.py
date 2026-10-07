@@ -218,3 +218,31 @@ def test_status_and_clock_show_the_reference_clock_not_the_graph_clock(tmp_path)
     assert payload["active_paradigm"] == "open-arena" and payload["total_steps"] == 4
     assert runner.presented_step == 4
     runner.stop()
+
+
+def test_diagnostic_summary_of_a_reference_frame_is_scoped_as_reference():
+    """Astra's repro: graph trial/learning fields must not sit beside the reference identity."""
+    from learning_recorder import summarise_runner
+
+    r = SimpleNamespace(latest_telemetry={"paradigm": "flat-ground-walking", "step": 615,
+                                          "reference_fly": {"sim_time_s": 1.23, "assay": "flat-ground-walking"},
+                                          "identity": {"backend": "reference-flygym"},
+                                          "timing": {"achieved_speed": 0.1}},
+                        start_time=0, active_paradigm_id="multisensory-sandbox", total_steps=73, sim_speed=0.1,
+                        current_trial=2, trial_history=[{}], learning_curve=[0.8])
+    row = summarise_runner(r)
+    assert row["scope"] == "reference" and row["paradigm"] == "n/a (reference)"
+    assert row["step"] == 615 and row["reference_sim_time_s"] == 1.23
+    assert row["reference_assay"] == "flat-ground-walking"
+    for key in ("current_trial", "trials_completed", "learning_curve_tail", "fly", "metrics", "mb_weights_mean"):
+        assert row[key] is None, key
+    assert row["graph_context"] == {"note": "kept graph run, not stepped while the reference fly is shown",
+                                    "paradigm": "multisensory-sandbox", "step": 73, "current_trial": 2,
+                                    "trials_completed": 1}
+    # A graph frame keeps the unchanged summary shape.
+    r.latest_telemetry = {"paradigm": "multisensory-sandbox", "step": 73, "identity": {"backend": "connectome-fixed"},
+                          "fly": {"x": 1.0}, "timing": {}}
+    row = summarise_runner(r)
+    assert "scope" not in row and "graph_context" not in row
+    assert row["paradigm"] == "multisensory-sandbox" and row["step"] == 73 and row["current_trial"] == 2
+    assert row["trials_completed"] == 1 and row["learning_curve_tail"] == [0.8]

@@ -1199,6 +1199,40 @@ class LearningRecorder:
 def summarise_runner(runner: Any) -> Dict[str, Any]:
     """Build a compact telemetry summary from a runner. Call under runner.lock."""
     telem = runner.latest_telemetry or {}
+    reference = telem.get("reference_fly")
+    if (telem.get("identity") or {}).get("backend") == "reference-flygym" and isinstance(reference, dict):
+        # Reference fly (not connectome): its own frame and clock only.  The kept graph
+        # run's trial and learning fields are not reference measurements; they appear
+        # only under the separately labelled graph_context (not stepped meanwhile).
+        return {
+            "timestamp": time.time(),
+            "uptime_sec": round(time.time() - runner.start_time, 1),
+            "scope": "reference",
+            "paradigm": "n/a (reference)",
+            "reference_assay": reference.get("assay", "flat-ground-walking"),
+            "step": telem.get("step"),
+            "reference_sim_time_s": reference.get("sim_time_s"),
+            "sim_speed": runner.sim_speed,
+            "achieved_speed": (telem.get("timing") or {}).get("achieved_speed"),
+            "current_trial": None,
+            "trials_completed": None,
+            "fly": None,
+            "mb_weights_mean": None,
+            "mb_weights_std": None,
+            "learning_curve_tail": None,
+            "metrics": None,
+            "identity": telem.get("identity"),
+            "motor_source": "FlyGym published walking controller (not connectome)",
+            "motor_assists_enabled": None,
+            "controller_fault": telem.get("error"),
+            "graph_context": {
+                "note": "kept graph run, not stepped while the reference fly is shown",
+                "paradigm": runner.active_paradigm_id,
+                "step": runner.total_steps,
+                "current_trial": runner.current_trial,
+                "trials_completed": len(getattr(runner, "trial_history", []) or []),
+            },
+        }
     fly = telem.get("fly", {})
     plast = telem.get("plasticity", {})
     curve = list(getattr(runner, "learning_curve", []) or [])
