@@ -134,6 +134,23 @@ def main() -> None:
         t0 = time.perf_counter()
         assert rec.record_observation(fresh)["idempotent"] is True
         retry_s = time.perf_counter() - t0
+        # External-change path: growth this recorder did not write forces a full
+        # re-validation (on implementations that track their own writes).
+        with open(data_dir / "trials.jsonl", "ab") as fh:
+            fh.write(b'{"type":"trial","trial":0,"session_id":"external"}\n')
+        external = json.loads(json.dumps(envelope))
+        external["identity"]["run_id"] = "fresh-external"
+        t0 = time.perf_counter()
+        assert rec.record_observation(external)["durable"] is True
+        external_s = time.perf_counter() - t0
+        after_external = []
+        for i in range(args.writes):
+            fresh = json.loads(json.dumps(envelope))
+            fresh["identity"]["run_id"] = f"fresh-after-{i}"
+            t0 = time.perf_counter()
+            rec.record_observation(fresh)
+            after_external.append(time.perf_counter() - t0)
+        rss2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         rec.close()
         files = sorted(p.name for p in data_dir.glob("trials.jsonl*"))
         print(json.dumps({
@@ -142,7 +159,10 @@ def main() -> None:
             "write_median_ms": round(statistics.median(per_write) * 1000, 2),
             "write_max_ms": round(max(per_write) * 1000, 2),
             "idempotent_retry_ms": round(retry_s * 1000, 2),
+            "external_change_write_s": round(external_s, 3),
+            "write_median_ms_after_external": round(statistics.median(after_external) * 1000, 2),
             "maxrss_growth_mib_at_open": round((rss1 - rss0) / 1024, 1),
+            "maxrss_growth_mib_total": round((rss2 - rss0) / 1024, 1),
         }), flush=True)
         shutil.rmtree(data_dir)
 
