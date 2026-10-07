@@ -108,6 +108,11 @@ from rc1.
 - **CPU↔GPU:** continuation is not exact. It is verified only within the contract
   bounds.
 
+## Known limitations
+
+- In split mode, pause state is not kept across a simulation-process restart; a
+  restarted sim resumes advancing.
+
 ## Unchanged
 
 - **Out of scope:**
