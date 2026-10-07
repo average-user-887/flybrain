@@ -65,6 +65,13 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 ### Fixed
 
+- **Recording header `initial_state.restored` on graph backends**: it read the runner's
+  graph-bookkeeping file, so a recording continuing a checkpointed graph instance
+  (for example a migrated linked child, which has no bookkeeping file) said
+  `restored: false` while starting at the checkpoint's step. It now reports whether the
+  registry restored the instance from a checkpoint, and the new
+  `initial_state.restore_source` names the restored checkpoint version and step.
+  Frames, traces, deltas and history are unchanged; older files still read.
 - **No more silent freezes** (audit F). The simulation thread no longer dies on an
   exception outside the step (a full disk during a checkpoint froze the observatory for
   42 minutes behind an "online" status). Any loop failure is an honest halt naming the

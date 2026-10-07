@@ -688,10 +688,20 @@ class RunRecorder:
         source.pop("root", None)
         brain = getattr(runner, "active_brain", None)
         instance = getattr(getattr(runner, "registry", None), "active", None)
-        initial_state = dict(brain_steps=int(getattr(brain, "steps", 0) or 0),
-                             restored=bool(getattr(brain, "restored", False)))
+        initial_state = dict(brain_steps=int(getattr(brain, "steps", 0) or 0))
         if instance is not None:
+            # Graph backends: the neural state is the registry instance, so "restored"
+            # means it was loaded from a saved checkpoint (the registry's ``restore``
+            # event), not whether the runner's graph bookkeeping file was found.
             initial_state["graph_step_index"] = int(getattr(instance, "step_index", 0) or 0)
+            restored_from = getattr(instance, "restored_from", None)
+            initial_state["restored"] = restored_from is not None
+            initial_state["restore_source"] = (dict(kind="graph_checkpoint", **restored_from)
+                                               if restored_from is not None else None)
+        else:
+            restored = bool(getattr(brain, "restored", False))
+            initial_state["restored"] = restored
+            initial_state["restore_source"] = dict(kind="modular_brain_file") if restored else None
         provenance = dict(
             backend=runner.backend, assay=runner.active_paradigm_id,
             lif_dynamics=_lif_dynamics(runner),

@@ -65,9 +65,37 @@ Only commands that were accepted and can change the simulation are logged
 counts; host paths removed), `dynamics` (the run manifest's model description),
 `code` (git commit, dirty flag, SHA-256 of the backend's source files),
 `software` (Python and NumPy versions), `params` (`dt_s`, `graph_step_ms`,
-`trial_length_s`, `continuous`, `motor_assists`), `initial_state` (brain steps
-and whether a saved brain was restored) and `inputs` (the step schedule given
-to `neurofly record`).
+`trial_length_s`, `continuous`, `motor_assists`), `initial_state` (see below)
+and `inputs` (the step schedule given to `neurofly record`).
+
+### `provenance.initial_state`
+
+What the recording's first frame starts from:
+
+- `restored`: true when the brain was loaded from saved state instead of starting
+  naive. Graph backends: the registry restored the graph instance from a checkpoint
+  in this process (it then logs a `restore` event in the instance's `events.jsonl`).
+  Modular controller: the brain's saved file was loaded. For a daemon recording
+  started later in a run (`record_start`) it describes the process's starting
+  state, not the recording's first step.
+- `restore_source` (added October 2026): `null` when `restored` is false; otherwise
+  `{"kind": "graph_checkpoint", "checkpoint_version", "step_index", "fallback"}`
+  (the checkpoint version and step that were restored; `fallback` true when the
+  newest checkpoint could not be used and an older one was) or
+  `{"kind": "modular_brain_file"}`. The instance itself is identified in the frames
+  (`identity.instance_id`, recording-local alias).
+- `graph_step_index` (graph backends only): the graph instance's step index at the
+  first frame. It can be larger than `restore_source.step_index` when the
+  recording starts after the restore.
+- `brain_steps`: the runner's brain step count. On graph backends this is runner
+  bookkeeping (`graph-bookkeeping/`), which a restored instance may not have; use
+  `graph_step_index` for the neural state.
+
+Files written before October 2026 have no `restore_source`, and on graph backends
+their `restored` reflects only whether the runner's graph-bookkeeping file was
+found, so it can be false for a restored instance; there, judge restoration by
+`graph_step_index` and the instance's `restore` event. Readers ignore unknown
+header fields, so the format version is unchanged (2).
 
 ### `channels`
 
