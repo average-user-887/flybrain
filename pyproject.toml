@@ -76,7 +76,8 @@ py-modules = [
 [tool.setuptools.package-data]
 "neurofly._docs" = ["CAPABILITY_MATRIX.md"]
 web = ["*.html", "*.js", "*.css", "vendor/*.js"]
-brainlab = ["datasets.json", "graph_pins.json", "graph_pins_flywire_783_female.json", "wgpu_v3_math.wgsl"]
+brainlab = ["datasets.json", "graph_pins.json", "graph_pins_flywire_783_female.json",
+            "source_lock_flywire_783_female.json", "wgpu_v3_math.wgsl"]
 "brainlab.cohort" = ["cohort_contract.json"]
 validation = ["specs/*.json", "specs/sources/*.json"]
 # experiments/data/ (historical lesion-study output, legacy heuristic, not v0.4

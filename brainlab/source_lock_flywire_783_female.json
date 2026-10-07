@@ -1,0 +1,80 @@
+{
+  "dataset_id": "flywire_783_female",
+  "label": "FlyWire 783 (female)",
+  "checked": "2026-10-07",
+  "files": {
+    "proofread_connections_783.feather": {
+      "url": "https://zenodo.org/api/records/10676866/files/proofread_connections_783.feather/content",
+      "bytes": 852022274,
+      "md5": "f48f972d262323a102aed49af1396b8a",
+      "sha256": "24f960ae3e7d4f8cd30db3b62e99fb5179cc3d1e76d8c155bfb441e9737d3faf",
+      "licence": "CC-BY-4.0"
+    },
+    "proofread_root_ids_783.npy": {
+      "url": "https://zenodo.org/api/records/10676866/files/proofread_root_ids_783.npy/content",
+      "bytes": 1114168,
+      "md5": "e0e6c19732fd8c7a4e39a2d170105421",
+      "sha256": "7c7b7e818e9232e5ab64793d52ba20574dbe9da3a6509fbc74193b0f259a01be",
+      "licence": "CC-BY-4.0"
+    },
+    "per_neuron_neuropil_count_pre_783.feather": {
+      "url": "https://zenodo.org/api/records/10676866/files/per_neuron_neuropil_count_pre_783.feather/content",
+      "bytes": 16853770,
+      "md5": "90fcdb42c1ba05ed92820840fa1e6ba0",
+      "sha256": "35442a46f076892dff91bd6e55fa1489b3acc64fda1d35cee7dbbbbc509a3dff",
+      "licence": "CC-BY-4.0"
+    },
+    "per_neuron_neuropil_count_post_783.feather": {
+      "url": "https://zenodo.org/api/records/10676866/files/per_neuron_neuropil_count_post_783.feather/content",
+      "bytes": 233843050,
+      "md5": "bb5999f10920ade803d9f37097a43a56",
+      "sha256": "e2418f4794fe47984bb4bc15ffc194003ea8e349a428551f30af94947d85d712",
+      "licence": "CC-BY-4.0"
+    },
+    "Supplemental_file1_neuron_annotations.tsv": {
+      "url": "https://raw.githubusercontent.com/flyconnectome/flywire_annotations/a83b2776d60d5764cef36b927f5f9679c16c47a2/supplemental_files/Supplemental_file1_neuron_annotations.tsv",
+      "bytes": 31720298,
+      "sha256": "b214970b55d2fbe0853bba536fdcb9e28730f4eb7ab06f600491df795da683cd",
+      "git_blob_sha1": "02e72f6c8161d3465f77fec0edf96c5d98027a9e",
+      "licence": "UNKNOWN (repository states none); user download only, not redistributed by NeuroFly"
+    }
+  },
+  "zenodo": {
+    "record": 10676866,
+    "doi": "10.5281/zenodo.10676866",
+    "version": "783.0",
+    "published": "2024-06-02",
+    "creator": "FlyWire Consortium, Princeton University",
+    "licence": "CC-BY-4.0",
+    "md5_source": "Zenodo record API file checksums (checked 2026-10-07)",
+    "not_used": {"flywire_synapses_783.feather": {"bytes": 9492998242, "md5": "f8f1b97c9d4b0ea9b4c8b287f6b99091", "reason": "synapse-level table; not needed for a neuron-level graph"}}
+  },
+  "annotations": {
+    "repository": "https://github.com/flyconnectome/flywire_annotations",
+    "release": "v3.2.0",
+    "commit": "a83b2776d60d5764cef36b927f5f9679c16c47a2",
+    "path": "supplemental_files/Supplemental_file1_neuron_annotations.tsv",
+    "git_blob_sha1": "02e72f6c8161d3465f77fec0edf96c5d98027a9e",
+    "readme_sha256_at_commit": "bf9cb228d4520641f96b82e299673846d73404fb69970f39d1b387eec25dbf87",
+    "cite": "Berg et al. 2026 (Cell); Schlegel et al. 2024; Tastekin et al. 2026; Matsliah et al. 2024; Dorkenwald et al. 2024 (README 'How to cite?', versions >= 3.2.0)"
+  },
+  "attribution": [
+    "FlyWire Consortium, Princeton University: Zenodo 10676866, https://doi.org/10.5281/zenodo.10676866 (CC BY 4.0)",
+    "Synapse detection: Buhmann et al. 2021",
+    "Synaptic cleft segmentation: Heinrich et al. 2018",
+    "Neurotransmitter prediction: Eckstein, Bates et al. 2024 (Cell)",
+    "Segmentation and proofreading: Dorkenwald et al. 2024 (Nature)",
+    "Annotations v3.2.0: Berg et al. 2026 (Cell); Schlegel et al. 2024; Tastekin et al. 2026; Matsliah et al. 2024; Dorkenwald et al. 2024"
+  ],
+  "licence_gate": {
+    "zenodo_tables": "CC-BY-4.0 (Zenodo record metadata license id 'cc-by-4.0')",
+    "annotation_table": "UNKNOWN",
+    "evidence": [
+      "GitHub API repos/flyconnectome/flywire_annotations: license null (checked 2026-10-07)",
+      "Repository root at a83b2776: .gitignore, README.md, cocoglancer, code, flywire_annotations.Rproj, supplemental_files; no LICENSE file",
+      "README at a83b2776 (sha256 bf9cb228...) contains citation requests only ('How to cite?'), no licence or distribution terms"
+    ],
+    "status": "OPEN public-distribution gate: the TSV and every table or asset derived from it (normalized/neurons.feather, edges with annotation-derived signs, graph.npz weights) stay local, git-ignored and unshipped. A user download is not licence clearance. No clearance is claimed.",
+    "local_use": "Local import plumbing only; the user downloads the TSV from GitHub at the pinned commit."
+  }
+}

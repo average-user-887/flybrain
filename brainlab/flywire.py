@@ -68,7 +68,11 @@ SIGN_POLICY = 'flywire-known_nt-first-top_nt-fallback-v1'
 SYNAPTIC_SCALE = 0.275
 AMBIGUOUS_SIGN = 1
 
-LOCK_PATH = ROOT / 'data-provenance' / DATASET_ID / 'source.lock.json'
+# Installed copy (package data, checksums and pins only), so an installed wheel can verify
+# sources from any working directory; it must stay byte-identical to the repository's
+# documented lock in data-provenance/ (checked by tests).
+LOCK_PATH = Path(__file__).resolve().with_name(f'source_lock_{DATASET_ID}.json')
+REPO_LOCK_PATH = ROOT / 'data-provenance' / DATASET_ID / 'source.lock.json'
 PINS_PATH = Path(__file__).resolve().with_name(f'graph_pins_{DATASET_ID}.json')
 DEFAULT_CONNECTOME_DIR = ROOT / 'connectome_data' / DATASET_ID
 DEFAULT_GRAPH_DIR = ROOT / 'outputs' / 'brainlab' / DATASET_ID
