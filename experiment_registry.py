@@ -1002,7 +1002,10 @@ class ExperimentRegistry:
         """
         prepared = self.prepare_activation(assay, backend)
         try:
-            if self.active is not None and prepared['target'] is not self.active:
+            # A source whose arrays were already released was checkpointed before
+            # release (see ``GraphInstance.release``); it has no state to save.
+            if (self.active is not None and prepared['target'] is not self.active
+                    and self.active.brain is not None):
                 self.checkpoint()
             target = self.commit_activation(prepared)
             self.release_activation_source(prepared)
@@ -1019,7 +1022,11 @@ class ExperimentRegistry:
         """
         source = self.active
         instance_id = self.instance_id_for(assay, backend)
-        if source is not None and source.instance_id == instance_id and not force_reload:
+        # A released active instance is unusable (its brain is gone), so asking
+        # for it again restores it from its checkpoint instead of returning it.
+        released = source is not None and source.brain is None
+        if (source is not None and source.instance_id == instance_id and not force_reload
+                and not released):
             return {'source': source, 'target': source}
         entry = self.index['instances'][instance_id]
         manifest = self.manifest(instance_id)

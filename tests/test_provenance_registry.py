@@ -453,3 +453,28 @@ def test_retention_unlinks_symlinked_checkpoints_but_keeps_their_targets(tmp_pat
         assert (storage / name).read_bytes() == data
     meta, _ = registry.read_checkpoint(a.instance_id)
     assert meta['version'] == 5
+
+
+# ---------------------------------------------------------------------------
+# Activation after release
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize('backend', ['connectome-fixed', 'connectome-plastic'])
+def test_activate_after_release_restores_the_checkpoint_instead_of_the_released_instance(
+        tmp_path, backend):
+    """A released instance is unusable; activating it again restores its checkpoint."""
+    registry = make_registry(tmp_path)
+    instance = registry.activate('buridan', backend)
+    drive(instance, 3)
+    registry.checkpoint()
+    saved = state_of(instance)
+    instance.release()
+    restored = registry.activate('buridan', backend)
+    assert restored is not instance and restored.brain is not None
+    assert registry.active is restored
+    assert_same_state(state_of(restored), saved)
+    drive(restored, 1)                      # usable, not a released shell
+    # Switching away from a released instance does not try to checkpoint it.
+    restored.release()
+    other = registry.activate('t-maze', backend)
+    assert registry.active is other and other.brain is not None
+
