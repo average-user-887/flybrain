@@ -329,3 +329,64 @@ class TestFsyncFailure:
         rec.close()
         with LearningRecorder(tmp_path, fsync=False) as restarted:
             assert restarted.record_observation(envelope)["idempotent"] is True
+
+
+# =============================================================================
+# 3. Quarantine evidence writes: no-progress and partial os.write
+# =============================================================================
+
+class TestQuarantineWrite:
+    def _torn(self, tmp_path):
+        path = tmp_path / "telemetry_summary.jsonl"
+        before = b'{"n":0}\n' + TORN
+        path.write_bytes(before)
+        return path, before
+
+    def test_zero_byte_write_raises_eio_leaves_journal_and_releases_lock(self, tmp_path, monkeypatch):
+        path, before = self._torn(tmp_path)
+        writer = JsonlWriter(path, fsync=False)
+        real_write = os.write
+        calls = []
+
+        def zero_for_evidence(fd, data):
+            if (_fd_path(fd) or "").endswith(".json.tmp"):
+                calls.append(len(data))
+                return 0
+            return real_write(fd, data)
+
+        monkeypatch.setattr(os, "write", zero_for_evidence)
+        done = []
+        worker = threading.Thread(target=lambda: done.append(
+            pytest.raises(OSError, writer.repair_tail)))
+        worker.start()
+        worker.join(5)
+        assert not worker.is_alive(), "zero-byte evidence write must not spin"
+        assert done[0].value.errno == errno.EIO and len(calls) == 1
+        assert path.read_bytes() == before
+        assert writer._lock.acquire(timeout=1)
+        writer._lock.release()
+        monkeypatch.undo()
+        writer.repair_tail()
+        writer.close()
+        assert path.read_bytes() == b'{"n":0}\n'
+
+    def test_partial_evidence_writes_complete_exactly(self, tmp_path, monkeypatch):
+        path, _ = self._torn(tmp_path)
+        writer = JsonlWriter(path, fsync=False)
+        real_write = os.write
+        sizes = []
+
+        def seven_bytes_at_a_time(fd, data):
+            if (_fd_path(fd) or "").endswith(".json.tmp"):
+                sizes.append(min(7, len(data)))
+                return real_write(fd, bytes(data[:7]))
+            return real_write(fd, data)
+
+        monkeypatch.setattr(os, "write", seven_bytes_at_a_time)
+        receipt = writer.repair_tail()
+        writer.close()
+        assert len(sizes) > 10
+        [evidence] = _evidence(tmp_path)
+        assert base64.b64decode(evidence["content_base64"]) == TORN
+        assert evidence["sha256"] == receipt["sha256"] == hashlib.sha256(TORN).hexdigest()
+        assert path.read_bytes() == b'{"n":0}\n'

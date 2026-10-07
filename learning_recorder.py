@@ -289,15 +289,21 @@ class JsonlWriter:
             _fsync_directory(qdir.parent)
         target = qdir / f"{self.path.name}.torn-{stamp}-{offset}-{digest[:12]}.json"
         n = 1
-        while target.exists():
+        # A failed earlier attempt may have left its unverified .tmp; keep it and
+        # pick a fresh name (the source journal was not touched by that attempt).
+        while target.exists() or target.with_name(target.name + ".tmp").exists():
             target = qdir / f"{self.path.name}.torn-{stamp}-{offset}-{digest[:12]}-{n}.json"
             n += 1
         tmp = target.with_name(target.name + ".tmp")
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
-            view = memoryview(encoded)
-            while view:
-                view = view[os.write(fd, view):]
+            view, total = memoryview(encoded), 0
+            while total < len(encoded):
+                n = os.write(fd, view[total:])
+                if not n:  # no progress: fail before the journal is touched
+                    raise OSError(errno.EIO, f"short quarantine write: wrote {total} of "
+                                             f"{len(encoded)} bytes")
+                total += n
             os.fsync(fd)
         finally:
             os.close(fd)
