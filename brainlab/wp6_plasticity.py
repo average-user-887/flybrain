@@ -137,11 +137,27 @@ class VisualHeadingPlasticityRule:
         connectome_dir: Optional[Path | str] = None,
         **kwargs,
     ) -> 'VisualHeadingPlasticityRule':
-        """Construct rule from a SharedGraph instance."""
-        if getattr(getattr(shared, 'identity', None), 'synthetic', False):
+        """Construct rule from a SharedGraph instance.
+
+        The rule reads the SAME verified files the shared graph was loaded from
+        (``identity.graph_path`` and ``identity.neuron_map_path``), never the
+        packaged default or an environment variable: a daemon started with an
+        explicit ``--graph-dir`` must build its plastic controller from that
+        directory.  A real graph whose identity carries no paths is refused.
+        """
+        identity = getattr(shared, 'identity', None)
+        if getattr(identity, 'synthetic', False):
             raise GraphUnavailable("VisualHeadingPlasticityRule cannot be resolved on a synthetic graph")
+        graph_path = getattr(identity, 'graph_path', None)
+        neuron_map_path = getattr(identity, 'neuron_map_path', None)
+        if not graph_path or (connectome_dir is None and not neuron_map_path):
+            raise GraphUnavailable("VisualHeadingPlasticityRule needs the verified graph's own file paths; "
+                                   "the shared graph identity does not record them")
+        if connectome_dir is None:
+            # <connectome_dir>/normalized/neurons.feather (graph_identity.verify_graph)
+            connectome_dir = Path(neuron_map_path).parent.parent
         return cls.from_connectome(
-            graph_dir=None,
+            graph_dir=Path(graph_path).parent,
             connectome_dir=connectome_dir,
             **kwargs,
         )
