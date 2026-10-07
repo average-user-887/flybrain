@@ -60,6 +60,9 @@ def installed(tmp_path, monkeypatch):
     monkeypatch.setattr(graph_identity, 'DEFAULT_CONNECTOME_DIR', site / 'connectome_data/malecns_v1')
     monkeypatch.delenv('NEUROFLY_GRAPH_DIR', raising=False)
     monkeypatch.setenv('NEUROFLY_CONNECTOME_DIR', str(cdir))
+    # The transmitter_policy load is part of the v3 path (SharedGraph.load_for_dynamics
+    # applies it only under v3), so pin v3 rather than inherit the process environment.
+    monkeypatch.setenv('NEUROFLY_LIF_DYNAMICS', 'v3')
     loads = []
 
     def verify(graph_dir=None, connectome_dir=None, **_):
