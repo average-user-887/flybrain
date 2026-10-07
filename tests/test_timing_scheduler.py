@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 import neurofly_daemon as nd
+from tests.transition_control_helpers import transition_command
 from stream_gateway import StreamGateway, StreamPolicy
 
 
@@ -146,16 +147,31 @@ def test_overload_is_visible_and_never_bursts(runner, fake_clock):
     assert timing["max_batch_hold_ms"] < 40.0
 
 
-def test_command_ack_reports_applied_step_while_running(runner):
+def test_command_ack_reports_applied_step_while_running(runner, tmp_path):
+    # Since 730059e a presentation change (windVelocity) needs a durable
+    # observation recorder; attach a real one with its drain thread running,
+    # as the daemon does, so the latency bound covers the durable save.
+    from learning_recorder import LearningRecorder, RecorderThread
+    records = LearningRecorder(tmp_path / "records", session={"daemon_run_id": runner.run_id})
+    drain = RecorderThread(runner, records, poll_interval=0.05, summary_interval=999)
+    with runner.lock:
+        runner.attach_learning_records(drain)
+    drain.start()
     runner.start()
     assert _wait(lambda: runner.total_steps > 20)
     before = runner.total_steps
-    res = runner.dispatch_command({"action": "set_param", "name": "windVelocity", "value": 25})
+    try:
+        res = runner.dispatch_command({"action": "set_param", "name": "windVelocity", "value": 25})
+        bad = runner.dispatch_command({"action": "set_speed", "speed": "fast"})
+    finally:
+        runner.running = False
+        runner._wake.set()
+        runner.sim_thread.join(timeout=5)
+        drain.stop()
     assert res["status"] == "ok"
     ack = res["ack"]
     assert ack["applied"] is True and ack["applied_step"] >= before
     assert ack["latency_ms"] < 250.0
-    bad = runner.dispatch_command({"action": "set_speed", "speed": "fast"})
     assert bad["status"] == "error" and bad["ack"]["applied"] is False
 
 
@@ -223,5 +239,7 @@ def test_path_holds_measured_steps_of_current_segment(runner):
     steps = [p[0] for p in tel["path"]]
     assert steps == list(range(steps[0], runner.total_steps + 1))
     assert tel["path"][-1][1] == round(float(runner.arena.fly.pos.x), 4)
-    runner.dispatch_command({"action": "reset_trial"})
+    # Since 730059e reset_trial needs a durable recorder and runs as a queued
+    # transaction; the shared helper supplies both.
+    assert transition_command(runner, {"action": "reset_trial"})["status"] == "ok"
     assert runner._assemble_telemetry({})["path"] == []
