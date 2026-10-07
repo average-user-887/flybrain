@@ -82,7 +82,8 @@ from experiment_brains import ExperimentBrains, PARADIGMS
 # Controller identity (WP4).  experiment_registry / brainlab are imported only when
 # a graph backend is selected, so the modular default never touches the graph.
 from provenance import (GRAPH_BACKENDS, RunManifest, get_backend, graph_io_declaration,
-                        resolve_keep_checkpoints, source_revision)
+                        resolve_keep_checkpoints, source_revision, trial_clock,
+                        unknown_trial_clock, validate_trial_clock)
 from neurofly.privacy import redact_local
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
@@ -1436,6 +1437,8 @@ class ContinuousExperimentRunner:
             # both are ready does this return, so the switch ack names a ready instance.
             active = self.registry.active
             if active is not None and hasattr(self, "arena") and not self._state_uncertain:
+                if hasattr(self, "active_brain"):
+                    self._sync_trial_clock()
                 active.world_state = self.arena.snapshot_world()
             instance = self.registry.activate(paradigm_name, self.backend)
             # Incidents saved with this instance (from an earlier process) stay attached:
@@ -1463,7 +1466,7 @@ class ContinuousExperimentRunner:
                 source=self._source)
             manifest_path = self.output_dir / "manifests" / f"{manifest.run_id}.json"
         if hasattr(self, "active_brain") and not self._state_uncertain:
-            self.active_brain.elapsed = self.trial_sim_time
+            self._sync_trial_clock()
             # A required save: under the save policy a failure stops the run (scientific
             # mode) or degrades it with a recorded gap (exploratory).
             self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
@@ -1479,7 +1482,7 @@ class ContinuousExperimentRunner:
             self.active_brain.learning_enabled = self.arena.fly.learning_enabled = False
         self.active_paradigm_id = paradigm_name
         self.active_paradigm_title = getattr(self.arena.paradigm, "name", "Open Arena Assay")
-        self.trial_sim_time = brain.elapsed
+        self._restore_trial_clock(brain, self.registry.active if self.graph_mode else None)
         self.learning_curve = brain.curve
         self._path.clear()
         self._last_step_result = {}
@@ -1491,6 +1494,42 @@ class ContinuousExperimentRunner:
             # The run's provenance record is required (scientific policy), not a log line.
             self._persist("provenance", manifest.write, manifest_path, path=manifest_path)
         self.latest_telemetry = self._assemble_telemetry({})
+
+    def _restore_trial_clock(self, brain, instance=None) -> None:
+        """Adopt the trial clock saved with the state that was just restored.
+
+        Graph runs use only the clock in the selected verified checkpoint (including
+        an older fallback version), never the helper brain JSON.  State saved without
+        a clock stays explicitly unknown; nothing is inferred from brain, world or
+        daemon counters.
+        """
+        if instance is None:
+            clock = validate_trial_clock(brain.trial_clock)
+        elif instance.trial_clock is not None:
+            clock = validate_trial_clock(instance.trial_clock)
+        elif instance.checkpoint_version:
+            clock = unknown_trial_clock()
+        else:
+            clock = trial_clock()              # a new instance: nothing saved yet
+        brain.trial_clock = clock
+        if instance is not None:
+            instance.trial_clock = clock       # one record for the NPZ and the helper JSON
+        self.trial_sim_time = clock['elapsed_s']
+        self.current_trial = clock['current_trial']
+
+    def _sync_trial_clock(self, *, new_trial: bool = False, brain=None) -> None:
+        """Write the runner's trial counters into the active assay's clock record.
+
+        ``new_trial`` marks a trial that started in front of this process, so its
+        elapsed time is known from zero.  An unknown trial ordinal stays unknown.
+        """
+        clock = (brain or self.active_brain).trial_clock
+        clock['elapsed_s'] = float(self.trial_sim_time)
+        clock['current_trial'] = int(self.current_trial)
+        if new_trial and not clock['elapsed_known']:
+            clock['elapsed_known'] = True
+            if clock['trial_known']:
+                clock['reason'] = None
 
     def _observation_provenance(self) -> Dict[str, Any]:
         """Facts declared by the active arena/controller for metric-contract/1.2."""
@@ -2851,6 +2890,7 @@ class ContinuousExperimentRunner:
         self.total_steps += 1
         self.active_brain.steps += 1
         self.trial_sim_time += step_dt
+        self._sync_trial_clock()
         pos = self.arena.fly.pos
         self._path.append((self.total_steps, round(float(pos.x), 4), round(float(pos.y), 4)))
 
@@ -3517,6 +3557,10 @@ class ContinuousExperimentRunner:
         self._record_trial_milestone(step_result, reason)
         self.segment_id = uuid.uuid4().hex
         self.trial_sim_time = 0.0
+        self._sync_trial_clock(new_trial=True)
+        # Saved after the counter advanced and elapsed reset, so the completed trial
+        # count and the trial clock describe the same boundary.
+        self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         self._path.clear()
         self._publish_due = True
 
@@ -3742,7 +3786,6 @@ class ContinuousExperimentRunner:
         self._ledger("trial", trial=self.active_brain.trials, metric=metric_val,
                      metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
                      reason=reason, metrics=metrics, probe=self.active_brain.probe())
-        self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         ident = self.identity()
         self.trial_history.append({
             "run_id": ident.get("run_id"),
@@ -3751,6 +3794,7 @@ class ContinuousExperimentRunner:
             "brain_id": self.active_brain.brain_id,
             "brain_trial": self.active_brain.trials,
             "trial": self.current_trial,
+            "trial_known": self.active_brain.trial_clock["trial_known"],
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
             "sim_seconds": round(self.trial_sim_time, 3),
@@ -4165,7 +4209,7 @@ class ContinuousExperimentRunner:
                                 manifest_path=self.output_dir / 'manifests' / f'{manifest.run_id}.json')
             if not transaction['uncertain_before']:
                 source = transaction['source_brain']
-                source.elapsed = self.trial_sim_time
+                self._sync_trial_clock(brain=source)
                 source.save()
                 transaction.setdefault('saved_channels', []).append('brain_save')
                 if self.graph_mode and self.registry.active is not None:
@@ -4201,6 +4245,7 @@ class ContinuousExperimentRunner:
                 paradigm.reset_trial()
             self.arena.reset_fly_to_spawn()
             self.trial_sim_time = 0.0
+            self._sync_trial_clock(new_trial=True)
             self.segment_id = uuid.uuid4().hex
             self._path.clear()
         else:
@@ -4227,7 +4272,8 @@ class ContinuousExperimentRunner:
                                        daemon_run_id=self.run_id)
             self.active_paradigm_id = plan['target']
             self.active_paradigm_title = getattr(self.arena.paradigm, 'name', 'Open Arena Assay')
-            self.trial_sim_time = self.active_brain.elapsed
+            self._restore_trial_clock(self.active_brain,
+                                      self.registry.active if self.graph_mode else None)
             self.learning_curve = self.active_brain.curve
             self.segment_id = uuid.uuid4().hex
             self._path.clear()
@@ -4973,6 +5019,7 @@ class ContinuousExperimentRunner:
 
     def save_checkpoint(self, tag: str = "periodic") -> Path:
         """Saves current continuous synaptic weights and trial ledger to disk."""
+        self._sync_trial_clock()
         self.brains.save_all()
         # Labels are display text, never path fragments supplied by an API client.
         safe_tag = "".join(c for c in str(tag) if c.isalnum() or c in "_-")[:60] or "manual"
