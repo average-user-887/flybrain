@@ -10,6 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from neurofly_daemon import ContinuousExperimentRunner, NeuroflyHTTPHandler
+from tests.transition_control_helpers import transition_command
 
 
 class TestEmbodiedTelemetry(unittest.TestCase):
@@ -101,8 +102,10 @@ class TestEmbodiedTelemetry(unittest.TestCase):
     def test_paradigm_switching_preserves_weights_and_updates_body_state(self):
         import numpy as np
 
+        # Since 730059e a switch needs a durable observation recorder and runs as
+        # a queued transaction; transition_command() supplies both.
         # 1. Switch to t-maze
-        res1 = self.runner.dispatch_command({"action": "switch_paradigm", "paradigm": "t-maze"})
+        res1 = transition_command(self.runner, {"action": "switch_paradigm", "paradigm": "t-maze"})
         self.assertEqual(res1["status"], "ok")
         self.assertEqual(self.runner.active_paradigm_id, "t-maze")
         w_tmaze_initial = self.runner.arena.fly.circuit.get_effective_weights().copy()
@@ -114,21 +117,21 @@ class TestEmbodiedTelemetry(unittest.TestCase):
         self.assertEqual(len(telem1["joint_angles_rad"]), 18)
 
         # 2. Switch to buridan
-        res2 = self.runner.dispatch_command({"action": "switch_paradigm", "paradigm": "buridan"})
+        res2 = transition_command(self.runner, {"action": "switch_paradigm", "paradigm": "buridan"})
         self.assertEqual(res2["status"], "ok")
         self.assertEqual(self.runner.active_paradigm_id, "buridan")
         telem2 = self.runner.latest_telemetry
         self.assertIn("body_position_mm", telem2)
 
         # 3. Switch to optomotor
-        res3 = self.runner.dispatch_command({"action": "switch_paradigm", "paradigm": "optomotor"})
+        res3 = transition_command(self.runner, {"action": "switch_paradigm", "paradigm": "optomotor"})
         self.assertEqual(res3["status"], "ok")
         self.assertEqual(self.runner.active_paradigm_id, "optomotor")
         telem3 = self.runner.latest_telemetry
         self.assertIn("body_position_mm", telem3)
 
         # 4. Switch back to t-maze and verify weights were preserved
-        res4 = self.runner.dispatch_command({"action": "switch_paradigm", "paradigm": "t-maze"})
+        res4 = transition_command(self.runner, {"action": "switch_paradigm", "paradigm": "t-maze"})
         self.assertEqual(res4["status"], "ok")
         w_tmaze_restored = self.runner.arena.fly.circuit.get_effective_weights()
         np.testing.assert_allclose(w_tmaze_restored, w_tmaze_initial, rtol=1e-5)
