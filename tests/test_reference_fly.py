@@ -87,6 +87,39 @@ def test_replay_page_shows_reference_identity():
     assert "'none (not connectome)'" in js and 'id="identity"' in html
 
 
+def test_body_constructor_failure_marks_manifest_failed(tmp_path):
+    def broken_body():
+        raise RuntimeError("no FlyGym here")
+
+    root = tmp_path / "reference_fly"
+    with pytest.raises(RuntimeError, match="no FlyGym here"):
+        run_reference("bad-init", duration_s=0.1, namespace_root=root, body_factory=broken_body)
+    manifest = json.loads((root / "bad-init" / "manifest.json").read_text())
+    assert manifest["status"] == "failed"
+    assert manifest["error"] == "RuntimeError: no FlyGym here"
+    assert manifest["backend_id"] == BACKEND_ID
+    assert not (root / "bad-init" / "summary.json").exists()
+
+
+def test_failure_after_construction_closes_the_body(tmp_path):
+    bodies = []
+
+    class FailingBody(FakeBody):
+        def step(self, drive, substeps):
+            raise RuntimeError("physics blew up")
+
+    def factory():
+        bodies.append(FailingBody())
+        return bodies[-1]
+
+    with pytest.raises(RuntimeError, match="physics blew up"):
+        run_reference("bad-step", duration_s=0.1, namespace_root=tmp_path / "reference_fly",
+                      body_factory=factory)
+    assert bodies[0].closed
+    manifest = json.loads((tmp_path / "reference_fly" / "bad-step" / "manifest.json").read_text())
+    assert manifest["status"] == "failed" and manifest["error"] == "RuntimeError: physics blew up"
+
+
 # --- namespace separation ---------------------------------------------------
 
 def test_default_namespace_is_separate():

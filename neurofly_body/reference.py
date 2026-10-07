@@ -197,9 +197,10 @@ def run_reference(
                 "status": "running"}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                                        encoding="utf-8")
-    body = body_factory()
+    body = None
     recorder = None
     try:
+        body = body_factory()
         obs = body.reset(seed)
         if record_fps:
             from .body_recording import BodyRecorder
@@ -244,12 +245,16 @@ def run_reference(
         (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                                            encoding="utf-8")
         return summary
-    except BaseException:
+    except BaseException as error:
         if recorder is not None:
             recorder.abort()
         manifest["status"] = "failed"
+        from neurofly.privacy import redact_text
+
+        manifest["error"] = redact_text(f"{type(error).__name__}: {error}")
         (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                                            encoding="utf-8")
         raise
     finally:
-        body.close()
+        if body is not None:
+            body.close()
