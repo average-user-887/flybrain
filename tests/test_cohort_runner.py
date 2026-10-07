@@ -154,8 +154,9 @@ def test_manifest_carries_graph_io_declaration_and_notice(tmp_path, capsys):
     assert 'injects motion-selective drive directly into T4/T5' in capsys.readouterr().out
     manifest = json.loads((out / store.MANIFEST_NAME).read_text())
     decl = manifest['scientific_disclosure']
-    assert decl['graph_io'] == provenance.graph_io_declaration(include_config=True)
-    assert decl['graph_io']['sha256'] == provenance.GRAPH_IO_SHA256
+    # The cohort's own I/O, referencing the daemon's declaration by version + sha256 only.
+    assert decl['graph_io']['daemon_graph_io'] == provenance.graph_io_declaration()
+    assert decl['graph_io']['daemon_graph_io']['sha256'] == provenance.GRAPH_IO_SHA256
     assert 'engineered' in decl['notice'] and 'No claim of validated' in decl['notice']
 
 
@@ -179,3 +180,186 @@ def test_writer_identity_is_the_executing_code_and_resume_ignores_code_version(t
     assert manifest['segments'][0]['writer'] == first          # earlier segment untouched
     meta, _, _ = store.read_checkpoint(root / manifest['flies'][0]['checkpoints'][-1]['file'])
     assert meta['writer'] == newer and meta['payload']['version'] == '9.9.9'
+
+
+# ---------------------------------------------------------------------------
+# rc2 Lane 1 repairs (each test fails on v0.5.0rc1 a4368a2)
+# ---------------------------------------------------------------------------
+import hashlib
+import os
+import shutil
+import sys
+from pathlib import Path
+
+from brainlab.cohort import runner as runner_mod
+from brainlab.cohort.api import CpuLoopCohortEngine
+
+RC1_STORE = Path(__file__).parent / 'fixtures' / 'cohort_rc1_store'
+
+
+class _StandInGpu(CpuLoopCohortEngine):
+    """CPU arithmetic under the GPU engine's exact backend id (tests run without a GPU)."""
+    backend_id = 'cuda-cohort-v3'
+
+
+def _tree(root):
+    out = {}
+    for dirpath, _, files in os.walk(root):
+        for name in files:
+            if name == store.LOCK_NAME:
+                continue
+            path = os.path.join(dirpath, name)
+            with open(path, 'rb') as fh:
+                out[os.path.relpath(path, root)] = hashlib.sha256(fh.read()).hexdigest()
+    return out
+
+
+def _gpu_cohort(tmp_path, monkeypatch, name='g'):
+    real = runner_mod.make_engine
+    monkeypatch.setattr(runner_mod, 'make_engine',
+                        lambda n, arrays, k: _StandInGpu(arrays, k) if n == 'gpu' else real(n, arrays, k))
+    root = tmp_path / name
+    run_cohort(root, flies=2, seconds=0.04, engine='gpu', checkpoint_every_ms=20, graph=synthetic_graph(),
+               progress=quiet)
+    monkeypatch.setattr(runner_mod, 'make_engine', real)
+    return root
+
+
+def test_default_resume_uses_the_recorded_gpu_backend(tmp_path, monkeypatch):
+    """F1: rc1 asked make_engine for 'cpu' because 'gpu' is not a substring of 'cuda-cohort-v3'."""
+    root = _gpu_cohort(tmp_path, monkeypatch)
+    asked = []
+    monkeypatch.setattr(runner_mod, 'make_engine',
+                        lambda n, arrays, k: asked.append(n) or _StandInGpu(arrays, k))
+    resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    assert asked == ['gpu']
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    seg = manifest['segments'][-1]
+    assert seg['source_engine'] == seg['target_engine'] == 'cuda-cohort-v3'
+    assert seg['engine_choice'] == 'recorded' and seg['mixed_engine'] is False
+    assert 'mixed_engines' not in manifest
+
+
+def test_default_resume_refuses_when_recorded_gpu_is_unavailable(tmp_path, monkeypatch):
+    """F1: no silent GPU->CPU fallback; refused before any persistent change."""
+    root = _gpu_cohort(tmp_path, monkeypatch)
+    # An interrupted tail must not be cut off by a refused resume either.
+    with open(root / 'flies/fly-00/steps.jsonl', 'ab') as fh:
+        fh.write(b'{"interrupted": true}\n')
+    before = _tree(root)
+
+    def unavailable(n, arrays, k):
+        if n == 'gpu':
+            raise runner_mod.EngineUnavailable('--engine gpu is unavailable on this machine (no CuPy)')
+        return CpuLoopCohortEngine(arrays, k)
+    monkeypatch.setattr(runner_mod, 'make_engine', unavailable)
+    with pytest.raises(EngineUnavailable, match='cuda-cohort-v3 and that engine is unavailable'):
+        resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    assert _tree(root) == before
+    assert main(['resume', str(root), '--test-synthetic-graph']) == 2
+    assert _tree(root) == before
+
+
+def test_unknown_recorded_backend_is_refused_without_explicit_engine(tmp_path, monkeypatch):
+    real = runner_mod.make_engine
+
+    class Odd(CpuLoopCohortEngine):
+        backend_id = 'some-gpu-engine'
+    monkeypatch.setattr(runner_mod, 'make_engine',
+                        lambda n, arrays, k: Odd(arrays, k) if n == 'gpu' else real(n, arrays, k))
+    root = tmp_path / 'odd'
+    run_cohort(root, flies=1, seconds=0.02, engine='gpu', graph=synthetic_graph(), progress=quiet)
+    before = _tree(root)
+    with pytest.raises(CohortError, match='does not know'):
+        resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    assert _tree(root) == before
+
+
+def test_explicit_engine_switch_is_a_marked_mixed_engine_realisation(tmp_path, monkeypatch):
+    """F1: explicit --engine stays allowed; the GPU segment's hardware record survives."""
+    root = _gpu_cohort(tmp_path, monkeypatch)
+    gpu_description = json.loads((root / store.MANIFEST_NAME).read_text())['engine']
+    resume_cohort(root, seconds=0.02, engine='cpu', graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    assert manifest['mixed_engines'] is True
+    assert 'Mixed-engine numerical realisation' in manifest['numerical_realisation']
+    seg = manifest['segments'][-1]
+    assert (seg['source_engine'], seg['target_engine']) == ('cuda-cohort-v3', 'cpu-loop-v3')
+    assert seg['engine_choice'] == 'explicit' and seg['mixed_engine'] is True
+    assert seg['source_engine_description'] == gpu_description
+    assert manifest['segments'][0]['engine_description'] == gpu_description
+    # The default now follows the latest recorded engine (cpu), and the mark persists.
+    resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    assert manifest['mixed_engines'] is True and manifest['segments'][-1]['mixed_engine'] is False
+
+
+def test_verify_without_cupy_prints_a_clear_failure(monkeypatch, capsys):
+    """F3: rc1 raised an uncaught RuntimeError from contract.gpu_factory."""
+    monkeypatch.setitem(sys.modules, 'cupy', None)
+    assert main(['verify']) == 1
+    out = capsys.readouterr().out
+    assert out.startswith('FAIL  engine-available:') and 'Traceback' not in out
+    assert 'verify --engine cpu' in out
+
+
+def test_manifest_declares_only_the_cohort_effective_io(tmp_path):
+    """F4: rc1 declared the daemon's 9 probes and 6 decoders."""
+    import provenance
+    root = tmp_path / 'io'
+    run_cohort(root, flies=1, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    decl = manifest['scientific_disclosure']['graph_io']
+    assert [p['name'] for p in decl['input_probes']] == ['optomotor']
+    assert decl['decoders'] == ['yaw']
+    assert decl['encoder']['model'].startswith('rectified-sinusoid drive on T4/T5')
+    assert decl['decoder']['model'].startswith('yaw = gain*(rate_DNa02_L')
+    assert decl['tethered'] == {'forward_speed': 0.0} and decl['step_ms'] == 20.0
+    assert decl['io_map_sha256'] == manifest['io_map_sha256']
+    assert decl['daemon_graph_io'] == provenance.graph_io_declaration()
+    assert 'config' not in decl['daemon_graph_io']
+    body = {k: v for k, v in decl.items() if k != 'sha256'}
+    assert decl['sha256'] == runner_mod._sha256_json(body)
+
+
+@pytest.mark.parametrize('step_ms', [20.05, 0.05, 0.0, -20.0, float('nan'), float('inf')])
+def test_step_ms_off_the_tick_grid_is_refused_before_any_directory(tmp_path, step_ms):
+    """A3: rc1 rounded the brain to 200 ticks while the arena/decoder used 20.05 ms."""
+    root = tmp_path / 'never'
+    with pytest.raises(CohortError):
+        run_cohort(root, flies=1, seconds=0.2005 if step_ms == 20.05 else 0.2, step_ms=step_ms,
+                   graph=synthetic_graph(), progress=quiet)
+    assert not root.exists()
+
+
+def test_non_finite_seconds_and_checkpoint_interval_refused(tmp_path):
+    for kw in ({'seconds': float('nan')}, {'seconds': float('inf')},
+               {'seconds': 0.2, 'checkpoint_every_ms': float('nan')}):
+        with pytest.raises(CohortError):
+            run_cohort(tmp_path / 'x', flies=1, graph=synthetic_graph(), progress=quiet, **kw)
+        assert not (tmp_path / 'x').exists()
+
+
+def test_rc1_store_still_resumes_and_the_original_is_untouched(tmp_path):
+    """A store written by v0.5.0rc1 (a4368a2) resumes exactly; the committed original never changes."""
+    assert (RC1_STORE / store.MANIFEST_NAME).is_file()
+    before = _tree(RC1_STORE)
+    work = tmp_path / 'rc1'
+    shutil.copytree(RC1_STORE, work)
+    resume_cohort(work, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    assert _tree(RC1_STORE) == before
+    fresh = tmp_path / 'fresh'
+    run_cohort(fresh, flies=2, seconds=0.06, checkpoint_every_ms=20, graph=synthetic_graph(), progress=quiet)
+    for k in range(2):
+        rel = f'flies/fly-{k:02d}/steps.jsonl'
+        assert (work / rel).read_bytes() == (fresh / rel).read_bytes()
+        _, sa, _ = store.read_checkpoint(fresh / 'ckpt' / store.checkpoint_name(k, 600))
+        _, sb, _ = store.read_checkpoint(work / 'ckpt' / store.checkpoint_name(k, 600))
+        assert all(np.array_equal(sa[x], sb[x]) if isinstance(sa[x], np.ndarray) else sa[x] == sb[x] for x in sa)
+    manifest = json.loads((work / store.MANIFEST_NAME).read_text())
+    seg = manifest['segments'][-1]
+    assert seg['engine_choice'] == 'recorded' and seg['source_engine'] == 'cpu-loop-v3'
+    assert seg['source_engine_description']['backend'] == 'cpu-loop-v3'
+    # Its recorded rc1 disclosure is kept as written, not rewritten.
+    original = json.loads((RC1_STORE / store.MANIFEST_NAME).read_text())
+    assert manifest['scientific_disclosure'] == original['scientific_disclosure']

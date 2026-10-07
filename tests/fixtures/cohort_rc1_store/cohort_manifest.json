@@ -1,0 +1,375 @@
+{
+ "assay": "optomotor",
+ "checkpoint_every_steps": 1,
+ "dynamics": "v3_fixed",
+ "dynamics_signature": {
+  "sha256": "64eb4fe9bb79bdfdbcca7ef437a286d1825ad7f70dee46662c459e3280b1473c",
+  "values": {
+   "arrival_arithmetic": {
+    "cpu": "per-arrival-float32-cpu-active-queue-order",
+    "gpu": "per-arrival-float32-ascending-pre-edge"
+   },
+   "constants": {
+    "DELAY_MS": 1.8,
+    "E_EXC_MV": 0.0,
+    "E_INH_MV": -70.0,
+    "REFRACTORY_MS": 2.2,
+    "TAU_M_MS": 20.0,
+    "TAU_SYN_MS": 5.0,
+    "V_RESET_MV": -52.0,
+    "V_REST_MV": -52.0,
+    "V_THRESHOLD_MV": -45.0
+   },
+   "declared_dynamics_pin": "5739c4f4ffb84979d90ad430d2405bfc0b7736c7c75f2a6e676ef606dffb4a41",
+   "dynamics": "v3",
+   "g_unit": {
+    "engine_exc": 0.019230769230769232,
+    "engine_inh": 0.05555555555555555,
+    "exc_v3": 0.019230769230769232,
+    "per_weight": 0.019230769230769232
+   },
+   "plastic": false,
+   "reversal": {
+    "E_EXC_MV": 0.0,
+    "engine_E_INH_MV": -70.0
+   },
+   "tick_ms": 0.1,
+   "transmitter_policy": "v3-modulatory-only"
+  }
+ },
+ "engine": {
+  "backend": "cpu-loop-v3",
+  "constants": {
+   "DELAY_MS": 1.8,
+   "E_EXC_MV": 0.0,
+   "E_INH_MV": -70.0,
+   "REFRACTORY_MS": 2.2,
+   "TAU_M_MS": 20.0,
+   "TAU_SYN_MS": 5.0,
+   "V_RESET_MV": -52.0,
+   "V_REST_MV": -52.0,
+   "V_THRESHOLD_MV": -45.0
+  },
+  "dynamics": "v3",
+  "n_flies": 2,
+  "n_neurons": 64,
+  "plastic": false,
+  "schema": "neurofly.cohort.v1",
+  "tick_ms": 0.1
+ },
+ "engine_backend_id": "cpu-loop-v3",
+ "flies": [
+  {
+   "checkpoints": [
+    {
+     "file": "ckpt/fly-00-t000000.npz",
+     "sha256": "5313279d40141ed60e224003057df1313a9efc6af338df23b0b72e0d36d7abe4",
+     "tick": 0
+    },
+    {
+     "file": "ckpt/fly-00-t000200.npz",
+     "sha256": "8bcbf856e878b2b3934d5b354a070f89ff315ef72e3aa24f189eca4bcdfe45fe",
+     "tick": 200
+    },
+    {
+     "file": "ckpt/fly-00-t000400.npz",
+     "sha256": "99733f967d18c546e4263c828af96360c546d999ba307ba1c89f2877367c9975",
+     "tick": 400
+    }
+   ],
+   "dir": "flies/fly-00",
+   "fly_id": 0,
+   "seed": 1
+  },
+  {
+   "checkpoints": [
+    {
+     "file": "ckpt/fly-01-t000000.npz",
+     "sha256": "b536bdf3a61d6b361e227d3d638a936751550bc3a4e765a98c1317f82d7ffaf2",
+     "tick": 0
+    },
+    {
+     "file": "ckpt/fly-01-t000200.npz",
+     "sha256": "fdb34475b742860f0f4c10e163a13206cdee0027cfcda3625acfba9e4fcac549",
+     "tick": 200
+    },
+    {
+     "file": "ckpt/fly-01-t000400.npz",
+     "sha256": "3acaa2b73ba8abcd4e7e742fb2b2a91932b1e0df6ff3551e194d4fb3d102308a",
+     "tick": 400
+    }
+   ],
+   "dir": "flies/fly-01",
+   "fly_id": 1,
+   "seed": 2
+  }
+ ],
+ "graph_identity": {
+  "data_sha256": {},
+  "dataset": "synthetic-test",
+  "edges": 384,
+  "graph_content_sha256": null,
+  "graph_file_sha256": null,
+  "graph_path": null,
+  "graph_path_source": "synthetic_test_graph(n=64,k_out=6,seed=0)",
+  "graph_sha256": "686ffe19fa29758dc362c38cbb916f5c320b40a3b6ad4f954bf7a2b69cb555ab",
+  "ids_sha256": "c929b7913143d8cbe1506618a682bd99f5e3cf5512c738820fa735c8e8c3b02a",
+  "io_map_sha256": "bb3b0c0ca0285ca927852acac3e3737cc2d3231621b9c5e282c344da62c45ac8",
+  "label": "SYNTHETIC TEST GRAPH - not MaleCNS; no scientific claim",
+  "neuron_map_content_sha256": null,
+  "neuron_map_file_sha256": null,
+  "neuron_map_path": null,
+  "neuron_map_sha256": null,
+  "neurons": 64,
+  "synthetic": true
+ },
+ "graph_sha256": "686ffe19fa29758dc362c38cbb916f5c320b40a3b6ad4f954bf7a2b69cb555ab",
+ "graph_source": {
+  "k_out": 6,
+  "kind": "synthetic",
+  "n": 64,
+  "n_per": 5,
+  "seed": 0
+ },
+ "io_map_sha256": "b9bc5e236ff20b6648619654e536150094af77d06cc7ac83f3e9534b3518eb2a",
+ "n_flies": 2,
+ "payload": {
+  "ident": "source:a4368a22a54e1010320dfdeaea423b74911246d7",
+  "version": "0.5.0rc1"
+ },
+ "schema": "neurofly.cohort.v1",
+ "scientific_disclosure": {
+  "graph_io": {
+   "config": {
+    "decoders": {
+     "empty_pool_numeric_input_hz": 0.0,
+     "escape_applied": "arena primitive -> 3.5 mm/s for 0.2 s",
+     "escape_raw": "DNp01 spike -> 35 mm/s, state ESCAPE",
+     "forward": "min(35, max(0, 1.5*DNp09_hz + 0.4*DNb01_hz)) mm/s",
+     "reverse": "MDN_hz > 20 -> -15 mm/s",
+     "yaw": "0.02*(DNa02_L_hz - DNa02_R_hz) rad/s"
+    },
+    "engineered_assistance": {
+     "applied": [],
+     "enabled": false
+    },
+    "input_probes": [
+     {
+      "cell_types": [
+       "ORN_DM1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 35*stimulus)",
+      "name": "orn_food",
+      "status": "unverified",
+      "stimulus": "mean_a | odor_conc | odor_a",
+      "threshold": "> 0.001"
+     },
+     {
+      "cell_types": [
+       "ORN_DA2"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(45, 40*stimulus)",
+      "name": "orn_danger",
+      "status": "unverified",
+      "stimulus": "mean_b | odor_b",
+      "threshold": "> 0.001"
+     },
+     {
+      "cell_types": [
+       "R1-R6 left"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_l",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_l",
+      "threshold": null
+     },
+     {
+      "cell_types": [
+       "R1-R6 right"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_r",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_r",
+      "threshold": null
+     },
+     {
+      "cell_types": [
+       "LC4",
+       "LPLC2"
+      ],
+      "entry_stage": "visual projection neuron; bypasses retina and optic lobe",
+      "formula": "min(55, 15 + 40*theta_rad)",
+      "name": "looming",
+      "status": "unverified",
+      "stimulus": "looming_detected | looming_theta",
+      "threshold": "looming_detected or theta_rad > 0.15"
+     },
+     {
+      "cell_types": [
+       "ORN_DA1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 30*stimulus)",
+      "name": "courtship_cva",
+      "status": "unverified",
+      "stimulus": "cva_concentration | cva_odor",
+      "threshold": "> 0.001"
+     },
+     {
+      "cell_types": [
+       "JO-* (first 50)"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 0.15*wind_speed_mm_s)",
+      "name": "jon_wind",
+      "status": "unverified",
+      "stimulus": "wind_speed_mm_s",
+      "threshold": "> 3 mm/s"
+     },
+     {
+      "cell_types": [
+       "thermosensory"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 2.5*abs(temperature_degC - 24))",
+      "name": "thermo",
+      "status": "unverified",
+      "stimulus": "temperature_degC",
+      "threshold": "abs(temperature_degC - 24) > 2 degC"
+     },
+     {
+      "cell_types": [
+       "T4",
+       "T5"
+      ],
+      "entry_stage": "motion detector; direction imposed by encoder",
+      "formula": "WP5 OptomotorEncoder (I/O-map pinned)",
+      "name": "optomotor",
+      "status": "verified-provisional-input-imposed",
+      "stimulus": "retinal_slip_rad_s, contrast",
+      "threshold": null
+     }
+    ],
+    "removed_undisclosed_drive": [
+     "DNb01 +12 tonic current",
+     "+5 mm/s forward floor",
+     "ER contrast constant",
+     "EL +18 tonic current"
+    ],
+    "schema": "neurofly.graph-io.v2",
+    "version": "graph-arena-io-v2-unassisted"
+   },
+   "sha256": "23d421f937ed485e5cf8d70835c2a50d56b8f88be217e4e66e5ad3909eef6191",
+   "version": "graph-arena-io-v2-unassisted"
+  },
+  "notice": "Declared I/O, not native computation: the OptomotorEncoder injects motion-selective drive directly into T4/T5 (direction imposed by the encoder; photoreceptor motion computation is bypassed) and the DNa02YawDecoder is an engineered linear readout. Fixed weights, no learning. No claim of validated fly behaviour."
+ },
+ "seed_base": 1,
+ "segments": [
+  {
+   "engine": "cpu-loop-v3",
+   "graph_load_s": 4.500034265220165e-07,
+   "kind": "run",
+   "setup_s": 0.025633722994825803,
+   "steps": 2,
+   "summary": [
+    {
+     "fly": 0,
+     "mean_yaw_rad_s": 0.0,
+     "seed": 1,
+     "spikes": 11,
+     "steps": 2,
+     "steps_per_s": 7.467438393732199,
+     "x_real_time": 0.149348767874644
+    },
+    {
+     "fly": 1,
+     "mean_yaw_rad_s": 0.0,
+     "seed": 2,
+     "spikes": 9,
+     "steps": 2,
+     "steps_per_s": 7.467438393732199,
+     "x_real_time": 0.149348767874644
+    }
+   ],
+   "wall_s": 0.26782946099410765,
+   "writer": {
+    "commit": "a4368a22a54e1010320dfdeaea423b74911246d7",
+    "dirty": false,
+    "kind": "source_tree",
+    "loaded_module_sha256": {
+     "arena": "227c368fb28b032796540a3336c7b978fabb80b9d2ad515e8ec3a3613711502f",
+     "brainlab.brain": "a8f516ba8c3a1808fa41af69d24ca4760620daeb2782d858430d838c934a8892",
+     "brainlab.cohort": "a16f1831c69507b3efb743d28e6527c331d1678baa2e5c8c24783d2ed79f642f",
+     "brainlab.cohort.api": "2df3b4b3f402194fe4fd47f63f1077a30e7432d3a78c52a89d5215704adfa9e7",
+     "brainlab.cohort.gpu": "8949ca2a9354ea0f12c81b2c1670d2d5c6d85fba7610ffc721157a31fa9b698c",
+     "brainlab.cohort.runner": "e5da4ab00fd118b51aac5a725ee716552e326d56688af695792d61973abfa33d",
+     "brainlab.cohort.store": "69823482fded12241b7254b2aa0bdffdcc26a1713a32d25fd29fa0f95ea2f07a",
+     "brainlab.engine": "a9647682fec43f0483572662c42f36f20338300da3f0ee3968826fe6485a886a",
+     "brainlab.io_map": "b7d1ae1e86e4153086e5f2fa398593b0d6777221529ab7d6acbab516cc1f4195",
+     "maze": "1033732c07ec9a0c754d78ba6b0e2a2e58c4b6fafd44e39d113a44674524d1f9",
+     "provenance": "3c0755409fe29fb6507d91b77821b7ec05c372015fd5c3fcd46cbdee71ef7350"
+    },
+    "role": "executing_writer",
+    "version": "0.5.0rc1"
+   }
+  }
+ ],
+ "sim_ms": 40.0,
+ "step_ms": 20.0,
+ "stimulus_schedule": {
+  "assay": "optomotor",
+  "contrast": 0.9,
+  "decoder": {
+   "clipping": null,
+   "fallback": null,
+   "gain_rad_s_per_hz": 0.02,
+   "model": "yaw = gain*(rate_DNa02_L - rate_DNa02_R)",
+   "rectification": null,
+   "sign": "+ = counter-clockwise (leftward) seen from above",
+   "tau_ms": 50.0
+  },
+  "deliver_sensory": true,
+  "drum_velocity_deg_s": 30.0,
+  "encoder": {
+   "i_max": 20.0,
+   "io_map_sha256": "b9bc5e236ff20b6648619654e536150094af77d06cc7ac83f3e9534b3518eb2a",
+   "model": "rectified-sinusoid drive on T4/T5 subtypes by eye",
+   "noise_sd": 0.1,
+   "spatial_period_deg": 30.0,
+   "units": "per-neuron drive, upstream mV-equivalent (brainlab LIF)"
+  },
+  "silence": [],
+  "step_ms": 20.0
+ },
+ "stimulus_schedule_sha256": "ce518b44edb1f33bdeaf56fb25d3a8f5612997298bb07f8486a32474b69e4e60",
+ "synthetic_graph": true,
+ "target_steps": 2,
+ "tick": 400,
+ "tick_ms": 0.1,
+ "writer": {
+  "commit": "a4368a22a54e1010320dfdeaea423b74911246d7",
+  "dirty": false,
+  "kind": "source_tree",
+  "loaded_module_sha256": {
+   "arena": "227c368fb28b032796540a3336c7b978fabb80b9d2ad515e8ec3a3613711502f",
+   "brainlab.brain": "a8f516ba8c3a1808fa41af69d24ca4760620daeb2782d858430d838c934a8892",
+   "brainlab.cohort": "a16f1831c69507b3efb743d28e6527c331d1678baa2e5c8c24783d2ed79f642f",
+   "brainlab.cohort.api": "2df3b4b3f402194fe4fd47f63f1077a30e7432d3a78c52a89d5215704adfa9e7",
+   "brainlab.cohort.runner": "e5da4ab00fd118b51aac5a725ee716552e326d56688af695792d61973abfa33d",
+   "brainlab.cohort.store": "69823482fded12241b7254b2aa0bdffdcc26a1713a32d25fd29fa0f95ea2f07a",
+   "brainlab.engine": "a9647682fec43f0483572662c42f36f20338300da3f0ee3968826fe6485a886a",
+   "brainlab.io_map": "b7d1ae1e86e4153086e5f2fa398593b0d6777221529ab7d6acbab516cc1f4195",
+   "maze": "1033732c07ec9a0c754d78ba6b0e2a2e58c4b6fafd44e39d113a44674524d1f9",
+   "provenance": "3c0755409fe29fb6507d91b77821b7ec05c372015fd5c3fcd46cbdee71ef7350"
+  },
+  "role": "executing_writer",
+  "version": "0.5.0rc1"
+ }
+}

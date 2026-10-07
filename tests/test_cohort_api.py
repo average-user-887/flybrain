@@ -95,3 +95,45 @@ def test_state_semantic_holes_refused():
             eng.write_state(0, bad)
         assert _same(live, eng.read_state(0))
     eng.write_state(0, live)   # the genuine state is still accepted
+
+
+def _tiny_two_cell_engine():
+    arrays = dict(ids=np.arange(2, dtype=np.int64), ptr=np.array([0, 1, 1], np.int64),
+                  post=np.array([1], np.int32), weight=np.array([1], np.float32))
+    return CpuLoopCohortEngine(arrays, 1)
+
+
+def test_contradictory_active_state_is_refused_atomically():
+    """A1 (Astra's exact control): rc1 accepted active_flag[0]=1 with nactive=0, which
+    silently stopped a driven neuron from ever being activated."""
+    fresh = _tiny_two_cell_engine()
+    control = _tiny_two_cell_engine()
+    out = control.step(np.array([[20., 0.]], np.float32), 200)
+    assert int(out.sum()) == 2
+    live = fresh.read_state(0)
+    bad = {k: (np.array(v, copy=True) if isinstance(v, np.ndarray) else v) for k, v in live.items()}
+    bad['active_flag'][0] = 1
+    with pytest.raises(ValueError, match='active list and active_flag disagree'):
+        fresh.write_state(0, bad)
+    assert _same(live, fresh.read_state(0))
+
+
+def test_duplicate_active_entries_and_negative_refractory_refused():
+    eng = CpuLoopCohortEngine(_graph(), 1)
+    eng.step(_drive(eng), 20)
+    live = eng.read_state(0)
+
+    def copy():
+        return {k: (np.array(v, copy=True) if isinstance(v, np.ndarray) else v) for k, v in live.items()}
+    assert int(live['nactive'][0]) >= 2
+    dup = copy()
+    dup['active'][1] = dup['active'][0]
+    unlisted = copy()
+    unlisted['nactive'][0] -= 1
+    refr = copy()
+    refr['refractory'][0] = -1
+    for bad, msg in ((dup, 'disagree'), (unlisted, 'disagree'), (refr, 'refractory')):
+        with pytest.raises(ValueError, match=msg):
+            eng.write_state(0, bad)
+        assert _same(live, eng.read_state(0))
+    eng.write_state(0, live)

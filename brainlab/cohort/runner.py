@@ -64,7 +64,16 @@ RESUME_DESCRIPTION = ('Verify a cohort directory and continue it. Resume on the 
                       'on the same device) is byte-identical to an uninterrupted run. CPU<->GPU '
                       'continuation is NOT exact: it is verified only within the preregistered contract '
                       'bounds (g relative error <= 1e-6 (preregistered), 0 spike mismatches over ticks '
-                      '100-199); observed max g relative error about 4.53e-7.')
+                      '100-199); observed max g relative error about 4.53e-7. Without --engine the cohort '
+                      'continues on its RECORDED engine; if that engine is unavailable the resume is refused '
+                      'and nothing is changed. Switching with an explicit --engine is recorded as a '
+                      'mixed-engine numerical realisation.')
+MIXED_ENGINE_NOTE = ('Mixed-engine numerical realisation: segments of this cohort ran on different engines. '
+                     'CPU and GPU agree only within the preregistered 200-tick contract bounds and are expected '
+                     'to separate at the spike level later, so this trajectory is one realisation, not a '
+                     'continuation of the single-engine trajectory.')
+# Exact backend ids -> make_engine names.  Anything else recorded is refused on a default resume.
+ENGINE_NAMES = {'cpu-loop-v3': 'cpu', 'cuda-cohort-v3': 'gpu'}
 
 
 class CohortError(RuntimeError):
@@ -73,6 +82,21 @@ class CohortError(RuntimeError):
 
 class EngineUnavailable(CohortError):
     pass
+
+
+def ticks_per_step(step_ms) -> int:
+    """Whole 0.1 ms brain ticks in one arena step; refuses anything else (A3)."""
+    try:
+        value = float(step_ms)
+    except (TypeError, ValueError):
+        raise CohortError(f'step_ms {step_ms!r} is not a number; refused') from None
+    if not math.isfinite(value) or value <= 0:
+        raise CohortError(f'step_ms {step_ms!r} must be finite and > 0; refused')
+    ticks = value / TICK_MS
+    if round(ticks) < 1 or abs(ticks - round(ticks)) > 1e-9 * max(1.0, ticks):
+        raise CohortError(f'step_ms {step_ms!r} is not a whole number of {TICK_MS} ms brain ticks; refused '
+                          '(the brain, decoder and arena must share one clock)')
+    return int(round(ticks))
 
 
 def writer_identity() -> dict:
@@ -134,9 +158,20 @@ def _signature_diff(a: dict, b: dict, prefix: str = '') -> str:
     return '; '.join(out)
 
 
-def graph_io_disclosure() -> dict:
+def graph_io_disclosure(world: 'FlyWorld') -> dict:
+    """The cohort's OWN effective I/O: one optomotor encoder, one DNa02 yaw decoder,
+    tethered.  The daemon's whole-arena table is referenced by version + sha256 only."""
     import provenance
-    return {'graph_io': provenance.graph_io_declaration(include_config=True), 'notice': DISCLOSURE}
+    daemon = provenance.graph_io_declaration(include_config=True)
+    probes = [p for p in daemon['config']['input_probes'] if p['name'] in ASSAYS]
+    decl = {'schema': 'neurofly.cohort-graph-io.v1', 'scope': 'cohort',
+            'input_probes': probes, 'decoders': ['yaw'],
+            'encoder': world.encoder.describe(), 'decoder': world.decoder.describe(),
+            'step_ms': world.step_ms, 'io_map_sha256': world.io.sha256,
+            'tethered': {'forward_speed': 0.0}, 'engineered_assistance_enabled': False,
+            'daemon_graph_io': provenance.graph_io_declaration()}
+    decl['sha256'] = _sha256_json(decl)
+    return {'graph_io': decl, 'notice': DISCLOSURE}
 
 
 def _package_version() -> str:
@@ -324,6 +359,28 @@ def schedule_sha256(world: FlyWorld) -> str:
     return _sha256_json(world.schedule())
 
 
+def _resume_engine(engine: Optional[str], recorded: str, arrays: dict, flies: int) -> CohortEngine:
+    """Default: the RECORDED backend, matched by exact id; unavailable or unknown -> refuse
+    (nothing has been written yet).  Never a silent GPU->CPU fallback."""
+    if engine is not None:
+        return make_engine(engine, arrays, flies)
+    name = ENGINE_NAMES.get(recorded)
+    if name is None:
+        raise CohortError(f'The cohort was run on engine {recorded!r}, which this version does not know; '
+                          'refused, nothing changed. Pass --engine cpu|gpu to continue explicitly '
+                          '(a mixed-engine realisation).')
+    try:
+        eng = make_engine(name, arrays, flies)
+    except EngineUnavailable as exc:
+        raise EngineUnavailable(f'The cohort was run on {recorded} and that engine is unavailable here ({exc}); '
+                                'refused, nothing changed. To continue on another engine pass --engine '
+                                'explicitly: the cohort is then recorded as a mixed-engine numerical '
+                                'realisation, not an exact continuation.') from exc
+    if eng.backend_id != recorded:
+        raise CohortError(f'Engine {name!r} reports backend {eng.backend_id!r}, not the recorded {recorded!r}; refused')
+    return eng
+
+
 # ---------------------------------------------------------------------------
 # Cohort run / resume
 # ---------------------------------------------------------------------------
@@ -350,7 +407,7 @@ class Cohort:
                  manifest: dict, progress: Callable[[str], None]):
         self.root, self.graph, self.engine, self.worlds = Path(root), graph, engine, worlds
         self.manifest, self.progress = manifest, progress
-        self.ticks_per_step = int(round(worlds[0].step_ms / TICK_MS))
+        self.ticks_per_step = ticks_per_step(worlds[0].step_ms)
         self.outputs: List[_Output] = []
         self.parents: List[Optional[str]] = [None] * len(worlds)
         self.drive = np.zeros((engine.n_flies, engine.n), dtype=np.float32)
@@ -489,7 +546,7 @@ def _print_table(rows: List[dict], wall_s: float, n_flies: int, progress):
 
 def _steps_for(seconds: float, step_ms: float) -> int:
     n = seconds * 1000.0 / step_ms
-    if n < 1 or abs(n - round(n)) > 1e-9:
+    if not math.isfinite(n) or n < 1 or abs(n - round(n)) > 1e-9:
         raise CohortError(f'--seconds {seconds} is not a positive whole number of {step_ms} ms arena steps')
     return int(round(n))
 
@@ -498,7 +555,7 @@ def _every_steps(checkpoint_every_ms: Optional[float], step_ms: float, n_steps: 
     if checkpoint_every_ms is None:
         return max(n_steps, 1)
     k = checkpoint_every_ms / step_ms
-    if k < 1 or abs(k - round(k)) > 1e-9:
+    if not math.isfinite(k) or k < 1 or abs(k - round(k)) > 1e-9:
         raise CohortError(f'--checkpoint-every-ms {checkpoint_every_ms} must be a whole multiple of {step_ms} ms')
     return int(round(k))
 
@@ -509,6 +566,7 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
                progress: Callable[[str], None] = print, stop_after_steps: Optional[int] = None) -> List[dict]:
     root = Path(out).expanduser()
     store.refuse_legacy_path(root)
+    ticks_per_step(step_ms)                 # before any directory exists (A3)
     if root.exists() and any(root.iterdir()):
         raise CohortError(f'{root} is not empty; use "neurofly cohort resume {root}" or a new --out directory')
     if flies < 1:
@@ -532,7 +590,7 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
             'schema': COHORT_SCHEMA, 'graph_sha256': graph.graph_sha256, 'io_map_sha256': graph.io_map_sha256,
             'dynamics': DYNAMICS_ID, 'engine': eng.describe(), 'engine_backend_id': eng.backend_id,
             'payload': _payload(writer), 'writer': writer,
-            'scientific_disclosure': graph_io_disclosure(),
+            'scientific_disclosure': graph_io_disclosure(worlds[0]),
             'dynamics_signature': dynamics_signature(eng),
             'graph_identity': graph.identity, 'graph_source': graph.source, 'synthetic_graph': graph.synthetic,
             'assay': assay, 'step_ms': step_ms, 'tick_ms': TICK_MS, 'n_flies': flies, 'seed_base': seed_base,
@@ -561,7 +619,8 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
         finally:
             cohort.close_outputs()
         rows = cohort.summary(steps, wall)
-        manifest['segments'].append({'kind': 'run', 'writer': cohort.writer, 'engine': eng.backend_id, 'steps': steps, 'wall_s': wall,
+        manifest['segments'].append({'kind': 'run', 'writer': cohort.writer, 'engine': eng.backend_id,
+                                     'engine_description': eng.describe(), 'steps': steps, 'wall_s': wall,
                                      'graph_load_s': t_graph, 'setup_s': t_setup, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
         _print_table(rows, wall, flies, progress)
@@ -607,8 +666,9 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
                     raise CohortError(f'fly {fid}: checkpoint {key} {meta.get(key)!r} != {want!r}; refused')
         flies = int(manifest['n_flies'])
         step_ms = float(manifest['step_ms'])
+        ticks_per_step(step_ms)
         recorded_engine = manifest['engine_backend_id']
-        eng = make_engine(engine or ('gpu' if 'gpu' in recorded_engine else 'cpu'), graph.arrays, flies)
+        eng = _resume_engine(engine, recorded_engine, graph.arrays, flies)
         # The model the running code executes must be the one the cohort was run
         # under (code version may differ).  Checked before any restore or write.
         running = dynamics_signature(eng)
@@ -675,8 +735,15 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
             progress(f'cohort {root}: already at step {cursor} (target {manifest["target_steps"]}); nothing to do. '
                      'Pass --seconds S to continue further.')
             return []
+        # The previous segment's hardware description is kept in the segment record
+        # (rc1 manifests carried it only at top level, which is now the latest engine).
+        source_description = manifest.get('engine')
+        mixed = eng.backend_id != recorded_engine or bool(manifest.get('mixed_engines'))
         manifest['engine_backend_id'] = eng.backend_id
         manifest['engine'] = eng.describe()
+        if mixed:
+            manifest['mixed_engines'] = True
+            manifest['numerical_realisation'] = MIXED_ENGINE_NOTE
         cohort = Cohort(root, graph, eng, worlds, manifest, progress)
         cohort.parents = [last[e['fly_id']][2] for e in manifest['flies']]
         cohort.open_outputs()
@@ -694,6 +761,10 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
         manifest['segments'].append({'kind': 'resume', 'from_step': cursor, 'engine': eng.backend_id,
                                      'source_writer': lasts[0][0].get('writer'), 'target_writer': cohort.writer,
                                      'source_engine': recorded_engine, 'target_engine': eng.backend_id,
+                                     'source_engine_description': source_description,
+                                     'engine_description': eng.describe(),
+                                     'engine_choice': 'explicit' if engine else 'recorded',
+                                     'mixed_engine': eng.backend_id != recorded_engine,
                                      'steps': steps, 'wall_s': wall, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
         _print_table(rows, wall, flies, progress)
@@ -715,9 +786,19 @@ def verify_contract(engine: str = 'gpu', progress: Callable[[str], None] = print
         progress(f'FAIL  contract-available: brainlab.cohort.contract cannot be imported ({type(exc).__name__}: {exc})')
         return 1
     try:
+        if engine == 'gpu':
+            contract.gpu_factory()          # RuntimeError when CuPy/CUDA is unusable (F3)
+    except (EngineUnavailable, RuntimeError) as exc:
+        progress(f'FAIL  engine-available: {exc}. The GPU contract needs CuPy and a CUDA device; '
+                 f'"neurofly cohort verify --engine cpu" checks the CPU reference.')
+        return 1
+    try:
         results = list(contract.run_contract(engine=engine))
     except EngineUnavailable as exc:
         progress(f'FAIL  engine-available: {exc}')
+        return 1
+    except Exception as exc:
+        progress(f'FAIL  contract: {type(exc).__name__}: {exc}')
         return 1
     if not results:
         progress('FAIL  contract: no checks were run')

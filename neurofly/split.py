@@ -480,7 +480,7 @@ class QueueFull(Exception):
 
 
 class _Pending:
-    __slots__ = ("cv", "command_id", "result", "view", "done", "error", "kind")
+    __slots__ = ("cv", "command_id", "result", "view", "done", "error", "kind", "epoch", "run_id")
 
     def __init__(self):
         self.cv = threading.Condition()
@@ -490,6 +490,8 @@ class _Pending:
         self.done = False
         self.error = None
         self.kind = None
+        self.epoch = None       # connection epoch the request was sent on
+        self.run_id = None      # run id of the simulation process that queued it
 
 
 class SimLink:
@@ -510,6 +512,9 @@ class SimLink:
         self._reqs = itertools.count(1)
         self._pending: Dict[int, _Pending] = {}
         self._plock = threading.Lock()
+        # Connection epoch: bumped on every connect and disconnect.  Snapshots, status and
+        # pending requests belong to one epoch; nothing crosses into the next one.
+        self.epoch = 0
 
     def start(self) -> "SimLink":
         threading.Thread(target=self._run, daemon=True, name="NeuroFly-SimLink").start()
@@ -524,8 +529,7 @@ class SimLink:
                 sock.close()
                 time.sleep(0.25)
                 continue
-            self.sock, self.connected, self.ever_connected = sock, True, True
-            self.connects += 1
+            self._on_connect(sock)
             reason = "connection closed by the simulation process"
             try:
                 while True:
@@ -535,25 +539,41 @@ class SimLink:
                     self._on_message(*msg)
             except (OSError, ValueError) as exc:
                 reason = f"connection lost: {type(exc).__name__}: {exc}"
-            self.connected = False
-            self.down_reason, self.down_since = f"simulation process is down ({reason})", time.time()
+            self._on_disconnect(reason)
             try:
                 sock.close()
             except OSError:
                 pass
-            with self._plock:
-                pending, self._pending = list(self._pending.values()), {}
-            for p in pending:
-                with p.cv:
-                    p.error, p.done = self.down_reason, True
-                    p.cv.notify_all()
             time.sleep(0.25)
+
+    def _clear_run_state(self) -> None:
+        # Never show the previous simulation run's snapshot or status as the current one.
+        self.published, self.state, self.state_rx = None, {}, None
+
+    def _on_connect(self, sock) -> None:
+        with self._plock:
+            self.epoch += 1
+            self._clear_run_state()
+            self.sock, self.connected, self.ever_connected = sock, True, True
+            self.connects += 1
+
+    def _on_disconnect(self, reason: str) -> None:
+        with self._plock:
+            self.connected = False
+            self.epoch += 1
+            self.down_reason, self.down_since = f"simulation process is down ({reason})", time.time()
+            self._clear_run_state()
+            pending, self._pending = list(self._pending.values()), {}
+        for p in pending:
+            with p.cv:
+                p.error, p.done = self.down_reason, True
+                p.cv.notify_all()
 
     def _on_message(self, header, blob) -> None:
         kind = header.get("t")
         if kind == "snap":
             self.published = SimpleNamespace(seq=header["seq"], step=header["step"], data=blob,
-                                             wall_time=header.get("wall_time"))
+                                             wall_time=header.get("wall_time"), epoch=self.epoch)
         elif kind == "state":
             self.state, self.state_rx = header["state"], time.monotonic()
         else:
@@ -566,6 +586,7 @@ class SimLink:
             with p.cv:
                 if kind == "queued":
                     p.command_id = header.get("command_id")
+                    p.run_id = self.state.get("run_id")
                 elif kind == "result":
                     p.result, p.done = header.get("result"), True
                 elif kind == "view":
@@ -595,18 +616,21 @@ class SimLink:
     def request(self, header: Dict[str, Any], limit: Optional[int] = None) -> Optional[_Pending]:
         """Send one request; None when not connected.  With ``limit``, raises
         :class:`QueueFull` instead of exceeding that many pending requests of this kind."""
-        if not self.connected:
-            return None
         p = _Pending()
         p.kind = header.get("t")
         req = next(self._reqs)
+        # The connected check and the insert are one step under _plock, so a request can
+        # never be inserted after a disconnect's sweep and stranded (F5).
         with self._plock:
+            if not self.connected:
+                return None
             if limit is not None and sum(1 for q in self._pending.values() if q.kind == p.kind) >= limit:
                 raise QueueFull(limit)
             self._pending[req] = p
+            p.epoch, sock = self.epoch, self.sock
         try:
             with self.send_lock:
-                send_msg(self.sock, dict(header, req=req))
+                send_msg(sock, dict(header, req=req))
         except OSError:
             with self._plock:
                 self._pending.pop(req, None)
@@ -685,10 +709,11 @@ class SimProxy:
         snap = self.link.published
         if snap is None:
             return None
-        seq, cached = self._telemetry_cache
-        if seq != snap.seq:
+        # Keyed by the snapshot itself, not its seq: a restarted simulation reuses seqs.
+        source, cached = self._telemetry_cache
+        if source is not snap:
             cached = json.loads(snap.data)
-            self._telemetry_cache = (snap.seq, cached)
+            self._telemetry_cache = (snap, cached)
         return cached
 
     # -- methods the handler calls -----------------------------------------------------
@@ -785,9 +810,17 @@ class SimProxy:
                 p.cv.wait_for(lambda: p.done or p.command_id is not None, ACCEPT_WAIT_S)
             if p.done and p.result is not None:
                 return p.result
+            if p.error is not None or p.epoch != self.link.epoch:
+                # The connection dropped before a result: the command may or may not have
+                # been applied by the process that queued it.  Never reported as queued.
+                return {"status": "error", "applied": None, "action": action,
+                        "client_command_id": client_id, "command_id": p.command_id,
+                        "daemon_run_id": p.run_id,
+                        "message": f"{p.error or 'the simulation process connection was replaced'}; "
+                                   f"the command outcome is unknown, check /api/status."}
             if p.command_id is not None:
                 return {"status": "queued", "applied": False, "command_id": p.command_id, "action": action,
-                        "client_command_id": client_id, "daemon_run_id": self._get("run_id"),
+                        "client_command_id": client_id, "daemon_run_id": p.run_id,
                         "step_in_progress_s": self.step_in_progress_s(),
                         "message": "Queued: applied by the simulation process at the next step boundary"}
             reason = p.error or f"no reply from the simulation process within {ACCEPT_WAIT_S:g} s"
