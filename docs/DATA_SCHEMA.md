@@ -71,9 +71,16 @@ common header are copied verbatim from the runner:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `trial` | int | trial counter, **restarts at 1 on every daemon start** |
+| `trial` | int | session trial number: **restarts at 1 on every daemon start** and increases across assay switches |
+| `assay_trial` | int | the assay's own trial number from its saved trial clock (see "Clocks"); continues across restarts |
+| `trial_known` | bool | false when `assay_trial` is not a true ordinal because the state predates trial clocks |
+| `brain_trial` | int | the assay brain's saved count of completed trials |
+| `sim_seconds` | float | the trial clock's elapsed time when it ended, including time restored from a checkpoint |
+| `observation_segment_id` | string | the observation segment whose terminal ended the trial |
+| `observation_measured_s` | float or null | that segment's measured window (`measurement_end_rel_s` of its terminal); after a restore it can be shorter than `sim_seconds` |
+| `segment_lineage` | object or null | that segment's lineage when it started inside a restored trial (see "Clocks") |
 | `paradigm` | string | active paradigm id (`t-maze`, `heat-maze`, ...) |
-| `step` | int | simulation step at which the milestone was recorded |
+| `step` | int | daemon-session simulation step at which the milestone was recorded |
 | `metric` | float | `performance_index` / `pi` / `learning_index` from the paradigm metrics, else `0.5` |
 | `timestamp` | float | wall-clock time of the milestone |
 | `run_id`, `instance_id`, `backend` | string | controller identity of the run that produced the trial |
@@ -189,8 +196,9 @@ speed; the wall-clock deadline only decides *when* the next step runs.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `step` (top level and `timing.step`) | int | simulation steps since daemon start |
+| `step` (top level and `timing.step`) | int | simulation steps since this daemon process started |
 | `sim_time_s` | float | `step * integration_dt_s` |
+| `sim_time_scope` (top level and `timing`) | string | always `"daemon_session"`: `step` and `sim_time_s` restart from zero with every daemon process; the retained brain, world and trial clock do not (see "Clocks") |
 | `requested_speed` | float | speed the user asked for (0.1–100) |
 | `achieved_speed` | float | measured simulated seconds per wall second over the last ~2 s; 0 while paused |
 | `overloaded` | bool | achieved < 90 % of requested: this computer cannot keep up (no steps are skipped) |
@@ -203,6 +211,61 @@ SSE also sends `event: heartbeat` (`server_time`, `seq`) after 1 s without a new
 snapshot and `event: stream` (`sent`, `decimated_snapshots`, `stream_hz`) once a
 second. Delivery is latest-value-wins: intermediate snapshots are skipped, never
 queued.
+
+### Clocks (`clocks`; also in the ack, `/api/status` and checkpoint records)
+
+Three clocks, each named for what it counts. Earlier packets and recordings do
+not carry `clocks`; their values are kept as recorded.
+
+| Field | Meaning |
+| --- | --- |
+| `session` | `scope` `"daemon_session"`, `daemon_run_id`, `step`, `elapsed_s`: this daemon process's step count and simulated time (the packet's `step`/`sim_time_s`) |
+| `trial` | the active assay's trial clock, `neurofly.assay-trial-clock.v1`: `elapsed_s`, `current_trial`, `elapsed_known`, `trial_known`, `reason`, `segment_id` (the observation segment in progress when it was saved) |
+| `observation` | the measurement window: `scope` `"observation_segment"`, `segment_id`, `config_id`, `segment_elapsed_s`, `presentation_index`, `presentation_elapsed_s`, `effective_window_s`, `lineage` |
+| `graph` | graph runs only: `scope` `"retained_graph_instance"`, `instance_id`, `step` (the instance's saved step index), `elapsed_s` (its neural simulated time). Restored from the checkpoint with the brain; it is not the trial's elapsed time |
+
+The trial clock is saved with the state it belongs to: in the same atomic,
+versioned graph checkpoint as the neural and world state (`meta.trial_clock`),
+or in the modular brain JSON (`trial_clock`). A restart restores it only from
+that state; for a graph run that is the checkpoint the restore selected,
+including an older version after a damaged newest one, never the graph-run
+helper JSON. `trial_elapsed_s` and `trial` in the packet are its values.
+
+State saved before trial clocks existed restores with `elapsed_known` and
+`trial_known` false and `reason` `"checkpoint_predates_trial_clock"`; nothing
+is inferred from brain, world or session counters. The values then count only
+what was observed since that restore (`elapsed_s` is a lower bound) and are
+saved as unknown again. A trial that starts while the daemon runs (a natural
+end or `reset_trial`) makes `elapsed_known` true; an unknown trial ordinal stays
+unknown. The dashboard shows Unknown for exactly these flags.
+
+The observation window (metric-contract/1.2) is not continued: a restored
+trial starts a new segment (new `segment_id`, `presentation_id` and
+`config_id`) with a full window and fresh metric accumulators, and runs one
+more full window. Nothing is restitched. That segment carries an immutable
+`lineage` (in `clocks.observation`, `observation_lifecycle.segment_lineage`
+and the trial record): `segment_id`, `parent_segment_id` (the saved clock's
+segment; null for older saves), `reason` (`daemon_restart` or
+`assay_reactivated`), `continuation` `"new_window_not_continuing_parent"`
+(always true), `parent_observation` and `parent_observation_evidence`,
+`daemon_run_id`, `trial`, `trial_known`, `restored_trial_elapsed_s`,
+`trial_elapsed_known`, `observation_window` `"restarted"` and
+`metric_accumulators` `"not_restored"`.
+
+`parent_observation` is set only from durable records, never from the fact
+that a checkpoint was restored (a checkpoint can precede a terminal that was
+saved later): `terminal_recorded` when this process acknowledged the parent's
+durable terminal or the assay's `<paradigm>.events.jsonl` holds a record with
+that `observation_key.segment_id` (a `trial` record, which now carries the
+terminal's `observation_key` and `payload_sha256`, or an `assay_control`
+record such as a clean shutdown); otherwise `unknown`, with the evidence
+`detail` (ledger missing, unreadable, or no terminal found; the earlier
+session's recorder may still hold one; only the newest 4 MiB of the ledger is
+searched, so an older record reads as unknown). No status claims an interruption, and
+no existing terminal is changed. After a daemon restart the lineage is
+appended to that ledger as `kind` `observation_segment_restarted`. The
+dashboard shows "Trial elapsed" and, under it, "Window … · restarted after
+daemon restart".
 
 ### Path (`path`)
 
@@ -218,7 +281,9 @@ across segments. Display interpolation is not part of the data.
 | --- | --- | --- |
 | `action` | string | the command |
 | `applied` | bool | whether it took effect |
-| `applied_step`, `applied_sim_time_s` | int, float | step boundary at which it was applied |
+| `applied_step`, `applied_sim_time_s` | int, float | daemon-session step boundary at which it was applied |
+| `applied_sim_time_scope` | string | always `"daemon_session"` |
+| `clocks` | object | the clocks after the command (see "Clocks") |
 | `latency_ms` | float | request receipt to application (a queued command: includes the wait for the running step) |
 | `run_id` | string | daemon process run id |
 | `paradigm` | string | active assay after the command |
@@ -432,7 +497,9 @@ shutdown) is a registry checkpoint whose `meta.world_state` holds
 `Arena.snapshot_world()`: format `neurofly.world-state.v1`, a readable
 `summary` (fly pose and velocities, RNG states, assists) and the complete
 encoded `state` (arrays as base64 of raw bytes, large integers as strings), so
-restoring and continuing is bit-exact. Graph-run bookkeeping (curves, event
+restoring and continuing is bit-exact. `meta.trial_clock` holds the assay's
+trial clock (see "Clocks"); it is runner bookkeeping, not world state, and is
+absent in checkpoints saved before trial clocks. Graph-run bookkeeping (curves, event
 logs) is kept under `<output-dir>/graph-bookkeeping/<backend>/`, never in the
 modular brain files. `--test-synthetic-graph` runs a graph backend on a small
 synthetic graph for tests; such runs are labelled synthetic everywhere.
@@ -457,7 +524,8 @@ The adjacent `<paradigm>.events.jsonl` keeps teaching, probes and trial records.
 See `LEARNING_OBSERVATORY.md` for the learning-state schema and its scope.
 
 Global trial records now additionally include `brain_id` and `brain_trial`.
-The session-wide `trial` stays monotonic across switches for recorder compatibility.
+The session-wide `trial` stays monotonic across switches for recorder compatibility;
+`assay_trial` is the assay's own trial number from its saved trial clock.
 An unavailable scalar `metric` is null; it is never synthesized as 0.5.
 
 ## External stimulus scene phase

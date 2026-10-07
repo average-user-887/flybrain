@@ -39,7 +39,7 @@ from brainlab.graph_identity import (GraphIdentity, GraphUnavailable, active_dyn
                                      active_dynamics_version, synthetic_test_graph, verify_graph)
 from provenance import (BACKENDS, GRAPH_BACKENDS, BackendError, RunManifest, atomic_write_bytes,
                         graph_io_declaration, resolve_keep_checkpoints, restore_rng, rng_state,
-                        source_revision)
+                        source_revision, validate_trial_clock)
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_REGISTRY_ROOT = ROOT / 'outputs/registry'
@@ -206,6 +206,9 @@ class GraphInstance:
                                'SharedGraph.load_for_dynamics() (or select v1 explicitly)')
         self.step_index = 0
         self.world_state: dict = {}
+        # Per-assay trial clock (provenance.TRIAL_CLOCK_SCHEMA) owned by the runner;
+        # None when nobody supplied one.  Saved in the same NPZ as neural/world state.
+        self.trial_clock: Optional[dict] = None
         self.checkpoint_version = 0
         # Result-validity incidents of this run (append-only; written into every
         # checkpoint's meta and restored with it, so a restart cannot erase them).
@@ -307,7 +310,8 @@ class GraphInstance:
     def meta(self) -> dict:
         state = self.brain.snapshot_state()
         graph = self.shared.identity
-        return dict(format=CHECKPOINT_FORMAT, assay=self.assay, backend=self.backend,
+        clock = {} if self.trial_clock is None else {'trial_clock': validate_trial_clock(self.trial_clock)}
+        return dict(**clock, format=CHECKPOINT_FORMAT, assay=self.assay, backend=self.backend,
                     instance_id=self.instance_id, run_id=self.manifest.run_id, seed=self.seed,
                     graph_sha256=graph.graph_sha256, io_map_sha256=graph.io_map_sha256,
                     synthetic=graph.synthetic, step_index=self.step_index,
@@ -406,6 +410,9 @@ class GraphInstance:
         self.rng = restore_rng(meta['rng_state'])
         self.step_index = int(meta['step_index'])
         self.world_state = meta.get('world_state') or {}
+        # Validated by load_checkpoint_file; absent in checkpoints saved before clocks.
+        self.trial_clock = (validate_trial_clock(meta['trial_clock'])
+                            if meta.get('trial_clock') is not None else None)
         self.invalidity = list((meta.get('result_validity') or {}).get('incidents') or [])
         self.learning_state_restore = dict(
             status='reset' if learning['resets'] else 'exact',
@@ -1314,4 +1321,10 @@ def load_checkpoint_file(path: Path, expected_sha256: Optional[str] = None):
         raise IncompatibleCheckpoint(f'{path.name}: unreadable ({error})') from error
     if meta.get('format') != CHECKPOINT_FORMAT:
         raise IncompatibleCheckpoint(f'{path.name}: format {meta.get("format")!r} is not {CHECKPOINT_FORMAT}')
+    if meta.get('trial_clock') is not None:
+        try:
+            validate_trial_clock(meta['trial_clock'])
+        except ValueError as error:
+            # Same class as any other damaged field: restore falls back to an older version.
+            raise IncompatibleCheckpoint(f'{path.name}: {error}') from error
     return meta, arrays

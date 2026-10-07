@@ -590,6 +590,64 @@ function renderSandboxScorecard(arena, doc) {
     return score;
 }
 
+// Readable reasons a daemon gives for an unknown trial clock (provenance.py).
+const TRIAL_CLOCK_REASONS = {
+    checkpoint_predates_trial_clock: 'This brain was saved before trial timing was recorded.',
+};
+
+/** Text for the navbar and trial clock readouts; each names the clock it shows.
+ *  Live step/sim time count from zero in every daemon process (clocks.session); a
+ *  replay shows the recording's session clock as recorded; a graph run's own neural
+ *  time is shown separately.  Trial values read Unknown only when the packet's
+ *  trial clock says so; packets without clocks keep their values unchanged. */
+function clockReadouts(view, packet, remote, replay) {
+    const trial = remote ? packet?.clocks?.trial : null;
+    const elapsedUnknown = !!trial && trial.elapsed_known === false;
+    const trialUnknown = !!trial && trial.trial_known === false;
+    const why = trial?.reason ? (TRIAL_CLOCK_REASONS[trial.reason] || `Reason: ${trial.reason}.`) : '';
+    const g = remote ? packet?.clocks?.graph : null;
+    const graph = g && Number.isFinite(g.elapsed_s) && Number.isFinite(g.step) ? g : null;
+    const elapsed = Number(view.paradigmElapsedSec).toFixed(2) + 's';
+    const number = view.currentTrial;
+    // The measurement window is its own clock: after a restore it starts again
+    // while the trial clock continues (clocks.observation.lineage).
+    const obs = remote ? packet?.clocks?.observation : null;
+    const lineage = obs?.lineage || null;
+    const windowElapsed = Number.isFinite(obs?.segment_elapsed_s) ? obs.segment_elapsed_s.toFixed(2) + 's' : '--';
+    const restoredFrom = Number.isFinite(lineage?.restored_trial_elapsed_s)
+        ? lineage.restored_trial_elapsed_s.toFixed(2) + 's' : 'an unknown time';
+    return {
+        timeLabel: replay ? 'Recorded session time' : remote ? 'Session time' : 'Preview time',
+        stepLabel: replay ? 'Recorded session step' : remote ? 'Session step' : 'Preview step',
+        sessionTitle: replay ? 'Simulated time of the daemon session that made this recording, as recorded.'
+            : remote ? 'Simulated time since this daemon process started. It starts again from zero when '
+                + 'the daemon restarts; the saved brain, world and trial clock are not reset.'
+            : 'Time in this browser preview; no daemon is driving it.',
+        simTime: Number(view.simTime).toFixed(2) + 's',
+        step: String(view.stepCount),
+        graphVisible: !!graph,
+        graphTime: graph ? graph.elapsed_s.toFixed(2) + 's' : '--',
+        graphTitle: graph ? `Simulated time of this saved connectome brain (step ${graph.step}), carried `
+            + 'across daemon restarts. It is not the trial clock.' : '',
+        trial: trialUnknown ? 'Unknown' : '#' + number,
+        guideTrial: trialUnknown ? 'TRIAL UNKNOWN' : 'TRIAL #' + number,
+        trialTitle: trialUnknown ? `The trial number is unknown. ${why} This is trial ${number} counted since then.` : '',
+        windowVisible: !!lineage,
+        window: lineage ? `Window ${windowElapsed} · restarted after `
+            + (lineage.reason === 'daemon_restart' ? 'daemon restart' : 'assay switch') : '',
+        windowTitle: lineage ? 'The measurement window started again; it does not continue the earlier one. '
+            + (lineage.parent_observation === 'terminal_recorded'
+                ? 'The earlier measurement has a recorded end' + (lineage.parent_observation_evidence?.end_reason
+                    ? ` (${lineage.parent_observation_evidence.end_reason})` : '') + '; that record is kept. '
+                : 'Whether the earlier measurement finished is unknown: no recorded end was found. ')
+            + `Its metric values were not carried over. The trial clock continues from ${restoredFrom}, `
+            + 'so trial elapsed time can exceed the window.' : '',
+        elapsed: elapsedUnknown ? 'Unknown' : elapsed,
+        elapsedTitle: elapsedUnknown ? `The trial's elapsed time is unknown until a new trial starts. ${why} `
+            + `At least ${elapsed} have passed since the brain was restored.` : '',
+    };
+}
+
 class ScientificBioArena {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -6453,17 +6511,31 @@ class ScientificHUD {
                 +' Use Assay Tools & Levers for connected controls and measured motor responses.';
             document.querySelectorAll('#paramControlsBox input,#limbDeckPanel input,#limbDeckPanel button,[id^="btnLesion"]').forEach(e=>{e.disabled=true;e.title='Standalone preview control. Use the connected controls in Assay Tools & Levers.';});
         }
-        const simTimeEl = document.getElementById('statSimTime');
-        if (simTimeEl) simTimeEl.textContent = this.arena.simTime.toFixed(2) + 's';
-        const stepEl = document.getElementById('statStep');
-        if (stepEl) stepEl.textContent = this.arena.stepCount;
+        const clocks = clockReadouts(this.arena, this.arena.remotePacket, !!this.arena.remoteDriven,
+            !!this.daemonBridge?.replayMode);
+        const setText = (id, text, title) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+            if (title !== undefined) el.title = title;
+        };
+        setText('statSimTimeLabel', clocks.timeLabel);
+        setText('statStepLabel', clocks.stepLabel);
+        for (const id of ['statSessionClock', 'statSessionStep']) {
+            const box = document.getElementById(id);
+            if (box) box.title = clocks.sessionTitle;
+        }
+        setText('statSimTime', clocks.simTime);
+        setText('statStep', clocks.step);
+        const graphBox = document.getElementById('statGraphTimeBox');
+        if (graphBox) { graphBox.hidden = !clocks.graphVisible; graphBox.title = clocks.graphTitle; }
+        setText('statGraphTime', clocks.graphTime);
 
-        const trialEl = document.getElementById('paradigmTrial');
-        if (trialEl) trialEl.textContent = '#' + this.arena.currentTrial;
-        const guideTrialEl = document.getElementById('guideTrialBadge');
-        if (guideTrialEl) guideTrialEl.textContent = 'TRIAL #' + this.arena.currentTrial;
-        const elapsedEl = document.getElementById('paradigmElapsed');
-        if (elapsedEl) elapsedEl.textContent = this.arena.paradigmElapsedSec.toFixed(2) + 's';
+        setText('paradigmTrial', clocks.trial, clocks.trialTitle);
+        setText('guideTrialBadge', clocks.guideTrial, clocks.trialTitle);
+        setText('paradigmElapsed', clocks.elapsed, clocks.elapsedTitle);
+        const windowEl = document.getElementById('paradigmWindow');
+        if (windowEl) { windowEl.hidden = !clocks.windowVisible; windowEl.textContent = clocks.window; windowEl.title = clocks.windowTitle; }
 
         const metric = this.arena.getCanonicalMetricInfo();
         const mLabelEl = document.getElementById('paradigmMetricLabel');

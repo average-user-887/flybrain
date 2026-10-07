@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import os
 import subprocess
 import time
@@ -27,6 +28,63 @@ from neurofly.privacy import host_description, portable_path, redact_local
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST_SCHEMA = 'neurofly.run-manifest.v1'
+
+# Per-assay trial bookkeeping saved with the state it belongs to (the graph
+# checkpoint NPZ, or the modular brain JSON).  It is runner bookkeeping, not world
+# or neural state, and it is never derived from brain, world or daemon counters.
+# When a flag is false the matching number is only what this and later processes
+# observed since an origin they could not see: elapsed_s is then a lower bound on
+# the trial's true elapsed time, and current_trial is not a trial ordinal.
+# segment_id names the observation segment in progress when the clock was saved, so
+# a restored trial can name the interrupted measurement it does not continue.
+TRIAL_CLOCK_SCHEMA = 'neurofly.assay-trial-clock.v1'
+TRIAL_CLOCK_KEYS = frozenset(('schema', 'elapsed_s', 'current_trial', 'elapsed_known',
+                              'trial_known', 'reason', 'segment_id'))
+LEGACY_TRIAL_CLOCK_REASON = 'checkpoint_predates_trial_clock'
+
+
+def trial_clock(elapsed_s: float = 0.0, current_trial: int = 1, *, elapsed_known: bool = True,
+                trial_known: bool = True, reason: Optional[str] = None,
+                segment_id: Optional[str] = None) -> dict:
+    """A validated trial clock; the defaults are a fresh first trial."""
+    return validate_trial_clock(dict(schema=TRIAL_CLOCK_SCHEMA, elapsed_s=elapsed_s,
+                                     current_trial=current_trial, elapsed_known=elapsed_known,
+                                     trial_known=trial_known, reason=reason, segment_id=segment_id))
+
+
+def unknown_trial_clock(reason: str = LEGACY_TRIAL_CLOCK_REASON) -> dict:
+    """State saved without a trial clock: both the elapsed time and the ordinal are unknown."""
+    return trial_clock(elapsed_known=False, trial_known=False, reason=reason)
+
+
+def validate_trial_clock(value) -> dict:
+    """Return a validated copy, or raise ValueError.  Nothing is inferred or repaired."""
+    if not isinstance(value, dict) or value.get('schema') != TRIAL_CLOCK_SCHEMA:
+        raise ValueError('Invalid assay trial clock schema')
+    extra = set(value) - TRIAL_CLOCK_KEYS
+    missing = TRIAL_CLOCK_KEYS - set(value)
+    if extra or missing:
+        raise ValueError(f'Invalid assay trial clock fields (unexpected {sorted(extra)}, '
+                         f'missing {sorted(missing)})')
+    elapsed, number = value['elapsed_s'], value['current_trial']
+    if (isinstance(elapsed, bool) or not isinstance(elapsed, (int, float))
+            or not math.isfinite(elapsed) or elapsed < 0):
+        raise ValueError('Invalid assay trial clock elapsed_s')
+    if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+        raise ValueError('Invalid assay trial clock current_trial')
+    if any(type(value[k]) is not bool for k in ('elapsed_known', 'trial_known')):
+        raise ValueError('Invalid assay trial clock knowledge flags')
+    reason = value['reason']
+    if reason is not None and (not isinstance(reason, str) or not reason):
+        raise ValueError('Invalid assay trial clock reason')
+    if (not value['elapsed_known'] or not value['trial_known']) and not reason:
+        raise ValueError('Unknown assay trial clock requires a reason')
+    segment = value['segment_id']
+    if segment is not None and (not isinstance(segment, str) or not segment):
+        raise ValueError('Invalid assay trial clock segment_id')
+    if value['elapsed_known'] and value['trial_known'] and reason is not None:
+        raise ValueError('Known assay trial clock must not carry an unknown reason')
+    return dict(value, elapsed_s=float(elapsed))
 
 # Canonical identity of the graph-to-arena input/output method.  The serialized
 # bytes are immutable so callers cannot mutate the object after its hash is

@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from arena import Arena
+from provenance import trial_clock, unknown_trial_clock, validate_trial_clock
 
 PARADIGMS = (
     'open-arena', 't-maze', 'y-maze', 'heat-maze', 'buridan', 'visual-operant',
@@ -40,7 +41,8 @@ class ExperimentBrain:
         self.created_at = time.time()
         self.trials = 0
         self.steps = 0
-        self.elapsed = 0.0
+        # Per-assay trial clock; ``elapsed`` reads and writes its elapsed_s.
+        self.trial_clock = trial_clock()
         self.learning_enabled = True
         self.curve = []
         self.history = []
@@ -50,6 +52,14 @@ class ExperimentBrain:
         self.last_saved = None
         self._restore()
         self.arena.fly.learning_enabled = self.learning_enabled
+
+    @property
+    def elapsed(self) -> float:
+        return self.trial_clock['elapsed_s']
+
+    @elapsed.setter
+    def elapsed(self, value: float) -> None:
+        self.trial_clock['elapsed_s'] = float(value)
 
     @property
     def circuit(self):
@@ -75,6 +85,7 @@ class ExperimentBrain:
         out = dict(paradigm=self.paradigm, brain_id=self.brain_id, seed=self.seed,
                    model='modular-mushroom-body', n_kc=self.circuit.n_kc,
                    synapses=int(weights.size), trials=self.trials, steps=self.steps,
+                   trial_clock=dict(self.trial_clock),
                    learning_enabled=self.learning_enabled, restored=self.restored,
                    restore_error=self.restore_error, last_saved=self.last_saved,
                    weight_mean=float(weights.mean()), weight_std=float(weights.std()),
@@ -142,7 +153,8 @@ class ExperimentBrain:
         self.directory.mkdir(parents=True, exist_ok=True)
         data = dict(schema_version=1, paradigm=self.paradigm, brain_id=self.brain_id,
                     seed=self.seed, created_at=self.created_at, saved_at=time.time(),
-                    trials=self.trials, steps=self.steps, learning_enabled=self.learning_enabled, teaching=self.teaching,
+                    trials=self.trials, steps=self.steps, trial_clock=validate_trial_clock(self.trial_clock),
+                    learning_enabled=self.learning_enabled, teaching=self.teaching,
                     curve=self.curve[-1000:], history=self.history[-200:],
                     circuit={name: getattr(self.circuit, name).tolist() for name in ARRAYS},
                     circuit_step_count=self.circuit.step_count,
@@ -173,6 +185,9 @@ class ExperimentBrain:
             epg, goal = np.asarray(cx['epg'], dtype=float), np.asarray(cx['goal_vector'], dtype=float)
             if epg.shape != (16,) or goal.shape != (2,) or not np.isfinite(epg).all() or not np.isfinite(goal).all():
                 raise ValueError('invalid CX state')
+            # A file written before trial clocks existed keeps both values unknown.
+            clock = (validate_trial_clock(data['trial_clock']) if 'trial_clock' in data
+                     else unknown_trial_clock())
             # Validate before changing any live state. Invalid files remain untouched.
             for k, v in arrays.items():
                 getattr(self.circuit, k)[:] = v
@@ -182,6 +197,7 @@ class ExperimentBrain:
             self.arena.fly.cx.has_goal = bool(cx['has_goal'])
             for k in ('brain_id', 'created_at', 'trials', 'steps', 'learning_enabled', 'curve', 'history'):
                 setattr(self, k, data[k])
+            self.trial_clock = clock
             self.teaching = data.get('teaching')
             self.restored = True
             self.last_saved = data['saved_at']

@@ -45,7 +45,7 @@ import sys
 import threading
 import time
 import uuid
-from collections import deque
+from collections import OrderedDict, deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -82,10 +82,14 @@ from experiment_brains import ExperimentBrains, PARADIGMS
 # Controller identity (WP4).  experiment_registry / brainlab are imported only when
 # a graph backend is selected, so the modular default never touches the graph.
 from provenance import (GRAPH_BACKENDS, RunManifest, get_backend, graph_io_declaration,
-                        resolve_keep_checkpoints, source_revision)
+                        resolve_keep_checkpoints, source_revision, trial_clock,
+                        unknown_trial_clock, validate_trial_clock)
 from neurofly.privacy import redact_local
 
 DAEMON_BACKENDS = ("modular",) + tuple(GRAPH_BACKENDS)
+# Packet ``step``/``sim_time_s`` count from zero in every daemon process; they are
+# not the retained graph's or the trial's clock (see clock_status).
+SESSION_CLOCK_SCOPE = "daemon_session"
 # LIF dynamics the daemon supports.  brainlab declares more (research engines, used
 # through Brain(..., dynamics=...)); the daemon's registry, manifests and checkpoints
 # are defined for these only, so anything else is refused before any file is touched.
@@ -1337,8 +1341,16 @@ class ContinuousExperimentRunner:
         # Runtime state
         self.start_time = time.time()
         self.total_steps = 0
-        self.current_trial = 1
+        self.current_trial = 1          # active assay's trial number (its saved trial clock)
+        # Session-wide trial number of trial records: starts at 1 in every process and
+        # stays monotonic across assay switches (the learning recorder's append key).
+        self.session_trial = 1
         self.trial_sim_time = 0.0
+        # Immutable lineage of the current observation segment when it starts inside a
+        # restored trial (see _open_restored_segment); None for an ordinary segment.
+        self.segment_lineage: Optional[Dict[str, Any]] = None
+        # segment_id -> durable terminal receipt summary acknowledged in this process.
+        self._durable_terminals: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
         self.last_checkpoint_time = time.time()
         self.trial_history: List[Dict[str, Any]] = []
         self.learning_curve: List[float] = []
@@ -1438,6 +1450,8 @@ class ContinuousExperimentRunner:
             # both are ready does this return, so the switch ack names a ready instance.
             active = self.registry.active
             if active is not None and hasattr(self, "arena") and not self._state_uncertain:
+                if hasattr(self, "active_brain"):
+                    self._sync_trial_clock()
                 active.world_state = self.arena.snapshot_world()
             instance = self.registry.activate(paradigm_name, self.backend)
             # Incidents saved with this instance (from an earlier process) stay attached:
@@ -1465,14 +1479,14 @@ class ContinuousExperimentRunner:
                 source=self._source)
             manifest_path = self.output_dir / "manifests" / f"{manifest.run_id}.json"
         if hasattr(self, "active_brain") and not self._state_uncertain:
-            self.active_brain.elapsed = self.trial_sim_time
+            self._sync_trial_clock()
             # A required save: under the save policy a failure stops the run (scientific
             # mode) or degrades it with a recorded gap (exploratory).
             self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         self.manifest = manifest
         self.activation += 1
         manifest.record_event("activate", step=getattr(self, "total_steps", 0), activation=self.activation,
-                              daemon_run_id=self.run_id)
+                              daemon_run_id=self.run_id, clock_scope=SESSION_CLOCK_SCOPE)
         self.segment_id = uuid.uuid4().hex
         self.transition = {"reason": "experiment_selected", "step": self.total_steps}
         self.active_brain = brain
@@ -1481,7 +1495,10 @@ class ContinuousExperimentRunner:
             self.active_brain.learning_enabled = self.arena.fly.learning_enabled = False
         self.active_paradigm_id = paradigm_name
         self.active_paradigm_title = getattr(self.arena.paradigm, "name", "Open Arena Assay")
-        self.trial_sim_time = brain.elapsed
+        restored_from_disk = (bool(getattr(self.registry.active, "checkpoint_version", 0))
+                              if self.graph_mode else bool(brain.restored))
+        self._restore_trial_clock(brain, self.registry.active if self.graph_mode else None,
+                                  restart=self.activation == 1 and restored_from_disk)
         self.learning_curve = brain.curve
         self._path.clear()
         self._last_step_result = {}
@@ -1493,6 +1510,210 @@ class ContinuousExperimentRunner:
             # The run's provenance record is required (scientific policy), not a log line.
             self._persist("provenance", manifest.write, manifest_path, path=manifest_path)
         self.latest_telemetry = self._assemble_telemetry({})
+
+    def _restore_trial_clock(self, brain, instance=None, *, restart: bool = False,
+                             parent_evidence: Optional[dict] = None) -> None:
+        """Adopt the trial clock saved with the state that was just restored.
+
+        Graph runs use only the clock in the selected verified checkpoint (including
+        an older fallback version), never the helper brain JSON.  State saved without
+        a clock stays explicitly unknown; nothing is inferred from brain, world or
+        daemon counters.
+        """
+        if instance is None:
+            clock = validate_trial_clock(brain.trial_clock)
+        elif instance.trial_clock is not None:
+            clock = validate_trial_clock(instance.trial_clock)
+        elif instance.checkpoint_version:
+            clock = unknown_trial_clock()
+        else:
+            clock = trial_clock()              # a new instance: nothing saved yet
+        parent = clock['segment_id']
+        clock['segment_id'] = self.segment_id
+        brain.trial_clock = clock
+        if instance is not None:
+            instance.trial_clock = clock       # one record for the NPZ and the helper JSON
+        self.trial_sim_time = clock['elapsed_s']
+        self.current_trial = clock['current_trial']
+        self._open_restored_segment(parent, clock, restart=restart, parent_evidence=parent_evidence)
+
+    def _open_restored_segment(self, parent: Optional[str], clock: dict, *, restart: bool,
+                               parent_evidence: Optional[dict] = None) -> None:
+        """Give a segment that starts inside a restored trial its immutable lineage.
+
+        The observation producer starts a fresh segment and a full window; it does not
+        continue the parent's measurement.  Nothing is restitched: the parent's metric
+        accumulators are not restored, and a parent ended by a daemon restart has no
+        terminal observation, so it is recorded here as interrupted and incomplete.
+        """
+        self.segment_lineage = None
+        if not restart and (parent is None or parent == self.segment_id):
+            return
+        status, evidence = self._parent_observation_status(parent, parent_evidence)
+        lineage = {
+            "segment_id": self.segment_id,
+            "parent_segment_id": parent,
+            "reason": "daemon_restart" if restart else "assay_reactivated",
+            # Known: this segment's window does not continue the parent's measurement.
+            "continuation": "new_window_not_continuing_parent",
+            # The parent's own status, only as far as durable evidence shows it.
+            "parent_observation": status,
+            "parent_observation_evidence": evidence,
+            "daemon_run_id": self.run_id,
+            "trial": clock["current_trial"],
+            "trial_known": clock["trial_known"],
+            "restored_trial_elapsed_s": clock["elapsed_s"],
+            "trial_elapsed_known": clock["elapsed_known"],
+            "observation_window": "restarted",
+            "metric_accumulators": "not_restored",
+        }
+        self.segment_lineage = copy.deepcopy(lineage)
+        if restart:
+            # Append-only discontinuity record; it never replaces a parent terminal.
+            self._ledger("observation_segment_restarted", **lineage)
+
+    # Newest bytes of an assay ledger searched for a parent terminal.  The parent is
+    # that assay's most recent segment, so its record sits at the end; older history
+    # is not read, which bounds the work however long the ledger grows.
+    LEDGER_EVIDENCE_TAIL_BYTES = 4 * 1024 * 1024
+
+    def _assay_ledger_path(self, brain=None) -> Path:
+        brain = brain or self.active_brain
+        return Path(brain.directory) / f"{brain.paradigm}.events.jsonl"
+
+    @staticmethod
+    def _ledger_fingerprint(path: Path):
+        try:
+            st = os.stat(path)
+        except OSError:
+            return None
+        return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
+    def _scan_ledger_evidence(self, path: Path, parent: str):
+        """(status, evidence) from the newest LEDGER_EVIDENCE_TAIL_BYTES of ``path``."""
+        bound = int(self.LEDGER_EVIDENCE_TAIL_BYTES)
+        try:
+            with open(path, "rb") as fh:
+                size = os.fstat(fh.fileno()).st_size
+                start = max(0, size - bound)
+                fh.seek(start)
+                data = fh.read(size - start)
+        except FileNotFoundError:
+            return "unknown", {"source": "assay_event_ledger", "detail": "ledger missing"}
+        except OSError as exc:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"ledger unreadable ({type(exc).__name__})"}
+        lines = data.split(b"\n")
+        if start > 0:
+            lines = lines[1:]                  # the first line may start mid-record
+        needle, unreadable = parent.encode(), 0
+        for raw in reversed(lines):            # newest first
+            if needle not in raw:
+                continue
+            try:
+                record = json.loads(raw.decode("utf-8"))
+            except ValueError:                 # includes UnicodeDecodeError
+                unreadable += 1
+                continue
+            key = record.get("observation_key") if isinstance(record, dict) else None
+            if isinstance(key, dict) and key.get("segment_id") == parent:
+                return "terminal_recorded", {
+                    "source": "assay_event_ledger", "ledger_kind": record.get("kind"),
+                    "end_reason": record.get("reason"),
+                    "payload_sha256": record.get("payload_sha256")}
+        if unreadable:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"ledger unreadable ({unreadable} record(s) naming the "
+                                         "parent could not be read)"}
+        if start > 0:
+            return "unknown", {"source": "assay_event_ledger",
+                               "detail": f"no terminal for the parent in the newest {bound} bytes of "
+                                         "this assay's ledger (older records not searched)"}
+        return "unknown", {"source": "assay_event_ledger",
+                           "detail": "no terminal for the parent in this assay's ledger"}
+
+    def _prepare_parent_evidence(self, brain, parent: Optional[str]) -> Optional[dict]:
+        """Scan a target's ledger before the runner lock is taken (transition prepare)."""
+        if parent is None:
+            return None
+        path = self._assay_ledger_path(brain)
+        status, evidence = self._scan_ledger_evidence(path, parent)
+        return {"parent": parent, "path": str(path), "fingerprint": self._ledger_fingerprint(path),
+                "status": status, "evidence": evidence}
+
+    def _parent_observation_status(self, parent: Optional[str], prepared: Optional[dict] = None):
+        """(status, evidence) of a parent segment from durable records only.
+
+        ``terminal_recorded`` when this process acknowledged its durable terminal or
+        the assay's append-only event ledger holds a record keyed to it; otherwise
+        ``unknown``.  Restoring a checkpoint taken before the parent ended proves
+        nothing about it, and a missing ledger record does not prove interruption:
+        the earlier session's recorder may hold a terminal it never logged here.
+        Under the runner lock (a transition commit) this uses evidence prepared
+        outside the lock when the ledger is unchanged (one stat); any ledger read is
+        bounded by LEDGER_EVIDENCE_TAIL_BYTES.
+        """
+        if parent is None:
+            return "unknown", {"source": None, "detail": "saved state names no parent segment"}
+        receipt = self._durable_terminals.get(parent)
+        if receipt is not None:
+            return "terminal_recorded", dict(receipt, source="durable_receipt_this_process")
+        path = self._assay_ledger_path()
+        if (prepared is not None and prepared["parent"] == parent and prepared["path"] == str(path)
+                and prepared["fingerprint"] == self._ledger_fingerprint(path)):
+            return prepared["status"], copy.deepcopy(prepared["evidence"])
+        return self._scan_ledger_evidence(path, parent)
+
+    def current_segment_lineage(self) -> Optional[Dict[str, Any]]:
+        lineage = self.segment_lineage
+        if lineage is None or lineage["segment_id"] != self.segment_id:
+            return None
+        return copy.deepcopy(lineage)
+
+    def _sync_trial_clock(self, *, new_trial: bool = False, brain=None) -> None:
+        """Write the runner's trial counters into the active assay's clock record.
+
+        ``new_trial`` marks a trial that started in front of this process, so its
+        elapsed time is known from zero.  An unknown trial ordinal stays unknown.
+        """
+        clock = (brain or self.active_brain).trial_clock
+        clock['elapsed_s'] = float(self.trial_sim_time)
+        clock['current_trial'] = int(self.current_trial)
+        clock['segment_id'] = self.segment_id
+        if new_trial and not clock['elapsed_known']:
+            clock['elapsed_known'] = True
+            if clock['trial_known']:
+                clock['reason'] = None
+
+    def clock_status(self) -> Dict[str, Any]:
+        """The three clocks a display may show, each named for what it counts.
+
+        ``session`` restarts with every daemon process (the packet's ``step`` and
+        ``sim_time_s``).  ``trial`` is the active assay's saved trial clock.  ``graph``
+        is the retained graph instance's own neural step count and simulated time,
+        restored from its checkpoint; it is not the trial's elapsed time.
+        """
+        clocks: Dict[str, Any] = {
+            "session": {"scope": SESSION_CLOCK_SCOPE, "daemon_run_id": self.run_id,
+                        "step": self.total_steps, "elapsed_s": round(self.total_steps * self.dt, 5)},
+            "trial": dict(self.active_brain.trial_clock)}
+        owner = getattr(self.arena, "observation_owner", None)
+        if owner is not None and self.observation_config is not None:
+            status = owner.observation_status()
+            clocks["observation"] = {
+                "scope": "observation_segment", "segment_id": self.segment_id,
+                "config_id": status["config_id"],
+                "segment_elapsed_s": status["segment_elapsed_s"],
+                "presentation_index": status["presentation_index"],
+                "presentation_elapsed_s": status["presentation_elapsed_s"],
+                "effective_window_s": status["effective_window_s"],
+                "lineage": self.current_segment_lineage()}
+        instance = self.registry.active if self.graph_mode and self.registry is not None else None
+        sim_ms = getattr(getattr(instance, "brain", None), "sim_ms", None)
+        if instance is not None and sim_ms is not None:
+            clocks["graph"] = {"scope": "retained_graph_instance", "instance_id": instance.instance_id,
+                               "step": int(instance.step_index), "elapsed_s": round(float(sim_ms) / 1000.0, 5)}
+        return clocks
 
     def _observation_provenance(self) -> Dict[str, Any]:
         """Facts declared by the active arena/controller for metric-contract/1.2."""
@@ -1574,6 +1795,7 @@ class ContinuousExperimentRunner:
         return {
             "segment_id": self.segment_id,
             "segment_start_sim_s": self.observation_segment_start_sim_s,
+            "segment_lineage": self.current_segment_lineage(),
             "observation_available": not self._teaching_suspended,
             "teaching_clock_s": self._teaching_clock_s if self._teaching_suspended else None,
             "phase": ("teaching" if self._teaching_suspended and not waiting else
@@ -2426,6 +2648,11 @@ class ContinuousExperimentRunner:
                 and durable["observation_key"] == terminal["observation_key"]
                 and durable["payload_sha256"] == terminal["payload_sha256"]):
             terminal["durable"] = copy.deepcopy(durable)
+            self._durable_terminals[durable["observation_key"]["segment_id"]] = {
+                "end_reason": terminal["observation"].get("end_reason"),
+                "payload_sha256": durable["payload_sha256"]}
+            while len(self._durable_terminals) > 256:
+                self._durable_terminals.popitem(last=False)
             self._maybe_finish_observation_transition()
         self._publish_due = True
         return durable
@@ -2714,6 +2941,7 @@ class ContinuousExperimentRunner:
             "achieved_speed": achieved,
             "integration_dt_s": self.dt,
             "sim_time_s": round(self.total_steps * self.dt, 5),
+            "sim_time_scope": SESSION_CLOCK_SCOPE,
             "step": self.total_steps,
             "snapshot_seq": self._snapshot_seq,
             "publish_hz": self.publish_hz,
@@ -2853,6 +3081,7 @@ class ContinuousExperimentRunner:
         self.total_steps += 1
         self.active_brain.steps += 1
         self.trial_sim_time += step_dt
+        self._sync_trial_clock()
         pos = self.arena.fly.pos
         self._path.append((self.total_steps, round(float(pos.x), 4), round(float(pos.y), 4)))
 
@@ -2979,6 +3208,7 @@ class ContinuousExperimentRunner:
                     "error": f"{type(exc).__name__}: {exc}" if exc is not None else None,
                     "errno": getattr(exc, "errno", None), "step": getattr(self, "total_steps", 0),
                     "sim_time_s": round(getattr(self, "total_steps", 0) * getattr(self, "dt", 0.02), 5),
+                    "sim_time_scope": SESSION_CLOCK_SCOPE, "daemon_run_id": self.run_id,
                     "at": round(time.time(), 3),
                     "mode": "exploratory" if self.exploratory else "scientific", "gap_open": open_gap,
                     "recovered_at": None, "failures": 1}
@@ -3418,7 +3648,8 @@ class ContinuousExperimentRunner:
         detail = {
             "message": message, "type": type(exc).__name__, "phase": phase,
             "failure_class": failure_class, "step": self.total_steps,
-            "sim_time_s": round(self.total_steps * self.dt, 5), "paradigm": self.active_paradigm_id,
+            "sim_time_s": round(self.total_steps * self.dt, 5), "sim_time_scope": SESSION_CLOCK_SCOPE,
+            "paradigm": self.active_paradigm_id,
             "backend": self.backend, "instance_id": active.instance_id if active is not None else None,
             "at": round(time.time(), 3), "recover": self.HALT_RECOVERY,
             "traceback": _traceback_tail(exc)}
@@ -3519,6 +3750,10 @@ class ContinuousExperimentRunner:
         self._record_trial_milestone(step_result, reason)
         self.segment_id = uuid.uuid4().hex
         self.trial_sim_time = 0.0
+        self._sync_trial_clock(new_trial=True)
+        # Saved after the counter advanced and elapsed reset, so the completed trial
+        # count and the trial clock describe the same boundary.
+        self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
         self._path.clear()
         self._publish_due = True
 
@@ -3644,6 +3879,8 @@ class ContinuousExperimentRunner:
             "observation": self._live_observation(),
             "observation_lifecycle": self.observation_lifecycle_status(),
             "sim_time_s": round(self.total_steps * self.dt, 5),
+            "sim_time_scope": SESSION_CLOCK_SCOPE,
+            "clocks": self.clock_status(),
             "brain_id": self.active_brain.brain_id,
             "brain": self.active_brain.summary(),
             "timestamp": round(time.time(), 3),
@@ -3741,26 +3978,37 @@ class ContinuousExperimentRunner:
         self.learning_curve.append(metric_val)
         self.active_brain.trials += 1
         # Guarded (F2): a full disk degrades the run; the trial still counts in memory.
+        terminal = self._observation_terminal or {}
         self._ledger("trial", trial=self.active_brain.trials, metric=metric_val,
                      metric_name=next((k for k, _ in self.TRIAL_METRIC_KEYS if k in metrics), None),
-                     reason=reason, metrics=metrics, probe=self.active_brain.probe())
-        self._persist("brain_save", self.active_brain.save, path=self.active_brain.path)
+                     reason=reason, metrics=metrics, probe=self.active_brain.probe(),
+                     observation_key=copy.deepcopy(terminal.get("observation_key")),
+                     payload_sha256=terminal.get("payload_sha256"))
         ident = self.identity()
+        # The frozen terminal observation is the measurement's authority (the producer
+        # itself has been reset by the respawn); None when no terminal ended the trial.
+        observed = terminal.get("observation") or {}
         self.trial_history.append({
             "run_id": ident.get("run_id"),
             "instance_id": ident.get("instance_id"),
             "backend": ident.get("backend"),
             "brain_id": self.active_brain.brain_id,
             "brain_trial": self.active_brain.trials,
-            "trial": self.current_trial,
+            "trial": self.session_trial,
+            "assay_trial": self.current_trial,
+            "trial_known": self.active_brain.trial_clock["trial_known"],
             "paradigm": self.active_paradigm_id,
             "step": self.total_steps,
             "sim_seconds": round(self.trial_sim_time, 3),
+            "observation_segment_id": self.segment_id,
+            "observation_measured_s": observed.get("measurement_end_rel_s"),
+            "segment_lineage": self.current_segment_lineage(),
             "reason": reason,
             "metric": metric_val,
             "timestamp": time.time()
         })
         self.current_trial += 1
+        self.session_trial += 1
 
     def dispatch_command(self, cmd: dict) -> dict:
         """Apply an external command and acknowledge the step at which it took effect.
@@ -3947,6 +4195,7 @@ class ContinuousExperimentRunner:
                     self._observation_policy_set_at_sim_s = self.total_steps * self.dt
                 if action in ('set_learning', 'set_observation_policy', 'return_from_teaching'):
                     self.segment_id = uuid.uuid4().hex
+                    self._sync_trial_clock()       # a save below names the new segment
                     self._configure_observation_owner()
                     self.transition = {'reason': 'policy_change', 'step': self.total_steps}
                 if action == 'shutdown':
@@ -4167,7 +4416,7 @@ class ContinuousExperimentRunner:
                                 manifest_path=self.output_dir / 'manifests' / f'{manifest.run_id}.json')
             if not transaction['uncertain_before']:
                 source = transaction['source_brain']
-                source.elapsed = self.trial_sim_time
+                self._sync_trial_clock(brain=source)
                 source.save()
                 transaction.setdefault('saved_channels', []).append('brain_save')
                 if self.graph_mode and self.registry.active is not None:
@@ -4180,6 +4429,14 @@ class ContinuousExperimentRunner:
                 payload_sha256=transaction['terminal']['payload_sha256'])
             if record is None:
                 raise RuntimeError('Target preparation evidence could not be saved')
+            # The target's parent-segment evidence is read here, outside the runner lock;
+            # the commit only re-checks the ledger fingerprint.
+            if backend in GRAPH_BACKENDS:
+                target_clock = prepared['activation']['target'].trial_clock
+            else:
+                target_clock = brain.trial_clock
+            prepared['parent_evidence'] = self._prepare_parent_evidence(
+                brain, (target_clock or {}).get('segment_id'))
             return prepared
         except Exception:
             self._cancel_transition_target(prepared)
@@ -4196,6 +4453,7 @@ class ContinuousExperimentRunner:
         if plan['action'] == 'reset_trial':
             if plan['advance']:
                 self.current_trial += 1
+                self.session_trial += 1
             if not plan['keep_memory']:
                 self.arena.fly.circuit.reset_state(keep_memory=False)
             paradigm = self.arena.paradigm
@@ -4204,6 +4462,7 @@ class ContinuousExperimentRunner:
             self.arena.reset_fly_to_spawn()
             self.trial_sim_time = 0.0
             self.segment_id = uuid.uuid4().hex
+            self._sync_trial_clock(new_trial=True)
             self._path.clear()
         else:
             if prepared['activation'] is not None:
@@ -4226,12 +4485,14 @@ class ContinuousExperimentRunner:
             self.manifest = prepared['manifest']
             self.activation += 1
             self.manifest.record_event('activate', step=self.total_steps, activation=self.activation,
-                                       daemon_run_id=self.run_id)
+                                       daemon_run_id=self.run_id, clock_scope=SESSION_CLOCK_SCOPE)
             self.active_paradigm_id = plan['target']
             self.active_paradigm_title = getattr(self.arena.paradigm, 'name', 'Open Arena Assay')
-            self.trial_sim_time = self.active_brain.elapsed
-            self.learning_curve = self.active_brain.curve
             self.segment_id = uuid.uuid4().hex
+            self._restore_trial_clock(self.active_brain,
+                                      self.registry.active if self.graph_mode else None,
+                                      parent_evidence=prepared.get('parent_evidence'))
+            self.learning_curve = self.active_brain.curve
             self._path.clear()
             self._last_step_result = {}
             self._reconcile_validity(flush=False)
@@ -4750,6 +5011,8 @@ class ContinuousExperimentRunner:
                              "applied": result.get("status") == "ok",
                              "applied_step": self.total_steps,
                              "applied_sim_time_s": round(self.total_steps * self.dt, 5),
+                             "applied_sim_time_scope": SESSION_CLOCK_SCOPE,
+                             "clocks": self.clock_status(),
                              "paradigm": self.active_paradigm_id,
                              # Built after the command (for a switch: after the target's
                              # brain and world snapshots are restored).  Packets whose
@@ -4978,6 +5241,7 @@ class ContinuousExperimentRunner:
 
     def save_checkpoint(self, tag: str = "periodic") -> Path:
         """Saves current continuous synaptic weights and trial ledger to disk."""
+        self._sync_trial_clock()
         self.brains.save_all()
         # Labels are display text, never path fragments supplied by an API client.
         safe_tag = "".join(c for c in str(tag) if c.isalnum() or c in "_-")[:60] or "manual"
@@ -4999,6 +5263,8 @@ class ContinuousExperimentRunner:
             "uptime_sec": time.time() - self.start_time,
             "paradigm": self.active_paradigm_id,
             "total_steps": self.total_steps,
+            "clock_scope": SESSION_CLOCK_SCOPE,
+            "clocks": self.clock_status(),
             "trial": self.current_trial,
             "learning_curve": self.learning_curve[-100:],
             "result_validity": self.result_validity(),
@@ -5107,6 +5373,8 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             "trials_completed": len(self.runner.trial_history),
             "recording": getattr(self.runner, "recording_status", lambda: None)(),
             "trial_elapsed_s": round(float(getattr(self.runner, "trial_sim_time", 0.0)), 2),
+            # The published snapshot's clocks: this view never inspects producer state unlocked.
+            "clocks": (getattr(self.runner, "latest_telemetry", None) or {}).get("clocks"),
             "trial_length_s": getattr(self.runner, "trial_length_s", None),
             "world_bounds": list(getattr(getattr(self.runner, "arena", None), "world_bounds", ())),
             "stream": self.gateway.describe()
