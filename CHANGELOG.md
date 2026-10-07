@@ -5,10 +5,19 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-10-07
 
-Everything merged to `master` since the `v0.3.0` tag (`b6031b7`, 24 September 2026).
-Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pulls>.
+Everything merged to `master` since the `v0.3.0` tag (`b6031b7`, 24 September 2026),
+plus the release candidate `cbaa876`. Pull-request numbers refer to
+<https://github.com/average-user-887/flybrain/pulls>.
+
+**Scope of this release.** v0.4.0 is a downloadable, **experimental research
+instrument**. It does not simulate a whole fly, and it does not show that the model
+learns. Its main scientific result is negative (see Scientific results). The CPU path
+is the supported one. The AMD GPU engine is included but **experimental and
+unqualified**. Docker does not build. Features the dashboard shows but does not yet
+support are listed by ID in `docs/POST_V04_FEATURES.md` (NEXT-01 to NEXT-12).
+Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 
 ### Added
 
@@ -34,6 +43,21 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
   recordings state whether the brain ran on the CPU or GPU (#13).
 - **`neurofly full-sim`**: a multi-task lifelong run across the 14 paradigms (#7).
   Retired before release; see Removed.
+- **Optional AMD GPU engine (experimental, unqualified)**: fixed v3 dynamics only,
+  through Vulkan (`pip install ".[amd]"`, then `--brain-backend wgpu-amd`). It is
+  never chosen automatically and refuses learning, plastic controllers and other
+  dynamics. It has been tested only with small fixtures, not on a real AMD device with
+  the real graph (`docs/AMD_STATE_ADAPTER.md`).
+- **Durable observation recording**: each observation is written to an fsync'd
+  journal before it is acknowledged; a damaged journal tail is quarantined, not
+  silently dropped, and a failed write halts the run instead of losing data.
+- **Per-assay trial clock**, saved with checkpoints and restored after a restart; a
+  restart starts a new, explicitly marked measurement window. The dashboard names the
+  clock (session, trial or graph) behind each time readout.
+- Every graph instance records the compute engine it asked for and the one it got.
+- **Science Guide** in the dashboard, separating cited fly research, the engineered
+  preview and what v0.4 supports; unsupported controls point to their backlog ID.
+- The capability matrix is packaged with the installed CLI (`neurofly capability`).
 - `CITATION.cff`, this changelog, `docs/RELEASE_PLAN_v0.4.md`, `docs/OWNER_DECISIONS.md`,
   `docs/LITERATURE_BENCHMARKS.md` and `docs/LITERATURE_SCAN_2026-10-05.md`.
 
@@ -65,6 +89,14 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 ### Fixed
 
+- Dashboard truthfulness (October): stale activity from a previous assay is withheld
+  after a switch; the gait proxy waits until the displayed brain has stepped; command
+  results are matched to the dashboard's own request; a backend request stays
+  "unknown" until its own acknowledgement; a refused backend switch becomes history
+  once a rebuild is accepted; replay controls, age labels and timing tooltips follow
+  playback; the optomotor stimulus phase is kept as scene state; training export is
+  labelled as a report, not a brain checkpoint; the sandbox paradigm has one name.
+- An explicit `--graph-dir` is honoured in every controller rebuild.
 - **`neurofly record --state-dir` ends cleanly**: a normally finished run saved no
   final state and wrote no clean-shutdown marker, so the next run on the same
   directory restored an older checkpoint and reported `interrupted_unclean_shutdown`.
@@ -153,8 +185,16 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 - No connectome paradigm has a non-provisional behavioural pass. The dashboard's
   default `./start_daemon.sh` fly is the hand-built modular controller.
-- No AMD or other non-NVIDIA GPU path; those machines run on the CPU, which is slow on
-  the full graph. The connectome is not real-time on any measured host.
+- The AMD GPU engine is experimental and unqualified: no real-device, real-graph or
+  browser run has been accepted for this release. Other non-NVIDIA GPUs have no GPU
+  path. Without a GPU the CPU path is used, which is slow on the full graph. The
+  connectome is not real-time on any measured host.
+- The recording limits listed under "Known limitations" in
+  `docs/RELEASE_NOTES_v0.4.0.md` (conflicting retries halt the run; outside edits to
+  the journal force a slow full re-check; a restart starts a new measurement window).
+- Not done for this release: the final check on the Steam Deck host and a real AMD
+  device run, the exhaustive browser check of every control (110 controls), a working
+  Docker image, splitting the daemon into separate processes, and a new GPU engine.
 - The DNa02-to-walking link is an engineered decoder, not a ventral nerve cord model;
   the embodied fly moves about 1 mm/s.
 - Cross-machine reproducibility is tested only on two AMD CPUs, CPU backend, identical
@@ -169,5 +209,5 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 Tagged as `v0.3.0` (`b6031b7`); no changelog was kept before this version.
 
-[0.4.0]: https://github.com/average-user-887/flybrain/compare/v0.3.0...HEAD
+[0.4.0]: https://github.com/average-user-887/flybrain/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/average-user-887/flybrain/tree/v0.3.0

@@ -1,7 +1,22 @@
-# NeuroFly v0.4.0 — draft release notes
+# NeuroFly v0.4.0 release notes
 
-*Draft text for the GitHub Release. Links are relative to this file (`docs/`); turn
-them into absolute URLs at the release tag when pasting into the Release.*
+*Text for the GitHub Release, 7 October 2026, built from commit `cbaa876`. Links are
+relative to this file (`docs/`); turn them into absolute URLs at the release tag when
+pasting into the Release.*
+
+## In short
+
+- **This is an experimental research instrument**, offered for download so others can
+  run it, inspect it and check our results. It is not a finished product.
+- **It does not simulate a whole fly**, and it does **not** show that the model brain
+  learns. Learning controls in the dashboard are not supported in this release.
+- **The main scientific result is negative:** driven only from its photoreceptors, our
+  model of the fly's visual system does not tell which way things are moving. About
+  55 % of the first-stage visual cells (lamina) in the brain scan have no
+  photoreceptor input.
+- **Supported:** the CPU path on Linux (tested on two x86-64 machines).
+  **Included but experimental and unqualified:** the AMD GPU engine.
+  **NVIDIA GPU:** optional, tested on one card. **Docker:** does not build.
 
 ## What NeuroFly is
 
@@ -79,8 +94,21 @@ brain, simulated as published, produce the fly's behaviour?**
 - **Embodied-loop features**: seed replay, a declared DN decoder for DNp09, DNa02, MDN
   and GF, a modular baseline body controller, run queue and browser replay, cell-type
   silencing, motor delay and leg-load feedback.
+- **Recording you can trust or see fail**: observations are written to a journal on
+  disk before they are acknowledged; a damaged journal tail is set aside, not dropped;
+  a failed save stops the run and says so instead of freezing behind an "online"
+  status. Each assay keeps its own trial clock across restarts, and the dashboard names
+  which clock each time readout shows.
+- **Recordings say what wrote them**: the header names the code that ran, whether a
+  saved brain was restored and from which checkpoint, and the requested and actual
+  compute engine.
+- **A Science Guide** in the dashboard separates cited fly research, the engineered
+  preview and what this release supports. Unsupported controls name their backlog ID.
+- **Optional AMD GPU engine** (experimental, unqualified; see below).
 - **Fixes** to the live dashboard: returning to the optomotor assay after a switch
-  no longer freezes the simulation, and a step error now shows SIMULATION HALTED and can be recovered.
+  no longer freezes the simulation; a step error shows SIMULATION HALTED and can be
+  recovered; activity, gait and command results shown always belong to the brain on
+  screen; replay controls and labels follow playback.
 - `CITATION.cff`, `CHANGELOG.md`, and fuller attribution in `NOTICE`.
 
 Full list: [`CHANGELOG.md`](../CHANGELOG.md).
@@ -91,6 +119,10 @@ Follow the [README](../README.md#installation): clone over HTTPS, `pip install -
 ".[body,test]"`, then download, normalize, prepare and verify the MaleCNS data
 (about 1.1 GB, CC BY 4.0).
 
+The wheel attached to the Release (`neurofly-0.4.0-py3-none-any.whl`) contains the
+program only, no connectome data. The data download and preparation steps run from
+a source checkout, so the README route above is the one to follow.
+
 - **Any machine runs on the CPU**, NVIDIA or not. On a Steam-Deck-class AMD CPU the
   full brain runs at about 1/40 of real time with the default v3 dynamics (about 1/670
   with the experimental v4), using about 1.2 GB of RAM; the hand-built modular
@@ -98,7 +130,14 @@ Follow the [README](../README.md#installation): clone over HTTPS, `pip install -
 - **GPU acceleration needs an NVIDIA GPU with CUDA** and a GPU library (CuPy or
   numba's CUDA support) that the standard install does not provide; there is no
   tested one-line GPU install yet.
-- **There is no AMD or other non-NVIDIA GPU path** in this release.
+- **AMD GPU: present, but experimental and unqualified.** An optional engine runs the
+  default v3 model on AMD GPUs through Vulkan (`pip install -e ".[amd]"`, then
+  `neurofly run --backend connectome-fixed --dynamics v3 --brain-backend wgpu-amd`).
+  It is never selected automatically, refuses learning and other model versions, and
+  has only been tested with small test fixtures. No run on a real AMD GPU with the
+  real graph has been accepted for this release, so its results are not qualified
+  ([`AMD_STATE_ADAPTER.md`](AMD_STATE_ADAPTER.md)). Intel GPUs and Apple Silicon run
+  on the CPU.
 - **Start with `neurofly run --backend modular --host 127.0.0.1`** to see the dashboard
   without any data. The connectome backends need the prepared data, and the daemon
   listens on all interfaces unless you pass `--host`.
@@ -112,7 +151,61 @@ Follow the [README](../README.md#installation): clone over HTTPS, `pip install -
 - Most sensory input maps are declared but not verified against annotations.
 - The DNa02-to-walking link is engineered, and the embodied fly does not walk well.
 - Cross-machine reproducibility is measured only on two AMD CPUs with the CPU backend.
-- The Docker image does not build; GPU support needs a manual library install.
+- The Docker image does not build. NVIDIA GPU support needs the `gpu` extra; AMD GPU
+  support is unqualified (above).
+
+Recording and restart limits (what you may notice in a long run):
+
+- **A conflicting retry stops the run.** If an old observation is sent again with
+  different content, the recorder refuses it, keeps the earlier record unchanged and
+  halts the run. Recovery needs an explicit action; nothing restarts on its own. The
+  dashboard should then show a halted or incomplete state, never "online".
+- **Some exact retries wait.** A repeated observation the recorder no longer has in
+  memory shows as "pending" until it is checked, instead of "saved" at once. It can
+  fill the queue (`ObservationQueueFull`); nothing is dropped.
+- **Editing the journal from outside forces a full re-check**, which takes about
+  0.13 s per MB. Above about 220 MB of history one re-check may exceed the 30 s stall
+  limit. An edit that keeps the same size within the same file-timestamp tick is only
+  noticed at the next open.
+- **After a restart**, a scan of up to 4 MiB may happen while saving; this limits the
+  bytes read, not the time taken. The measurement window starts again and is marked
+  as a break; an earlier segment whose status cannot be established shows "unknown".
+- **After restoring a save**, a trial runs one extra full observation window. If a
+  graph trial ends between checkpoints, it can be counted again after a restore.
+  Trial numbers in saves from older versions stay unknown.
+- Scientific runs without a recorder halt or refuse to finish cleanly, by design.
+
+## Not supported in v0.4
+
+The dashboard shows some controls and experiments that this release does not
+support. Each is tracked in [`POST_V04_FEATURES.md`](POST_V04_FEATURES.md):
+
+- NEXT-01 connected assay controls that are preview-only (threat placement, spatial
+  stimulus editing);
+- NEXT-02 lesion and intervention tools;
+- NEXT-03 connectome learning controls (teach, reverse, probe, freeze);
+- NEXT-04 graph training history and brain export/import;
+- NEXT-05 reproducible whole-connectome experiment batteries;
+- NEXT-06 motion computation from photoreceptors, saccadic efference copy, richer
+  cell dynamics;
+- NEXT-07 working memory, place memory, operant memory, labyrinth planning;
+- NEXT-08 circadian rhythm, moving courtship partner, courtship memory;
+- NEXT-09 turbulent odor plumes and richer environments;
+- NEXT-10 biological body control, gap crossing, multisensory coordination;
+- NEXT-11 broader AMD support and performance;
+- NEXT-12 a unified research workspace and dependable distribution.
+
+## Not done for this release
+
+These were planned checks or features, deferred by the owner on 7 October 2026. The
+release makes no claim that depends on them:
+
+- the final check on the Steam Deck host and a run on a real AMD GPU;
+- the exhaustive browser check of all 110 dashboard controls (the main browser
+  checks, all 14 assays, rapid switching and two tabs, were run);
+- a working Docker image;
+- splitting the daemon into separate processes;
+- a new GPU engine.
 
 ## Data and credit
 

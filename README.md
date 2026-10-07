@@ -12,7 +12,16 @@ It is research software. **The simulated fly does not yet behave because of its 
 
 The connectome data are not ours. They come from the MaleCNS project (FlyEM at HHMI Janelia, University of Cambridge, MRC LMB and Google Research) under CC BY 4.0. See [Data and attribution](#data-and-attribution).
 
-## Current status (checked against receipts, 5 October 2026)
+## Current status (release v0.4.0, 7 October 2026; science checked against receipts on 5 October)
+
+**What v0.4.0 is.** A downloadable, **experimental research instrument**: you can run it, watch it and check our results, but it is not a finished product. It does not simulate a whole fly, and it does not show that the model brain learns. In this release:
+
+- **Supported:** the CPU path on Linux (tested on two x86-64 machines; see [What runs where](#what-runs-where)).
+- **Optional:** NVIDIA GPU acceleration (tested on one card).
+- **Present but experimental and unqualified:** the AMD GPU engine. No run on a real AMD GPU with the real graph has been accepted.
+- **Broken:** the Docker image does not build.
+- **Not supported yet:** several controls and experiments the dashboard shows, such as learning controls, lesion tools, memory and courtship experiments. Each has an ID (NEXT-01 to NEXT-12) in the [post-v0.4 backlog](docs/POST_V04_FEATURES.md).
+- **Deferred:** the final check on the Steam Deck host and a real AMD GPU run, the browser check of every one of the 110 dashboard controls, Docker, splitting the daemon into separate processes, and a new GPU engine. See the [release notes](docs/RELEASE_NOTES_v0.4.0.md) for the full list of limits.
 
 Short version: the connectome model runs, and a signal can be routed through it to a turning command, but only when the experimenter supplies the motion detection that the fly's own visual system would compute. When the model has to compute that itself from photoreceptor input, it does not. Every point below links to the file that supports it.
 
@@ -87,7 +96,7 @@ Simulated seconds per wall-clock second (1.0 = real time). The CPU kernel is the
 
 - **The CPU backend is the reference implementation, and it is what you get unless a usable CUDA GPU is found.** It has been tested on two Linux hosts: the reference NVIDIA host (AMD Ryzen 5 5600X, x86-64, Python 3.12) and the AMD test host (Steam Deck, Zen 2, x86-64, Python 3.14). Those two hosts do not prove that it runs on every PC. Intel and ARM CPUs, macOS and Windows have not been tested. It is slow on the full graph (see Performance). *(Corrected 5 October 2026: this line previously said the CPU backend "works on any machine", which went beyond the evidence.)*
 - **GPU acceleration needs an NVIDIA GPU and an NVIDIA driver for CUDA 12 or newer, plus the `gpu` extra**: `pip install -e ".[body,test,gpu]"`. The extra installs `cupy-cuda12x[ctk]` (CuPy with the CUDA 12 runtime wheels it needs: NVRTC for the v3 kernel, cuSPARSE for v4/v5) and `scipy`, about 3 GB. No CUDA toolkit is needed. A plain install without the extra runs everything on the CPU ([clean-room receipt](docs/receipts/cleanroom-install-nvidia-20261005.md), M1). Evidence for the extra so far: one fresh environment on a GTX 1660 Ti, where the v3/v4/v5 GPU tests passed (41), as recorded in the packaging commit `5b80b23`; there is no separate install receipt yet, and no other card has been tested. Do **not** install `numba-cuda`: its 0.30.x releases do not work with numpy 2.5. If a GPU library is present but its test kernel fails, the engine logs a warning and runs on the CPU (`brainlab/gpu_probe.py`). *(Corrected 5 October 2026 to match the `gpu` extra in `pyproject.toml`.)*
-- **There is no AMD (ROCm/HIP) or other non-NVIDIA GPU path.** On AMD and Intel GPUs, and on Apple Silicon, NeuroFly runs on the CPU.
+- **AMD GPUs: an optional engine is included, but it is experimental and unqualified in v0.4.** It runs only the default v3 model with fixed weights, through Vulkan: `pip install -e ".[amd]"`, then `neurofly run --backend connectome-fixed --dynamics v3 --brain-backend wgpu-amd`. It is never chosen automatically and refuses learning and other model versions. It has been tested with small fixtures only; no run on a real AMD GPU with the real graph has been accepted, so do not rely on its results ([`AMD_STATE_ADAPTER.md`](docs/AMD_STATE_ADAPTER.md)). There is no ROCm/HIP path. Intel GPUs and Apple Silicon run on the CPU.
 - **Machines with more than one NVIDIA GPU:** CUDA numbers devices fastest-first by default, which can differ from the order `nvidia-smi` shows. Set `CUDA_DEVICE_ORDER=PCI_BUS_ID` to make the numbering match `nvidia-smi`, then choose a card with `CUDA_VISIBLE_DEVICES`.
 - The project is developed and tested on Linux. macOS and Windows (via WSL2) have not been tested by the project.
 
@@ -185,7 +194,7 @@ pytest -v tests/test_wp6_plasticity.py
 ./scripts/check_private_infra.sh --tree-rev HEAD
 ```
 
-**Expect 0 failures.** The number of skips depends on your hardware and setup, because tests that need a GPU, the real graph, the physics stack or a browser skip themselves. At commit `5c54b03` the suite has 726 tests and gave: reference NVIDIA host with GPU and real graph, 717 passed and 9 skipped ([`docs/RELEASE_PLAN_v0.4.md`](docs/RELEASE_PLAN_v0.4.md) §2); the same host with the GPU hidden, 706 passed and 20 skipped; AMD test host (Steam Deck, CPU only), 707 passed and 19 skipped. The extra skips on CPU-only machines are the CUDA/CuPy tests.
+**Expect 0 failures.** The number of skips depends on your hardware and setup, because tests that need a GPU, the real graph, the physics stack or a browser skip themselves. At the v0.4.0 release candidate (`cbaa876`), on the reference host with the GPU hidden, the Python suite gave 2126 passed and 21 skipped, and the JavaScript tests (`node --test tests/*.js`) 431 passed. The skips are tests that need CUDA/CuPy, the FlyGym physics stack, selenium, the prepared real graph or retained saved brains. Earlier, at commit `5c54b03` (726 tests), the AMD test host (Steam Deck, CPU only) gave 707 passed and 19 skipped.
 
 **Real-browser check of the dashboard.** `scripts/live_ui_signoff.py` drives real Firefox against a running daemon and checks 7 scenarios (initial load, all 14 assays, rapid selection, two-tab sync, speed, pause/resume, restore). It needs `selenium` (`pip install selenium`, ideally in a separate environment) and Firefox with `geckodriver` installed as system packages. Example, against a daemon you started on port 8769:
 

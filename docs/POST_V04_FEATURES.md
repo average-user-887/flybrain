@@ -12,8 +12,8 @@ support; the [retirement index](RETIREMENT_INDEX.md) preserves historical paths.
 This backlog does not defer v0.4 defects: truthful labels, working advertised
 controls, authoritative stimulus rendering, recording and checkpoint recovery,
 saved-brain preservation, and browser acceptance remain current release gates.
-AMD support stays in the v0.4 qualification scope. No unsupported button becomes
-enabled merely because it appears here.
+AMD support stays present in v0.4, as experimental and unqualified (owner, 7 October
+2026). No unsupported button becomes enabled merely because it appears here.
 
 ## Prioritized backlog
 
