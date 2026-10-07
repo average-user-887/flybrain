@@ -194,6 +194,11 @@ class GraphInstance:
         # example out of memory) still falls back to the CPU inside Brain
         # instead of being forced onto the engine the first instance resolved.
         self.brain = Brain(arrays=self.shared.arrays, validate=False, backend=selected)
+        # Engine provenance: what was requested, what actually runs, and why
+        # (Brain's note names a set-up fallback).  Only set-up may fall back; a
+        # fault in a running brain propagates and halts, never switches engine.
+        self.compute = dict(requested=selected, actual=self.brain.backend,
+                            note=getattr(self.brain, 'backend_note', None))
         identity = self.shared.identity
         if (self.brain.dynamics == 'v3' and not identity.synthetic
                 and 'v3-modulatory-only' not in identity.dataset):
@@ -311,6 +316,7 @@ class GraphInstance:
                     rng_state=rng_state(self.rng), world_state=self.world_state,
                     graph_io=self.manifest.graph_io,
                     rule=self.rule.describe() if self.rule is not None else None,
+                    compute=dict(self.compute),
                     readout_rate=self.readout.rate if self.readout is not None else None,
                     learning_state_format='neurofly.learning-state.v1',
                     learning_state_restore=self.learning_state_restore,

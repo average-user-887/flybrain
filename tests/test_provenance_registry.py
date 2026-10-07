@@ -497,3 +497,43 @@ def test_auto_engine_is_resolved_per_instance_not_frozen_by_the_first(tmp_path, 
     registry.activate('t-maze', 'connectome-fixed')
     assert requested == ['auto', 'auto']
     assert registry.brain_backend == 'auto'
+
+
+def test_startup_gpu_setup_fallback_is_recorded_in_instance_and_checkpoint_provenance(
+        tmp_path, monkeypatch):
+    """Set-up may fall back to the CPU, but never silently: requested, actual and why."""
+    import brainlab.brain as brain_module
+    # 'auto' resolves to a GPU that then fails to set up (e.g. out of memory);
+    # explicit selections (the host-only graph validator) are left alone.
+    monkeypatch.setattr(brain_module, 'resolve_backend',
+                        lambda dynamics, backend=None: 'cuda' if backend in (None, 'auto') else backend)
+    real_setup = brain_module.Brain._setup_device
+
+    def failing_setup(self):
+        if self.backend == 'cuda':
+            raise MemoryError('out of memory allocating the graph')
+        return real_setup(self)
+    monkeypatch.setattr(brain_module.Brain, '_setup_device', failing_setup)
+    registry = make_registry(tmp_path, brain_backend='auto')
+    instance = registry.activate('buridan', 'connectome-fixed')
+    assert instance.brain.backend == 'cpu'
+    assert instance.compute['requested'] == 'auto' and instance.compute['actual'] == 'cpu'
+    assert 'GPU set-up failed' in instance.compute['note'] and 'out of memory' in instance.compute['note']
+    registry.checkpoint()
+    meta, _ = registry.read_checkpoint(instance.instance_id)
+    assert meta['compute'] == instance.compute
+
+
+def test_runtime_device_fault_propagates_and_never_switches_engine(tmp_path, monkeypatch):
+    """A fault in a running brain is not recovered by switching engines."""
+    registry = make_registry(tmp_path, brain_backend='auto')
+    instance = registry.activate('buridan', 'connectome-fixed')
+    brain, engine = instance.brain, instance.brain.backend
+
+    def device_fault(*args, **kwargs):
+        raise RuntimeError('CUDA error: an illegal memory access was encountered')
+    monkeypatch.setattr(brain, 'step', device_fault)
+    with pytest.raises(RuntimeError, match='illegal memory access'):
+        instance.step(np.zeros(instance.shared.n, dtype=np.float32), 5.0)
+    assert registry.active is instance and instance.brain is brain and brain.backend == engine
+    assert instance.compute['actual'] == engine and registry.brain_backend == 'auto'
