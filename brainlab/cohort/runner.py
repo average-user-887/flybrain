@@ -63,7 +63,8 @@ RESUME_HELP = ('Verify and continue a cohort directory: same-engine resume is by
 RESUME_DESCRIPTION = ('Verify a cohort directory and continue it. Resume on the same engine (CPU, or GPU '
                       'on the same device) is byte-identical to an uninterrupted run. CPU<->GPU '
                       'continuation is NOT exact: it is verified only within the preregistered contract '
-                      'bounds (g relative error <= 4.5e-7, 0 spike mismatches over ticks 100-199).')
+                      'bounds (g relative error <= 1e-6 (preregistered), 0 spike mismatches over ticks '
+                      '100-199); observed max g relative error about 4.53e-7.')
 
 
 class CohortError(RuntimeError):

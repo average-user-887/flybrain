@@ -19,8 +19,8 @@ is now only about 1.1–1.4× faster than the CPU (see Scientific results). Deta
   independent fixed-weight v3 brains share one read-only graph, each with its own seed,
   arena, encoder and decoder. The only assay is optomotor. Resume on the same GPU engine
   is byte-identical. CPU↔GPU continuation is not bit-identical; it is verified only
-  within the contract bounds (g relative error ≤ 4.5e-7, 0 spike mismatches over
-  ticks 100–199). The CPU engine is the reference; `--engine gpu`
+  within the preregistered contract bounds (g relative error ≤ 1e-6, 0 spike
+  mismatches over ticks 100–199); the observed max g relative error was about 4.53e-7. The CPU engine is the reference; `--engine gpu`
   (CUDA/CuPy) is optional.
 - **Opt-in two-process mode:** `neurofly run --split` runs the simulation and the web
   server as separate processes, and `neurofly sim-serve` and `neurofly web-serve` start

@@ -128,7 +128,9 @@ def test_resume_help_states_same_engine_exact_and_cross_engine_bounded(capsys):
     text = ' '.join(capsys.readouterr().out.split())
     assert 'Resume on the same engine (CPU, or GPU on the same device) is byte-identical' in text
     assert 'CPU<->GPU continuation is NOT exact' in text
-    assert 'g relative error <= 4.5e-7, 0 spike mismatches over ticks 100-199' in text
+    assert 'g relative error <= 1e-6 (preregistered), 0 spike mismatches over ticks 100-199' in text
+    assert 'observed max g relative error about 4.53e-7' in text
+    assert '<= 4.5e-7' not in text
     with pytest.raises(SystemExit):
         main(['--help'])
     listing = ' '.join(capsys.readouterr().out.split())

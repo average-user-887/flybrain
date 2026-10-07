@@ -37,8 +37,9 @@ neurofly cohort verify [--engine cpu|gpu]
 - `resume` verifies a cohort directory and continues it.
   - **Same GPU engine:** the continuation is byte-identical to an uninterrupted run.
   - **CPU↔GPU continuation is not bit-identical.** It is verified only within the
-    contract's stated bounds: g relative error ≤ 4.5e-7 and 0 spike mismatches in the
-    tick 100–199 window after the switch.
+    contract's preregistered bounds: g relative error ≤ 1e-6 and 0 spike mismatches in
+    the tick 100–199 window after the switch. The observed max g relative error was
+    about 4.53e-7.
 - `verify` runs the preregistered CPU/GPU numerical contract
   (`brainlab/cohort/cohort_contract.json`).
 - `--engine gpu` needs an NVIDIA GPU with CuPy. The CPU engine is the reference.
@@ -131,9 +132,9 @@ stimulus, seeds, window, tolerances and predicates are unchanged.
 
 ### Checks that pass (this candidate)
 
-- Cross-engine restore works in both directions within the contract bounds: max g
-  relative error 4.5e-7 and 0 spike mismatches over ticks 100–199. It is not
-  bit-identical.
+- Cross-engine restore works in both directions within the preregistered bounds (g
+  relative error ≤ 1e-6, 0 spike mismatches over ticks 100–199). Observed max g relative
+  error about 4.53e-7. It is not bit-identical.
 - Results do not depend on batch size: with B = 1, 8 and 32, all 32 flies are
   byte-identical.
 - Flies are isolated from each other.
