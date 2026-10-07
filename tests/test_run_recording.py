@@ -97,25 +97,27 @@ def test_header_restored_reports_the_graph_checkpoint_restore(tmp_path):
     assert fresh["graph_step_index"] == 0
 
     learned = tmp_path / "learned"
+    # Checkpoint v1 at step 10; the clean exit saves v2 at the final step 11.
     record_run(out=tmp_path / "learn", steps=11, state_dir=learned,
                schedule=[{"step": 10, "cmd": {"action": "save_checkpoint"}}], **kw)
     assert (learned / "graph-bookkeeping").is_dir()
     # Registry only: exactly the state layout of the defect report.
+    (registry,) = list(learned.glob("registry*"))
     registry_only = tmp_path / "registry-only"
-    shutil.copytree(learned / "registry-v3", registry_only / "registry-v3")
+    shutil.copytree(registry, registry_only / registry.name)
     assert not (registry_only / "graph-bookkeeping").exists()
-    before = _restore_events(registry_only / "registry-v3")
+    before = _restore_events(registry_only / registry.name)
     state = _initial_state(record_run(out=tmp_path / "continued", steps=2, state_dir=registry_only, **kw)["path"])
-    restores = _restore_events(registry_only / "registry-v3")[len(before):]
-    assert [(e["version"], e["step"]) for e in restores] == [(1, 10)]
-    assert state["graph_step_index"] == 10
+    restores = _restore_events(registry_only / registry.name)[len(before):]
+    assert [(e["version"], e["step"]) for e in restores] == [(2, 11)]
+    assert state["graph_step_index"] == 11
     assert state["restored"] is True
-    assert state["restore_source"] == dict(kind="graph_checkpoint", checkpoint_version=1, step_index=10,
+    assert state["restore_source"] == dict(kind="graph_checkpoint", checkpoint_version=2, step_index=11,
                                            fallback=False)
 
     # With the bookkeeping file present the answer is the same (it never decided it).
     full = _initial_state(record_run(out=tmp_path / "continued-full", steps=2, state_dir=learned, **kw)["path"])
-    assert full["restored"] is True and full["restore_source"]["step_index"] == 10
+    assert full["restored"] is True and full["restore_source"]["step_index"] == 11
 
 
 def test_header_restored_for_modular_brain_file(tmp_path):
@@ -127,7 +129,81 @@ def test_header_restored_for_modular_brain_file(tmp_path):
     assert (state_dir / "brains" / "t-maze.json").is_file()
     again = _initial_state(record_run(paradigm="t-maze", out=tmp_path / "b", steps=2, state_dir=state_dir)["path"])
     assert again["restored"] is True and again["restore_source"] == {"kind": "modular_brain_file"}
-    assert again["brain_steps"] == 2
+    assert again["brain_steps"] == 3          # the clean exit saved the brain at its final step
+
+
+def test_writer_identity_is_the_running_code_not_the_parent_origin(tmp_path):
+    """A continuation keeps its parent's code origin and names its own writer.
+
+    The saved run's manifest is given an older origin (as if written by other
+    code); the continuation must keep it verbatim as ``code`` and hash the files
+    this interpreter actually imported as ``writer``.
+    """
+    kw = dict(paradigm="t-maze", backend="connectome-fixed", test_synthetic_graph=True)
+    state = tmp_path / "state"
+    record_run(out=tmp_path / "learn", steps=4, state_dir=state,
+               schedule=[{"step": 3, "cmd": {"action": "save_checkpoint"}}], **kw)
+    manifests = sorted(state.glob("registry*/**/manifest.json"))
+    assert len(manifests) == 1
+    data = json.loads(manifests[0].read_text())
+    origin = dict(data["source"], commit="0" * 40, dirty=False,
+                  file_sha256={name: "1" * 64 for name in data["source"]["file_sha256"]})
+    data["source"] = origin
+    manifests[0].write_text(json.dumps(data))
+    prov = read_recording(record_run(out=tmp_path / "cont", steps=2, state_dir=state, **kw)["path"],
+                          require_finished=False)["header"]["provenance"]
+    assert prov["initial_state"]["restored"] is True
+    assert prov["code_scope"] == "run_manifest_origin"
+    assert prov["code"] == {k: v for k, v in origin.items() if k != "root"}
+    writer = prov["writer"]
+    assert writer["role"] == "executing_writer"
+    for name in ("neurofly.recording", "neurofly_daemon", "experiment_registry", "provenance"):
+        assert writer["loaded_module_sha256"][name] == sha(sys.modules[name].__file__)
+    assert "1" * 64 not in json.dumps(writer) and writer.get("commit") != "0" * 40
+
+
+def test_writer_identity_hashes_an_installed_distribution(tmp_path, monkeypatch):
+    import base64
+    import importlib.metadata
+    import provenance
+
+    def record_hash(path):
+        return "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(Path(path).read_bytes()).digest()
+                                                    ).rstrip(b"=").decode()
+
+    rows = [f"neurofly/recording.py,{record_hash(ROOT / 'neurofly/recording.py')},1",
+            f"provenance.py,{record_hash(ROOT / 'provenance.py')},1",
+            "experiment_registry.py,sha256=AAAA,1",               # not what is on disk
+            "../../../bin/neurofly,sha256=BBBB,1",                 # outside site-packages: ignored
+            "neurofly-0.3.0.dist-info/RECORD,,"]
+
+    class FakeDist:
+        version = "9.9.9"
+        metadata = {"Name": "neurofly"}
+
+        def read_text(self, name):
+            return "\n".join(rows) + "\n" if name == "RECORD" else None
+
+        def locate_file(self, rel):
+            return ROOT / rel
+
+    monkeypatch.setattr(importlib.metadata, "distribution", lambda name: FakeDist())
+    writer = provenance.running_code_identity()
+    files = {"neurofly/recording.py": sha(ROOT / "neurofly/recording.py"),
+             "provenance.py": sha(ROOT / "provenance.py"),
+             "experiment_registry.py": sha(ROOT / "experiment_registry.py")}
+    digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+    assert writer["kind"] == "installed_distribution" and writer["version"] == "9.9.9"
+    assert writer["files"] == 3 and writer["files_sha256"] == digest
+    assert writer["ident"] == f"neurofly-9.9.9+files:{digest}"
+    assert writer["record_mismatches"] == ["experiment_registry.py"]
+
+    class Elsewhere(FakeDist):
+        def locate_file(self, rel):
+            return tmp_path / rel                                  # not the imported code
+
+    monkeypatch.setattr(importlib.metadata, "distribution", lambda name: Elsewhere())
+    assert provenance.running_code_identity()["kind"] == "source_tree"
 
 
 def test_record_cli_defaults_to_v3_dynamics(tmp_path, monkeypatch):

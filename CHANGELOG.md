@@ -65,6 +65,18 @@ Pull-request numbers refer to <https://github.com/average-user-887/flybrain/pull
 
 ### Fixed
 
+- **`neurofly record --state-dir` ends cleanly**: a normally finished run saved no
+  final state and wrote no clean-shutdown marker, so the next run on the same
+  directory restored an older checkpoint and reported `interrupted_unclean_shutdown`.
+  It now runs the daemon's shutdown transaction (final checkpoint, then
+  `session_end`); a failed final save leaves the run incomplete and the last good
+  checkpoint current, and a killed process is still reported as unclean.
+- **Recording header names the code that wrote it**: `provenance.code` is the run's
+  origin from the run manifest, so a recording continuing saved state showed the
+  parent's source hashes as if they identified the writer. It is kept unchanged and
+  labelled by `provenance.code_scope`; the new `provenance.writer` hashes the code
+  actually running (the installed distribution's RECORD-listed files, or git in a
+  checkout, plus the loaded module files).
 - **Recording header `initial_state.restored` on graph backends**: it read the runner's
   graph-bookkeeping file, so a recording continuing a checkpointed graph instance
   (for example a migrated linked child, which has no bookkeeping file) said

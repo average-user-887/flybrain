@@ -23,6 +23,20 @@ header records it as `provenance.lif_dynamics`. `--state-dir` continues a saved 
 paradigm's naive brain in a temporary directory, so two identical commands give
 the same file.
 
+With `--state-dir`, a run that finishes normally ends like a daemon shutdown: after
+the recording is closed it saves the final state (a new checkpoint version; earlier
+versions are kept) and then writes the clean `session_end` marker to
+`run_validity.jsonl`, so the next run continues from the last recorded step. The
+command's JSON summary reports this as `shutdown` (`clean`, `steps_run`,
+`graph_step_index` at exit, `graph_checkpoint` with the saved final version and step
+or `null` when nothing was saved, `error`); without `--state-dir` it is `null`. When the final save fails or is refused (for example a halted
+controller), no marker is written, the run is `incomplete` (exit 1) and the last
+good checkpoint stays current; the next run restores it and reports
+`interrupted_unclean_shutdown`, as it does after a killed process. Before
+October 2026 the command saved nothing at exit, so every continuation of a state
+directory reported `interrupted_unclean_shutdown` and lost the steps after the last
+checkpoint.
+
 From the running daemon: start it with `--record NAME` (records from the first
 step), or send `{"action": "record_start", "name": "NAME"}` and
 `{"action": "record_stop"}` to `POST /api/command`. Files land in
@@ -64,9 +78,37 @@ Only commands that were accepted and can change the simulation are logged
 `test_mode`, `graph` (graph, neuron map and IO map SHA-256, neuron and edge
 counts; host paths removed), `dynamics` (the run manifest's model description),
 `code` (git commit, dirty flag, SHA-256 of the backend's source files),
+`code_scope`, `writer` (both below),
 `software` (Python and NumPy versions), `params` (`dt_s`, `graph_step_ms`,
 `trial_length_s`, `continuous`, `motor_assists`), `initial_state` (see below)
 and `inputs` (the step schedule given to `neurofly record`).
+
+### Code origin and executing writer
+
+`code` is the **origin** of the run: the code identity stored in the run manifest
+when the run, or the saved instance it continues, was created. A recording that
+continues saved state therefore shows the parent's code here, even when newer code
+wrote the file; it is never rewritten. `code_scope` says which it is:
+`run_manifest_origin`, or `running_runner_source` when the runner had no manifest
+source. Files written before October 2026 have no `code_scope`; their `code` has the
+same origin meaning.
+
+`writer` (added October 2026) identifies the code that wrote **this file**, hashed
+when the header is written:
+
+- `role`: `executing_writer`.
+- `loaded_module_sha256`: SHA-256 of the files the interpreter actually imported
+  for the recorder, daemon runner, registry, provenance, brains, arena and graph
+  engine (modules that were not loaded are absent).
+- `kind` `installed_distribution` (the imported code is the installed `neurofly`
+  package): `distribution`, `version`, `files` (count), `files_sha256` (SHA-256 of
+  the sorted JSON map of every RECORD-listed file inside site-packages, hashed from
+  disk, without pip's per-install `INSTALLER`, `REQUESTED`, `direct_url.json`,
+  `RECORD`), `ident` (`name-version+files:files_sha256`, independent of the venv),
+  and `record_mismatches` (files whose bytes differ from RECORD; empty when intact).
+  Git is not needed.
+- `kind` `source_tree` (running from a checkout): `version`, `commit` and `dirty`
+  from git (null without git).
 
 ### `provenance.initial_state`
 

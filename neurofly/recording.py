@@ -684,8 +684,13 @@ class RunRecorder:
         graph = dict((manifest.graph or {}) if manifest is not None else {})
         for key in ("graph_path", "neuron_map_path", "root"):   # host paths, not identity
             graph.pop(key, None)
-        source = dict(getattr(manifest, "source", None) or getattr(runner, "_source", {}) or {})
+        # ``code`` is the origin recorded in the run manifest when the run (or the
+        # instance it continues) was created; it is never rewritten.  The code that
+        # writes this file is ``writer`` (running_code_identity), hashed now.
+        manifest_source = getattr(manifest, "source", None)
+        source = dict(manifest_source or getattr(runner, "_source", {}) or {})
         source.pop("root", None)
+        code_scope = "run_manifest_origin" if manifest_source else "running_runner_source"
         brain = getattr(runner, "active_brain", None)
         instance = getattr(getattr(runner, "registry", None), "active", None)
         initial_state = dict(brain_steps=int(getattr(brain, "steps", 0) or 0))
@@ -713,6 +718,8 @@ class RunRecorder:
             graph=graph or None,
             dynamics=getattr(manifest, "dynamics", {}) if manifest is not None else {},
             code=source,
+            code_scope=code_scope,
+            writer=_running_code_identity(),
             software=dict(python=platform.python_version(), numpy=np.__version__),
             params=dict(dt_s=runner.dt, graph_step_ms=getattr(runner, "graph_step_ms", None),
                         trial_length_s=runner.trial_length_s, continuous=runner.continuous,
@@ -1236,6 +1243,34 @@ def list_recordings(directory) -> List[dict]:
 # ---------------------------------------------------------------------------
 # Batch recording: run a paradigm headless (as fast as it computes) and record it
 # ---------------------------------------------------------------------------
+def _running_code_identity() -> dict:
+    from provenance import running_code_identity   # top-level module of the same distribution
+    return running_code_identity()
+
+
+def _shutdown_state_dir(runner) -> dict:
+    """Run the runner's own shutdown transaction (final save, then session_end).
+
+    The lifecycle transaction needs a durable observation recorder; the standalone
+    one the scheduled-input API uses is attached here, after the recording is
+    closed, so it cannot change recorded frames.
+    """
+    error = None
+    try:
+        runner._ensure_scheduled_records()
+        clean = bool(runner.stop())
+    except Exception as exc:  # noqa: BLE001 -- reported; no clean marker was written
+        clean, error = False, f"{type(exc).__name__}: {exc}"
+    active = getattr(getattr(runner, "registry", None), "active", None)
+    step = int(getattr(active, "step_index", 0) or 0) if active is not None else None
+    # Only a clean shutdown saved the final state; after a failure the current
+    # checkpoint is the older last good one, whose step this runner does not hold.
+    final = (dict(checkpoint_version=int(getattr(active, "checkpoint_version", 0) or 0), step_index=step)
+             if clean and active is not None else None)
+    return dict(clean=clean, steps_run=int(runner.total_steps), graph_step_index=step, graph_checkpoint=final,
+                error=error or (None if clean else runner.last_error or "shutdown was refused or failed"))
+
+
 def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", record_every: int = 1,
                raster: str = "io", schedule: Optional[List[dict]] = None, state_dir=None,
                test_synthetic_graph: bool = False, graph_dir=None, graph_step_ms: Optional[float] = None,
@@ -1245,7 +1280,8 @@ def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", reco
 
     ``state_dir`` defaults to a new temporary directory, so the run starts from the
     paradigm's naive brain; pass a directory to continue a saved brain (the header
-    then records ``initial_state.restored``).  ``schedule`` is a list of
+    then records ``initial_state.restored``; a normal finish saves the final state and
+    writes the clean shutdown marker, see docs/RECORDING_FORMAT.md).  ``schedule`` is a list of
     ``{"step": n, "cmd": {...}}`` applied exactly at step ``n`` (the recorded inputs).
     ``dynamics`` sets the process-wide LIF dynamics (``NEUROFLY_LIF_DYNAMICS``) for
     graph backends, as the daemon's ``--dynamics`` does; None keeps the environment.
@@ -1291,6 +1327,13 @@ def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", reco
                           f"{runner.total_steps * runner.dt / wall:.3f}x real time", flush=True)
             with runner.lock:
                 summary = runner.stop_recording() if runner.recorder is not None else None
+            # A continued state directory ends like a daemon: the shutdown transaction
+            # saves the final state and only then writes the clean session_end marker.
+            # Without it the next run would restart from an older checkpoint and
+            # (rightly) report the unsaved steps as an unclean shutdown.  A failed or
+            # refused shutdown (halted controller, failed save) writes no marker, so
+            # it stays flagged; an exception above skips this entirely (crash path).
+            shutdown = _shutdown_state_dir(runner) if state_dir else None
         finally:
             runner._close_scheduled_records()
         if summary is None:
@@ -1304,8 +1347,10 @@ def record_run(*, paradigm: str, out, steps: int, backend: str = "modular", reco
         summary["error"] = runner.last_error or (summary.get("recording_error") or {}).get("error")
         summary["steps_requested"] = int(steps)
         summary["result_validity"] = validity
+        summary["shutdown"] = shutdown
         summary["status"] = ("invalid" if summary.get("recording_error") else
-                             "incomplete" if (runner.last_error or validity.get("state") == "incomplete")
+                             "incomplete" if (runner.last_error or validity.get("state") == "incomplete"
+                                              or (shutdown is not None and not shutdown["clean"]))
                              else "complete")
         return summary
 
