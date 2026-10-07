@@ -885,7 +885,14 @@ class RunRecorder:
                         _writer_publications.pop(self._publication_key, None)
 
     def abort(self, reason: str, *, defer_cleanup: bool = False) -> None:
-        """Revoke immediately in memory; all cleanup is asynchronous, at most once."""
+        """Revoke immediately in memory; all cleanup is asynchronous, at most once.
+
+        ``defer_cleanup`` marks callers that hold a runner lock or a pending control
+        transaction (and projection-failure handlers); it does not change what runs.
+        For both values abort() never waits on I/O, closes the handles and withdraws
+        any published result on one background thread, and never deletes the hidden
+        .partial file or its rows, which stay on disk as evidence.
+        """
         with self._completion_lock:
             if self.closed:
                 return
