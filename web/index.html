@@ -1161,8 +1161,9 @@
                     <span class="badge" id="daemonAddress" style="font-weight:600; color:#94a3b8; border:1px solid #334155;" title="Which daemon this page is connected to. Choose one with ?daemon=http://host:port">no daemon</span>
                 </div>
                 <div class="navbar-stats">
-                    <span>Sim Time: <b id="statSimTime">0.00s</b></span>
-                    <span>Step: <b id="statStep">0</b></span>
+                    <span id="statSessionClock" title="Time in this browser preview; no daemon is driving it."><span id="statSimTimeLabel">Preview time</span>: <b id="statSimTime">0.00s</b></span>
+                    <span id="statSessionStep" title="Time in this browser preview; no daemon is driving it."><span id="statStepLabel">Preview step</span>: <b id="statStep">0</b></span>
+                    <span id="statGraphTimeBox" hidden>Brain time: <b id="statGraphTime">--</b></span>
                     <span>FPS: <b id="statFps" style="color:#4ade80;">60</b></span>
                     <span>Requested: <b id="statSpeed">1.0x</b></span>
                     <span title="Simulation speed the daemon actually achieved (measured), versus the requested speed">Achieved: <b id="statAchieved">--</b></span>
