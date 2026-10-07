@@ -4483,33 +4483,58 @@ class DaemonBridgeClient {
         if (!Array.isArray(acks)) return;
         for (const ack of acks) {
             if (!ack?.command_id || !['ok', 'error'].includes(ack.status)) continue;
-            this.commandAckCache.set(ack.command_id, ack);
+            for (const key of [ack.command_id, ack.client_command_id].filter(Boolean)) this.commandAckCache.set(key, ack);
             while (this.commandAckCache.size > 50) this.commandAckCache.delete(this.commandAckCache.keys().next().value);
-            const pending = this.pendingCommands.get(ack.command_id);
+            const pending = this.pendingCommands.get(ack.command_id)
+                || (ack.client_command_id ? this.pendingCommands.get(ack.client_command_id) : null);
             if (pending) pending.resolve(ack);
             this.hud?.backendCommandAck?.(ack);
         }
     }
 
     /** Wait for a final acknowledgement; queued is never an applied result. */
-    awaitCommandAck(commandId) {
-        if (this.commandAckCache.has(commandId)) {
-            const ack = this.commandAckCache.get(commandId);
-            this.commandAckCache.delete(commandId);
-            return Promise.resolve(ack);
+    awaitCommandAck(commandId, clientCommandId = null) {
+        const keys = [commandId, clientCommandId].filter(Boolean);
+        const cached = keys.map(key => this.commandAckCache.get(key)).find(Boolean);
+        if (cached) {
+            for (const key of keys) this.commandAckCache.delete(key);
+            return Promise.resolve(cached);
         }
         return new Promise((resolve) => {
             const done = (value) => {
                 clearTimeout(timer);
-                this.pendingCommands.delete(commandId);
-                this.commandAckCache.delete(commandId);
+                for (const key of keys) { this.pendingCommands.delete(key); this.commandAckCache.delete(key); }
                 resolve(value);
             };
-            const timer = setTimeout(() => done({status: 'error', command_id: commandId, timed_out: true,
+            const timer = setTimeout(() => done({status: 'error', command_id: commandId, client_command_id: clientCommandId,
+                timed_out: true,
                 message: 'Timed out waiting for the final acknowledgement; the command outcome is unknown.'}),
                 this.commandAckTimeoutMs);
-            this.pendingCommands.set(commandId, {resolve: done});
+            for (const key of keys) this.pendingCommands.set(key, {resolve: done});
         });
+    }
+
+    /** A request id the daemon echoes on its reply and final acknowledgement. */
+    newClientCommandId() {
+        return `nf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    /** Read-only: the daemon's record of one request (acknowledged/pending/queued/applying/unknown). */
+    async lookupCommandAck(clientCommandId) {
+        if (!this.connected || !this.activeUrl || !clientCommandId) return null;
+        try {
+            const res = await fetch(`${this.activeUrl}/api/command_ack?client_command_id=${encodeURIComponent(clientCommandId)}`,
+                {method: 'GET', signal: AbortSignal.timeout(2000)});
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) { return null; }
+    }
+
+    /** A later reply for an older activation never replaces a newer acknowledgement. */
+    static newerAck(previous, next) {
+        const a = previous?.identity, b = next?.identity;
+        if (!a || !b || a.daemon_run_id !== b.daemon_run_id) return true;
+        return !(Number.isInteger(a.activation) && Number.isInteger(b.activation)) || b.activation >= a.activation;
     }
 
     acceptsHeartbeatOwner(beat) {
@@ -5018,15 +5043,16 @@ class DaemonBridgeClient {
         if (label) label.textContent = `${action.replaceAll('_', ' ')} queued: applied when the current simulation step finishes`;
     }
 
-    async sendCommand(action, params = {}, onQueued = null) {
+    async sendCommand(action, params = {}, onQueued = null, options = {}) {
         if (!this.connected || !this.activeUrl || this.readOnly) return null;
         const switching = ['switch_paradigm', 'switch_backend'].includes(action);
+        const clientCommandId = options.clientCommandId || this.newClientCommandId();
         if (switching) this.switchPending = true;
         try {
             const res = await fetch(`${this.activeUrl}/api/command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, params }),
+                body: JSON.stringify({ action, params, client_command_id: clientCommandId }),
                 signal: AbortSignal.timeout(2000)
             });
             if (res.status === 403) {
@@ -5045,21 +5071,27 @@ class DaemonBridgeClient {
                 if (data.status === 'queued' && data.command_id) {
                     if (onQueued) onQueued(data);
                     else this.commandQueuedNotice(action);
-                    data = await this.awaitCommandAck(data.command_id);
+                    data = await this.awaitCommandAck(data.command_id, clientCommandId);
                 }
                 if(data.status==='error') console.warn('[DaemonBridge] Command rejected:',data.message);
                 // The daemon acknowledges the step at which the command took effect.
                 if (data.ack) this.lastAck = {...data.ack, action};
                 // A switch is acknowledged only after the target's brain and world are
-                // ready; from now on older-identity packets are rejected.
-                if (switching && data.status === 'ok' && data.ack?.applied === true && data.ack?.identity) this.lastSwitchAck = data.ack;
-                if (action === 'switch_backend' && data.ack?.identity) this.lastBackendAck = data.ack;
+                // ready; from now on older-identity packets are rejected.  A late reply
+                // for an older activation never replaces a newer acknowledgement.
+                if (switching && data.status === 'ok' && data.ack?.applied === true && data.ack?.identity
+                        && DaemonBridgeClient.newerAck(this.lastSwitchAck, data.ack)) this.lastSwitchAck = data.ack;
+                if (action === 'switch_backend' && data.ack?.identity
+                        && DaemonBridgeClient.newerAck(this.lastBackendAck, data.ack)) this.lastBackendAck = data.ack;
                 return data;
             }
         } catch (e) {
             console.warn('[DaemonBridge] sendCommand error:', e);
-            return {status:'error', timed_out:['TimeoutError', 'AbortError'].includes(e?.name),
-                message:['TimeoutError', 'AbortError'].includes(e?.name)
+            const timedOut = ['TimeoutError', 'AbortError'].includes(e?.name);
+            // No reply means no daemon command id: the request id lets the outcome be
+            // matched later from the stream or GET /api/command_ack.
+            return {status:'error', timed_out:timedOut, request_unanswered:true, client_command_id:clientCommandId,
+                message:timedOut
                     ? 'The command request timed out; its outcome is unknown.'
                     : 'The command request failed; no final acknowledgement was received.'};
         } finally { if (switching) this.switchPending = false; }
@@ -5708,6 +5740,7 @@ class ScientificHUD {
             select.value = state.backend;
             select.title = state.reason || 'Request a controller backend; only the daemon can apply it.';
         }
+        this.describeUnresolvedBackendCommand?.();
         // A refusal stays current until the SAME daemon acknowledges a later applied
         // rebuild (higher activation) and reports no halt; only then is it shown as
         // history.  A halt that has not recovered is never relabelled.
@@ -5738,19 +5771,98 @@ class ScientificHUD {
         return state;
     }
 
+    // While a backend request is unresolved (queued, or its HTTP request timed out),
+    // say what the daemon reports for THIS request: its rebuild phase and elapsed
+    // time, or that a different daemon process is now answering.  Nothing here ever
+    // claims success; only the request's own final acknowledgement does.
+    describeUnresolvedBackendCommand() {
+        const cmd = this.backendCommand;
+        if (!cmd || !(this.backendCommandWaiting || cmd.unknown)) return;
+        const pkt = this.arena?.remotePacket;
+        const runId = pkt?.identity?.daemon_run_id || pkt?.run_id;
+        if (runId && cmd.daemonRunId && runId !== cmd.daemonRunId) {
+            this.backendCommandWaiting = false;
+            cmd.unknown = false; cmd.restarted = true;
+            this.backendCommandError = true;
+            this.backendCommandText = `Controller ${cmd.target}: outcome unknown. The daemon process changed before `
+                + `this request was acknowledged; the new process reports controller ${pkt?.identity?.backend || 'unreported'}, `
+                + 'which is not an acknowledgement of this request.';
+            return;
+        }
+        const pending = pkt?.observation_lifecycle?.pending_control;
+        const mine = pending && ((cmd.commandId && pending.command_id === cmd.commandId)
+            || (cmd.clientCommandId && pending.client_command_id === cmd.clientCommandId));
+        if (mine) this.noteBackendProgress(cmd, pending);
+    }
+
+    noteBackendProgress(cmd, pending) {
+        if (cmd !== this.backendCommand) return;
+        const phase = String(pending?.persistence_phase || 'applying').replaceAll('_', ' ');
+        const elapsed = Number.isFinite(pending?.elapsed_s) ? `, ${pending.elapsed_s.toFixed(1)} s` : '';
+        this.backendCommandText = `Controller ${cmd.target}: the daemon is rebuilding (${phase}${elapsed}); not yet applied`
+            + (cmd.unknown ? ' (request reply timed out; waiting for this request\'s acknowledgement).' : '.');
+    }
+
+    // The HTTP reply was lost or late: look the request up by its own id until the
+    // daemon reports its final acknowledgement, the daemon process changes, a newer
+    // request supersedes it, or the wait ends with the outcome still unknown.
+    reconcileBackendOutcome(cmd) {
+        const bridge = this.daemonBridge;
+        const deadline = Date.now() + (bridge?.commandAckTimeoutMs || 120000);
+        const poll = async () => {
+            if (cmd !== this.backendCommand || !cmd.unknown) return;
+            const record = await bridge.lookupCommandAck(cmd.clientCommandId);
+            if (cmd !== this.backendCommand || !cmd.unknown) return;
+            if (record?.daemon_run_id && cmd.daemonRunId && record.daemon_run_id !== cmd.daemonRunId) {
+                cmd.unknown = false; cmd.restarted = true;
+                this.backendCommandError = true;
+                this.backendCommandText = `Controller ${cmd.target}: outcome unknown. The daemon process changed before `
+                    + 'this request was acknowledged.';
+                this.reconcileBackendSelector();
+                return;
+            }
+            if (record?.state === 'acknowledged' && record.ack) {
+                cmd.unknown = false;
+                this.finishBackendCommand(record.ack, cmd.target);
+                return;
+            }
+            if (record?.state === 'pending' && record.pending_control) this.noteBackendProgress(cmd, record.pending_control);
+            else if (['queued', 'applying'].includes(record?.state))
+                this.backendCommandText = `Controller ${cmd.target}: the daemon has the request (${record.state}); not yet applied `
+                    + '(request reply timed out; waiting for this request\'s acknowledgement).';
+            if (Date.now() >= deadline) {
+                cmd.unknown = false;
+                this.backendCommandText = `Controller ${cmd.target}: the command request timed out and no acknowledgement for it `
+                    + 'was found; its outcome is unknown.';
+                this.reconcileBackendSelector();
+                return;
+            }
+            this.reconcileBackendSelector();
+            cmd.reconcileTimer = setTimeout(poll, 1500);
+        };
+        cmd.reconcileTimer = setTimeout(poll, 0);
+    }
+
     finishBackendCommand(result, target) {
         const sameDaemon = verifiedBackendIdentity(result?.ack?.identity)
             && result.ack.identity.daemon_run_id === this.backendCommand?.daemonRunId
             && this.daemonBridge.activeUrl === this.backendCommand?.url;
         const applied = sameDaemon && result?.status === 'ok' && result.ack?.applied === true
             && result.ack.identity.backend === target;
-        if (sameDaemon) this.daemonBridge.lastBackendAck = result.ack;
-        if (applied) this.daemonBridge.lastSwitchAck = result.ack;
+        const newer = prev => DaemonBridgeClient.newerAck(prev, result.ack);
+        if (sameDaemon && newer(this.daemonBridge.lastBackendAck)) this.daemonBridge.lastBackendAck = result.ack;
+        if (applied && newer(this.daemonBridge.lastSwitchAck)) this.daemonBridge.lastSwitchAck = result.ack;
+        const cmd = this.backendCommand;
+        if (cmd) cmd.unknown = !!result?.request_unanswered && !!result?.timed_out && !!result?.client_command_id;
         this.backendCommandWaiting = result?.status === 'queued' || (!!result?.timed_out && !!result.command_id);
         this.backendCommandError = !applied;
         this.backendRefusal = null;
         if (applied) this.backendCommandText = `Applied controller ${target} at step ${Number.isInteger(result.ack.applied_step) && result.ack.applied_step >= 0 ? result.ack.applied_step : 'unreported'}.`;
-        else if (result?.timed_out) this.backendCommandText = `Controller ${target}: ${result.message}`;
+        else if (result?.timed_out) {
+            this.backendCommandText = `Controller ${target}: ${result.message}`
+                + (cmd?.unknown ? ' Waiting for the daemon\'s acknowledgement of this request.' : '');
+            if (cmd?.unknown) this.reconcileBackendOutcome(cmd);
+        }
         else if ((result?.ack?.applied === false || result?.applied === false) && result.status !== 'queued') {
             this.backendCommandText = `Controller ${target} refused: ${result.message || 'the daemon did not apply the request'}.`;
             const activation = sameDaemon ? result.ack.identity.activation
@@ -5765,8 +5877,15 @@ class ScientificHUD {
     }
 
     backendCommandAck(ack) {
-        if (ack?.command_id !== this.backendCommand?.commandId) return;
-        this.finishBackendCommand(ack, this.backendCommand.target);
+        // Only the CURRENT request's own acknowledgement (daemon id or request id)
+        // resolves it; a superseded request's late ack never overwrites a newer one.
+        const cmd = this.backendCommand;
+        if (!cmd || !ack) return;
+        const mine = (cmd.commandId && ack.command_id === cmd.commandId)
+            || (cmd.clientCommandId && ack.client_command_id === cmd.clientCommandId);
+        if (!mine) return;
+        if (cmd.unknown) cmd.unknown = false;
+        this.finishBackendCommand(ack, cmd.target);
     }
 
     async setBackend(target) {
@@ -5777,15 +5896,22 @@ class ScientificHUD {
             this.reconcileBackendSelector();
             return false;
         }
-        this.backendCommand = {target, commandId: null, daemonRunId: state.identity.daemon_run_id, url: this.daemonBridge.activeUrl};
+        const previous = this.backendCommand;
+        if (previous) { previous.unknown = false; clearTimeout(previous.reconcileTimer); }
+        const clientCommandId = this.daemonBridge.newClientCommandId?.() || null;
+        const cmd = this.backendCommand = {target, commandId: null, clientCommandId,
+            daemonRunId: state.identity.daemon_run_id, url: this.daemonBridge.activeUrl};
         this.backendCommandWaiting = true;this.backendCommandError = false;
         this.backendCommandText = `Requesting controller ${target}; awaiting a final acknowledgement.`;
         this.reconcileBackendSelector();
         const result = await this.daemonBridge.sendCommand('switch_backend', {backend: target}, queued => {
-            this.backendCommand.commandId = queued.command_id;
+            cmd.commandId = queued.command_id;
+            if (cmd !== this.backendCommand) return;
             this.backendCommandText = `Controller ${target} queued; not yet applied.`;
             this.reconcileBackendSelector();
-        });
+        }, {clientCommandId});
+        // A newer request was made meanwhile: this reply must not overwrite its status.
+        if (cmd !== this.backendCommand) return false;
         return this.finishBackendCommand(result, target);
     }
 
