@@ -1363,6 +1363,7 @@ class ContinuousExperimentRunner:
         self._stop_lock = threading.Lock()
         self._stopped = False
         self._stop_ok = True
+        self._clean_shutdown_result = None   # acknowledged API shutdown, for a later stop()
         self.sim_speed = max(0.1, min(100.0, float(sim_speed)))
         self.dt = 0.02
         self.active_paradigm_id = initial_paradigm
@@ -2053,6 +2054,7 @@ class ContinuousExperimentRunner:
     def start(self):
         """Starts background continuous execution thread (and the watchdog, once)."""
         _install_thread_excepthook(self)
+        self._clean_shutdown_result = None   # a restarted loop owes a fresh shutdown
         self.running = True
         self.loop_failure = None
         self._steppable_since = time.perf_counter()
@@ -2125,6 +2127,11 @@ class ContinuousExperimentRunner:
                 return self._stop_ok
             self._stopped, self._stop_ok = True, False
         deadline = time.monotonic() + self.assay_control_timeout_s
+        clean = self._clean_shutdown_result   # one reference read; never wait on a held lock
+        if clean is not None:
+            # An acknowledged API shutdown already saved the final checkpoint and wrote
+            # session_end; return that result rather than queue a shutdown nothing applies.
+            return self._finish_stop(clean, None, deadline)
         def cancel(transaction):
             self._cancel_shutdown_transaction(transaction, TimeoutError('Shutdown wait expired'))
 
@@ -2177,6 +2184,10 @@ class ContinuousExperimentRunner:
                     result = await_transaction(transaction)
             else:
                 result = None
+        return self._finish_stop(result, transaction, deadline)
+
+    def _finish_stop(self, result, transaction, deadline) -> bool:
+        """Halt the loop, join owned writers and threads, then judge the stop."""
         self.running = False
         self._wake.set()
         self._watchdog_stop.set()
@@ -5001,6 +5012,8 @@ class ContinuousExperimentRunner:
         self._stamp_command_ack(entry, result)
         entry['result'] = result
         self._pending_assay_control = None
+        if transaction['plan']['action'] == 'shutdown' and result.get('ack', {}).get('applied'):
+            self._clean_shutdown_result = result
         self.command_acks.append(result)
         entry['done'].set()
         if 'refused_result' in transaction['plan']:
