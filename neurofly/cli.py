@@ -1,8 +1,8 @@
 """Canonical CLI entry points for Project NeuroFly.
 
 Usage:
-  neurofly run [daemon options]      (simulation and web server as two processes;
-                                      --single-process for the old one-process daemon)
+  neurofly run [daemon options]      (one process; --split runs the simulation and the
+                                      web server as two processes, v0.5 prototype)
   neurofly sim-serve [daemon options]   headless simulation process only
   neurofly web-serve [daemon options]   web process only (dashboard, REST, SSE)
   neurofly full-sim              (retired: prints why and exits non-zero)

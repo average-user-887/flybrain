@@ -80,7 +80,8 @@ class Bench:
             start, lat, status, parsed = self.request(method, path, body)
             with self.lock:
                 self.samples.append((start, kind, lat, status,
-                                     parsed.get("status") if isinstance(parsed, dict) else None))
+                                     parsed.get("status") if isinstance(parsed, dict) else None,
+                                     parsed.get("command_id") if isinstance(parsed, dict) else None))
             self.stop.wait(max(0.0, period - (time.monotonic() - t)))
 
     def sse(self):
@@ -130,6 +131,35 @@ class Bench:
                                     "message": parsed.get("message"), "reply_ms": round(lat * 1e3, 1)}
 
 
+def tree_rss_mb(root):
+    """Resident memory of a process and all its descendants (MB)."""
+    kids = {}
+    for d in Path("/proc").iterdir():
+        if d.name.isdigit():
+            try:
+                fields = (d / "stat").read_text().rsplit(")", 1)[1].split()
+                kids.setdefault(int(fields[1]), []).append(int(d.name))
+            except OSError:
+                pass
+    total, todo = 0, [root]
+    while todo:
+        pid = todo.pop()
+        todo += kids.get(pid, [])
+        try:
+            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+                if line.startswith("VmRSS:"):
+                    total += int(line.split()[1])
+        except OSError:
+            pass
+    return total / 1024.0
+
+
+def rss_sampler(pid, bench, out):
+    while not bench.stop.is_set():
+        out.append(tree_rss_mb(pid))
+        bench.stop.wait(1.0)
+
+
 def wait_online(bench, limit=600):
     deadline = time.monotonic() + limit
     while time.monotonic() < deadline:
@@ -148,6 +178,7 @@ def main():
     ap.add_argument("--stepping-s", type=float, default=30.0)
     ap.add_argument("--python", default=sys.executable)
     ap.add_argument("--checkpoints", type=int, default=5)
+    ap.add_argument("--daemon-cpus", default=None, help="taskset CPU list for the daemon under test")
     ap.add_argument("--rebuilds", default="connectome-plastic,connectome-fixed,connectome-plastic,connectome-fixed")
     ap.add_argument("--rebuild-phase", default="rebuild")
     ap.add_argument("daemon_args", nargs=argparse.REMAINDER)
@@ -156,10 +187,12 @@ def main():
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     log = open(out / f"{args.mode}-{args.rebuild_phase}_daemon.log", "w")
-    proc = subprocess.Popen([args.python, "-u", str(ROOT / "neurofly_daemon.py"), "--port", str(args.port),
+    pin = ["taskset", "-c", args.daemon_cpus] if args.daemon_cpus else []
+    proc = subprocess.Popen([*pin, args.python, "-u", str(ROOT / "neurofly_daemon.py"), "--port", str(args.port),
                              "--process-mode", args.mode, *extra], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
                             start_new_session=True)
     bench = Bench(args.port)
+    rss = []
     phases = []
     result = {"mode": args.mode, "daemon_args": extra}
     try:
@@ -171,6 +204,7 @@ def main():
                    threading.Thread(target=bench.poller, args=("command", 0.5, "POST", "/api/command",
                                                                {"action": "set_speed", "params": {"speed": 100}}),
                                     daemon=True)]
+        threads.append(threading.Thread(target=rss_sampler, args=(proc.pid, bench, rss), daemon=True))
         for t in threads:
             t.start()
         time.sleep(2)
@@ -179,11 +213,13 @@ def main():
         phases.append({"phase": "stepping", "start": a, "end": bench.now()})
         for i in range(args.checkpoints):
             s, e, info = bench.command_until_ack({"action": "save_checkpoint", "label": f"bench{i}"})
-            phases.append({"phase": "checkpoint", "start": s, "end": e + 0.25, **info})
+            phases.append({"phase": "checkpoint", "start": s, "end": e + 0.25, "completed_ms": round((e - s) * 1e3, 1),
+                           **info})
             time.sleep(3)
         for target in filter(None, args.rebuilds.split(",")):
             s, e, info = bench.command_until_ack({"action": "switch_backend", "params": {"backend": target}})
-            phases.append({"phase": args.rebuild_phase, "target": target, "start": s, "end": e + 0.25, **info})
+            phases.append({"phase": args.rebuild_phase, "target": target, "start": s, "end": e + 0.25,
+                           "completed_ms": round((e - s) * 1e3, 1), **info})
             time.sleep(5)
         time.sleep(1)
     finally:
@@ -209,6 +245,12 @@ def main():
             row[kind]["failed"] = sum(1 for s in rows if s[2] is None or s[3] != 200)
             row[kind]["over_2s"] = sum(1 for s in rows if s[2] is None or s[2] > 2.0)
             row[kind]["body_status"] = sorted({str(s[4]) for s in rows})
+            if kind == "command":
+                # Completed = final acknowledgement (in the reply, or later in the stream).
+                done = [s[2] if s[4] in ("ok", "error") else
+                        (bench.acks[s[5]] - s[0] if s[5] in bench.acks else None) for s in rows if s[2] is not None]
+                row["command_completed"] = summary([d for d in done if d is not None])
+                row["command_completed"]["never_acked"] = sum(1 for d in done if d is None)
         fr = [f for f in bench.frames if in_phase(f[0], name)]
         # A gap belongs to a phase when it overlaps one of that phase's windows, so a
         # stall that spans a save is counted, and gaps between windows are not.
@@ -221,6 +263,7 @@ def main():
             walls = [f[3] for f in steps if f[3]]
             row["last_step_wall"] = summary(walls)
         report[name] = row
+    result["rss_mb_max"] = round(max(rss), 1) if rss else None
     result["phases"] = phases
     result["report"] = report
     result["raw"] = {"samples": bench.samples, "frames": bench.frames, "acks": bench.acks}

@@ -6042,13 +6042,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     replay_group.add_argument("--record-raster", choices=("none", "io", "all"), default="io",
                               help="Spike raster: IO/annotated neurons (default), all neurons, or none")
     proc_group = parser.add_argument_group(
-        "process layout", "Simulation and web server run as separate processes by default "
-                          "(neurofly/split.py); the old single process stays available.")
-    proc_group.add_argument("--process-mode", choices=PROCESS_MODES, default="split",
-                            help="split (default): spawn a headless simulation process and a web process; "
-                                 "single: the old one-process daemon; sim / web: one side only")
+        "process layout", "Default: one process (simulation and web server together). --split runs "
+                          "them as separate processes (neurofly/split.py; v0.5 prototype).")
+    proc_group.add_argument("--process-mode", choices=PROCESS_MODES, default="single",
+                            help="single (default): the one-process daemon; split: spawn a headless "
+                                 "simulation process and a web process; sim / web: one side only")
+    proc_group.add_argument("--split", dest="process_mode", action="store_const", const="split",
+                            help="Same as --process-mode split")
     proc_group.add_argument("--single-process", dest="process_mode", action="store_const", const="single",
-                            help="Same as --process-mode single (the old one-process daemon)")
+                            help="Same as --process-mode single (already the default; accepted for scripts)")
     proc_group.add_argument("--ipc-socket", default=None, metavar="PATH",
                             help="Unix socket between the simulation and web processes "
                                  "(default: chosen by the launcher; sim/web modes: derived from --port)")
@@ -6092,6 +6094,10 @@ def preflight_compute_startup(args):
 def run_daemon():
     parser = build_arg_parser()
     args = parser.parse_args()
+    if args.process_mode in ("sim", "web"):
+        # Started by a split launcher: exit with it, even if it is SIGKILLed.
+        from neurofly.split import bind_to_launcher
+        bind_to_launcher()
     if args.process_mode == "web":
         # The web process never builds a runner, loads a graph or writes run state.
         from neurofly.split import run_web

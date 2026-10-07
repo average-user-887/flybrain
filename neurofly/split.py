@@ -52,11 +52,58 @@ ACCEPT_WAIT_S = 5.0         # web: no command id from the sim within this: outco
 VIEW_WAIT_S = 3.5           # web: runner.read_view waits at most ~3.2 s in the sim
 SIM_STOP_TIMEOUT_S = 900.0  # launcher: time allowed for the final save on shutdown
 WEB_BIND_FAILED = 3         # web exit code: the HTTP port cannot be bound (fatal for the launcher)
+MAX_PENDING_COMMANDS = 64   # commands accepted but not yet applied (web and sim side each)
+MAX_PENDING_VIEWS = 16      # concurrent view requests in the simulation process
+LAUNCHER_ENV = "NEUROFLY_LAUNCHER_PID"
+PARENT_POLL_S = 1.0
+
+
+def bind_to_launcher(use_prctl: bool = True) -> Optional[int]:
+    """Exit with the split launcher, even when it is SIGKILLed.
+
+    Linux: PR_SET_PDEATHSIG delivers SIGTERM (a graceful stop: the simulation's
+    final save) when the launcher dies.  Everywhere: a thread checks that the
+    parent is still the launcher and sends the same SIGTERM if it is not.
+    Returns the launcher pid, or None when not started by a launcher.
+    """
+    raw = os.environ.get(LAUNCHER_ENV)
+    if not raw:
+        return None
+    launcher = int(raw)
+    if use_prctl and sys.platform.startswith("linux"):
+        try:
+            import ctypes
+            libc = ctypes.CDLL(None, use_errno=True)
+            libc.prctl(1, signal.SIGTERM, 0, 0, 0)          # PR_SET_PDEATHSIG = 1
+        except (OSError, AttributeError):
+            pass
+    if os.getppid() != launcher:                           # died before prctl took effect
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    def watch():
+        while os.getppid() == launcher:
+            time.sleep(PARENT_POLL_S)
+        print(f"[{os.getpid()}] The split launcher {launcher} is gone; stopping.", file=sys.stderr, flush=True)
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=watch, daemon=True, name="NeuroFly-launcher-watch").start()
+    return launcher
+
+
+def _short_runtime_dir() -> str:
+    """A short directory for sockets: AF_UNIX paths are limited to ~107 bytes, so a long
+    TMPDIR (e.g. on a data disk) must not decide where the socket lives."""
+    for base in (os.environ.get("XDG_RUNTIME_DIR"), "/tmp", tempfile.gettempdir()):
+        if base and os.path.isdir(base) and len(base) < 60:
+            return base
+    return tempfile.gettempdir()
+
+
+def private_socket_dir() -> str:
+    return tempfile.mkdtemp(prefix="neurofly-split-", dir=_short_runtime_dir())     # mode 0700
 
 
 def default_socket_path(port: int) -> str:
-    base = os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()
-    return os.path.join(base, f"neurofly-sim-{int(port)}.sock")
+    return os.path.join(_short_runtime_dir(), f"neurofly-sim-{int(port)}.sock")
 
 
 def send_msg(sock: socket.socket, header: Dict[str, Any], blob: bytes = b"") -> None:
@@ -215,6 +262,9 @@ class SimServer:
         self._stop = threading.Event()
         self.sock: Optional[socket.socket] = None
         self.state_errors = 0
+        self._pending = {"cmd": 0, "view": 0}
+        self._pending_lock = threading.Lock()
+        self.refused = {"cmd": 0, "view": 0}
 
     def start(self) -> None:
         if os.path.exists(self.path):
@@ -323,14 +373,56 @@ class SimServer:
                     break
                 header, _ = msg
                 kind = header.get("t")
+                if kind == "ack":       # read-only, never the simulation lock: answer inline
+                    self._handle_ack(conn, header)
+                    continue
                 target = {"cmd": self._handle_cmd, "view": self._handle_view}.get(kind)
-                if target is not None:
-                    threading.Thread(target=target, args=(conn, header), daemon=True,
-                                     name=f"NeuroFly-IPC-{kind}").start()
+                if target is None:
+                    continue
+                limit = MAX_PENDING_COMMANDS if kind == "cmd" else MAX_PENDING_VIEWS
+                with self._pending_lock:
+                    # Commands: bound the runner's own queue (accepted, not yet applied)
+                    # as well as the requests still being handed to it.
+                    queued = len(getattr(self.runner, "_commands", ())) if kind == "cmd" else 0
+                    full = max(self._pending[kind], queued) >= limit
+                    if full:
+                        self.refused[kind] += 1
+                    else:
+                        self._pending[kind] += 1
+                if full:
+                    conn.put("control", (self._queue_full_reply(kind, header, limit), b""))
+                    continue
+                threading.Thread(target=self._run_counted, args=(kind, target, conn, header), daemon=True,
+                                 name=f"NeuroFly-IPC-{kind}").start()
         except (OSError, ValueError):
             pass
         finally:
             conn.close()
+
+    @staticmethod
+    def _queue_full_reply(kind, header, limit):
+        message = (f"simulation command queue full ({limit} commands not yet applied); "
+                   f"the command was not applied, retry later")
+        if kind == "cmd":
+            return {"t": "result", "req": header.get("req"),
+                    "result": {"status": "error", "applied": False, "queue_full": True,
+                               "action": (header.get("cmd") or {}).get("action", ""), "message": message}}
+        return {"t": "view", "req": header.get("req"), "view": None, "error": "view queue full"}
+
+    def _run_counted(self, kind, target, conn, header) -> None:
+        try:
+            target(conn, header)
+        finally:
+            with self._pending_lock:
+                self._pending[kind] -= 1
+
+    def _handle_ack(self, conn: _Conn, header) -> None:
+        try:
+            ack = self.runner.command_ack_lookup(command_id=header.get("command_id"),
+                                                 client_command_id=header.get("client_command_id"))
+        except Exception as exc:  # noqa: BLE001
+            ack = {"state": "unknown", "message": f"{type(exc).__name__}: {exc}"}
+        conn.put("control", ({"t": "ack", "req": header.get("req"), "ack": ack}, b""))
 
     def _handle_cmd(self, conn: _Conn, header) -> None:
         req = header.get("req")
@@ -383,8 +475,12 @@ def serve_sim(runner, cleanup, args) -> int:
 
 # ---------------------------------------------------------------------------------------- web side
 
+class QueueFull(Exception):
+    pass
+
+
 class _Pending:
-    __slots__ = ("cv", "command_id", "result", "view", "done", "error")
+    __slots__ = ("cv", "command_id", "result", "view", "done", "error", "kind")
 
     def __init__(self):
         self.cv = threading.Condition()
@@ -393,6 +489,7 @@ class _Pending:
         self.view = None
         self.done = False
         self.error = None
+        self.kind = None
 
 
 class SimLink:
@@ -473,6 +570,8 @@ class SimLink:
                     p.result, p.done = header.get("result"), True
                 elif kind == "view":
                     p.view, p.error, p.done = header.get("view"), header.get("error"), True
+                elif kind == "ack":
+                    p.view, p.done = header.get("ack"), True
                 p.cv.notify_all()
 
     def state_age_s(self) -> Optional[float]:
@@ -489,12 +588,21 @@ class SimLink:
             return f"simulation process is not responding: no status for {age:.0f} s"
         return None
 
-    def request(self, header: Dict[str, Any]) -> Optional[_Pending]:
+    def pending_commands(self) -> int:
+        with self._plock:
+            return sum(1 for p in self._pending.values() if p.kind == "cmd")
+
+    def request(self, header: Dict[str, Any], limit: Optional[int] = None) -> Optional[_Pending]:
+        """Send one request; None when not connected.  With ``limit``, raises
+        :class:`QueueFull` instead of exceeding that many pending requests of this kind."""
         if not self.connected:
             return None
         p = _Pending()
+        p.kind = header.get("t")
         req = next(self._reqs)
         with self._plock:
+            if limit is not None and sum(1 for q in self._pending.values() if q.kind == p.kind) >= limit:
+                raise QueueFull(limit)
             self._pending[req] = p
         try:
             with self.send_lock:
@@ -642,11 +750,31 @@ class SimProxy:
             p.cv.wait_for(lambda: p.done, VIEW_WAIT_S)
             return p.view if p.done else None
 
+    def command_ack_lookup(self, *, command_id=None, client_command_id=None) -> Dict[str, Any]:
+        base = {"daemon_run_id": self._get("run_id"), "command_id": command_id,
+                "client_command_id": client_command_id}
+        p = self.link.request({"t": "ack", "command_id": command_id, "client_command_id": client_command_id})
+        if p is not None:
+            with p.cv:
+                p.cv.wait_for(lambda: p.done, VIEW_WAIT_S)
+                if p.done and isinstance(p.view, dict):
+                    return p.view
+        # Never success: the simulation process could not be asked.
+        return dict(base, state="unknown",
+                    message=f"{self.link.problem() or 'no reply from the simulation process'}; outcome unknown")
+
     def dispatch_command(self, cmd) -> Dict[str, Any]:
         if not isinstance(cmd, dict):
             return {"status": "error", "message": "Command must be a JSON object"}
         action = cmd.get("action", "")
-        p = self.link.request({"t": "cmd", "cmd": cmd})
+        client_id = cmd.get("client_command_id")
+        try:
+            p = self.link.request({"t": "cmd", "cmd": cmd}, limit=MAX_PENDING_COMMANDS)
+        except QueueFull:
+            return {"status": "error", "applied": False, "queue_full": True, "action": action,
+                    "client_command_id": client_id,
+                    "message": f"simulation command queue full ({MAX_PENDING_COMMANDS} commands not yet "
+                               f"applied); the command was not applied, retry later"}
         if p is None:
             return {"status": "error", "applied": False, "sim_process_down": True, "action": action,
                     "message": f"{self.link.problem() or 'simulation process unavailable'}; "
@@ -659,6 +787,7 @@ class SimProxy:
                 return p.result
             if p.command_id is not None:
                 return {"status": "queued", "applied": False, "command_id": p.command_id, "action": action,
+                        "client_command_id": client_id, "daemon_run_id": self._get("run_id"),
                         "step_in_progress_s": self.step_in_progress_s(),
                         "message": "Queued: applied by the simulation process at the next step boundary"}
             reason = p.error or f"no reply from the simulation process within {ACCEPT_WAIT_S:g} s"
@@ -681,7 +810,9 @@ def build_web_server(path: str, host: str, port: int, policy=None):
 
         def _status_payload(self):
             payload = super()._status_payload()
-            payload["process_layout"] = {"mode": "split", "web_pid": os.getpid(), "sim": link.describe()}
+            payload["process_layout"] = {"mode": "split", "web_pid": os.getpid(), "sim": link.describe(),
+                                         "pending_commands": link.pending_commands(),
+                                         "max_pending_commands": MAX_PENDING_COMMANDS}
             return payload
 
     return ThreadingHTTPServer((host, port), SplitWebHandler), link
@@ -717,7 +848,7 @@ def run_web(args) -> int:
 
 # ---------------------------------------------------------------------------------------- launcher
 
-_LAUNCHER_FLAGS = {"--process-mode": True, "--ipc-socket": True, "--single-process": False}
+_LAUNCHER_FLAGS = {"--process-mode": True, "--ipc-socket": True, "--single-process": False, "--split": False}
 
 
 def _strip_launcher_flags(argv):
@@ -753,7 +884,7 @@ def run_split(args, argv) -> int:
     private_dir = None
     path = args.ipc_socket
     if not path:
-        private_dir = tempfile.mkdtemp(prefix="neurofly-split-")    # mode 0700
+        private_dir = private_socket_dir()
         path = os.path.join(private_dir, "sim.sock")
     script = str(Path(nd.__file__).resolve())
     rest = _strip_launcher_flags(argv)
@@ -761,8 +892,9 @@ def run_split(args, argv) -> int:
     web_cmd = [sys.executable, "-u", script, *rest, "--process-mode", "web", "--ipc-socket", path]
     # Own sessions: a terminal Ctrl-C reaches only this launcher, which then stops the
     # simulation exactly once (its final save) instead of every process at once.
-    sim = subprocess.Popen(sim_cmd, start_new_session=True)
-    web = subprocess.Popen(web_cmd, start_new_session=True)
+    child_env = dict(os.environ, **{LAUNCHER_ENV: str(os.getpid())})
+    sim = subprocess.Popen(sim_cmd, start_new_session=True, env=child_env)
+    web = subprocess.Popen(web_cmd, start_new_session=True, env=child_env)
     print(f"[Launcher] simulation pid {sim.pid}, web pid {web.pid}, IPC {path}", flush=True)
     stop = []
     signal.signal(signal.SIGTERM, lambda s, f: stop.append(s))
@@ -803,7 +935,7 @@ def run_split(args, argv) -> int:
                 web_restarts.append(now)
                 print(f"[Launcher] The web process exited ({web.returncode}); starting a new one. "
                       f"The simulation was not interrupted.", file=sys.stderr, flush=True)
-                web = subprocess.Popen(web_cmd, start_new_session=True)
+                web = subprocess.Popen(web_cmd, start_new_session=True, env=child_env)
     finally:
         sim_code = _stop_child(sim, SIM_STOP_TIMEOUT_S)
         _stop_child(web, 10)
