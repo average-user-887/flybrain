@@ -4601,8 +4601,11 @@ class ContinuousExperimentRunner:
                         self._fail_assay_control(exc, before_apply=False)
                         return
                 self._complete_assay_control(result)
-                if transaction['plan'].get('lifecycle'):
-                    self.latest_telemetry = self._assemble_telemetry(self._last_step_result)
+                # Every acknowledged control (switch and reset included, not only
+                # lifecycle changes) refreshes the telemetry readers see, so a
+                # view built before the next frame never pairs the new brain
+                # with the previous assay's telemetry.
+                self.latest_telemetry = self._assemble_telemetry(self._last_step_result)
             self._publish_due = True
             self._wake.set()
 
