@@ -1,0 +1,8 @@
+{
+ "contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
+ "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+ "dynamics": "v3",
+ "backend": "cpu",
+ "engine_sha256": "473946a0b5206b6991d183e2bbac0b199b76bd44ee1321075b43b45fb561803e",
+ "code_sha": "6bc971fbd52e6328367ffcc325462923fbf84662"
+}
