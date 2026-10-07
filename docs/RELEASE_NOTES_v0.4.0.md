@@ -115,13 +115,26 @@ Full list: [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## Install
 
-Follow the [README](../README.md#installation): clone over HTTPS, `pip install -e
-".[body,test]"`, then download, normalize, prepare and verify the MaleCNS data
-(about 1.1 GB, CC BY 4.0).
+**Preparing the connectome data requires the matching source checkout.** The wheel
+attached to the Release (`neurofly-0.4.0-py3-none-any.whl`) contains the program only:
+no connectome data, and not the files the data steps need. Copy and paste, on Linux
+with Python 3.12:
 
-The wheel attached to the Release (`neurofly-0.4.0-py3-none-any.whl`) contains the
-program only, no connectome data. The data download and preparation steps run from
-a source checkout, so the README route above is the one to follow.
+```bash
+git clone https://github.com/average-user-887/flybrain.git
+cd flybrain
+git checkout v0.4.0
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[body,test]"
+neurofly download-data          # downloads and hash-checks about 1.1 GB (CC BY 4.0)
+python -m brainlab.connectome   # normalizes the tables
+python -m brainlab.prepare      # builds the engine graph
+neurofly status                 # the graph line should end in (VERIFIED)
+```
+
+Then start the dashboard with `neurofly run --host 127.0.0.1 --port 8769` and open
+`http://localhost:8769`. More detail is in the [README](../README.md#installation).
 
 - **Any machine runs on the CPU**, NVIDIA or not. On a Steam-Deck-class AMD CPU the
   full brain runs at about 1/40 of real time with the default v3 dynamics (about 1/670
@@ -153,6 +166,16 @@ a source checkout, so the README route above is the one to follow.
 - Cross-machine reproducibility is measured only on two AMD CPUs with the CPU backend.
 - The Docker image does not build. NVIDIA GPU support needs the `gpu` extra; AMD GPU
   support is unqualified (above).
+
+- **The lesion study report in `experiments/data/` is not v0.4 evidence.** Its heading
+  calls it an empirical connectome lesion study, but it is legacy output from the
+  hand-built heuristic modules, not the connectome graph (generated 18 September
+  2026). It stays in the repository as history and is not included in the wheel.
+- **The test suite is not fully green.** On the release commit, run on a loaded
+  machine, one test failed: a recording-cleanup thread took longer than the test's
+  2-second wait (`test_timeout_rejects_late_receipt_and_preserves_canceled_name`;
+  2125 passed, 1 failed, 21 skipped). Its safety checks passed, and it passed when
+  rerun alone. It is reported as it happened, not edited.
 
 Recording and restart limits (what you may notice in a long run):
 

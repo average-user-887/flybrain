@@ -192,6 +192,9 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 - The recording limits listed under "Known limitations" in
   `docs/RELEASE_NOTES_v0.4.0.md` (conflicting retries halt the run; outside edits to
   the journal force a slow full re-check; a restart starts a new measurement window).
+- `experiments/data/` (the September lesion study report) is legacy output from the
+  hand-built heuristic modules (not the connectome graph), not v0.4 evidence; it is no
+  longer packaged in the wheel but stays in the repository.
 - Not done for this release: the final check on the Steam Deck host and a real AMD
   device run, the exhaustive browser check of every control (110 controls), a working
   Docker image, splitting the daemon into separate processes, and a new GPU engine.
