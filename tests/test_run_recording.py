@@ -132,7 +132,11 @@ def test_header_restored_for_modular_brain_file(tmp_path):
 
 def test_record_cli_defaults_to_v3_dynamics(tmp_path, monkeypatch):
     from neurofly import recording
-    monkeypatch.delenv("NEUROFLY_LIF_DYNAMICS", raising=False)
+    # record_run writes NEUROFLY_LIF_DYNAMICS directly for the explicit v1 call below.
+    # delenv on an absent variable registers no undo, so setenv first: monkeypatch then
+    # restores the variable's original state after the test instead of leaking v1.
+    monkeypatch.setenv("NEUROFLY_LIF_DYNAMICS", "v3")
+    monkeypatch.delenv("NEUROFLY_LIF_DYNAMICS")
     base = ["--paradigm", "t-maze", "--steps", "3", "--backend", "connectome-fixed", "--test-synthetic-graph"]
     assert recording.main(base + ["--out", str(tmp_path / "v3")]) == 0
     assert read_recording(tmp_path / "v3.nfrec")["header"]["provenance"]["lif_dynamics"] == "v3"
@@ -142,8 +146,11 @@ def test_record_cli_defaults_to_v3_dynamics(tmp_path, monkeypatch):
     assert read_recording(tmp_path / "m.nfrec")["header"]["provenance"]["lif_dynamics"] is None
 
 
-def test_recording_names_the_brain_backend(tmp_path):
+def test_recording_names_the_brain_backend(tmp_path, monkeypatch):
     from neurofly import recording
+    # record_run writes NEUROFLY_LIF_DYNAMICS (the CLI's default v3); register an undo.
+    monkeypatch.setenv("NEUROFLY_LIF_DYNAMICS", "v3")
+    monkeypatch.delenv("NEUROFLY_LIF_DYNAMICS")
     base = ["--paradigm", "t-maze", "--steps", "2", "--backend", "connectome-fixed", "--test-synthetic-graph"]
     assert recording.main(base + ["--out", str(tmp_path / "g")]) == 0
     assert read_recording(tmp_path / "g.nfrec")["header"]["provenance"]["brain_backend"] == "cpu"  # conftest pins cpu
