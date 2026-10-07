@@ -185,5 +185,7 @@ class CpuLoopCohortEngine(CohortEngine):
         return self.brains[fly].snapshot_state()
 
     def write_state(self, fly, state):
+        if isinstance(fly, bool) or not isinstance(fly, (int, np.integer)) or not (0 <= int(fly) < self.n_flies):
+            raise ValueError(f"fly must be an integer in [0, {self.n_flies}); refused")
         staged = self._check_state(fly, state, self.brains[int(fly)].snapshot_state())
         self.brains[int(fly)].restore_state(staged)

@@ -41,7 +41,7 @@ browser-test = ["selenium>=4"]
 neurofly = "neurofly.cli:main"
 
 [tool.setuptools]
-packages = ["neurofly", "neurofly._docs", "brainlab", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms", "web"]
+packages = ["neurofly", "neurofly._docs", "brainlab", "brainlab.cohort", "experiments", "neurofly_body", "neurofly_studio", "validation", "validation.paradigms", "web"]
 py-modules = [
     "arena",
     "assay_controls",
@@ -77,6 +77,7 @@ py-modules = [
 "neurofly._docs" = ["CAPABILITY_MATRIX.md"]
 web = ["*.html", "*.js", "*.css", "vendor/*.js"]
 brainlab = ["datasets.json", "graph_pins.json", "wgpu_v3_math.wgsl"]
+"brainlab.cohort" = ["cohort_contract.json"]
 validation = ["specs/*.json", "specs/sources/*.json"]
 # experiments/data/ (historical lesion-study output, legacy heuristic, not v0.4
 # evidence) stays in git but is deliberately not packaged.
