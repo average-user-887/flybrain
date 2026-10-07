@@ -117,7 +117,8 @@ def test_known_modular_clock_continues_across_restart(daemon):
     assert restarted.trial_history == []
     assert restarted.trial_sim_time == pytest.approx(elapsed + 9 * DT)
     advance(restarted, 1)
-    assert [t['trial'] for t in restarted.trial_history] == [3]
+    assert [t['assay_trial'] for t in restarted.trial_history] == [3]
+    assert [t['trial'] for t in restarted.trial_history] == [1]     # session record key
     assert restarted.trial_history[0]['sim_seconds'] == pytest.approx(elapsed + 0.2)
     assert restarted.trial_history[0]['trial_known'] is True
     assert restarted.current_trial == 4 and restarted.trial_sim_time == 0.0
@@ -156,6 +157,29 @@ def test_known_graph_clock_comes_only_from_the_selected_checkpoint(daemon):
     advance(restarted, 1)
     assert restarted.trial_sim_time == pytest.approx(elapsed + DT)
     assert restarted.registry.active.trial_clock['elapsed_s'] == restarted.trial_sim_time
+
+
+def test_switching_assays_restores_each_counter_and_keeps_records_monotonic(daemon, tmp_path):
+    runner = daemon(trial_length_s=0.2)
+    advance(runner, 2 * 10 + 3)                     # sandbox: trials 1-2 done, 3 running
+    sandbox = clock_of(runner)
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'buridan'})
+    assert runner.current_trial == 1 and runner.trial_sim_time == 0.0
+    advance(runner, 10)                             # buridan's own trial 1
+    transition_command(runner, {'action': 'switch_paradigm', 'paradigm': 'multisensory-sandbox'})
+    assert clock_of(runner) == sandbox and runner.trial_sim_time == sandbox['elapsed_s']
+    advance(runner, 10)
+    history = runner.trial_history
+    assert [(t['paradigm'], t['assay_trial']) for t in history] == [
+        ('multisensory-sandbox', 1), ('multisensory-sandbox', 2), ('buridan', 1),
+        ('multisensory-sandbox', 3)]
+    # The learning recorder appends only increasing session trial numbers.
+    assert [t['trial'] for t in history] == [1, 2, 3, 4]
+    recorder = LearningRecorder(tmp_path / 'switch-records', session={'daemon_run_id': runner.run_id})
+    try:
+        assert recorder.record_trials(history) == 4
+    finally:
+        recorder.close()
 
 
 # -- legacy state stays unknown --------------------------------------------------------
@@ -325,7 +349,7 @@ def test_trial_completion_boundary_saves_a_matching_count_and_clock(daemon, monk
     monkeypatch.setattr(experiment_brains.ExperimentBrain, 'save', recording_save)
     advance(first, 1)                               # the boundary: trial 1 completes
     monkeypatch.undo()
-    assert [t['trial'] for t in first.trial_history] == [1]
+    assert [t['assay_trial'] for t in first.trial_history] == [1]
     # The boundary save holds the advanced count and the new trial's clock, never
     # "1 completed" with trial 1 still running at its old elapsed time.
     assert saves == [(1, trial_clock(0.0, 2))]
@@ -345,7 +369,7 @@ def test_restart_just_before_a_trial_boundary_keeps_that_trial(daemon):
     assert restarted.current_trial == 1 and restarted.trial_sim_time == pytest.approx(9 * DT)
     assert restarted.active_brain.trials == 0
     advance(restarted, 10)                          # a fresh observation window
-    assert [t['trial'] for t in restarted.trial_history] == [1]
+    assert [t['assay_trial'] for t in restarted.trial_history] == [1]
     assert restarted.trial_history[0]['sim_seconds'] == pytest.approx(9 * DT + 0.2)
     assert restarted.current_trial == 2 and restarted.active_brain.trials == 1
 
