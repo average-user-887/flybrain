@@ -28,6 +28,7 @@ if str(PACKAGE_ROOT) not in sys.path:
 
 import learning_recorder  # noqa: E402
 from learning_recorder import (  # noqa: E402
+    DurabilityUncertainError,
     JsonlWriter,
     LearningRecorder,
     ObservationJournalError,
@@ -252,3 +253,79 @@ class TestFsyncFailure:
             rec.record_trials([{"trial": 1}])
         monkeypatch.undo()
         rec.close()
+
+    def test_eio_on_observation_fsync_is_never_acknowledged_in_process(self, tmp_path, monkeypatch):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-eio")
+        real = os.fsync
+        monkeypatch.setattr(os, "fsync", _eio_on("trials.jsonl", real))
+        with pytest.raises(OSError, match="injected EIO"):
+            rec.record_observation(envelope)
+        # The fsync "recovers": the page cache still shows the line, and a new
+        # fsync would succeed. That success proves nothing about the lost write.
+        monkeypatch.setattr(os, "fsync", real)
+        for _ in range(2):
+            with pytest.raises(DurabilityUncertainError, match="uncertain"):
+                rec.record_observation(copy.deepcopy(envelope))
+        rows = [r for r in read_jsonl(tmp_path / "trials.jsonl") if r.get("type") == "observation"]
+        assert len(rows) == 1
+        # Bytes written after the failure are proven by their own fsync.
+        later = rec.record_observation(_next_presentation(envelope))
+        assert later["durable"] is True and later["idempotent"] is False
+        rec.close()
+
+    def test_eio_on_idempotent_resync_is_never_acknowledged(self, tmp_path, monkeypatch):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-resync-eio")
+        rec.record_observation(envelope)
+        real = os.fsync
+        monkeypatch.setattr(os, "fsync", _eio_on("trials.jsonl", real))
+        with pytest.raises(OSError, match="injected EIO"):
+            rec.record_observation(envelope)
+        monkeypatch.setattr(os, "fsync", real)
+        with pytest.raises(DurabilityUncertainError):
+            rec.record_observation(envelope)
+        rec.close()
+
+    def test_eio_marks_only_unproven_bytes(self, tmp_path, monkeypatch):
+        rec = LearningRecorder(tmp_path, max_bytes=128, fsync=False)
+        first = _terminal_envelope(run_id="run-rotate-eio")
+        second = _next_presentation(first)
+        rec.record_observation(first)  # proven by its own fsync
+        real = os.fsync
+        monkeypatch.setattr(os, "fsync", _eio_on("trials.jsonl", real))
+        with pytest.raises(OSError, match="injected EIO"):
+            rec.record_observation(second)  # the pre-rotation fsync fails
+        monkeypatch.setattr(os, "fsync", real)
+        assert rec.record_observation(first)["idempotent"] is True
+        assert rec.record_observation(second)["idempotent"] is False
+        assert rec.record_observation(second)["idempotent"] is True
+        rec.close()
+
+    def test_unproven_legacy_rows_become_uncertain(self, tmp_path, monkeypatch):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-legacy-eio")
+        real = os.fsync
+        rec.record_trials([{"trial": 1}])        # fsync=False: written, not proven
+        monkeypatch.setattr(os, "fsync", _eio_on("trials.jsonl", real))
+        with pytest.raises(OSError, match="injected EIO"):
+            rec.record_observation(envelope)
+        monkeypatch.setattr(os, "fsync", real)
+        start, end, _ = next(iter(rec.trials._uncertain.values()))
+        assert start == 0 and end == (tmp_path / "trials.jsonl").stat().st_size
+        with pytest.raises(DurabilityUncertainError):
+            rec.record_observation(envelope)
+        rec.close()
+
+    def test_restart_reproves_with_a_fresh_fsync(self, tmp_path, monkeypatch):
+        """Documented contract: a new recorder re-proves on-disk lines by fsync."""
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-eio-restart")
+        real = os.fsync
+        monkeypatch.setattr(os, "fsync", _eio_on("trials.jsonl", real))
+        with pytest.raises(OSError):
+            rec.record_observation(envelope)
+        monkeypatch.setattr(os, "fsync", real)
+        rec.close()
+        with LearningRecorder(tmp_path, fsync=False) as restarted:
+            assert restarted.record_observation(envelope)["idempotent"] is True

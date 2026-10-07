@@ -769,7 +769,7 @@ class LearningRecorder:
                             f"{found[key]['file']}:line {found[key]['line']}")
                     found[key] = {
                         "canonical": canonical, "path": path, "file": path.name,
-                        "line": line_number, "offset": offset,
+                        "line": line_number, "offset": offset, "length": len(raw),
                     }
         return found
 
@@ -792,6 +792,9 @@ class LearningRecorder:
                     raise ObservationConflictError(
                         f"different observation payload for key {declared} at "
                         f"{match['file']}:line {match['line']}:byte {match['offset']}")
+                # A failed fsync in this process may have lost bytes the page
+                # cache still shows; a later successful fsync proves nothing.
+                self.trials.assert_proven_locked(match["path"], match["offset"], match["length"])
                 self.trials._sync_path_locked(match["path"])
                 return {
                     "durable": True, "idempotent": True,
