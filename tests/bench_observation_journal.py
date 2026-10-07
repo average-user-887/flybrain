@@ -9,7 +9,8 @@ long run, then opens a recorder on it and times fresh durable observation writes
 
 ``--impl-dir`` puts a directory holding another ``learning_recorder.py`` first on
 ``sys.path`` so an older implementation can be measured on identical data.
-Prints one JSON object per history size.
+Prints one JSON object per history size. ``maxrss`` is the process peak, so
+run one size per process for exact per-size memory.
 """
 
 from __future__ import annotations
@@ -152,6 +153,8 @@ def main() -> None:
             after_external.append(time.perf_counter() - t0)
         rss2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         rec.close()
+        index_file = data_dir / ".neurofly-observation-index.sqlite"
+        index_mib = round(index_file.stat().st_size / 2**20, 2) if index_file.exists() else None
         files = sorted(p.name for p in data_dir.glob("trials.jsonl*"))
         print(json.dumps({
             "impl": args.label, "history_mb": size, "observation_rows": rows,
@@ -163,6 +166,7 @@ def main() -> None:
             "write_median_ms_after_external": round(statistics.median(after_external) * 1000, 2),
             "maxrss_growth_mib_at_open": round((rss1 - rss0) / 1024, 1),
             "maxrss_growth_mib_total": round((rss2 - rss0) / 1024, 1),
+            "index_file_mib": index_mib,
         }), flush=True)
         shutil.rmtree(data_dir)
 
