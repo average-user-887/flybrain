@@ -27,6 +27,8 @@ IR_LP = [3.8, 5.8, 5.4, 2.3, 4.2, 5.4, 2.7, 3.8, 7.7, 4.4, 1.4, 2.4, 10.7]
 CENTER = (17, 27)
 NEIGH = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1))
 SETTLE, PRE, STEP = 1000, 500, 1500
+PHASE1 = None                                         # set from --phase1
+FIT_TYPES = [t for t in TYPES if t != 'L4']           # L4 has no column assignment (addendum 1)
 
 
 def lowpass(x, tau):                      # Borst_Fig1.py form, tau in bins
@@ -75,10 +77,10 @@ def build_cutout(base_params, base_sha):
     h1, h2 = tab.assignedOlHex1.to_numpy(float), tab.assignedOlHex2.to_numpy(float)
     cols = {CENTER} | {(CENTER[0] + a, CENTER[1] + b) for a, b in NEIGH}
     keep, col_of = [], {}
-    for t in TYPES:
-        for i in np.flatnonzero((ct == t) & (eye == 'R')):
-            if not (np.isnan(h1[i]) or np.isnan(h2[i])) and (int(h1[i]), int(h2[i])) in cols:
-                keep.append(int(i)); col_of[int(i)] = (int(h1[i]), int(h2[i]))
+    pc = np.load(PHASE1 / 'cell_columns.npz')          # Path B column map (spec addendum 1)
+    for n, t, e, a1, a2 in zip(pc['node'], pc['cell_type'], pc['eye'], pc['hex1'], pc['hex2']):
+        if t in TYPES and e == 'R' and (int(a1), int(a2)) in cols:
+            keep.append(int(n)); col_of[int(n)] = (int(a1), int(a2))
     io = resolve_photoreceptor_io()
     for i, c in zip(io.r_nodes['R'].tolist(), [tuple(c) for c in io.r_cartridge['R'].tolist()]):
         if c in cols:
@@ -142,19 +144,19 @@ class Model:
     def cost(self, p, detail=False):
         V = self.run(p)
         per = {}
-        for t in TYPES:
+        for t in FIT_TYPES:
             c = observe(V[:, self.cc[t]].mean(1))
             tg = self.tg[t]
             per[t] = float(((c - tg) ** 2).sum() / (tg ** 2).sum())
         tot = float(np.mean(list(per.values())))
         if detail:
-            raw = {t: float(V[PRE:, self.cc[t]].mean() - V[:PRE, self.cc[t]].mean()) for t in TYPES}
+            raw = {t: float(V[PRE:, self.cc[t]].mean() - V[:PRE, self.cc[t]].mean()) for t in FIT_TYPES}
             return tot, per, raw
         return tot
 
 
 def unpack(x):
-    p = {'tau_m_ms': {t: float(np.clip(math.exp(x[k]), 2, 200)) for k, t in enumerate(TYPES)}, 'ih': {}}
+    p = {'tau_m_ms': {t: (20.0 if t == 'L4' else float(np.clip(math.exp(x[k]), 2, 200))) for k, t in enumerate(TYPES)}, 'ih': {}}
     k = len(TYPES)
     for t in ('L1', 'L2'):
         g, vh, th = x[k:k + 3]; k += 3
@@ -169,7 +171,10 @@ def main():
         ap.add_argument(k, type=Path, required=True)
     ap.add_argument('--spec-sha256', required=True); ap.add_argument('--base-sha256', required=True)
     ap.add_argument('--maxfev', type=int, default=2500)
+    ap.add_argument('--phase1', type=Path, required=True)
     a = ap.parse_args()
+    global PHASE1
+    PHASE1 = a.phase1
     if hashlib.sha256(a.spec.read_bytes()).hexdigest() != a.spec_sha256:
         raise SystemExit('spec sha mismatch')
     base, bsha = load_params(a.base_params, a.base_sha256)
@@ -197,7 +202,7 @@ def main():
     rep = dict(spec_sha256=a.spec_sha256, base_params_sha256=bsha, cutout=info, evals=len(hist),
                default=dict(cost=c0, per_type=per0, raw_center_dV_mV=raw0),
                fitted=dict(cost=c1, per_type=per1, raw_center_dV_mV=raw1, params=p,
-                           shape_match=[t for t in TYPES if per1[t] <= 0.20]),
+                           shape_match=[t for t in FIT_TYPES if per1[t] <= 0.20]),
                leak40_sensitivity=dict(cost=c2, per_type=per2, raw_center_dV_mV=raw2),
                validation='NOT EVALUABLE (no untouched recordings)')
     a.out.mkdir(parents=True, exist_ok=True)
