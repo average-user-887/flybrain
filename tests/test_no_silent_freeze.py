@@ -437,6 +437,27 @@ def test_cuda_error_in_the_connectome_step_halts_as_a_device_failure(tmp_path, r
     assert st["result_validity"]["state"] == "incomplete"
 
 
+def test_runtime_device_fault_with_auto_engine_halts_and_does_not_switch_engine(tmp_path, runners, monkeypatch):
+    """'auto' only chooses the engine at set-up; a running brain's device fault still halts."""
+    err = _cuda_error()
+    runner = make_graph_runner(tmp_path, brain_backend="auto")
+    runner.exploratory = True                                 # even in exploratory mode
+    started(runners, runner)
+    instance = runner.registry.active
+    brain, engine = instance.brain, instance.brain.backend
+
+    def device_fails(*a, **k):
+        raise err
+    monkeypatch.setattr(brain, "step", device_fails)
+    assert wait_for(lambda: runner.last_error is not None)
+    monkeypatch.undo()
+    st = status(runner)
+    assert st["status"] == "error" and st["halted"] is True
+    assert st["error_detail"]["failure_class"] == "compute" and st["error_detail"]["phase"] == "device"
+    assert runner.registry.active is instance and instance.brain is brain and brain.backend == engine
+    assert runner.registry.brain_backend == "auto"
+
+
 def test_cuda_error_in_the_checkpoint_device_copy_halts_even_in_exploratory_mode(tmp_path, runners, monkeypatch):
     err = _cuda_error()
     runner = make_graph_runner(tmp_path)
