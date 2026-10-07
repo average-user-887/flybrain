@@ -13,8 +13,35 @@ import pytest
 
 import experiment_registry
 import neurofly_daemon as nd
+from learning_recorder import LearningRecorder, RecorderThread
 from tests.test_no_silent_freeze import (_graph_history, _restored, force_checkpoint_due, make_graph_runner,
                                          runners, shutdown, started, status, wait_for)  # noqa: F401
+from tests.transition_control_helpers import transition_command
+
+_DURABLE_RECORDERS = []
+
+
+def durable(runner):
+    """Attach the durable observation recorder a clean stop() needs.
+
+    Since 730059e, stop() runs the 'shutdown' lifecycle command, which
+    _admit_lifecycle refuses without a durable observation recorder, so
+    stop() returns False.  The daemon always attaches one; tests that assert
+    a clean shutdown do the same.
+    """
+    recorder = LearningRecorder(runner.output_dir / f"durable-records-{runner.run_id}",
+                                session={"daemon_run_id": runner.run_id})
+    with runner.lock:
+        runner.attach_learning_records(RecorderThread(runner, recorder, summary_interval=999))
+    _DURABLE_RECORDERS.append(recorder)
+    return runner
+
+
+@pytest.fixture(autouse=True)
+def _close_durable_recorders():
+    yield
+    while _DURABLE_RECORDERS:
+        _DURABLE_RECORDERS.pop().close()
 
 
 def test_non_finite_state_is_a_compute_failure():
@@ -140,7 +167,7 @@ def test_incident_after_the_last_checkpoint_survives_a_crash_and_restart(tmp_pat
 
 
 def test_an_unclean_end_marks_the_resumed_run_interrupted_and_a_clean_one_does_not(tmp_path, runners):
-    clean = make_graph_runner(tmp_path / "clean")
+    clean = durable(make_graph_runner(tmp_path / "clean"))
     clean.start()
     assert wait_for(lambda: clean.total_steps > 3)
     assert clean.stop() is True
@@ -150,11 +177,11 @@ def test_an_unclean_end_marks_the_resumed_run_interrupted_and_a_clean_one_does_n
     with crashed.lock:
         crashed.checkpoint_now("periodic")
     _crash(crashed)
-    restarted = make_graph_runner(tmp_path / "crash")
+    restarted = durable(make_graph_runner(tmp_path / "crash"))
     validity = restarted.result_validity()
     assert validity["state"] == "incomplete"
     assert [i["reason"] for i in validity["incidents"]] == ["interrupted_unclean_shutdown"]
-    restarted.stop()                                           # this session ends cleanly
+    assert restarted.stop() is True                            # this session ends cleanly
     # Reported once per interrupted session, not again on every later start.
     again = make_graph_runner(tmp_path / "crash").result_validity()
     assert [i["reason"] for i in again["incidents"]].count("interrupted_unclean_shutdown") == 1
@@ -175,11 +202,14 @@ def test_a_malformed_or_truncated_ledger_is_tolerated_and_still_counts(tmp_path,
 
 
 def test_no_cross_run_contamination(tmp_path, runners):
-    runner = started(runners, make_graph_runner(tmp_path))            # t-maze instance
+    runner = started(runners, durable(make_graph_runner(tmp_path)))   # t-maze instance
     with runner.lock:
         runner._invalidate("required_save_failed", channel="checkpoint",
                            exc=OSError(errno.ENOSPC, "No space left on device"), failure_class="persistence")
-        result = runner._apply_command({"action": "switch_paradigm", "paradigm": "y-maze"})
+        # Since 730059e a switch is a queued durable transaction (needs the
+        # recorder attached above and completes outside the lock).
+        result = transition_command(runner, {"action": "switch_paradigm", "paradigm": "y-maze"},
+                                    lock_held=True)
     assert result["status"] == "ok"
     assert runner.result_validity()["state"] == "valid_so_far"        # y-maze run is untouched
     assert runner.stop() is True
@@ -227,7 +257,7 @@ def test_truncated_tail_then_activation_then_abrupt_restart(tmp_path, runners):
 
 
 def test_ledger_read_denied_is_unknown_not_valid(tmp_path, runners):
-    first = make_graph_runner(tmp_path)
+    first = durable(make_graph_runner(tmp_path))
     assert first.stop() is True
     ledger = tmp_path / "run_validity.jsonl"
     os.chmod(ledger, 0)
@@ -245,7 +275,7 @@ def test_ledger_read_denied_is_unknown_not_valid(tmp_path, runners):
 
 @pytest.mark.parametrize("exploratory", [False, True], ids=["scientific", "exploratory"])
 def test_ledger_write_denied(tmp_path, runners, exploratory):
-    first = make_graph_runner(tmp_path)
+    first = durable(make_graph_runner(tmp_path))
     assert first.stop() is True
     ledger = tmp_path / "run_validity.jsonl"
     os.chmod(ledger, 0o444)
@@ -265,7 +295,7 @@ def test_ledger_write_denied(tmp_path, runners, exploratory):
 
 
 def test_malformed_field_types_do_not_crash_and_are_scoped(tmp_path, runners):
-    first = make_graph_runner(tmp_path)
+    first = durable(make_graph_runner(tmp_path))
     run_id = first.result_validity()["run_id"]
     assert first.stop() is True
     with open(tmp_path / "run_validity.jsonl", "a") as fh:
@@ -286,7 +316,7 @@ def test_malformed_field_types_do_not_crash_and_are_scoped(tmp_path, runners):
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("damage", ["corrupt", "missing"])
 def test_clean_shutdown_then_damaged_newest_checkpoint_is_incomplete(tmp_path, damage):
-    runner = make_graph_runner(tmp_path)
+    runner = durable(make_graph_runner(tmp_path))
     with runner.lock:
         for _ in range(3):
             runner.step_once()
@@ -303,7 +333,7 @@ def test_clean_shutdown_then_damaged_newest_checkpoint_is_incomplete(tmp_path, d
             fh.write(b"junk")
     else:
         newest.unlink()
-    again = make_graph_runner(tmp_path)
+    again = durable(make_graph_runner(tmp_path))
     validity = again.result_validity()
     assert validity["run_id"] == run_id and validity["state"] == "incomplete"
     incident = [i for i in validity["incidents"] if i["reason"] == "restored_older_checkpoint"][0]
@@ -321,7 +351,7 @@ def test_clean_shutdown_then_damaged_newest_checkpoint_is_incomplete(tmp_path, d
 # Required fields of every ledger schema (Codex review of b3d3837, 2)
 # ---------------------------------------------------------------------------
 def _clean_history(tmp_path):
-    first = make_graph_runner(tmp_path)
+    first = durable(make_graph_runner(tmp_path))
     run_id = first.result_validity()["run_id"]
     assert first.stop() is True
     return run_id
@@ -372,7 +402,7 @@ def test_well_formed_records_are_accepted():
 def test_unscoped_damage_marks_runs_with_history_and_scoped_damage_stays_scoped(tmp_path):
     run_id = _clean_history(tmp_path)
     _append(tmp_path, {"event": "activate", "run_id": "another-run", "at": 2.0})   # scoped elsewhere
-    again = make_graph_runner(tmp_path)
+    again = durable(make_graph_runner(tmp_path))
     assert again.result_validity()["state"] == "valid_so_far"                 # not contaminated
     assert again.stop() is True
     _append(tmp_path, {"event": "session_end", "at": 3.0})                     # no identity at all
@@ -382,7 +412,7 @@ def test_unscoped_damage_marks_runs_with_history_and_scoped_damage_stays_scoped(
 
 
 def test_a_huge_integer_timestamp_is_damage_and_never_raises(tmp_path):
-    first = make_graph_runner(tmp_path)
+    first = durable(make_graph_runner(tmp_path))
     run_id = first.result_validity()["run_id"]
     assert first.stop() is True
     with open(tmp_path / "run_validity.jsonl", "a") as fh:
