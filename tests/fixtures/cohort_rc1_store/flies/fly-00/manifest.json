@@ -1,0 +1,24 @@
+{
+ "arena_seed": 1,
+ "assay": "optomotor",
+ "dynamics": "v3_fixed",
+ "encoder_rng": "numpy default_rng(seed)",
+ "fly_id": 0,
+ "graph_sha256": "686ffe19fa29758dc362c38cbb916f5c320b40a3b6ad4f954bf7a2b69cb555ab",
+ "io_map_sha256": "b9bc5e236ff20b6648619654e536150094af77d06cc7ac83f3e9534b3518eb2a",
+ "outputs": {
+  "steps.jsonl": "one JSON record per arena step: population spike counts, decoded motor command, world state"
+ },
+ "recorded_populations": [
+  "DNa02_L",
+  "DNa02_R",
+  "HS_L",
+  "HS_R",
+  "btf_L",
+  "btf_R",
+  "ftb_L",
+  "ftb_R"
+ ],
+ "schema": "neurofly.cohort.v1",
+ "seed": 1
+}

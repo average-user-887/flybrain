@@ -16,8 +16,9 @@ Semantics every engine must honour (v0.5.0-rc1 contract):
   once the numeric restore proof (cohort verify) passes for that pair.
 * Rejection is atomic: ``step`` validates the whole (B, n) drive and an
   integer tick count before any fly advances; ``write_state`` validates every
-  field (keys, shapes, dtypes, finiteness, clocks, queue bounds) before any
-  live array changes. The shared graph arrays are made read-only.
+  field (keys, shapes, dtypes, finiteness, clocks, queue bounds, refractory
+  >= 0, active list == active_flag set without duplicates) before any live
+  array changes; ``_check_state`` is the shared validator for every engine. The shared graph arrays are made read-only.
 """
 from __future__ import annotations
 
@@ -112,6 +113,17 @@ class CohortEngine(abc.ABC):
                 raise ValueError("State nactive is outside the active list; refused")
             if nact and (act[:nact].min() < 0 or act[:nact].max() >= n):
                 raise ValueError(f"State active list holds neuron indices outside [0, {n}); refused")
+            if "active_flag" in staged:
+                # Every engine keeps active[:nactive] == the set of flagged cells, each once.
+                listed = np.unique(act[:nact])
+                if len(listed) != nact or not np.array_equal(
+                        listed, np.flatnonzero(np.asarray(staged["active_flag"]))):
+                    raise ValueError("State active list and active_flag disagree (duplicates, or a "
+                                     "flagged cell not listed / a listed cell not flagged); refused")
+        if "refractory" in staged:
+            refr = np.asarray(staged["refractory"])
+            if refr.size and refr.min() < 0:
+                raise ValueError("State refractory counters must be >= 0; refused")
         return staged
 
     @abc.abstractmethod

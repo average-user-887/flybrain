@@ -60,7 +60,7 @@ def test_atomic_write_leaves_no_temp(tmp_path):
 
 
 @pytest.mark.parametrize('damage', ['corrupt', 'truncate', 'schema', 'graph'])
-def test_damaged_checkpoint_is_refused_and_preserved(cohort_dir, damage):
+def test_damaged_checkpoint_is_refused_and_preserved(cohort_dir, damage, monkeypatch):
     path = last_ckpt(cohort_dir, 1)
     if damage == 'corrupt':
         data = bytearray(path.read_bytes())
@@ -72,6 +72,10 @@ def test_damaged_checkpoint_is_refused_and_preserved(cohort_dir, damage):
         # A self-consistent checkpoint under another schema, chain sha updated too:
         # the schema check itself must refuse it.
         meta, state = store.decode_checkpoint(path.read_bytes())
+        # Stored members, so the schema string can be edited in place (as rc1 archives are).
+        import zipfile
+        monkeypatch.setattr(store, 'CHECKPOINT_COMPRESSION', zipfile.ZIP_STORED)
+        monkeypatch.setattr(store, 'CHECKPOINT_COMPRESSLEVEL', None)
         data = store.encode_checkpoint({k: v for k, v in meta.items() if k != 'content_sha256'}, state)
         data = data.replace(b'neurofly.cohort.v1', b'neurofly.cohort.v0')
         path.write_bytes(data)
@@ -198,3 +202,26 @@ def test_resume_refused_when_running_dynamics_differ(cohort_dir, monkeypatch):
     assert snapshot_tree(cohort_dir) == before
     monkeypatch.setattr(lif, 'TAU_M_MS', 20.0)
     resume_cohort(cohort_dir, seconds=0.1, graph=synthetic_graph(), progress=quiet)   # same model: accepted
+
+
+def test_checkpoint_members_are_explicitly_compressed_and_rc1_archives_still_read():
+    """A5: rc1 wrote every member ZIP_STORED (the ZipInfo default overrode the archive's
+    deflate setting).  New members are deflated, deterministically; rc1 archives (stored)
+    still verify against the sha256 their manifest recorded, so their hashes never change."""
+    import io
+    import zipfile
+    from pathlib import Path
+    data = store.encode_checkpoint({}, {'dynamics': 'v3', 'v': np.zeros(100000, np.float32)})
+    assert data == store.encode_checkpoint({}, {'dynamics': 'v3', 'v': np.zeros(100000, np.float32)})
+    infos = {i.filename: i for i in zipfile.ZipFile(io.BytesIO(data)).infolist()}
+    assert {i.compress_type for i in infos.values()} == {zipfile.ZIP_DEFLATED}
+    assert infos['state/v.npy'].compress_size < infos['state/v.npy'].file_size // 10
+    assert np.array_equal(store.decode_checkpoint(data)[1]['v'], np.zeros(100000, np.float32))
+    rc1 = Path(__file__).parent / 'fixtures' / 'cohort_rc1_store'
+    manifest = json.loads((rc1 / store.MANIFEST_NAME).read_text())
+    for entry in manifest['flies']:
+        for link in entry['checkpoints']:
+            path = rc1 / link['file']
+            assert {i.compress_type for i in zipfile.ZipFile(path).infolist()} == {zipfile.ZIP_STORED}
+            store.read_checkpoint(path, link['sha256'])
+        store.verify_chain(rc1, entry)

@@ -494,3 +494,67 @@ def test_sim_killed_mid_save_keeps_the_last_good_checkpoint_and_marks_the_run_in
             or validity["state"] == "incomplete"
     finally:
         m.close()
+
+
+# ---- rc2 Lane 1: run-scoped snapshots, status and pending requests (A2 + F5) ----
+
+def _snap(link, seq, step, run_id):
+    link._on_message({"t": "snap", "seq": seq, "step": step}, json.dumps({"run_id": run_id}).encode())
+
+
+def test_a_paused_restart_reusing_seq_never_shows_the_old_run():
+    """A2: rc1 keyed telemetry by seq only, so a restarted (paused) simulation that published
+    seq 1 again kept serving the previous run's telemetry and status."""
+    import socket as _socket
+    link = split.SimLink("unused")
+    proxy = split.SimProxy(link)
+    a, b = _socket.socketpair()
+    link._on_connect(a)
+    _snap(link, 1, 9, "old")
+    link._on_message({"t": "state", "state": {"run_id": "old", "pid": 1, "paused": True}}, b"")
+    assert proxy.latest_telemetry == {"run_id": "old"}
+    # Astra's exact in-memory control: a replacement frame with the same seq on the same link.
+    _snap(link, 1, 0, "new-same-link")
+    assert proxy.latest_telemetry == {"run_id": "new-same-link"}
+    # The simulation process dies: nothing of its run is shown as current.
+    link._on_disconnect("test")
+    assert link.published is None and link.state == {} and proxy.latest_telemetry is None
+    assert proxy.command_ack_lookup(command_id="c-1")["daemon_run_id"] is None
+    # It restarts paused and publishes seq 1 again.
+    c, d = _socket.socketpair()
+    link._on_connect(c)
+    assert link.published is None and link.state == {}
+    _snap(link, 1, 0, "restarted")
+    assert proxy.latest_telemetry == {"run_id": "restarted"}
+    assert link.published.epoch == link.epoch
+    for s in (a, b, c, d):
+        s.close()
+
+
+def test_a_pending_command_across_a_disconnect_resolves_as_unknown():
+    """F5: a command queued by a process that then dies is never reported as queued, and no
+    request can be inserted after the disconnect sweep."""
+    import socket as _socket
+    link = split.SimLink("unused")
+    proxy = split.SimProxy(link)
+    a, b = _socket.socketpair()
+    link._on_connect(a)
+    link._on_message({"t": "state", "state": {"run_id": "run-A"}}, b"")
+    result = {}
+
+    def dispatch():
+        result.update(proxy.dispatch_command({"action": "set_speed", "client_command_id": "k1"}))
+    t = threading.Thread(target=dispatch)
+    t.start()
+    header, _ = split.recv_msg(b)
+    link._on_message({"t": "queued", "req": header["req"], "command_id": "cmd-7"}, b"")
+    link._on_disconnect("killed")
+    t.join(10)
+    assert result["status"] == "error" and result["applied"] is None
+    assert "outcome is unknown" in result["message"]
+    assert result["command_id"] == "cmd-7" and result["daemon_run_id"] == "run-A"
+    assert link.pending_commands() == 0
+    assert link.request({"t": "cmd", "cmd": {}}) is None          # down: refused, nothing stranded
+    assert link.pending_commands() == 0
+    for s in (a, b):
+        s.close()
