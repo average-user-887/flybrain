@@ -1167,7 +1167,17 @@ class ContinuousExperimentRunner:
         self._scheduled_records_cleanup_guard = threading.Lock()
         self._scheduled_records_cleanup_thread = None
         self._scheduled_records_cleanup_ok = False
-        self.graph_dir = graph_dir
+        # Graph configuration captured ONCE at startup (explicit --graph-dir, else
+        # NEUROFLY_GRAPH_DIR, else the checkout default; connectome tables likewise).
+        # Every later controller rebuild/load (backend switch, assay transition,
+        # plastic rule) uses exactly these directories, so a switch can never fall
+        # back to the packaged default or re-read the environment.
+        from brainlab.graph_identity import resolve_connectome_dir, resolve_graph_dir
+        if shared_graph is not None and graph_dir is None and getattr(
+                getattr(shared_graph, 'identity', None), 'graph_path', None):
+            graph_dir = Path(shared_graph.identity.graph_path).parent
+        self.graph_dir, self.graph_dir_source = resolve_graph_dir(graph_dir)
+        self.connectome_dir, self.connectome_dir_source = resolve_connectome_dir(None)
         self.registry_root = registry_root
         # Newest checkpoints kept per graph instance and per assay (0 keeps all).
         self.keep_checkpoints = resolve_keep_checkpoints(keep_checkpoints)
@@ -1195,7 +1205,7 @@ class ContinuousExperimentRunner:
                                              default_registry_dir)
             if shared_graph is None:
                 shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if test_synthetic_graph
-                                else SharedGraph.load_for_dynamics(graph_dir))
+                                else SharedGraph.load_for_dynamics(self.graph_dir, self.connectome_dir))
             self.shared_graph = shared_graph
             plasticity_rule = None
             if backend == "connectome-plastic" and not getattr(shared_graph.identity, 'synthetic', False):
@@ -1406,7 +1416,7 @@ class ContinuousExperimentRunner:
                                              default_registry_dir)
             if self.shared_graph is None:
                 self.shared_graph = (SharedGraph.synthetic(allow_synthetic=True) if self.test_mode
-                                     else SharedGraph.load_for_dynamics(self.graph_dir))
+                                     else SharedGraph.load_for_dynamics(self.graph_dir, self.connectome_dir))
             if self.registry is None:
                 self.registry = GraphRegistry(self.shared_graph,
                                               Path(self.registry_root) if self.registry_root else default_registry_dir(self.output_dir),
@@ -4665,7 +4675,7 @@ class ContinuousExperimentRunner:
         try:
             from experiment_registry import SharedGraph
             graph = (SharedGraph.synthetic(allow_synthetic=True) if self.test_mode
-                     else SharedGraph.load_for_dynamics(self.graph_dir))
+                     else SharedGraph.load_for_dynamics(self.graph_dir, self.connectome_dir))
         except Exception as exc:
             error = exc
         with self.lock:
