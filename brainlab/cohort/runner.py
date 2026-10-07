@@ -79,6 +79,51 @@ def _payload(writer: dict) -> dict:
     return {'ident': ident, 'version': writer.get('version')}
 
 
+def dynamics_signature(engine: CohortEngine) -> dict:
+    """Canonical signature of the model the RUNNING code executes: values + sha256.
+
+    Read from the live modules and the live engine (never from a checkpoint), so a
+    resume under different constants is refused even when the code version is equal.
+    """
+    from brainlab import engine as lif
+    from brainlab.cuda_engine import FIXED_SCALE
+    from brainlab.graph_identity import dynamics_pin
+    from brainlab.transmitter_policy import POLICY_V3
+    if hasattr(engine, 'brains'):
+        live = engine.brains[0]
+        e_inh, g_exc, g_inh = live.e_inh_mV, live.g_unit_exc, live.g_unit_inh
+    else:
+        e_inh, g_exc, g_inh = (getattr(engine, 'e_inh', None), getattr(engine, 'g_unit_exc', None),
+                               getattr(engine, 'g_unit_inh', None))
+    values = {
+        'dynamics': 'v3', 'plastic': False, 'tick_ms': TICK_MS,
+        'constants': {name: float(getattr(lif, name)) for name in (
+            'V_REST_MV', 'V_RESET_MV', 'V_THRESHOLD_MV', 'TAU_M_MS', 'TAU_SYN_MS', 'REFRACTORY_MS',
+            'DELAY_MS', 'E_EXC_MV', 'E_INH_MV')},
+        'g_unit': {'per_weight': float(lif.G_UNIT_PER_WEIGHT), 'exc_v3': float(lif.G_UNIT_EXC_V3),
+                   'engine_exc': None if g_exc is None else float(g_exc),
+                   'engine_inh': None if g_inh is None else float(g_inh)},
+        'reversal': {'E_EXC_MV': float(lif.E_EXC_MV), 'engine_E_INH_MV': None if e_inh is None else float(e_inh)},
+        'transmitter_policy': POLICY_V3,
+        'declared_dynamics_pin': dynamics_pin('v3'),
+        'gpu_fixed_point_scale': float(FIXED_SCALE),
+    }
+    return {'values': values, 'sha256': _sha256_json(values)}
+
+
+def _signature_diff(a: dict, b: dict, prefix: str = '') -> str:
+    out = []
+    for key in sorted(set(a) | set(b)):
+        x, y = a.get(key), b.get(key)
+        if isinstance(x, dict) and isinstance(y, dict):
+            sub = _signature_diff(x, y, f'{prefix}{key}.')
+            if sub:
+                out.append(sub)
+        elif x != y:
+            out.append(f'{prefix}{key}: recorded {x!r}, running {y!r}')
+    return '; '.join(out)
+
+
 def graph_io_disclosure() -> dict:
     import provenance
     return {'graph_io': provenance.graph_io_declaration(include_config=True), 'notice': DISCLOSURE}
@@ -300,12 +345,14 @@ class Cohort:
         self.parents: List[Optional[str]] = [None] * len(worlds)
         self.drive = np.zeros((engine.n_flies, engine.n), dtype=np.float32)
         self.writer = writer_identity()
+        self.signature = dynamics_signature(engine)
 
     # -- identity common to every checkpoint
     def _identity(self) -> dict:
         return {'graph_sha256': self.graph.graph_sha256, 'io_map_sha256': self.graph.io_map_sha256,
                 'dynamics': DYNAMICS_ID, 'engine_backend_id': self.engine.backend_id,
-                'payload': _payload(self.writer), 'writer': self.writer}
+                'payload': _payload(self.writer), 'writer': self.writer,
+                'dynamics_signature': self.signature}
 
     def fly_dir(self, k: int) -> Path:
         return self.root / 'flies' / f'fly-{k:02d}'
@@ -476,6 +523,7 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
             'dynamics': DYNAMICS_ID, 'engine': eng.describe(), 'engine_backend_id': eng.backend_id,
             'payload': _payload(writer), 'writer': writer,
             'scientific_disclosure': graph_io_disclosure(),
+            'dynamics_signature': dynamics_signature(eng),
             'graph_identity': graph.identity, 'graph_source': graph.source, 'synthetic_graph': graph.synthetic,
             'assay': assay, 'step_ms': step_ms, 'tick_ms': TICK_MS, 'n_flies': flies, 'seed_base': seed_base,
             'stimulus_schedule': worlds[0].schedule(), 'stimulus_schedule_sha256': sched,
@@ -545,6 +593,17 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
         step_ms = float(manifest['step_ms'])
         recorded_engine = manifest['engine_backend_id']
         eng = make_engine(engine or ('gpu' if 'gpu' in recorded_engine else 'cpu'), graph.arrays, flies)
+        # The model the running code executes must be the one the cohort was run
+        # under (code version may differ).  Checked before any restore or write.
+        running = dynamics_signature(eng)
+        recorded = manifest.get('dynamics_signature') or {}
+        if recorded.get('sha256') != running['sha256'] or recorded.get('values') != running['values']:
+            diff = _signature_diff(recorded.get('values') or {}, running['values'])
+            raise CohortError(f'Dynamics signature mismatch: the cohort was run under {recorded.get("sha256")}, the '
+                              f'running model is {running["sha256"]} ({diff}); refused, nothing restored or written')
+        for fid, (meta, _, _) in last.items():
+            if (meta.get('dynamics_signature') or {}).get('sha256') != running['sha256']:
+                raise CohortError(f'fly {fid}: checkpoint dynamics signature differs from the running model; refused')
         # Cross-engine resume (cpu <-> gpu) is allowed: the preregistered restore
         # proof passed in both directions.  Source and target are recorded.
         # Phase 1: validate the WHOLE cohort in memory.  Nothing live or on disk
