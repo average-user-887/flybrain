@@ -125,6 +125,9 @@ def build_bundle(run_dir: Path, *, name: str | None = None,
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
     if summary.get("status") != "complete":
         raise ValueError(f"{run_dir} did not complete")
+    if "reference-flygym" in (summary.get("backend_id"), manifest.get("backend_id")):
+        raise ValueError(f"{run_dir} is a Reference fly (not connectome) run; the studio exports "
+                         "connectome and modular runs only, and never relabels a reference run")
 
     from .redact import NOTE as REDACTION_NOTE, redact_bytes, redact_text
 

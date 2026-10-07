@@ -155,6 +155,27 @@ def _parser() -> argparse.ArgumentParser:
     verdict.add_argument("--dna02-stride-k-per-hz", type=float, default=0.01, help="dn-v2 (assumption)")
     verdict.add_argument("--mdn-gain-per-hz", type=float, default=0.02, help="dn-v2 (assumption)")
     verdict.add_argument("--cpg-gain-per-hz", type=float, default=0.04, help="dna02-crossed-v1 only")
+    reference = subparsers.add_parser(
+        "reference",
+        help="Reference fly (not connectome): illustrative FlyGym walking controller, "
+             "presentation only (neurofly_body/reference.py)",
+        description=(
+            "Reference fly (not connectome) \u2014 illustrative reference controller. Runs "
+            "FlyGym 2.1's published CPG + reflex walking controller with a constant "
+            "command. It never loads a graph or a saved brain, is never connectome "
+            "evidence and never a biological qualification result. Results go under "
+            "outputs/reference_fly/ (or --namespace-root, which must be named reference_fly)."
+        ),
+    )
+    reference.add_argument("--duration", type=float, required=True, metavar="SECONDS")
+    reference.add_argument("--output", type=Path, required=True, metavar="DIRECTORY",
+                           help="run directory, relative to the namespace root or inside it")
+    reference.add_argument("--namespace-root", type=Path, default=None, metavar="DIRECTORY")
+    reference.add_argument("--assay", default="flat-ground-walking",
+                           help="only flat-ground-walking is available; the 14 dashboard "
+                                "assays are refused as unavailable")
+    reference.add_argument("--seed", type=int, default=0)
+    reference.add_argument("--record-fps", type=float, default=50.0)
     check = subparsers.add_parser(
         "replay-check",
         help="re-run a finished run from its manifest and require a bit-identical trajectory",
@@ -212,6 +233,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "replay-check":
         return _replay_check(args.run_dir, args.output)
+    if args.command == "reference":
+        return _reference(args)
     if args.command == "queue":
         return _queue(args)
     if args.command == "verdict":
@@ -244,10 +267,26 @@ def _queue(args: argparse.Namespace) -> int:
     return 1 if args.queue_command == "run" and state["failed"] else 0
 
 
+def _reference(args: argparse.Namespace) -> int:
+    from .reference import DISPLAY_LABEL, ReferenceRefused, run_reference
+
+    try:
+        summary = run_reference(args.output, duration_s=args.duration, seed=args.seed,
+                                assay=args.assay, namespace_root=args.namespace_root,
+                                record_fps=args.record_fps)
+    except ReferenceRefused as error:
+        raise SystemExit(f"{DISPLAY_LABEL}: {error}") from None
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
 def _replay_check(run_dir: Path, output: Path) -> int:
     """Re-run ``run_dir`` from its recorded invocation and compare trajectories."""
     run_dir = Path(run_dir)
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("backend_id") == "reference-flygym":
+        raise SystemExit(f"{run_dir} is a Reference fly (not connectome) run; replay-check "
+                         "covers connectome and modular runs only")
     if manifest.get("status") != "complete":
         raise SystemExit(f"{run_dir} did not complete (status {manifest.get('status')!r})")
     invocation = {**INVOCATION_BACKFILL, **(manifest.get("invocation") or {})}

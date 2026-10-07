@@ -64,6 +64,22 @@ contradicts (see `docs/EMBODIED_MVP.md`), so its PASS is the claim *a DNa02
 asymmetry that follows the stimulus can steer the articulated body*, not the claim
 that the graph walks and steers the fly.
 
+## Reference fly (not connectome)
+
+`python -m neurofly_body reference --duration 5 --output walk-001` runs FlyGym 2.1's
+own published walking controller (`HybridTurningController`: tripod CPG plus
+retraction and stumbling reflexes, replaying recorded single steps) with a constant
+command, for presentation only. Backend id `reference-flygym`; every artifact is
+labelled "Reference fly (not connectome) — illustrative reference controller". It is
+an engineered controller, not the connectome, not connectome evidence, not a
+qualification result and not a prediction of real fly behaviour. It loads no graph
+or saved brain, writes only under `outputs/reference_fly/` (refusing any brain,
+graph, checkpoint, learning or validation store), and offers one assay,
+`flat-ground-walking`; the 14 dashboard assays are refused as unavailable. Studio
+export, curation and `replay-check` refuse reference runs; the embodied replay page
+shows the label. Measured on CPU: about 1.5 s of wall time per simulated second,
+about 14 mm/s forward. See `neurofly_body/reference.py`.
+
 ## Single runs
 
 ```bash

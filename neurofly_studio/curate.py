@@ -51,6 +51,9 @@ def check_run(run_dir: Path) -> dict[str, Any]:
     summary_path = run_dir / "summary.json"
     if not summary_path.is_file() or _json(summary_path).get("status") != "complete":
         raise CurationError(f"{run_dir}: not a completed run")
+    if _json(summary_path).get("backend_id") == "reference-flygym":
+        raise CurationError(f"{run_dir}: a Reference fly (not connectome) run is never curated "
+                            "into the connectome gallery")
     if not (run_dir / "body.nfbody").is_file():
         raise CurationError(f"{run_dir}: no body.nfbody recording to replay")
     receipt_path = run_dir / "replay_check.json"
