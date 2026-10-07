@@ -107,6 +107,14 @@
     // ------------------------------------------------------------------ frames
     function fmt(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : '–'; }
 
+    // A Reference fly (not connectome) recording (neurofly_body/reference.py) carries
+    // backend_id 'reference-flygym'; it has no graph, no spikes and no neurons.
+    function referenceLabel(header) {
+        const p = (header && header.provenance) || {};
+        if (p.backend_id !== 'reference-flygym') return null;
+        return p.display_label || 'Reference fly (not connectome) \u2014 illustrative reference controller';
+    }
+
     function showFrame(index) {
         const rec = state.rec;
         if (!rec) return;
@@ -158,7 +166,7 @@
             const dd = document.createElement('dd'); dd.textContent = fmt(rate, 1);
             dn.append(dt, dd);
         }
-        $('spikes').textContent = String(f.spikes);
+        $('spikes').textContent = referenceLabel(rec.header) ? 'none (not connectome)' : String(f.spikes);
         const events = [];
         for (let i = 0; i <= index; i++) (rec.frames[i].events || []).forEach((e) => events.push([rec.frames[i].t, e]));
         $('events').textContent = events.length
@@ -199,8 +207,14 @@
 
     function describeRun(header) {
         const p = header.provenance || {}, cfg = p.config || {}, nb = p.neural_backend || {};
+        const reference = referenceLabel(header);
+        const banner = $('identity');
+        if (banner) {
+            banner.hidden = !reference;
+            banner.textContent = reference ? reference + '. Not connectome evidence; not a prediction of real fly behaviour.' : '';
+        }
         const rows = [
-            ['Controller', nb.controller_kind || (nb.graph_sha256 ? 'connectome' : '–')],
+            ['Controller', reference || nb.controller_kind || (nb.graph_sha256 ? 'connectome' : '–')],
             ['Decoder', (p.decoder && p.decoder.name) || '–'],
             ['Mode', p.command_mode || cfg.mode || '–'],
             ['Seed', cfg.seed],

@@ -37,6 +37,8 @@
   #clock { font-variant-numeric: tabular-nums; min-width: 130px; }
   #status { color: var(--muted); font-size: 12px; }
   #status.bad { color: var(--warn); }
+  .identity { flex-basis: 100%; color: var(--left); border: 1px solid var(--left); border-radius: 6px; padding: 4px 8px; font-weight: 600; }
+  .identity[hidden] { display: none; }
   input[type=file] { display: none; }
   @media (max-width: 760px) {
     body { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto auto; height: auto; }
@@ -51,6 +53,7 @@
   <label class="file">Open .nfbody<input id="file" type="file" accept=".nfbody,application/gzip"></label>
   <span class="src" id="source">No recording loaded</span>
   <span id="status"></span>
+  <strong id="identity" class="identity" role="status" hidden></strong>
 </header>
 <div id="view">
   <div id="drop">Drop a <code>body.nfbody</code> recording here, open one above, or pass <code>?src=URL</code>.</div>
