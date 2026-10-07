@@ -13,6 +13,7 @@ from scripts import observatory
 from experiment_brains import ExperimentBrains
 from neurofly_daemon import ContinuousExperimentRunner, NeuroflyHTTPHandler
 from stream_gateway import StreamGateway, StreamPolicy
+from tests.transition_control_helpers import transition_command
 
 
 def make_project(tmp_path):
@@ -97,7 +98,10 @@ def test_http_snapshot_matches_selected_brain_and_public_policy(tmp_path):
     worker.start()
     try:
         for pid in ('t-maze', 'y-maze', 't-maze'):
-            runner.dispatch_command({'action': 'switch_paradigm', 'paradigm': pid})
+            # Since 730059e a switch needs a durable recorder and runs as a
+            # queued transaction; the shared helper supplies both.  Switching
+            # to the already active assay is a no-op that must still succeed.
+            assert transition_command(runner, {'action': 'switch_paradigm', 'paradigm': pid})['status'] == 'ok'
             with urlopen(f'http://127.0.0.1:{server.server_port}/api/observatory') as response:
                 data = json.load(response)
             assert data['brain']['paradigm'] == data['status']['active_paradigm'] == pid
