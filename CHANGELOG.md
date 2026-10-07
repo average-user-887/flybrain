@@ -5,6 +5,47 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
+## [0.5.0rc1] - 2026-10-07 (PRERELEASE)
+
+Release candidate on top of `v0.4.0`. **Prerelease, pending the owner's decision:** the
+GPU cohort engine **fails** its preregistered CPU-reference gate (see Scientific
+results). Details: `docs/RELEASE_NOTES_v0.5.0rc1.md`.
+
+### Added
+
+- **Cohort runs:** `neurofly cohort run|resume|verify` (`brainlab/cohort`). Many
+  independent fixed-weight v3 brains share one read-only graph, each with its own seed,
+  arena, encoder and decoder. The only assay is optomotor. Checkpoint/resume is
+  byte-exact and works across engines. The CPU engine is the reference; `--engine gpu`
+  (CUDA/CuPy) is optional.
+- **Opt-in two-process mode:** `neurofly run --split` runs the simulation and the web
+  server as separate processes, and `neurofly sim-serve` and `neurofly web-serve` start
+  one side only. One process stays the default. This is a v0.5 prototype.
+
+### Fixed
+
+- `stop()` is idempotent after an acknowledged API shutdown. A later SIGTERM or SIGINT
+  no longer writes a false `required_save_failed` row or exits 1.
+
+### Scientific results
+
+- **GPU cohort CPU-reference gate: FAIL.** 7 g points exceed 1e-6, worst 1.047e-6;
+  0 spike/refractory mismatches over 200 ticks; max |ΔV| 1.14e-5 mV.
+- **Checks that pass:** cross-engine restore, batch invariance, isolation between
+  flies, and byte-identical resume.
+- **Throughput** (GTX 1660 Ti): batched GPU runs about 4,800 fly-steps/s, against about
+  480 on the CPU. Batching adds only about 1.2x over serial GPU runs.
+- **Disclosure:** the cohort's input and output are declared, not native. The encoder
+  drives T4/T5 directly, and the DNa02 yaw decoder is an engineered linear readout.
+
+### Not in this release
+
+- Learning.
+- Dynamics v4/v5 in cohorts.
+- The fly body in cohorts.
+- AMD GPU acceleration for cohorts.
+- A browser cohort UI.
+
 ## [0.4.0] - 2026-10-07
 
 Everything merged to `master` since the `v0.3.0` tag (`b6031b7`, 24 September 2026),
@@ -212,5 +253,6 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 
 Tagged as `v0.3.0` (`b6031b7`); no changelog was kept before this version.
 
+[0.5.0rc1]: https://github.com/average-user-887/flybrain/compare/v0.4.0...v0.5.0rc1
 [0.4.0]: https://github.com/average-user-887/flybrain/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/average-user-887/flybrain/tree/v0.3.0
