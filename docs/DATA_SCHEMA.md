@@ -260,7 +260,8 @@ that `observation_key.segment_id` (a `trial` record, which now carries the
 terminal's `observation_key` and `payload_sha256`, or an `assay_control`
 record such as a clean shutdown); otherwise `unknown`, with the evidence
 `detail` (ledger missing, unreadable, or no terminal found; the earlier
-session's recorder may still hold one). No status claims an interruption, and
+session's recorder may still hold one; only the newest 4 MiB of the ledger is
+searched, so an older record reads as unknown). No status claims an interruption, and
 no existing terminal is changed. After a daemon restart the lineage is
 appended to that ledger as `kind` `observation_segment_restarted`. The
 dashboard shows "Trial elapsed" and, under it, "Window … · restarted after
