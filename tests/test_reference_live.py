@@ -193,3 +193,28 @@ def test_reference_body_failure_is_shown_not_hidden(tmp_path):
     assert pkt["liveness"]["state"] == "halted"
     assert switch(runner, "connectome-fixed")["status"] == "ok"
     runner.stop()
+
+
+def test_status_and_clock_show_the_reference_clock_not_the_graph_clock(tmp_path):
+    from neurofly_daemon import NeuroflyHTTPHandler
+
+    runner = graph_runner(tmp_path)
+    with runner.lock:
+        for _ in range(4):
+            runner.step_once()
+    switch(runner, BACKEND_ID)
+    for _ in range(25):
+        runner.reference.step_frame()
+    runner._publish_snapshot()
+    payload = NeuroflyHTTPHandler._status_payload(SimpleNamespace(runner=runner, gateway=SimpleNamespace(describe=dict)))
+    assert payload["backend"] == BACKEND_ID and payload["active_paradigm"] == "n/a (reference)"
+    assert payload["active_paradigm_title"] == DISPLAY_LABEL
+    assert payload["current_trial"] is None and payload["trial_elapsed_s"] is None
+    assert payload["total_steps"] == 25 and payload["clocks"]["reference"]["sim_time_s"] == pytest.approx(0.05)
+    assert runner.presented_step == 25 and runner.total_steps == 4
+    assert sim_state(runner)["presented_step"] == 25
+    switch(runner, "connectome-fixed")
+    payload = NeuroflyHTTPHandler._status_payload(SimpleNamespace(runner=runner, gateway=SimpleNamespace(describe=dict)))
+    assert payload["active_paradigm"] == "open-arena" and payload["total_steps"] == 4
+    assert runner.presented_step == 4
+    runner.stop()

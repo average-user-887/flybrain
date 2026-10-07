@@ -595,6 +595,24 @@ const TRIAL_CLOCK_REASONS = {
  *  time is shown separately.  Trial values read Unknown only when the packet's
  *  trial clock says so; packets without clocks keep their values unchanged. */
 function clockReadouts(view, packet, remote, replay) {
+    const ref = !replay && view?.referencePacket?.reference_fly ? view.referencePacket : null;
+    if (ref) {
+        // Reference fly (not connectome): its own clock only; no graph clock, trial or assay.
+        const t = ref.reference_fly.sim_time_s;
+        const na = 'n/a (reference)';
+        return {
+            timeLabel: 'Reference time', stepLabel: 'Reference frame',
+            sessionTitle: 'Simulated time of this Reference fly (not connectome) session; it is not the '
+                + 'connectome session clock, brain time or trial clock.',
+            simTime: (Number.isFinite(t) ? t.toFixed(2) : '--') + 's',
+            step: Number.isFinite(ref.step) ? String(ref.step) : '--',
+            graphVisible: false, graphTime: '--', graphTitle: '',
+            trial: na, guideTrial: 'N/A (REFERENCE)', trialTitle: 'The reference fly runs no assay and no trials.',
+            windowVisible: false, window: '', windowTitle: '',
+            elapsed: na, elapsedTitle: 'The reference fly runs no assay and no trials.',
+            assay: na,
+        };
+    }
     const trial = remote ? packet?.clocks?.trial : null;
     const elapsedUnknown = !!trial && trial.elapsed_known === false;
     const trialUnknown = !!trial && trial.trial_known === false;
@@ -6909,7 +6927,9 @@ class ScientificHUD {
         const windowEl = document.getElementById('paradigmWindow');
         if (windowEl) { windowEl.hidden = !clocks.windowVisible; windowEl.textContent = clocks.window; windowEl.title = clocks.windowTitle; }
 
-        const metric = this.arena.getCanonicalMetricInfo();
+        const metric = clocks.assay
+            ? {label: 'Assay', value: clocks.assay, sub: 'Reference fly (not connectome): no assay metric', unit: '', rawValue: null}
+            : this.arena.getCanonicalMetricInfo();
         const mLabelEl = document.getElementById('paradigmMetricLabel');
         const mValEl = document.getElementById('paradigmMetricValue');
         if (mLabelEl) mLabelEl.textContent = metric.label;
@@ -6920,8 +6940,8 @@ class ScientificHUD {
             mValEl.setAttribute('aria-label', metric.value + (mValEl.title ? ' · ' + mValEl.title : ''));
         }
 
-        this.updateCardMetric(metric);
-        const observationDisplay = (this.arena.remoteDriven || this.arena.awaitingDaemon) ? this.arena.getObservationDisplay() : null;
+        if (!clocks.assay) this.updateCardMetric(metric);
+        const observationDisplay = !clocks.assay && (this.arena.remoteDriven || this.arena.awaitingDaemon) ? this.arena.getObservationDisplay() : null;
         const watchTyped = document.getElementById('guideWhatToWatch');
         if (watchTyped && observationDisplay) watchTyped.textContent = assayLimitationForController(this.arena.remotePacket || {})
             + ' ' + metric.label + ': ' + metric.value + '. ' + metric.sub + '. See separate live and saved observations in Assay Tools & Levers.';

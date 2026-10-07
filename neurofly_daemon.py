@@ -2245,6 +2245,11 @@ class ContinuousExperimentRunner:
         return ident
 
     @property
+    def presented_step(self) -> int:
+        """The step of the clock being shown: reference frames, or the session step."""
+        return self.reference.frames if self.reference is not None else self.total_steps
+
+    @property
     def presented_backend(self) -> str:
         """The controller the dashboard is shown: the reference fly or ``backend``."""
         return REFERENCE_BACKEND if self.reference is not None else self.backend
@@ -5790,6 +5795,15 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["controller_fault"] = latest.get("controller_fault")
             payload["backend"] = getattr(self.runner, "presented_backend", getattr(self.runner, "backend", "modular"))
             payload["reference_fly"] = getattr(self.runner, "reference_status", lambda: None)()
+            reference = payload["reference_fly"]
+            if reference:
+                # Reference fly (not connectome): its own clock; no assay, trial or graph clock.
+                payload.update(active_paradigm="n/a (reference)", active_paradigm_title=reference["display_label"],
+                               current_trial=None, trials_completed=None, trial_elapsed_s=None,
+                               trial_length_s=None, total_steps=reference["frames"],
+                               clocks={"reference": {"sim_time_s": reference["sim_time_s"],
+                                                     "frames": reference["frames"],
+                                                     "scope": "reference fly session (not connectome)"}})
             # How the startup backend was chosen (explicit, or the fresh-launch default
             # and its reason, e.g. the visible modular fallback without a prepared graph).
             payload["launch_backend"] = getattr(self.runner, "launch_backend", None)
@@ -6084,7 +6098,7 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
                                     brain_id=(notice or {}).get("identity", {}).get("brain_id")
                                         if notice else owner_packet.get("brain_id"),
                                     segment_id=(notice or owner_packet).get("segment_id"))
-                        beat.update(step=runner.total_steps, paused=runner.paused, status=health["status"],
+                        beat.update(step=getattr(runner, "presented_step", runner.total_steps), paused=runner.paused, status=health["status"],
                                     halted=health["halted"], error=health["error"],
                                     liveness=health["liveness"], persistence=health["persistence"],
                                     mode=health["mode"], result_validity=health["result_validity"],

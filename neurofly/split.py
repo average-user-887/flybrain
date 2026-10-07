@@ -161,6 +161,7 @@ def sim_state(runner) -> Dict[str, Any]:
         "continuous": runner.continuous,
         "running": runner.running,
         "total_steps": runner.total_steps,
+        "presented_step": getattr(runner, "presented_step", runner.total_steps),
         "sim_speed": runner.sim_speed,
         "active_paradigm_id": runner.active_paradigm_id,
         "active_paradigm_title": runner.active_paradigm_title,
@@ -705,6 +706,11 @@ class SimProxy:
 
     def reference_status(self):
         return self._get("reference_fly")
+
+    @property
+    def presented_step(self):
+        value = self._get("presented_step")
+        return self.total_steps if value is None else int(value)
     launch_backend = property(lambda self: self._get("launch_backend"))
     last_step_wall_s = property(lambda self: self._get("last_step_wall_s", 0.0))
     arena = property(lambda self: SimpleNamespace(world_bounds=self._get("world_bounds", [])))

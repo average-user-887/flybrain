@@ -104,3 +104,16 @@ test('pause the connectome, select the reference, then Resume sends paused:false
     click();
     assert.equal(JSON.stringify(sent.at(-1)), JSON.stringify(['set_paused', {paused: true}]));
 });
+
+test('header clock and assay fields show the reference clock, never the stale graph clock or trial', () => {
+    const c = {window: {}}; vm.createContext(c);
+    vm.runInContext('const TRIAL_CLOCK_REASONS = {};\n' + slice('function clockReadouts(view, packet, remote, replay) {', 'class ScientificBioArena {') + '\nwindow.clockReadouts=clockReadouts;', c);
+    const stale = {simTime: 99.5, stepCount: 4975, paradigmElapsedSec: 12, currentTrial: 3};
+    const graphPacket = {clocks: {graph: {elapsed_s: 400, step: 20000}, trial: {}}};
+    const ref = c.window.clockReadouts({...stale, referencePacket: {...refPacket, step: 50}}, null, false, false);
+    assert.equal(ref.timeLabel, 'Reference time'); assert.equal(ref.simTime, '0.10s'); assert.equal(ref.step, '50');
+    assert.equal(ref.graphVisible, false); assert.equal(ref.trial, 'n/a (reference)'); assert.equal(ref.elapsed, 'n/a (reference)');
+    assert.equal(ref.assay, 'n/a (reference)');
+    const live = c.window.clockReadouts(stale, graphPacket, true, false);
+    assert.equal(live.timeLabel, 'Session time'); assert.equal(live.graphVisible, true); assert.equal(live.assay, undefined);
+});
