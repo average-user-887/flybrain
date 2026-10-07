@@ -1725,7 +1725,7 @@ class ContinuousExperimentRunner:
         brain = getattr(instance, "brain", None)
         device = getattr(brain, "backend", None)
         source = "active brain"
-        if device == 'wgpu-amd' or self.brain_backend == 'wgpu-amd':
+        if device == 'wgpu-amd' or getattr(self, 'brain_backend', None) == 'wgpu-amd':
             cached = brain.compute_identity() if brain is not None else {}
             adapter = cached.get('adapter') or {}
             return dict(brain='connectome-lif', dynamics=getattr(brain, 'dynamics', dynamics),
