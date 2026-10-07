@@ -553,6 +553,68 @@ def read_jsonl(path: Path) -> List[Dict[str, Any]]:
     return out
 
 
+class _LedgerChanged(ObservationJournalError):
+    """A validated ledger file changed other than by an append: re-validate fully."""
+
+
+class _LedgerFile:
+    """Validated prefix of one physical trials ledger file."""
+
+    __slots__ = ("name", "ident", "size", "lines", "nonblank", "mtime_ns", "tail_sha")
+
+    def __init__(self, name: str, ident: Tuple[int, int]):
+        self.name = name
+        self.ident = ident
+        self.size = 0          # bytes validated (always ends on a newline)
+        self.lines = 0         # physical lines validated
+        self.nonblank = 0
+        self.mtime_ns = 0
+        self.tail_sha = b""
+
+    def _tail(self, fd: int) -> bytes:
+        start = max(0, self.size - TAIL_DIGEST_BYTES)
+        return hashlib.sha256(os.pread(fd, self.size - start, start)).digest()
+
+    def stamp(self, fd: int) -> None:
+        self.mtime_ns = os.fstat(fd).st_mtime_ns
+        self.tail_sha = self._tail(fd)
+
+    def tail_matches(self, path: Path) -> bool:
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            st = os.fstat(fd)
+            return (st.st_dev, st.st_ino) == self.ident and self._tail(fd) == self.tail_sha
+        finally:
+            os.close(fd)
+
+
+class _ObservationIndex:
+    """Bounded index of validated observation rows.
+
+    Per observation it keeps a key digest, a payload digest and a location (a
+    few hundred bytes, independent of payload size); payloads are never kept.
+    """
+
+    __slots__ = ("files", "entries")
+
+    def __init__(self):
+        self.files: Dict[Tuple[int, int], _LedgerFile] = {}
+        # key sha256 -> (payload sha256, file, line, offset, row length)
+        self.entries: Dict[bytes, Tuple[bytes, _LedgerFile, int, int, int]] = {}
+
+    @staticmethod
+    def key_digest(key: Tuple[str, ...]) -> bytes:
+        return hashlib.sha256(json.dumps(list(key), ensure_ascii=False,
+                                         separators=(",", ":")).encode("utf-8")).digest()
+
+    def active(self, path: Path) -> Optional[_LedgerFile]:
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            return None
+        return self.files.get((st.st_dev, st.st_ino))
+
+
 def _owned_operation(method):
     """Keep a recorder operation inside its lifetime directory ownership."""
     @functools.wraps(method)
@@ -598,12 +660,20 @@ class LearningRecorder:
             self.last_trial_written: int = 0
             # Before anything can append: quarantine-then-truncate an unterminated
             # final record left by a crash, so no write is ever merged onto it.
+            # trials.jsonl is validated in full first: a torn tail is cut only if
+            # every complete line before it is valid.
+            self._index: Optional[_ObservationIndex] = None
+            self.full_scans = 0
+            with self.trials._lock:
+                trials_repair = self._open_ledger_locked()
             self.tail_repairs: List[Dict[str, Any]] = [
                 receipt for receipt in (
-                    self.trials.repair_tail(), self.summaries.repair_tail(),
+                    trials_repair, self.summaries.repair_tail(),
                     self._sessions_log.repair_tail())
                 if receipt is not None]
-            self.prior_trial_lines: int = self._count_prior_trial_lines()
+            # Nonblank lines already in the active trials file (informational only).
+            active = self._index.active(self.trials.path)
+            self.prior_trial_lines: int = active.nonblank if active is not None else 0
             self.session: Dict[str, Any] = {
                 "schema_version": SCHEMA_VERSION,
                 "session_id": self.session_id,
@@ -643,17 +713,6 @@ class LearningRecorder:
             os.fsync(fh.fileno())
         os.replace(tmp, path)
         self._sessions_log.append(self.session)
-
-    def _count_prior_trial_lines(self) -> int:
-        """Lines already in the active trials file (informational only)."""
-        path = self.data_dir / self.TRIALS_FILE
-        if not path.exists():
-            return 0
-        try:
-            with open(path, "rb") as fh:
-                return sum(1 for line in fh if line.strip())
-        except OSError:
-            return 0
 
     # -- records -------------------------------------------------------------
     @_owned_operation
@@ -725,87 +784,188 @@ class LearningRecorder:
         canonical = self._canonical_json(validated)
         return validated, key, values, canonical
 
-    def _strict_observations_locked(self) -> Dict[Tuple[str, ...], Dict[str, Any]]:
-        """Scan all physical trial ledgers; caller owns the shared writer lock."""
-        if self.trials._fh is not None:
-            self.trials._flush_strict()
+    def _strict_row_locked(self, index: "_ObservationIndex", lf: "_LedgerFile", raw: bytes,
+                           line_number: int, offset: int) -> None:
+        """Validate one complete physical row exactly as the full ledger scan always has."""
+        location = f"{lf.name}:line {line_number}:byte {offset}"
+        if not raw.strip():
+            return
+        lf.nonblank += 1
+        try:
+            text = raw[:-1].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ObservationJournalError(f"invalid UTF-8 at {location}: {exc}") from exc
+        try:
+            row = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ObservationJournalError(f"invalid JSON at {location}: {exc.msg}") from exc
+        if not isinstance(row, dict):
+            raise ObservationJournalError(f"JSONL row is not an object at {location}")
+        if row.get("type") != "observation":
+            return
+        if not isinstance(row.get("observation_key"), dict) or "observation" not in row:
+            raise ObservationJournalError(f"malformed observation row at {location}")
+        try:
+            _, key, declared, canonical = self._prepare_observation(row["observation"])
+        except ObservationJournalError as exc:
+            raise ObservationJournalError(f"invalid stored observation at {location}: {exc}") from exc
+        if row["observation_key"] != declared:
+            raise ObservationJournalError(f"observation key disagrees with payload at {location}")
+        key_digest = _ObservationIndex.key_digest(key)
+        first = index.entries.get(key_digest)
+        if first is not None:
+            raise ObservationJournalError(
+                f"duplicate observation key at {location}; first seen at "
+                f"{first[1].name}:line {first[2]}")
+        index.entries[key_digest] = (
+            hashlib.sha256(canonical.encode("utf-8")).digest(), lf, line_number, offset, len(raw))
+
+    def _validate_from_locked(self, index: "_ObservationIndex", lf: "_LedgerFile", path: Path,
+                              *, allow_torn: bool = False) -> Optional[int]:
+        """Validate ``path`` from ``lf.size`` to EOF; return a torn-tail offset if allowed."""
+        with open(path, "rb") as fh:
+            st = os.fstat(fh.fileno())
+            if (st.st_dev, st.st_ino) != lf.ident:
+                raise _LedgerChanged(f"{path.name} was replaced while it was being read")
+            fh.seek(lf.size)
+            torn = None
+            while True:
+                offset = fh.tell()
+                raw = fh.readline()
+                if not raw:
+                    break
+                if not raw.endswith(b"\n"):
+                    if allow_torn:
+                        torn = offset
+                        break
+                    raise ObservationJournalError(
+                        f"partial JSONL row at {lf.name}:line {lf.lines + 1}:byte {offset}")
+                self._strict_row_locked(index, lf, raw, lf.lines + 1, offset)
+                lf.lines += 1
+                lf.size = offset + len(raw)
+            lf.stamp(fh.fileno())
+        return torn
+
+    def _ledger_paths(self) -> List[Path]:
         paths = self.trials.rotated_files()
         if self.trials.path.exists():
             paths.append(self.trials.path)
-        found: Dict[Tuple[str, ...], Dict[str, Any]] = {}
+        return paths
+
+    def _full_scan_locked(self, *, allow_torn: bool = False) -> Tuple["_ObservationIndex", Optional[int]]:
+        """Validate every physical trials ledger from byte 0; caller owns the writer lock."""
+        index = _ObservationIndex()
+        torn = None
+        self.full_scans += 1
+        paths = self._ledger_paths()
         for path in paths:
-            with open(path, "rb") as fh:
-                line_number = 0
-                while True:
-                    offset = fh.tell()
-                    raw = fh.readline()
-                    if not raw:
-                        break
-                    line_number += 1
-                    location = f"{path.name}:line {line_number}:byte {offset}"
-                    if not raw.endswith(b"\n"):
-                        raise ObservationJournalError(f"partial JSONL row at {location}")
-                    if not raw.strip():
-                        continue
-                    try:
-                        text = raw[:-1].decode("utf-8")
-                    except UnicodeDecodeError as exc:
-                        raise ObservationJournalError(f"invalid UTF-8 at {location}: {exc}") from exc
-                    try:
-                        row = json.loads(text)
-                    except json.JSONDecodeError as exc:
-                        raise ObservationJournalError(f"invalid JSON at {location}: {exc.msg}") from exc
-                    if not isinstance(row, dict):
-                        raise ObservationJournalError(f"JSONL row is not an object at {location}")
-                    if row.get("type") != "observation":
-                        continue
-                    if not isinstance(row.get("observation_key"), dict) or "observation" not in row:
-                        raise ObservationJournalError(f"malformed observation row at {location}")
-                    try:
-                        _, key, declared, canonical = self._prepare_observation(row["observation"])
-                    except ObservationJournalError as exc:
-                        raise ObservationJournalError(
-                            f"invalid stored observation at {location}: {exc}") from exc
-                    if row["observation_key"] != declared:
-                        raise ObservationJournalError(
-                            f"observation key disagrees with payload at {location}")
-                    if key in found:
-                        raise ObservationJournalError(
-                            f"duplicate observation key at {location}; first seen at "
-                            f"{found[key]['file']}:line {found[key]['line']}")
-                    found[key] = {
-                        "canonical": canonical, "path": path, "file": path.name,
-                        "line": line_number, "offset": offset, "length": len(raw),
-                    }
-        return found
+            st = os.stat(path)
+            lf = _LedgerFile(path.name, (st.st_dev, st.st_ino))
+            index.files[lf.ident] = lf
+            torn = self._validate_from_locked(
+                index, lf, path, allow_torn=allow_torn and path == self.trials.path)
+        return index, torn
+
+    def _incremental_locked(self, index: "_ObservationIndex") -> None:
+        """Validate only bytes appended since the last check; raise _LedgerChanged otherwise.
+
+        A known file may only have grown with its validated tail intact, or (the
+        active file) have been renamed by rotation. Anything else - a missing,
+        shrunk, replaced or rewritten file, or a changed mtime at equal size -
+        forces a full re-validation from byte 0.
+        """
+        seen = set()
+        for path in self._ledger_paths():
+            try:
+                st = os.stat(path)
+            except FileNotFoundError as exc:
+                raise _LedgerChanged(f"{path.name} disappeared") from exc
+            ident = (st.st_dev, st.st_ino)
+            lf = index.files.get(ident)
+            if lf is None:  # a file this index has never seen (new active file after rotation)
+                lf = _LedgerFile(path.name, ident)
+                index.files[ident] = lf
+            else:
+                lf.name = path.name  # rotation renames the active file in place
+                if st.st_size < lf.size:
+                    raise _LedgerChanged(f"{path.name} shrank")
+                if not lf.tail_matches(path):
+                    raise _LedgerChanged(f"{path.name} validated tail changed")
+                if st.st_size == lf.size:
+                    if st.st_mtime_ns != lf.mtime_ns:
+                        raise _LedgerChanged(f"{path.name} modified in place")
+                    seen.add(ident)
+                    continue
+            self._validate_from_locked(index, lf, path)
+            seen.add(ident)
+        if set(index.files) - seen:
+            raise _LedgerChanged("a validated ledger file disappeared")
+
+    def _refresh_index_locked(self) -> "_ObservationIndex":
+        """Bring the bounded index up to date with disk; caller owns the writer lock."""
+        index = self._index
+        try:
+            if index is None:
+                index, _ = self._full_scan_locked()
+            else:
+                try:
+                    self._incremental_locked(index)
+                except _LedgerChanged:
+                    self._index = None
+                    index, _ = self._full_scan_locked()
+        except BaseException:
+            self._index = None  # never trust a partially updated index
+            raise
+        self._index = index
+        return index
+
+    def _open_ledger_locked(self) -> Optional[Dict[str, Any]]:
+        """Validate the whole ledger once, then repair only an unterminated final record."""
+        index, torn = self._full_scan_locked(allow_torn=True)
+        receipt = None
+        if torn is not None:
+            receipt = self.trials._repair_torn_tail_locked(
+                expected_offset=torn, reason="unterminated final record found at open")
+            active = os.stat(self.trials.path)
+            lf = index.files[(active.st_dev, active.st_ino)]
+            with open(self.trials.path, "rb") as fh:
+                lf.stamp(fh.fileno())
+        self.trials._tail_checked = True
+        self._index = index
+        return receipt
 
     @_owned_operation
     def record_observation(self, envelope: Dict[str, Any]) -> Dict[str, Any]:
         """Durably append one validated immutable terminal observation.
 
-        The trials writer is the single in-process writer. Disk is scanned under
-        its shared lock on every call, so retries and recorder restarts recover a
-        complete write whose earlier acknowledgement was lost.
+        The trials writer is the single in-process writer. The whole ledger is
+        validated once at open; each call then validates only bytes appended
+        since (legacy trial rows, its own row, or an external append), and falls
+        back to a full re-validation whenever a known file changed in any other
+        way. Retries and restarts therefore still recover a complete write whose
+        earlier acknowledgement was lost.
         """
         self._assert_owner()
         validated, key, declared, canonical = self._prepare_observation(envelope)
         payload_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        key_digest = _ObservationIndex.key_digest(key)
         with self.trials._lock:
-            existing = self._strict_observations_locked()
-            match = existing.get(key)
+            match = self._refresh_index_locked().entries.get(key_digest)
             if match is not None:
-                if match["canonical"] != canonical:
+                stored_digest, lf, line, offset, length = match
+                if stored_digest.hex() != payload_sha256:
                     raise ObservationConflictError(
                         f"different observation payload for key {declared} at "
-                        f"{match['file']}:line {match['line']}:byte {match['offset']}")
+                        f"{lf.name}:line {line}:byte {offset}")
+                path = self.data_dir / lf.name
                 # A failed fsync in this process may have lost bytes the page
                 # cache still shows; a later successful fsync proves nothing.
-                self.trials.assert_proven_locked(match["path"], match["offset"], match["length"])
-                self.trials._sync_path_locked(match["path"])
+                self.trials.assert_proven_locked(path, offset, length)
+                self.trials._sync_path_locked(path)
                 return {
                     "durable": True, "idempotent": True,
-                    "observation_key": dict(declared), "file": match["file"],
-                    "line": match["line"], "offset": match["offset"],
+                    "observation_key": dict(declared), "file": lf.name,
+                    "line": line, "offset": offset,
                     "payload_sha256": payload_sha256,
                 }
             row = {
@@ -818,13 +978,14 @@ class LearningRecorder:
             }
             line = self._canonical_json(row) + "\n"
             self.trials._append_strict_locked(line)
-            written = self._strict_observations_locked().get(key)
-            if written is None or written["canonical"] != canonical:
+            # Re-read the new bytes from disk and validate them before acknowledging.
+            written = self._refresh_index_locked().entries.get(key_digest)
+            if written is None or written[0].hex() != payload_sha256:
                 raise ObservationJournalError("durable observation could not be re-read after append")
             return {
                 "durable": True, "idempotent": False,
-                "observation_key": dict(declared), "file": written["file"],
-                "line": written["line"], "offset": written["offset"],
+                "observation_key": dict(declared), "file": written[1].name,
+                "line": written[2], "offset": written[3],
                 "payload_sha256": payload_sha256,
             }
 

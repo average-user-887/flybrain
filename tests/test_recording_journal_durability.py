@@ -390,3 +390,165 @@ class TestQuarantineWrite:
         assert base64.b64decode(evidence["content_base64"]) == TORN
         assert evidence["sha256"] == receipt["sha256"] == hashlib.sha256(TORN).hexdigest()
         assert path.read_bytes() == b'{"n":0}\n'
+
+
+# =============================================================================
+# 4. Bounded incremental index: same guarantees, cost independent of history
+# =============================================================================
+
+def _obs_lines(path):
+    return [i for i, line in enumerate(Path(path).read_bytes().splitlines(keepends=True))
+            if b'"type":"observation"' in line]
+
+
+def _count_prepares(monkeypatch, rec):
+    calls = []
+    original = rec._prepare_observation
+
+    def counted(envelope):
+        calls.append(1)
+        return original(envelope)
+
+    monkeypatch.setattr(rec, "_prepare_observation", counted)
+    return calls
+
+
+class TestIncrementalIndex:
+    def test_mid_file_complete_corrupt_line_fails_open_and_nothing_is_cut(self, tmp_path):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        rec.record_observation(_terminal_envelope(run_id="run-mid"))
+        rec.close()
+        path = tmp_path / "trials.jsonl"
+        good = path.read_bytes()
+        before = good + b'{not json}\n' + good.splitlines(keepends=True)[-1].replace(
+            b"run-mid", b"run-mi2") + TORN
+        path.write_bytes(before)
+        with pytest.raises(ObservationJournalError, match=r"invalid JSON at trials\.jsonl:line 2"):
+            LearningRecorder(tmp_path, fsync=False)
+        assert path.read_bytes() == before                  # torn tail NOT repaired either
+        assert not (tmp_path / "quarantine").exists()
+
+    def test_tampering_is_detected_after_restart(self, tmp_path):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        rec.record_observation(_terminal_envelope(run_id="run-tamper"))
+        rec.close()
+        path = tmp_path / "trials.jsonl"
+        data = path.read_bytes()
+        idx = data.rindex(b'"run_id":"run-tamper"')  # inside observation_key, last occurrence
+        path.write_bytes(data[:idx] + b'"run_id":"run-tamperX"' + data[idx + 21:])
+        with pytest.raises(ObservationJournalError, match="disagrees|invalid stored|duplicate"):
+            LearningRecorder(tmp_path, fsync=False)
+
+    def test_duplicate_key_across_rotated_files_fails_at_open(self, tmp_path):
+        rec = LearningRecorder(tmp_path, max_bytes=128, fsync=False)
+        envelope = _terminal_envelope(run_id="run-dup")
+        rec.record_observation(envelope)
+        rec.record_observation(_next_presentation(envelope))
+        rec.close()
+        [rotated] = sorted(tmp_path.glob("trials.jsonl.*"))
+        with open(tmp_path / "trials.jsonl", "ab") as fh:
+            fh.write(rotated.read_bytes())
+        with pytest.raises(ObservationJournalError, match="duplicate observation key"):
+            LearningRecorder(tmp_path, fsync=False)
+
+    def test_in_place_change_at_runtime_forces_full_revalidation(self, tmp_path):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-inplace")
+        rec.record_observation(envelope)
+        path = tmp_path / "trials.jsonl"
+        data = path.read_bytes()
+        st = path.stat()
+        idx = data.rindex(b'"run_id":"run-inplace"')
+        path.write_bytes(data[:idx] + b'"run_id":"run-inplacX"' + data[idx + 22:])
+        os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))  # hide it from mtime/size
+        with pytest.raises(ObservationJournalError, match="disagrees|invalid stored"):
+            rec.record_observation(envelope)
+        assert rec._index is None and rec.full_scans >= 2
+        path.write_bytes(data)
+        assert rec.record_observation(envelope)["idempotent"] is True
+        rec.close()
+
+    def test_external_append_is_validated_incrementally(self, tmp_path):
+        rec = LearningRecorder(tmp_path, fsync=False)
+        envelope = _terminal_envelope(run_id="run-ext")
+        rec.record_observation(envelope)
+        path = tmp_path / "trials.jsonl"
+        stored = path.read_bytes().splitlines(keepends=True)[-1]
+        with open(path, "ab") as fh:
+            fh.write(b'{"type":"trial","trial":99}\n')
+        assert rec.record_observation(_next_presentation(envelope))["idempotent"] is False
+        assert rec.full_scans == 1
+        with open(path, "ab") as fh:  # someone else appends a duplicate of a stored row
+            fh.write(stored)
+        with pytest.raises(ObservationJournalError, match="duplicate observation key"):
+            rec.record_observation(_terminal_envelope(run_id="run-ext-2"))
+        with open(path, "ab") as fh:
+            fh.write(b"{broken}\n")
+        with pytest.raises(ObservationJournalError):
+            rec.record_observation(_terminal_envelope(run_id="run-ext-2"))
+        rec.close()
+
+    def test_rotation_restart_and_receipts_without_rescans(self, tmp_path):
+        def points_at_row(receipt):
+            raw = (tmp_path / receipt["file"]).read_bytes()
+            row = json.loads(raw[receipt["offset"]:].split(b"\n", 1)[0])
+            assert row["observation_key"] == receipt["observation_key"]
+            assert raw[:receipt["offset"]].count(b"\n") + 1 == receipt["line"]
+
+        rec = LearningRecorder(tmp_path, max_bytes=4096, fsync=False)
+        envelope = _terminal_envelope(run_id="run-rot")
+        receipts, current = [], envelope
+        for i in range(12):
+            rec.record_trials([{"trial": i + 1}])
+            receipts.append(rec.record_observation(current))
+            points_at_row(receipts[-1])  # exact at the time it is issued
+            current = _next_presentation(current)
+        assert len(rec.trials.rotated_files()) >= 3
+        assert rec.full_scans == 1
+        current = envelope
+        for receipt in receipts:  # after rotations: retries follow the renamed files
+            retry = rec.record_observation(current)
+            assert retry["idempotent"] is True and retry["offset"] == receipt["offset"]
+            points_at_row(retry)
+            current = _next_presentation(current)
+        assert rec.full_scans == 1
+        rec.close()
+        with LearningRecorder(tmp_path, max_bytes=4096, fsync=False) as again:
+            current = envelope
+            for receipt in receipts:
+                retry = again.record_observation(current)
+                assert retry["idempotent"] is True and retry["line"] == receipt["line"]
+                points_at_row(retry)
+                current = _next_presentation(current)
+            assert again.full_scans == 1
+
+    def test_removed_rotated_file_forces_full_revalidation(self, tmp_path):
+        rec = LearningRecorder(tmp_path, max_bytes=128, fsync=False)
+        envelope = _terminal_envelope(run_id="run-removed")
+        rec.record_observation(envelope)
+        rec.record_observation(_next_presentation(envelope))
+        [rotated] = sorted(tmp_path.glob("trials.jsonl.*"))
+        rotated.rename(tmp_path / "moved-away.jsonl")
+        assert rec.record_observation(envelope)["idempotent"] is False  # disk truth, re-read
+        assert rec.full_scans == 2
+        rec.close()
+
+    def test_per_write_validation_work_is_independent_of_history(self, tmp_path, monkeypatch):
+        costs = {}
+        for history in (5, 60):
+            data_dir = tmp_path / f"h{history}"
+            rec = LearningRecorder(data_dir, fsync=False)
+            current = _terminal_envelope(run_id=f"run-h{history}")
+            for _ in range(history):
+                rec.record_observation(current)
+                current = _next_presentation(current)
+            calls = _count_prepares(monkeypatch, rec)
+            rec.record_observation(current)          # fresh: input + its own re-read row
+            fresh = len(calls)
+            rec.record_observation(current)          # idempotent retry: input only
+            costs[history] = (fresh, len(calls) - fresh)
+            assert len(rec._index.entries) == history + 1
+            assert all(len(v[0]) == 32 for v in rec._index.entries.values())  # digests only
+            monkeypatch.undo()
+            rec.close()
+        assert costs[5] == costs[60] == (2, 1)
