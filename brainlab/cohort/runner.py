@@ -22,6 +22,12 @@ The batched encode -> graph -> decode is the same computation as
 ``brainlab.io_map.OptomotorLoop.step`` per fly.  A mismatch between the slip the
 Arena delivers and the slip that was encoded is a hard error; no fixed or
 substitute stimulus is ever used.
+
+Scientific disclosure (also written into cohort_manifest.json as
+``provenance.graph_io_declaration`` and printed by ``cohort run``): the encoder
+injects motion-selective drive directly into T4/T5, bypassing photoreceptor
+motion computation, and the DNa02 yaw decoder is an engineered linear readout.
+Nothing here claims native motion computation or validated fly behaviour.
 """
 from __future__ import annotations
 
@@ -43,7 +49,14 @@ from . import store
 
 DEFAULT_STEP_MS = 20.0
 DYNAMICS_ID = 'v3_fixed'
-PAYLOAD_IDENT = 'neurofly-cohort-runner'
+# Modules whose loaded files identify the executing writer (provenance.running_code_identity
+# hashes only those actually imported; an installed wheel is hashed against its RECORD).
+COHORT_WRITER_MODULES = ('brainlab.cohort', 'brainlab.cohort.api', 'brainlab.cohort.runner',
+                         'brainlab.cohort.store', 'brainlab.cohort.gpu', 'brainlab.io_map', 'maze')
+DISCLOSURE = ('Declared I/O, not native computation: the OptomotorEncoder injects motion-selective drive '
+              'directly into T4/T5 (direction imposed by the encoder; photoreceptor motion computation is '
+              'bypassed) and the DNa02YawDecoder is an engineered linear readout. Fixed weights, no learning. '
+              'No claim of validated fly behaviour.')
 ASSAYS = ('optomotor',)
 
 
@@ -53,6 +66,22 @@ class CohortError(RuntimeError):
 
 class EngineUnavailable(CohortError):
     pass
+
+
+def writer_identity() -> dict:
+    """Identity of the code executing NOW (never inherited from a checkpoint)."""
+    import provenance
+    return provenance.running_code_identity(tuple(provenance.WRITER_MODULES) + COHORT_WRITER_MODULES)
+
+
+def _payload(writer: dict) -> dict:
+    ident = writer.get('ident') or (f"source:{writer.get('commit')}" + ('+dirty' if writer.get('dirty') else ''))
+    return {'ident': ident, 'version': writer.get('version')}
+
+
+def graph_io_disclosure() -> dict:
+    import provenance
+    return {'graph_io': provenance.graph_io_declaration(include_config=True), 'notice': DISCLOSURE}
 
 
 def _package_version() -> str:
@@ -270,12 +299,13 @@ class Cohort:
         self.outputs: List[_Output] = []
         self.parents: List[Optional[str]] = [None] * len(worlds)
         self.drive = np.zeros((engine.n_flies, engine.n), dtype=np.float32)
+        self.writer = writer_identity()
 
     # -- identity common to every checkpoint
     def _identity(self) -> dict:
         return {'graph_sha256': self.graph.graph_sha256, 'io_map_sha256': self.graph.io_map_sha256,
                 'dynamics': DYNAMICS_ID, 'engine_backend_id': self.engine.backend_id,
-                'payload': {'ident': PAYLOAD_IDENT, 'version': _package_version()}}
+                'payload': _payload(self.writer), 'writer': self.writer}
 
     def fly_dir(self, k: int) -> Path:
         return self.root / 'flies' / f'fly-{k:02d}'
@@ -440,10 +470,12 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
         worlds = [FlyWorld(k, seed_base + k, graph, assay, step_ms) for k in range(flies)]
         t_setup = time.perf_counter() - t0
         sched = schedule_sha256(worlds[0])
+        writer = writer_identity()
         manifest = {
             'schema': COHORT_SCHEMA, 'graph_sha256': graph.graph_sha256, 'io_map_sha256': graph.io_map_sha256,
             'dynamics': DYNAMICS_ID, 'engine': eng.describe(), 'engine_backend_id': eng.backend_id,
-            'payload': {'ident': PAYLOAD_IDENT, 'version': _package_version()},
+            'payload': _payload(writer), 'writer': writer,
+            'scientific_disclosure': graph_io_disclosure(),
             'graph_identity': graph.identity, 'graph_source': graph.source, 'synthetic_graph': graph.synthetic,
             'assay': assay, 'step_ms': step_ms, 'tick_ms': TICK_MS, 'n_flies': flies, 'seed_base': seed_base,
             'stimulus_schedule': worlds[0].schedule(), 'stimulus_schedule_sha256': sched,
@@ -464,13 +496,14 @@ def run_cohort(out, *, flies: int = 8, assay: str = 'optomotor', seconds: float 
         progress(f'cohort run: {flies} flies, assay {assay}, {seconds} s ({n_steps} steps of {step_ms} ms), '
                  f'engine {eng.backend_id}, graph {graph.graph_sha256[:12]}'
                  + (' [SYNTHETIC TEST GRAPH]' if graph.synthetic else ''))
+        progress(f'NOTE: {DISCLOSURE}')
         try:
             cohort.checkpoint()
             steps, wall = cohort.run_steps(n_steps, every, stop_after_steps)
         finally:
             cohort.close_outputs()
         rows = cohort.summary(steps, wall)
-        manifest['segments'].append({'kind': 'run', 'engine': eng.backend_id, 'steps': steps, 'wall_s': wall,
+        manifest['segments'].append({'kind': 'run', 'writer': cohort.writer, 'engine': eng.backend_id, 'steps': steps, 'wall_s': wall,
                                      'graph_load_s': t_graph, 'setup_s': t_setup, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
         _print_table(rows, wall, flies, progress)
@@ -574,13 +607,17 @@ def resume_cohort(out, *, seconds: Optional[float] = None, engine: Optional[str]
         cohort.open_outputs()
         progress(f'cohort resume: {flies} flies from step {cursor} (sim {cursor * step_ms / 1000:.3f} s), '
                  f'+{n_steps} steps, engine {recorded_engine} -> {eng.backend_id}')
+        progress(f'NOTE: {DISCLOSURE}')
         every = int(manifest['checkpoint_every_steps'])
         try:
             steps, wall = cohort.run_steps(n_steps, every, stop_after_steps)
         finally:
             cohort.close_outputs()
         rows = cohort.summary(steps, wall)
+        # Compatibility was decided by schema, model and data hashes above, never by
+        # code version; the continuation records both writers.
         manifest['segments'].append({'kind': 'resume', 'from_step': cursor, 'engine': eng.backend_id,
+                                     'source_writer': lasts[0][0].get('writer'), 'target_writer': cohort.writer,
                                      'source_engine': recorded_engine, 'target_engine': eng.backend_id,
                                      'steps': steps, 'wall_s': wall, 'summary': rows})
         store.atomic_write_json(store.manifest_path(root), manifest)
@@ -624,6 +661,7 @@ def verify_contract(engine: str = 'gpu', progress: Callable[[str], None] = print
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
     parser = argparse.ArgumentParser(prog='neurofly cohort',
+                                     epilog=DISCLOSURE,
                                      description='Many independent fixed-v3 MaleCNS brains in the Arena + io_map '
                                                  'optomotor loop, with per-fly recording and checkpoint/resume.')
     sub = parser.add_subparsers(dest='action', required=True)

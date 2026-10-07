@@ -126,3 +126,37 @@ def test_neurofly_entry_point_dispatches_cohort(tmp_path):
     assert neurofly_main(['cohort', 'run', '--flies', '1', '--seconds', '0.02', '--out', str(out),
                           '--test-synthetic-graph']) == 0
     assert (out / store.MANIFEST_NAME).is_file()
+
+
+def test_manifest_carries_graph_io_declaration_and_notice(tmp_path, capsys):
+    import provenance
+    out = tmp_path / 'd'
+    assert main(['run', '--flies', '1', '--seconds', '0.02', '--out', str(out), '--test-synthetic-graph']) == 0
+    assert 'injects motion-selective drive directly into T4/T5' in capsys.readouterr().out
+    manifest = json.loads((out / store.MANIFEST_NAME).read_text())
+    decl = manifest['scientific_disclosure']
+    assert decl['graph_io'] == provenance.graph_io_declaration(include_config=True)
+    assert decl['graph_io']['sha256'] == provenance.GRAPH_IO_SHA256
+    assert 'engineered' in decl['notice'] and 'No claim of validated' in decl['notice']
+
+
+def test_writer_identity_is_the_executing_code_and_resume_ignores_code_version(tmp_path, monkeypatch):
+    from brainlab.cohort import runner
+    root = tmp_path / 'w'
+    run_cohort(root, flies=2, seconds=0.04, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    first = manifest['segments'][0]['writer']
+    assert first['role'] == 'executing_writer'
+    assert 'brainlab.cohort.runner' in first['loaded_module_sha256']
+    meta, _, _ = store.read_checkpoint(root / manifest['flies'][0]['checkpoints'][-1]['file'])
+    assert meta['writer'] == first and meta['payload']['version'] == first['version']
+    # The code "advances": a compatible checkpoint is still resumed, both writers recorded.
+    newer = dict(first, version='9.9.9', commit='0' * 40, loaded_module_sha256={'x': 'y'})
+    monkeypatch.setattr(runner, 'writer_identity', lambda: dict(newer))
+    resume_cohort(root, seconds=0.02, graph=synthetic_graph(), progress=quiet)
+    manifest = json.loads((root / store.MANIFEST_NAME).read_text())
+    seg = manifest['segments'][-1]
+    assert seg['source_writer'] == first and seg['target_writer'] == newer
+    assert manifest['segments'][0]['writer'] == first          # earlier segment untouched
+    meta, _, _ = store.read_checkpoint(root / manifest['flies'][0]['checkpoints'][-1]['file'])
+    assert meta['writer'] == newer and meta['payload']['version'] == '9.9.9'
