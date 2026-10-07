@@ -5,6 +5,7 @@ import math
 
 from arena import Arena
 from neurofly_daemon import ContinuousExperimentRunner, assay_geometry_telemetry
+from tests.transition_control_helpers import transition_command
 
 
 ASSAYS = (
@@ -76,10 +77,16 @@ def test_runner_packets_embed_the_geometry_contract_across_all_14_assays(tmp_pat
                                         checkpoint_interval=3600)
     for assay in ASSAYS:
         if assay != ASSAYS[0]:
-            ack = runner.dispatch_command({"action": "switch_paradigm", "paradigm": assay})
+            # Since 730059e a switch needs a durable observation recorder and
+            # completes as a queued transaction; the shared helper supplies both.
+            ack = transition_command(runner, {"action": "switch_paradigm", "paradigm": assay})
             assert ack["status"] == "ok", assay
-        geometry = runner.latest_telemetry["scene"]["geometry"]
-        assert runner.latest_telemetry["paradigm"] == assay
+        # The queued switch publishes the new assay with the next frame, so
+        # check the frame a client actually receives.
+        packet = json.loads(runner._publish_snapshot().data)
+        geometry = packet["scene"]["geometry"]
+        assert packet["paradigm"] == assay
+        assert runner.latest_telemetry["scene"]["geometry"] == geometry
         assert geometry == assay_geometry_telemetry(runner.arena)
         assert len(geometry["walls"]) == EXPECTED_WALLS[assay]
         assert all(math.isfinite(value) for value in geometry["bounds"])
