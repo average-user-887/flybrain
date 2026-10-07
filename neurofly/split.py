@@ -172,6 +172,7 @@ def sim_state(runner) -> Dict[str, Any]:
         "world_bounds": list(getattr(arena, "world_bounds", ()) or ()),
         "identity": runner.identity(),
         "backend": getattr(runner, "backend", "modular"),
+        "launch_backend": getattr(runner, "launch_backend", None),
         "compute": compute,
         "timing": runner.timing_snapshot(),
         "lock_profile": lock.profile() if hasattr(lock, "profile") else None,
@@ -699,6 +700,7 @@ class SimProxy:
     trial_sim_time = property(lambda self: self._get("trial_sim_time", 0.0))
     trial_length_s = property(lambda self: self._get("trial_length_s"))
     backend = property(lambda self: self._get("backend", "modular"))
+    launch_backend = property(lambda self: self._get("launch_backend"))
     last_step_wall_s = property(lambda self: self._get("last_step_wall_s", 0.0))
     arena = property(lambda self: SimpleNamespace(world_bounds=self._get("world_bounds", [])))
     recordings_dir = property(lambda self: Path(self._get("recordings_dir") or "."))
@@ -952,6 +954,9 @@ def run_split(args, argv) -> int:
                       f"keeps reporting it as down. Restart the daemon to resume.", file=sys.stderr, flush=True)
                 code = sim_code if sim_code > 0 else 1
             if web.poll() is not None:
+                if stop:
+                    # A stop signal reached the whole group (e.g. systemd, pkill): no restart.
+                    break
                 if web.returncode == WEB_BIND_FAILED:
                     print("[Launcher] The web process cannot bind its port; stopping the simulation.",
                           file=sys.stderr, flush=True)

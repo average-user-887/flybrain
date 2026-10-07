@@ -149,7 +149,7 @@ def test_recorder_ownership_failure_prevents_simulator_start(tmp_path, monkeypat
     monkeypatch.setattr(sys, "argv", [
         "neurofly_daemon.py", "--backend", "modular", "--paradigm", "t-maze",
         "--output-dir", str(tmp_path / "runner"), "--data-dir", str(data_dir),
-        "--pid-file", str(pid_file), "--port", "0",
+        "--pid-file", str(pid_file), "--port", "0", "--single-process",
     ])
     try:
         with pytest.raises(SystemExit) as stopped:

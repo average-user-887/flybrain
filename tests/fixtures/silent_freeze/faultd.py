@@ -139,5 +139,7 @@ def _thread_dump():
 threading.Thread(target=_thread_dump, daemon=True, name="audit-thread-dump").start()
 
 if __name__ == "__main__":
-    sys.argv = ["neurofly_daemon.py"] + sys.argv[1:]
+    # The faults are installed in this process, so the daemon must run in it: the
+    # one-process layout (a later explicit --process-mode on the command line still wins).
+    sys.argv = ["neurofly_daemon.py", "--single-process"] + sys.argv[1:]
     neurofly_daemon.run_daemon()

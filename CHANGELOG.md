@@ -5,6 +5,34 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
+## [Unreleased]
+
+### Changed
+
+- **Split by default.** `neurofly run`, `neurofly_daemon.py` and `./start_daemon.sh`
+  now start a headless simulation process (brain, learning records, checkpoints) and
+  a separate web process. `--single-process` keeps the one-process daemon;
+  `--process-mode sim|web` and `neurofly sim-serve|web-serve` are unchanged. There is
+  no automatic restart. `./stop_daemon.sh` stops the launcher, which stops the
+  simulation first (its final save) and waits up to `NEUROFLY_STOP_TIMEOUT` (120 s)
+  before force-killing; it previously force-killed after 7.5 s. It exits 1 after any
+  forced kill (still removing PID files and a killed launcher's socket); exit 0 means
+  only that the processes exited on SIGTERM, not that the final save is durable.
+- **The connectome is the featured default.** `./start_daemon.sh` no longer forces the
+  modular controller: like `neurofly run` it runs `connectome-fixed` when the prepared
+  graph verifies, and otherwise falls back visibly to the modular controller, now
+  labelled "hand-built engineered preview (not the connectome)". The fallback is
+  printed at startup, reported as `launch_backend` in `/api/status` and shown in a
+  dashboard banner. Saved brains keep their recorded backend; none is converted.
+- **The controller selector shows only the controller the connected daemon reports.**
+  Disconnected, it shows "Not connected: no live controller" instead of the last
+  backend it saw.
+
+### Fixed
+
+- README: `neurofly run` without a prepared graph falls back visibly to the modular
+  controller (it did not exit), and the daemon binds 127.0.0.1 by default.
+
 ## [0.5.0rc2] - 2026-10-07 (PRERELEASE)
 
 Second release candidate, on top of `v0.5.0rc1`. **Experimental prerelease; not

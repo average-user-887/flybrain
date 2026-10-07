@@ -5551,6 +5551,9 @@ class NeuroflyHTTPHandler(BaseHTTPRequestHandler):
             payload["motor"] = latest.get("motor")
             payload["controller_fault"] = latest.get("controller_fault")
             payload["backend"] = getattr(self.runner, "backend", "modular")
+            # How the startup backend was chosen (explicit, or the fresh-launch default
+            # and its reason, e.g. the visible modular fallback without a prepared graph).
+            payload["launch_backend"] = getattr(self.runner, "launch_backend", None)
             try:
                 payload["compute"] = self.runner.compute_info()
             except Exception as exc:  # never let the status probe fail on a device query
@@ -6055,15 +6058,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
     replay_group.add_argument("--record-raster", choices=("none", "io", "all"), default="io",
                               help="Spike raster: IO/annotated neurons (default), all neurons, or none")
     proc_group = parser.add_argument_group(
-        "process layout", "Default: one process (simulation and web server together). --split runs "
-                          "them as separate processes (neurofly/split.py; v0.5 prototype).")
-    proc_group.add_argument("--process-mode", choices=PROCESS_MODES, default="single",
-                            help="single (default): the one-process daemon; split: spawn a headless "
-                                 "simulation process and a web process; sim / web: one side only")
+        "process layout", "Default: two processes, a headless simulation process that owns the brain, "
+                          "recorder and checkpoints, and a separate web process (neurofly/split.py). "
+                          "--single-process runs both in one process, as before v0.5.")
+    proc_group.add_argument("--process-mode", choices=PROCESS_MODES, default="split",
+                            help="split (default): spawn a headless simulation process and a web "
+                                 "process; single: the one-process daemon; sim / web: one side only")
     proc_group.add_argument("--split", dest="process_mode", action="store_const", const="split",
-                            help="Same as --process-mode split")
+                            help="Same as --process-mode split (already the default; accepted for scripts)")
     proc_group.add_argument("--single-process", dest="process_mode", action="store_const", const="single",
-                            help="Same as --process-mode single (already the default; accepted for scripts)")
+                            help="Same as --process-mode single: simulation and web server in one "
+                                 "process (opt-out from the default split)")
     proc_group.add_argument("--ipc-socket", default=None, metavar="PATH",
                             help="Unix socket between the simulation and web processes "
                                  "(default: chosen by the launcher; sim/web modes: derived from --port)")
@@ -6085,10 +6090,22 @@ def choose_default_backend(args) -> tuple:
         verify_graph(Path(args.graph_dir) if args.graph_dir else None)
     except (GraphUnavailable, OSError, ValueError) as exc:
         return "modular", (
-            "no verified MaleCNS graph found, so running the hand-built modular controller "
-            f"({str(exc).split('. ')[0]}). For the connectome: `neurofly download-data`, then "
-            "`python -m brainlab.connectome` and `python -m brainlab.prepare`, then restart")
-    return "connectome-fixed", "verified MaleCNS graph found (pass --backend modular for the hand-built controller)"
+            "no verified MaleCNS graph found, so this is NOT the connectome: running the hand-built "
+            f"modular controller, an engineered preview ({str(exc).split('. ')[0]}). For the connectome: "
+            "`neurofly download-data`, then `python -m brainlab.connectome` and `python -m brainlab.prepare`, "
+            "then restart (README: Get and prepare the MaleCNS data)")
+    return "connectome-fixed", ("verified MaleCNS graph found (pass --backend modular for the hand-built "
+                                "engineered preview)")
+
+
+def launch_backend_info(backend: str, reason: str, requested: bool) -> dict:
+    """Startup backend choice as reported by /api/status and shown by the dashboard.
+
+    ``fallback`` is true only when the fresh-launch default wanted the connectome but
+    no verified graph was found, so the hand-built modular controller runs instead.
+    """
+    return {"backend": backend, "source": "requested" if requested else "default",
+            "fallback": (not requested) and backend == "modular", "reason": reason}
 
 
 def preflight_compute_startup(args):
@@ -6127,6 +6144,7 @@ def run_daemon():
         parser.exit(2, f"[Daemon] Cannot start: {exc}\n")
     except ConfigError as exc:
         parser.exit(2, f"[Daemon] Cannot start: {exc}\n")
+    backend_requested = bool(args.backend)
     args.backend, backend_reason = choose_default_backend(args)
     # Apply the already-validated dynamics choice before saved-manifest admission.
     # An explicit --dynamics must override the environment during this check too.
@@ -6198,6 +6216,7 @@ def run_daemon():
         print("[Daemon] EXPLORATORY MODE: a failed save does not stop the run; it continues NOT SAVING, "
               "the gap is recorded and the run is marked incomplete.", flush=True)
     runner.exit_on_stall_s = args.exit_on_stall
+    runner.launch_backend = launch_backend_info(args.backend, backend_reason, backend_requested)
     runner.step_hard_limit_s = max(1.0, float(args.step_hard_limit))
     runner.keep_shutdown_checkpoints = max(0, int(args.keep_shutdown_checkpoints))
     ident = runner.identity()

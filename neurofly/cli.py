@@ -1,8 +1,9 @@
 """Canonical CLI entry points for Project NeuroFly.
 
 Usage:
-  neurofly run [daemon options]      (one process; --split runs the simulation and the
-                                      web server as two processes, v0.5 prototype)
+  neurofly run [daemon options]      (two processes by default: a headless simulation
+                                      process and a web process; --single-process runs
+                                      both in one process)
   neurofly sim-serve [daemon options]   headless simulation process only
   neurofly web-serve [daemon options]   web process only (dashboard, REST, SSE)
   neurofly full-sim              (retired: prints why and exits non-zero)
@@ -210,7 +211,9 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     subparsers.add_parser("storage", help="Adopt/show persistent existing training directories")
-    subparsers.add_parser("run", help="Launch the neurofly daemon / simulation server")
+    subparsers.add_parser("run", help="Launch the daemon: simulation and web as two processes "
+                          "(default; --single-process for one). Backend: connectome-fixed when the "
+                          "graph is prepared, otherwise a visibly labelled modular preview")
     subparsers.add_parser("sim-serve", help="Run only the headless simulation process (run --process-mode sim)")
     subparsers.add_parser("web-serve", help="Run only the web process (run --process-mode web)")
     subparsers.add_parser("full-sim", help="RETIRED: not a full connectome simulation; prints why and exits")

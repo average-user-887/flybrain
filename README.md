@@ -31,7 +31,7 @@ Short version: the connectome model runs, and a signal can be routed through it 
 - **The scan is incomplete exactly where vision starts.** About 55% of the lamina cells that should receive photoreceptor input receive none in MaleCNS (L1 54.4%, L2 54.2%, L3 55.9%). Nern *et al.* 2025 note that the lamina is the one optic-lobe neuropil the dataset does not cover completely ([`LITERATURE_SCAN_2026-10-05.md`](docs/LITERATURE_SCAN_2026-10-05.md) §A1, verified on the engine graph).
 - **On the real scan, our simulated visual system does not compute the direction of motion** (details below). That is the result for these model versions; it is not evidence that the fly's real connectome cannot compute motion. We report it as it stands; we will not "fix" it by inventing the missing wiring.
 
-- **The dashboard fly may be the hand-built controller, not the connectome; which one depends on how you start it** (see [Running the dashboard](#running-the-dashboard)). `./start_daemon.sh` starts the hand-built *modular* controller by default ([`start_daemon.sh`](start_daemon.sh), `BACKEND="${NEUROFLY_BACKEND:-modular}"`). `neurofly run` defaults to the `connectome-fixed` backend and needs the prepared MaleCNS graph ([`neurofly_daemon.py`](neurofly_daemon.py), `--backend`). The connectome backends exist and run. None has passed a behavioural validation, and every paradigm except optomotor is *Mapped, untested on v3* in the [capability matrix](docs/CAPABILITY_MATRIX.md). The modular controller's behaviour has never been compared with published fly data.
+- **The featured controller is the connectome; it still does not make the fly behave like a fly.** A fresh `neurofly run` or `./start_daemon.sh` runs `connectome-fixed`, the full MaleCNS graph with fixed weights, whenever the prepared graph verifies ([`neurofly_daemon.py`](neurofly_daemon.py), `choose_default_backend`). Without a prepared graph it runs the hand-built *modular* controller instead and says so at startup and in a dashboard banner ("NOT THE CONNECTOME"); see [Running the dashboard](#running-the-dashboard). The connectome backends exist and run. None has passed a behavioural validation, and every paradigm except optomotor is *Mapped, untested on v3* in the [capability matrix](docs/CAPABILITY_MATRIX.md). The modular controller is an engineered preview; its behaviour has never been compared with published fly data.
 - **Optomotor turning, with motion detection supplied by us: provisional pass.** If the input encoder *imposes* direction selectivity on the T4/T5 motion-detector cells, the v3 model routes that signal through the graph to a turn that depends on the DNa02 descending neurons (silencing DNa02 gives exactly zero yaw). The preregistered run `optomotor-yaw-v3-2` passed 7/7 behaviour gates and 5/5 physiology checks, so its verdict is **PASS_PROVISIONAL** ([receipt](docs/receipts/validation/optomotor-yaw-v3-2.md)). Because the encoder does the motion detection that the circuit should do, this is not evidence that the connectome computes the optomotor response ([`OWNER_DECISIONS.md`](docs/OWNER_DECISIONS.md), 27 September 2026). Four further reasons it is not more than provisional:
   - all five gating firing-rate bounds were unverified when it ran;
   - the HS-cell checks were made report-only *after* the earlier run [v3-1](docs/receipts/validation/optomotor-yaw-v3-1.md) failed on them, so this pass is not blind on HS;
@@ -138,12 +138,14 @@ Step 3 fails with `FileNotFoundError` if step 2 has not been run. Steps 2 and 3 
 
 ## Running the dashboard
 
-### Two kinds of brain: modular and connectome
+### Two kinds of brain: connectome and modular
 
-- **Modular** (`--backend modular`): a hand-built controller written by the developers. It needs no connectome data, runs faster than real time, and is **not the connectome**. Use it to explore the dashboard and the 14 assays.
-- **Connectome** (`connectome-fixed`, `connectome-plastic`, ...): the MaleCNS graph simulated neuron by neuron. These need the prepared data above, and they run far below real time.
+- **Connectome** (`connectome-fixed`, the default; also `connectome-plastic`, `connectome-with-trained-readout`): the MaleCNS graph simulated neuron by neuron. These need the prepared data above, and they run far below real time (see [Performance](#performance)). The body, the sensory encoders and the motor decoders around the graph are engineered, about 55% of the lamina inputs are missing from the scan, and on the real scan our model does not compute motion direction from photoreceptor input (see the status section above). No connectome backend has shown learning: the WP6 plasticity rule has had a single smoke run, and the trained-readout backend learns only an external decoder. Running it is an experiment, not a demonstration of fly behaviour.
+- **Modular** (`--backend modular`): a hand-built engineered preview written by the developers. It needs no connectome data, runs faster than real time, and is **not the connectome**. Use it to explore the dashboard and the 14 assays. The dashboard labels it "Modular: hand-built engineered preview (not the connectome)".
 
-`neurofly run` uses `connectome-fixed` unless you pass `--backend`; if the graph is missing or fails verification, it prints `GraphUnavailable` and exits. `./start_daemon.sh` uses `modular` unless `NEUROFLY_BACKEND` says otherwise.
+**Which one a fresh launch runs.** `neurofly run` and `./start_daemon.sh` choose `connectome-fixed` when the prepared MaleCNS graph verifies (`outputs/brainlab/malecns_v1`, or `NEUROFLY_GRAPH_DIR` / `--graph-dir`). If it is missing or fails verification, they **fall back explicitly** to the modular preview: the startup log prints the reason and the four data steps above, `/api/status` reports `launch_backend.fallback: true`, and the dashboard shows a "NOT THE CONNECTOME" banner until you prepare the graph and restart. We chose a visible fallback over a refusal so that a new install can open the dashboard at once without being mistaken for the connectome. An explicit choice always wins: `--backend` or `NEUROFLY_BACKEND` (for example `--backend connectome-fixed`, which stops with a clear error if the graph is missing, or `--backend modular`). The dashboard's controller selector shows only the controller the connected daemon actually reports; while disconnected it shows none.
+
+**Saved brains keep their own backend.** Each saved brain is stored under its assay and backend and is never converted. A modular, plastic or trained-readout brain stays what it is: the connectome-fixed default opens its own connectome store beside it. To continue a saved modular or plastic brain, start with that backend explicitly (`--backend modular`, `--backend connectome-plastic`, ...).
 
 **On a connectome backend the fly may sit almost still.** The v3 network is close to silent without a stimulus (mean rate under 1 Hz across the brain, [`WP5_OPTOMOTOR.md`](docs/WP5_OPTOMOTOR.md) §13.1), so little reaches the descending neurons that drive walking. That is the model, not a crash. Pick an assay with a stimulus, such as optomotor, to see activity.
 
@@ -156,16 +158,20 @@ neurofly status
 # Print the 14-paradigm capability matrix
 neurofly capability
 
-# Hand-built modular controller: no connectome data needed
-neurofly run --backend modular --host 127.0.0.1 --port 8769 --paradigm multisensory-sandbox
+# Connectome (the default backend; needs the prepared graph, otherwise the visible modular fallback)
+neurofly run --port 8769 --paradigm optomotor
 
-# Connectome (the default backend; needs the prepared graph)
-neurofly run --host 127.0.0.1 --port 8769 --paradigm multisensory-sandbox
+# Hand-built modular engineered preview: no connectome data needed
+neurofly run --backend modular --port 8769 --paradigm multisensory-sandbox
+
+# Background daemon with the same defaults; stop it with ./stop_daemon.sh (the simulation saves first)
+./start_daemon.sh
 ```
 
 Then open `http://localhost:8769` to see the fly, watch premotor firing rates, and trigger stimuli.
 
-- **Network exposure:** the daemon currently listens on all network interfaces (`--host 0.0.0.0`) unless you pass `--host`. Pass `--host 127.0.0.1`, as above, to keep it on your own machine; its command interface has no password.
+- **Two processes by default:** the daemon runs a headless simulation process, which owns the brain, the learning records and the checkpoints, and a separate web process that serves the dashboard, so a slow simulation step never blocks the page. If the simulation process dies, the dashboard says so and refuses commands; restart the daemon to resume (there is no automatic restart). `Ctrl-C`, `SIGTERM` or `./stop_daemon.sh` stops the simulation first, with its final save, then the web process. `--single-process` runs both in one process as before v0.5. `neurofly sim-serve` and `neurofly web-serve` start one side each.
+- **Network exposure:** the daemon listens on this machine only (`--host 127.0.0.1`) by default. `--host 0.0.0.0` exposes it to your local network; its command interface then has no password unless you use public mode ([`docs/PUBLIC_STREAMING.md`](docs/PUBLIC_STREAMING.md)).
 - **Port:** `--port` changes it (default 8769). To point a dashboard page at a particular daemon, add `?daemon=http://host:port` to the page URL.
 - **Dynamics:** the connectome backends run **v3** by default. `--dynamics v1` or `v2` (or `NEUROFLY_LIF_DYNAMICS`) selects an older neuron model; v4 and v5 are library-only. These are scientific model versions, not application releases. Compatible saved brains carry forward across app upgrades without retraining. Different dynamics retain separate stores (`registry/` for v1, `registry-v3/` for v3); do not rename a store to force compatibility.
 - **Retained learning:** use the same explicit `--output-dir` and `--data-dir` after installing a new app version. Keep these directories outside replaceable checkouts. Checkpoints, learned parameters and historical records have different compatibility requirements; see [Carrying learning across releases](docs/TRAINING_CONTINUITY.md).

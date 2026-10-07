@@ -63,4 +63,7 @@ neurofly_daemon.GraphArenaController.__init__ = _init_with_stub_map
 if __name__ == '__main__':
     print(f'[stub-daemon] STUB optomotor IO map {STUB_IO_MAP_SHA256} on the synthetic test graph; '
           'not a scientific result.', flush=True)
+    # The stub map is patched into this process, so the daemon must run in it (one-process
+    # layout); an explicit later --process-mode on the command line still wins.
+    sys.argv = [sys.argv[0], '--single-process', *sys.argv[1:]]
     neurofly_daemon.run_daemon()

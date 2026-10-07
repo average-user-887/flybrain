@@ -3697,7 +3697,15 @@ function backendSelectorState(arena, bridge, waiting = false) {
     else if (bridge.readOnly) reason = 'This daemon is read-only.';
     else if (arena?.awaitingDaemon || !arena?.remoteDriven || !identity) reason = 'Waiting for a verified live controller identity.';
     else if (waiting || bridge.switchPending) reason = 'Waiting for the final switch acknowledgement.';
-    return {backend: identity?.backend || '', identity, reason, allowed: !reason};
+    // The selector shows only the controller a connected live daemon reports (or, in
+    // replay, the recording's own controller): offline, with a frozen view of a lost
+    // daemon or before a verified identity, no option (connectome or modular) is shown as
+    // selected, and the placeholder says why.
+    const replay = !!(bridge?.replayMode || pkt?.timing?.replay);
+    const offline = !bridge?.connected || !bridge?.activeUrl || !!arena?.awaitingDaemon || !arena?.remoteDriven;
+    const placeholder = offline ? 'Not connected: no live controller' : 'Waiting for daemon identity';
+    return {backend: identity && (replay || !offline) ? identity.backend : '', identity, reason,
+            allowed: !reason, placeholder};
 }
 window.neuroflyBackendSelectorState = backendSelectorState;
 
@@ -3810,6 +3818,12 @@ function renderIdentity(pkt) {
     const faultEl = document.getElementById('identFault');
     if (faultEl) faultEl.style.color = fault ? '#f87171' : '';
     const lines = [];
+    const launch = window.neuroflyLaunchBackend;
+    if (launch?.fallback && id.backend === 'modular' && !pkt?.timing?.replay) {
+        lines.push('NOT THE CONNECTOME: no prepared MaleCNS graph was found when this daemon started, so the '
+            + 'hand-built modular controller (an engineered preview) is running. Prepare the graph '
+            + '(README: Get and prepare the MaleCNS data) and restart for the connectome.');
+    }
     if (id.synthetic) lines.push(`SYNTHETIC TEST GRAPH · backend ${id.backend || '?'} · not a scientific result`);
     else if (id.test_mode) lines.push(`TEST MODE · ${id.label || id.backend} · not a scientific result`);
     if (motor.motor_source && motor.motor_source_normal === false) {
@@ -4194,6 +4208,9 @@ class DaemonBridgeClient {
         this.daemonError = status.error || null;
         this.renderDeliveryIdentity(status);
         this.renderTiming(status);
+        // How this daemon chose its startup controller (explicit, default, or the visible
+        // modular fallback without a prepared graph); shown in the identity banner.
+        window.neuroflyLaunchBackend = status.launch_backend || null;
         // Connecting during a fault: start from the daemon's own account of it.
         this.healthStep = null;
         this.daemonHalt = status.halted ? {error: status.error || 'unknown error', detail: status.error_detail || null}
@@ -4259,6 +4276,7 @@ class DaemonBridgeClient {
                     : `In-browser simulation engine active (offline/standalone mode${reason ? ': ' + reason : ''}). Click to retry the daemon connection, or open the page with ?daemon=http://host:${this.daemonPort}.`;
         }
         this.showDaemonAddress(null);
+        window.neuroflyLaunchBackend = null;
         if (this.eventSource) {
             this.eventSource.onerror = null;
             this.eventSource.onmessage = null;
@@ -5772,6 +5790,8 @@ class ScientificHUD {
         const select = document.getElementById('selectBackend');
         if (select) {
             select.disabled = !state.allowed;
+            const blank = select.options?.[0];
+            if (blank && blank.value === '' && blank.textContent !== state.placeholder) blank.textContent = state.placeholder;
             select.value = state.backend;
             select.title = state.reason || 'Request a controller backend; only the daemon can apply it.';
         }
