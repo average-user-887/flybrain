@@ -1,0 +1,79 @@
+{
+ "contract": "v6 S2 transfer DIAGNOSTICS, preregistered before the runs. Same Path B protocol, readout and analysis as S1 (S1 thresholds reused as DIAGNOSTIC readouts only; transfer gains are not targets and decide nothing about the fit).",
+ "status_of_arm": "S2-A is EXPLORATORY: inherits the REJECTED S1-A3 input stage; its medulla shape fit has validation NOT EVALUABLE; 8 of 12 tau_m sit on a bound (2 or 200 ms) and Ih vh sits on a bound for L1 and L2: boundary, non-identified effective parameters. S2-A-leak40 is a hypothetical, non-identifiable sensitivity (L1-L3 leak reversal -40 mV, pooled LMC bound).",
+ "params": {
+  "S2-A": "qualification/v6/params_v6_S2A.json sha256 7436f4a6d851e40f544e3e330ecc99738ddf7b62ef15eb41ce02c86c8d0460d8",
+  "S2-A-leak40": "qualification/v6/params_v6_S2A_leak40.json sha256 135220ca7e9bc01c5d88f4fee321dea7e2c5fe57c0c1db24de76187f5ee4962f"
+ },
+ "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+ "photoreceptor_io_sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+ "engine": "BrainV6 = v4 primary graded policy (v4-optic-lobe-graded), CPU, plus the frozen per-type parameters; only R1-R6 carry v6 parameters in S1",
+ "stimulus": "Path B conditions C0 sham, C1 full-field ON (encoder 10 -> 20), C2 full-field OFF (10 -> 0), C3 column ON seeds 0-2; encoder level x 0.01 = light in BG0 units (10 = BG-1)",
+ "readout": "right eye, COMPLETE columns, group mean dV in window E (0-50 ms) and S (50-200 ms) versus the 100 ms baseline; resp = the window with the larger magnitude",
+ "transfer_diagnostics_are_not_fit_objectives": true,
+ "predictions_from_reduced_model": {
+  "L1": -8.5,
+  "L2": -3.8,
+  "L3": -4.2,
+  "note": "reduced single-cell lamina model of the A3 fit (BG-1 -> 2x step, mean over the step); predicts L2 BELOW the 5 mV threshold"
+ },
+ "pass_criteria": {
+  "L1_ON": {
+   "type": "L1",
+   "sign": "-",
+   "min_abs_mV": 5.0
+  },
+  "L2_ON": {
+   "type": "L2",
+   "sign": "-",
+   "min_abs_mV": 5.0
+  },
+  "Mi1_ON": {
+   "type": "Mi1",
+   "sign": "+",
+   "min_abs_mV": 0.5
+  },
+  "Tm3_ON": {
+   "type": "Tm3",
+   "sign": "+",
+   "min_abs_mV": 0.5
+  },
+  "Tm1_ON": {
+   "type": "Tm1",
+   "sign": "-",
+   "min_abs_mV": 0.5
+  },
+  "Tm2_ON": {
+   "type": "Tm2",
+   "sign": "-",
+   "min_abs_mV": 0.5
+  }
+ },
+ "falsified_if_below_0p5_mV": [
+  "Mi1",
+  "Tm3",
+  "Tm1",
+  "Tm2"
+ ],
+ "verdict_rule": "Each run is labelled DIAGNOSTIC PASS/FAIL against the S1 readout thresholds for comparability only; no stage PASS can follow (validation NOT EVALUABLE). Motion unopened.",
+ "compute": "CPU, one numba thread, nice, taskset 0-3; no GPU",
+ "predictions_from_cutout": {
+  "note": "7-column cutout, central-column step (not full field), mean dV over the step; directional only",
+  "S2-A": {
+   "L1": -2.85,
+   "L2": -2.14,
+   "Mi1": 1.04,
+   "Tm3": 0.53,
+   "Tm1": -1.52,
+   "Tm2": -1.6
+  },
+  "S2-A-leak40": {
+   "L1": -3.82,
+   "L2": -3.49,
+   "Mi1": 1.08,
+   "Tm3": 0.52,
+   "Tm1": -2.0,
+   "Tm2": -2.05
+  }
+ }
+}
