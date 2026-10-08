@@ -1,0 +1,4213 @@
+{
+ "schema": "neurofly.pathA.escape_inventory/1",
+ "pins": {
+  "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+  "annotations_feather_sha256": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+  "edges_arrow_sha256": "842b762c9427c794eaedd453178aa034727a5084850a91fdcc4d3fffe09f5b7e",
+  "contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
+  "accepted_cf_prereg_sha256": "bbd8dbcbf4df8dc1ccdd6741e09e5c4089049a25a25c5a917dd2e7857c3e47d7",
+  "accepted_direct_edge_prereg_sha256": "eb60ac9de13a0abd86e17ad7f1a45347220d074a1d6ab5d193f4add009fdbf8c",
+  "accepted_source_sha": "457d703038d6e7b8b77c71cd3ee933e00979a552",
+  "inventory_helper_sha256": "9ff8030cea56212100371e50a843d1cc8b6a0cb84b2334034274560e1f6a1d3b",
+  "v3_weight_sha256": "40faf59702c7054102017bf1171a7e3088b979f4375a1c668570d2c713e46346"
+ },
+ "identities": {
+  "GF": [
+   {
+    "node_index": 0,
+    "body_id": 10001,
+    "cell_type": "DNp01",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Roughly traced",
+    "root_side": null,
+    "annotation_type": "DNp01"
+   },
+   {
+    "node_index": 6,
+    "body_id": 10010,
+    "cell_type": "DNp01",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Roughly traced",
+    "root_side": null,
+    "annotation_type": "DNp01"
+   }
+  ],
+  "TTMn": [
+   {
+    "node_index": 144432,
+    "body_id": 800146,
+    "cell_type": "TTMn",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "TTMn"
+   },
+   {
+    "node_index": 147865,
+    "body_id": 804642,
+    "cell_type": "TTMn",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "TTMn"
+   }
+  ],
+  "GFC2": [
+   {
+    "node_index": 146054,
+    "body_id": 802335,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146165,
+    "body_id": 802478,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146218,
+    "body_id": 802551,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146252,
+    "body_id": 802595,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146256,
+    "body_id": 802599,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146403,
+    "body_id": 802799,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146577,
+    "body_id": 803025,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 147026,
+    "body_id": 803601,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 160892,
+    "body_id": 903232,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 162264,
+    "body_id": 907675,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   }
+  ],
+  "PSI": [
+   {
+    "node_index": 146104,
+    "body_id": 802401,
+    "cell_type": "PSI",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "PSI"
+   },
+   {
+    "node_index": 160923,
+    "body_id": 903327,
+    "cell_type": "PSI",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "PSI"
+   }
+  ],
+  "DLMn": [
+   {
+    "node_index": 144854,
+    "body_id": 800718,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 144977,
+    "body_id": 800890,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 145286,
+    "body_id": 801295,
+    "cell_type": "DLMn a, b",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn a, b"
+   },
+   {
+    "node_index": 145741,
+    "body_id": 801895,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 145797,
+    "body_id": 801970,
+    "cell_type": "DLMn a, b",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn a, b"
+   },
+   {
+    "node_index": 145817,
+    "body_id": 801998,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146214,
+    "body_id": 802544,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146566,
+    "body_id": 803013,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146596,
+    "body_id": 803048,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 166189,
+    "body_id": 1050014552,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   }
+  ]
+ },
+ "direct_and_feedback": {
+  "GF->TTMn": {
+   "edge_count": 2,
+   "contacts": 90,
+   "positive_contacts": 90,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 0,
+     "pre_node": 0,
+     "post_node": 144432,
+     "pre_body": 10001,
+     "post_body": 800146,
+     "contacts": 70,
+     "graph_weight": 19.25,
+     "v3_weight": 19.25,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 14539,
+     "pre_node": 6,
+     "post_node": 147865,
+     "pre_body": 10010,
+     "post_body": 804642,
+     "contacts": 20,
+     "graph_weight": 5.5,
+     "v3_weight": 5.5,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    }
+   ]
+  },
+  "GF->GFC2": {
+   "edge_count": 12,
+   "contacts": 144,
+   "positive_contacts": 144,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 6,
+     "pre_node": 0,
+     "post_node": 146403,
+     "pre_body": 10001,
+     "post_body": 802799,
+     "contacts": 21,
+     "graph_weight": 5.775000095367432,
+     "v3_weight": 5.775000095367432,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 8,
+     "pre_node": 0,
+     "post_node": 146165,
+     "pre_body": 10001,
+     "post_body": 802478,
+     "contacts": 20,
+     "graph_weight": 5.5,
+     "v3_weight": 5.5,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 32,
+     "pre_node": 0,
+     "post_node": 146577,
+     "pre_body": 10001,
+     "post_body": 803025,
+     "contacts": 9,
+     "graph_weight": 2.4750001430511475,
+     "v3_weight": 2.4750001430511475,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 79,
+     "pre_node": 0,
+     "post_node": 146218,
+     "pre_body": 10001,
+     "post_body": 802551,
+     "contacts": 4,
+     "graph_weight": 1.100000023841858,
+     "v3_weight": 1.100000023841858,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 142,
+     "pre_node": 0,
+     "post_node": 162264,
+     "pre_body": 10001,
+     "post_body": 907675,
+     "contacts": 2,
+     "graph_weight": 0.550000011920929,
+     "v3_weight": 0.550000011920929,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 160,
+     "pre_node": 0,
+     "post_node": 146252,
+     "pre_body": 10001,
+     "post_body": 802595,
+     "contacts": 2,
+     "graph_weight": 0.550000011920929,
+     "v3_weight": 0.550000011920929,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14533,
+     "pre_node": 6,
+     "post_node": 146252,
+     "pre_body": 10010,
+     "post_body": 802595,
+     "contacts": 29,
+     "graph_weight": 7.975000381469727,
+     "v3_weight": 7.975000381469727,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14540,
+     "pre_node": 6,
+     "post_node": 146218,
+     "pre_body": 10010,
+     "post_body": 802551,
+     "contacts": 20,
+     "graph_weight": 5.5,
+     "v3_weight": 5.5,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14552,
+     "pre_node": 6,
+     "post_node": 162264,
+     "pre_body": 10010,
+     "post_body": 907675,
+     "contacts": 14,
+     "graph_weight": 3.8500001430511475,
+     "v3_weight": 3.8500001430511475,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14553,
+     "pre_node": 6,
+     "post_node": 160892,
+     "pre_body": 10010,
+     "post_body": 903232,
+     "contacts": 14,
+     "graph_weight": 3.8500001430511475,
+     "v3_weight": 3.8500001430511475,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14590,
+     "pre_node": 6,
+     "post_node": 146577,
+     "pre_body": 10010,
+     "post_body": 803025,
+     "contacts": 6,
+     "graph_weight": 1.6500000953674316,
+     "v3_weight": 1.6500000953674316,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 14647,
+     "pre_node": 6,
+     "post_node": 146256,
+     "pre_body": 10010,
+     "post_body": 802599,
+     "contacts": 3,
+     "graph_weight": 0.8250000476837158,
+     "v3_weight": 0.8250000476837158,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "GFC2"
+    }
+   ]
+  },
+  "GFC2->TTMn": {
+   "edge_count": 12,
+   "contacts": 481,
+   "positive_contacts": 481,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 23030570,
+     "pre_node": 146165,
+     "post_node": 144432,
+     "pre_body": 802478,
+     "post_body": 800146,
+     "contacts": 21,
+     "graph_weight": 5.775000095367432,
+     "v3_weight": 5.775000095367432,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23030618,
+     "pre_node": 146165,
+     "post_node": 147865,
+     "pre_body": 802478,
+     "post_body": 804642,
+     "contacts": 9,
+     "graph_weight": 2.4750001430511475,
+     "v3_weight": 2.4750001430511475,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23043713,
+     "pre_node": 146218,
+     "post_node": 147865,
+     "pre_body": 802551,
+     "post_body": 804642,
+     "contacts": 120,
+     "graph_weight": 33.0,
+     "v3_weight": 33.0,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23051735,
+     "pre_node": 146252,
+     "post_node": 144432,
+     "pre_body": 802595,
+     "post_body": 800146,
+     "contacts": 6,
+     "graph_weight": 1.6500000953674316,
+     "v3_weight": 1.6500000953674316,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23051813,
+     "pre_node": 146252,
+     "post_node": 147865,
+     "pre_body": 802595,
+     "post_body": 804642,
+     "contacts": 3,
+     "graph_weight": 0.8250000476837158,
+     "v3_weight": 0.8250000476837158,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23052734,
+     "pre_node": 146256,
+     "post_node": 147865,
+     "pre_body": 802599,
+     "post_body": 804642,
+     "contacts": 73,
+     "graph_weight": 20.075000762939453,
+     "v3_weight": 20.075000762939453,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23090797,
+     "pre_node": 146403,
+     "post_node": 147865,
+     "pre_body": 802799,
+     "post_body": 804642,
+     "contacts": 5,
+     "graph_weight": 1.375,
+     "v3_weight": 1.375,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23090825,
+     "pre_node": 146403,
+     "post_node": 144432,
+     "pre_body": 802799,
+     "post_body": 800146,
+     "contacts": 4,
+     "graph_weight": 1.100000023841858,
+     "v3_weight": 1.100000023841858,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 23132663,
+     "pre_node": 146577,
+     "post_node": 144432,
+     "pre_body": 803025,
+     "post_body": 800146,
+     "contacts": 123,
+     "graph_weight": 33.82500076293945,
+     "v3_weight": 33.82500076293945,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 24913396,
+     "pre_node": 160892,
+     "post_node": 147865,
+     "pre_body": 903232,
+     "post_body": 804642,
+     "contacts": 10,
+     "graph_weight": 2.75,
+     "v3_weight": 2.75,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 24913495,
+     "pre_node": 160892,
+     "post_node": 144432,
+     "pre_body": 903232,
+     "post_body": 800146,
+     "contacts": 3,
+     "graph_weight": 0.8250000476837158,
+     "v3_weight": 0.8250000476837158,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    },
+    {
+     "edge_index": 25166674,
+     "pre_node": 162264,
+     "post_node": 144432,
+     "pre_body": 907675,
+     "post_body": 800146,
+     "contacts": 104,
+     "graph_weight": 28.600000381469727,
+     "v3_weight": 28.600000381469727,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "TTMn"
+    }
+   ]
+  },
+  "TTMn->GF": {
+   "edge_count": 2,
+   "contacts": 3,
+   "positive_contacts": 0,
+   "negative_contacts": 3,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 22435895,
+     "pre_node": 144432,
+     "post_node": 0,
+     "pre_body": 800146,
+     "post_body": 10001,
+     "contacts": 2,
+     "graph_weight": -0.550000011920929,
+     "v3_weight": -0.550000011920929,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23406818,
+     "pre_node": 147865,
+     "post_node": 6,
+     "pre_body": 804642,
+     "post_body": 10010,
+     "contacts": 1,
+     "graph_weight": -0.2750000059604645,
+     "v3_weight": -0.2750000059604645,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "DNp01"
+    }
+   ]
+  },
+  "GFC2->GF": {
+   "edge_count": 7,
+   "contacts": 13,
+   "positive_contacts": 13,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 23030736,
+     "pre_node": 146165,
+     "post_node": 0,
+     "pre_body": 802478,
+     "post_body": 10001,
+     "contacts": 2,
+     "graph_weight": 0.550000011920929,
+     "v3_weight": 0.550000011920929,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23043812,
+     "pre_node": 146218,
+     "post_node": 6,
+     "pre_body": 802551,
+     "post_body": 10010,
+     "contacts": 4,
+     "graph_weight": 1.100000023841858,
+     "v3_weight": 1.100000023841858,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23051882,
+     "pre_node": 146252,
+     "post_node": 6,
+     "pre_body": 802595,
+     "post_body": 10010,
+     "contacts": 1,
+     "graph_weight": 0.2750000059604645,
+     "v3_weight": 0.2750000059604645,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23090913,
+     "pre_node": 146403,
+     "post_node": 0,
+     "pre_body": 802799,
+     "post_body": 10001,
+     "contacts": 1,
+     "graph_weight": 0.2750000059604645,
+     "v3_weight": 0.2750000059604645,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23132767,
+     "pre_node": 146577,
+     "post_node": 0,
+     "pre_body": 803025,
+     "post_body": 10001,
+     "contacts": 3,
+     "graph_weight": 0.8250000476837158,
+     "v3_weight": 0.8250000476837158,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 23132873,
+     "pre_node": 146577,
+     "post_node": 6,
+     "pre_body": 803025,
+     "post_body": 10010,
+     "contacts": 1,
+     "graph_weight": 0.2750000059604645,
+     "v3_weight": 0.2750000059604645,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    },
+    {
+     "edge_index": 25166881,
+     "pre_node": 162264,
+     "post_node": 0,
+     "pre_body": 907675,
+     "post_body": 10001,
+     "contacts": 1,
+     "graph_weight": 0.2750000059604645,
+     "v3_weight": 0.2750000059604645,
+     "pre_type": "GFC2",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "DNp01"
+    }
+   ]
+  },
+  "TTMn->GFC2": {
+   "edge_count": 4,
+   "contacts": 29,
+   "positive_contacts": 0,
+   "negative_contacts": 29,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 22435910,
+     "pre_node": 144432,
+     "post_node": 146165,
+     "pre_body": 800146,
+     "post_body": 802478,
+     "contacts": 1,
+     "graph_weight": -0.2750000059604645,
+     "v3_weight": -0.2750000059604645,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 23406771,
+     "pre_node": 147865,
+     "post_node": 146218,
+     "pre_body": 804642,
+     "post_body": 802551,
+     "contacts": 15,
+     "graph_weight": -4.125,
+     "v3_weight": -4.125,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 23406772,
+     "pre_node": 147865,
+     "post_node": 146256,
+     "pre_body": 804642,
+     "post_body": 802599,
+     "contacts": 11,
+     "graph_weight": -3.0250000953674316,
+     "v3_weight": -3.0250000953674316,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "GFC2"
+    },
+    {
+     "edge_index": 23406790,
+     "pre_node": 147865,
+     "post_node": 146252,
+     "pre_body": 804642,
+     "post_body": 802595,
+     "contacts": 2,
+     "graph_weight": -0.550000011920929,
+     "v3_weight": -0.550000011920929,
+     "pre_type": "TTMn",
+     "pre_transmitter": "glutamate",
+     "post_type": "GFC2"
+    }
+   ]
+  },
+  "GF->PSI": {
+   "edge_count": 4,
+   "contacts": 16,
+   "positive_contacts": 16,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 101,
+     "pre_node": 0,
+     "post_node": 146104,
+     "pre_body": 10001,
+     "post_body": 802401,
+     "contacts": 3,
+     "graph_weight": 0.8250000476837158,
+     "v3_weight": 0.8250000476837158,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "PSI"
+    },
+    {
+     "edge_index": 139,
+     "pre_node": 0,
+     "post_node": 160923,
+     "pre_body": 10001,
+     "post_body": 903327,
+     "contacts": 2,
+     "graph_weight": 0.550000011920929,
+     "v3_weight": 0.550000011920929,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "PSI"
+    },
+    {
+     "edge_index": 14567,
+     "pre_node": 6,
+     "post_node": 146104,
+     "pre_body": 10010,
+     "post_body": 802401,
+     "contacts": 9,
+     "graph_weight": 2.4750001430511475,
+     "v3_weight": 2.4750001430511475,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "PSI"
+    },
+    {
+     "edge_index": 14676,
+     "pre_node": 6,
+     "post_node": 160923,
+     "pre_body": 10010,
+     "post_body": 903327,
+     "contacts": 2,
+     "graph_weight": 0.550000011920929,
+     "v3_weight": 0.550000011920929,
+     "pre_type": "DNp01",
+     "pre_transmitter": "acetylcholine",
+     "post_type": "PSI"
+    }
+   ]
+  },
+  "PSI->DLMn": {
+   "edge_count": 10,
+   "contacts": 449,
+   "positive_contacts": 449,
+   "negative_contacts": 0,
+   "zero_fast_contacts": 0,
+   "rows": [
+    {
+     "edge_index": 23012908,
+     "pre_node": 146104,
+     "post_node": 146214,
+     "pre_body": 802401,
+     "post_body": 802544,
+     "contacts": 67,
+     "graph_weight": 18.42500114440918,
+     "v3_weight": 18.42500114440918,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 23012909,
+     "pre_node": 146104,
+     "post_node": 166189,
+     "pre_body": 802401,
+     "post_body": 1050014552,
+     "contacts": 64,
+     "graph_weight": 17.600000381469727,
+     "v3_weight": 17.600000381469727,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 23012911,
+     "pre_node": 146104,
+     "post_node": 145817,
+     "pre_body": 802401,
+     "post_body": 801998,
+     "contacts": 40,
+     "graph_weight": 11.0,
+     "v3_weight": 11.0,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 23012912,
+     "pre_node": 146104,
+     "post_node": 146596,
+     "pre_body": 802401,
+     "post_body": 803048,
+     "contacts": 35,
+     "graph_weight": 9.625,
+     "v3_weight": 9.625,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 23012915,
+     "pre_node": 146104,
+     "post_node": 145797,
+     "pre_body": 802401,
+     "post_body": 801970,
+     "contacts": 17,
+     "graph_weight": 4.675000190734863,
+     "v3_weight": 4.675000190734863,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn a, b"
+    },
+    {
+     "edge_index": 24920833,
+     "pre_node": 160923,
+     "post_node": 144854,
+     "pre_body": 903327,
+     "post_body": 800718,
+     "contacts": 68,
+     "graph_weight": 18.700000762939453,
+     "v3_weight": 18.700000762939453,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 24920834,
+     "pre_node": 160923,
+     "post_node": 145741,
+     "pre_body": 903327,
+     "post_body": 801895,
+     "contacts": 58,
+     "graph_weight": 15.950000762939453,
+     "v3_weight": 15.950000762939453,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 24920835,
+     "pre_node": 160923,
+     "post_node": 146566,
+     "pre_body": 903327,
+     "post_body": 803013,
+     "contacts": 50,
+     "graph_weight": 13.75,
+     "v3_weight": 13.75,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    },
+    {
+     "edge_index": 24920838,
+     "pre_node": 160923,
+     "post_node": 145286,
+     "pre_body": 903327,
+     "post_body": 801295,
+     "contacts": 26,
+     "graph_weight": 7.150000095367432,
+     "v3_weight": 7.150000095367432,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn a, b"
+    },
+    {
+     "edge_index": 24920840,
+     "pre_node": 160923,
+     "post_node": 144977,
+     "pre_body": 903327,
+     "post_body": 800890,
+     "contacts": 24,
+     "graph_weight": 6.600000381469727,
+     "v3_weight": 6.600000381469727,
+     "pre_type": "PSI",
+     "pre_transmitter": "unclear",
+     "post_type": "DLMn c-f"
+    }
+   ]
+  }
+ },
+ "two_hop_gf_x_ttmn": {
+  "intermediate_count": 54,
+  "rows": [
+   {
+    "node_index": 103,
+    "body_id": 10117,
+    "cell_type": "DNp02",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 8,
+     "positive_contacts": 8,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 34,
+       "pre_node": 0,
+       "post_node": 103,
+       "pre_body": 10001,
+       "post_body": 10117,
+       "contacts": 8,
+       "graph_weight": 2.200000047683716,
+       "v3_weight": 2.200000047683716,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNp02"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 21,
+     "positive_contacts": 21,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 233407,
+       "pre_node": 103,
+       "post_node": 144432,
+       "pre_body": 10117,
+       "post_body": 800146,
+       "contacts": 21,
+       "graph_weight": 5.775000095367432,
+       "v3_weight": 5.775000095367432,
+       "pre_type": "DNp02",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 178,
+    "body_id": 10197,
+    "cell_type": "DNp02",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14870,
+       "pre_node": 6,
+       "post_node": 178,
+       "pre_body": 10010,
+       "post_body": 10197,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNp02"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 5,
+     "positive_contacts": 5,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 346809,
+       "pre_node": 178,
+       "post_node": 147865,
+       "pre_body": 10197,
+       "post_body": 804642,
+       "contacts": 5,
+       "graph_weight": 1.375,
+       "v3_weight": 1.375,
+       "pre_type": "DNp02",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 207,
+    "body_id": 10228,
+    "cell_type": "DNp06",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14664,
+       "pre_node": 6,
+       "post_node": 207,
+       "pre_body": 10010,
+       "post_body": 10228,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNp06"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 18,
+     "positive_contacts": 18,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 389093,
+       "pre_node": 207,
+       "post_node": 147865,
+       "pre_body": 10228,
+       "post_body": 804642,
+       "contacts": 18,
+       "graph_weight": 4.950000286102295,
+       "v3_weight": 4.950000286102295,
+       "pre_type": "DNp06",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 384,
+    "body_id": 10417,
+    "cell_type": "DNp103",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 10,
+     "positive_contacts": 10,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14566,
+       "pre_node": 6,
+       "post_node": 384,
+       "pre_body": 10010,
+       "post_body": 10417,
+       "contacts": 10,
+       "graph_weight": 2.75,
+       "v3_weight": 2.75,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNp103"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 627318,
+       "pre_node": 384,
+       "post_node": 144432,
+       "pre_body": 10417,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp103",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 545,
+    "body_id": 10584,
+    "cell_type": "DNp06",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 9,
+     "positive_contacts": 9,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 28,
+       "pre_node": 0,
+       "post_node": 545,
+       "pre_body": 10001,
+       "post_body": 10584,
+       "contacts": 9,
+       "graph_weight": 2.4750001430511475,
+       "v3_weight": 2.4750001430511475,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNp06"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 35,
+     "positive_contacts": 35,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 799509,
+       "pre_node": 545,
+       "post_node": 144432,
+       "pre_body": 10584,
+       "post_body": 800146,
+       "contacts": 35,
+       "graph_weight": 9.625,
+       "v3_weight": 9.625,
+       "pre_type": "DNp06",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 853,
+    "body_id": 10923,
+    "cell_type": "DNg40",
+    "neurotransmitter": "glutamate",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 10,
+     "positive_contacts": 10,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24,
+       "pre_node": 0,
+       "post_node": 853,
+       "pre_body": 10001,
+       "post_body": 10923,
+       "contacts": 10,
+       "graph_weight": 2.75,
+       "v3_weight": 2.75,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "DNg40"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 0,
+     "negative_contacts": 2,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 1078319,
+       "pre_node": 853,
+       "post_node": 147865,
+       "pre_body": 10923,
+       "post_body": 804642,
+       "contacts": 2,
+       "graph_weight": -0.550000011920929,
+       "v3_weight": -0.550000011920929,
+       "pre_type": "DNg40",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 19182,
+    "body_id": 31334,
+    "cell_type": "AN08B009",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Prelim Roughly traced",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 4,
+     "positive_contacts": 4,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 244,
+       "pre_node": 0,
+       "post_node": 19182,
+       "pre_body": 10001,
+       "post_body": 31334,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "AN08B009"
+      },
+      {
+       "edge_index": 14651,
+       "pre_node": 6,
+       "post_node": 19182,
+       "pre_body": 10010,
+       "post_body": 31334,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "AN08B009"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 5,
+     "positive_contacts": 5,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 6857086,
+       "pre_node": 19182,
+       "post_node": 144432,
+       "pre_body": 31334,
+       "post_body": 800146,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "AN08B009",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 6857451,
+       "pre_node": 19182,
+       "post_node": 147865,
+       "pre_body": 31334,
+       "post_body": 804642,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "AN08B009",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 144643,
+    "body_id": 800441,
+    "cell_type": "IN06B016",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 219,
+       "pre_node": 0,
+       "post_node": 144643,
+       "pre_body": 10001,
+       "post_body": 800441,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN06B016"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 0,
+     "negative_contacts": 1,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22533805,
+       "pre_node": 144643,
+       "post_node": 147865,
+       "pre_body": 800441,
+       "post_body": 804642,
+       "contacts": 1,
+       "graph_weight": -0.2750000059604645,
+       "v3_weight": -0.2750000059604645,
+       "pre_type": "IN06B016",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 144738,
+    "body_id": 800560,
+    "cell_type": "IN06B016",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 146,
+       "pre_node": 0,
+       "post_node": 144738,
+       "pre_body": 10001,
+       "post_body": 800560,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN06B016"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 0,
+     "negative_contacts": 1,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22570422,
+       "pre_node": 144738,
+       "post_node": 147865,
+       "pre_body": 800560,
+       "post_body": 804642,
+       "contacts": 1,
+       "graph_weight": -0.2750000059604645,
+       "v3_weight": -0.2750000059604645,
+       "pre_type": "IN06B016",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 144979,
+    "body_id": 800892,
+    "cell_type": "IN06B013",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 147,
+       "pre_node": 0,
+       "post_node": 144979,
+       "pre_body": 10001,
+       "post_body": 800892,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN06B013"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 20,
+     "positive_contacts": 0,
+     "negative_contacts": 20,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22657081,
+       "pre_node": 144979,
+       "post_node": 144432,
+       "pre_body": 800892,
+       "post_body": 800146,
+       "contacts": 17,
+       "graph_weight": -4.675000190734863,
+       "v3_weight": -4.675000190734863,
+       "pre_type": "IN06B013",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 22657287,
+       "pre_node": 144979,
+       "post_node": 147865,
+       "pre_body": 800892,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": -0.8250000476837158,
+       "v3_weight": -0.8250000476837158,
+       "pre_type": "IN06B013",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 145454,
+    "body_id": 801515,
+    "cell_type": "IN23B007",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14756,
+       "pre_node": 6,
+       "post_node": 145454,
+       "pre_body": 10010,
+       "post_body": 801515,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN23B007"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 10,
+     "positive_contacts": 10,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22819841,
+       "pre_node": 145454,
+       "post_node": 144432,
+       "pre_body": 801515,
+       "post_body": 800146,
+       "contacts": 10,
+       "graph_weight": 2.75,
+       "v3_weight": 2.75,
+       "pre_type": "IN23B007",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 145693,
+    "body_id": 801828,
+    "cell_type": "IN12B015",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 15,
+     "positive_contacts": 15,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 100,
+       "pre_node": 0,
+       "post_node": 145693,
+       "pre_body": 10001,
+       "post_body": 801828,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN12B015"
+      },
+      {
+       "edge_index": 14555,
+       "pre_node": 6,
+       "post_node": 145693,
+       "pre_body": 10010,
+       "post_body": 801828,
+       "contacts": 12,
+       "graph_weight": 3.3000001907348633,
+       "v3_weight": 3.3000001907348633,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN12B015"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 6,
+     "positive_contacts": 0,
+     "negative_contacts": 6,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22893853,
+       "pre_node": 145693,
+       "post_node": 144432,
+       "pre_body": 801828,
+       "post_body": 800146,
+       "contacts": 6,
+       "graph_weight": -1.6500000953674316,
+       "v3_weight": -1.6500000953674316,
+       "pre_type": "IN12B015",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 145786,
+    "body_id": 801956,
+    "cell_type": "IN18B032",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 221,
+       "pre_node": 0,
+       "post_node": 145786,
+       "pre_body": 10001,
+       "post_body": 801956,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B032"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 22921393,
+       "pre_node": 145786,
+       "post_node": 144432,
+       "pre_body": 801956,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "IN18B032",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146160,
+    "body_id": 802471,
+    "cell_type": "IN18B031",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 29,
+     "positive_contacts": 29,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 2,
+       "pre_node": 0,
+       "post_node": 146160,
+       "pre_body": 10001,
+       "post_body": 802471,
+       "contacts": 26,
+       "graph_weight": 7.150000095367432,
+       "v3_weight": 7.150000095367432,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B031"
+      },
+      {
+       "edge_index": 14646,
+       "pre_node": 6,
+       "post_node": 146160,
+       "pre_body": 10010,
+       "post_body": 802471,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B031"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 11,
+     "positive_contacts": 11,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23029292,
+       "pre_node": 146160,
+       "post_node": 147865,
+       "pre_body": 802471,
+       "post_body": 804642,
+       "contacts": 11,
+       "graph_weight": 3.0250000953674316,
+       "v3_weight": 3.0250000953674316,
+       "pre_type": "IN18B031",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146165,
+    "body_id": 802478,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 20,
+     "positive_contacts": 20,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 8,
+       "pre_node": 0,
+       "post_node": 146165,
+       "pre_body": 10001,
+       "post_body": 802478,
+       "contacts": 20,
+       "graph_weight": 5.5,
+       "v3_weight": 5.5,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 30,
+     "positive_contacts": 30,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23030570,
+       "pre_node": 146165,
+       "post_node": 144432,
+       "pre_body": 802478,
+       "post_body": 800146,
+       "contacts": 21,
+       "graph_weight": 5.775000095367432,
+       "v3_weight": 5.775000095367432,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23030618,
+       "pre_node": 146165,
+       "post_node": 147865,
+       "pre_body": 802478,
+       "post_body": 804642,
+       "contacts": 9,
+       "graph_weight": 2.4750001430511475,
+       "v3_weight": 2.4750001430511475,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146172,
+    "body_id": 802487,
+    "cell_type": "IN13A022",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14749,
+       "pre_node": 6,
+       "post_node": 146172,
+       "pre_body": 10010,
+       "post_body": 802487,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN13A022"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 129,
+     "positive_contacts": 0,
+     "negative_contacts": 129,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23032506,
+       "pre_node": 146172,
+       "post_node": 147865,
+       "pre_body": 802487,
+       "post_body": 804642,
+       "contacts": 129,
+       "graph_weight": -35.47500228881836,
+       "v3_weight": -35.47500228881836,
+       "pre_type": "IN13A022",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146218,
+    "body_id": 802551,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 24,
+     "positive_contacts": 24,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 79,
+       "pre_node": 0,
+       "post_node": 146218,
+       "pre_body": 10001,
+       "post_body": 802551,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      },
+      {
+       "edge_index": 14540,
+       "pre_node": 6,
+       "post_node": 146218,
+       "pre_body": 10010,
+       "post_body": 802551,
+       "contacts": 20,
+       "graph_weight": 5.5,
+       "v3_weight": 5.5,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 120,
+     "positive_contacts": 120,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23043713,
+       "pre_node": 146218,
+       "post_node": 147865,
+       "pre_body": 802551,
+       "post_body": 804642,
+       "contacts": 120,
+       "graph_weight": 33.0,
+       "v3_weight": 33.0,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146252,
+    "body_id": 802595,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 31,
+     "positive_contacts": 31,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 160,
+       "pre_node": 0,
+       "post_node": 146252,
+       "pre_body": 10001,
+       "post_body": 802595,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      },
+      {
+       "edge_index": 14533,
+       "pre_node": 6,
+       "post_node": 146252,
+       "pre_body": 10010,
+       "post_body": 802595,
+       "contacts": 29,
+       "graph_weight": 7.975000381469727,
+       "v3_weight": 7.975000381469727,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 9,
+     "positive_contacts": 9,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23051735,
+       "pre_node": 146252,
+       "post_node": 144432,
+       "pre_body": 802595,
+       "post_body": 800146,
+       "contacts": 6,
+       "graph_weight": 1.6500000953674316,
+       "v3_weight": 1.6500000953674316,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23051813,
+       "pre_node": 146252,
+       "post_node": 147865,
+       "pre_body": 802595,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146256,
+    "body_id": 802599,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14647,
+       "pre_node": 6,
+       "post_node": 146256,
+       "pre_body": 10010,
+       "post_body": 802599,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 73,
+     "positive_contacts": 73,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23052734,
+       "pre_node": 146256,
+       "post_node": 147865,
+       "pre_body": 802599,
+       "post_body": 804642,
+       "contacts": 73,
+       "graph_weight": 20.075000762939453,
+       "v3_weight": 20.075000762939453,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146403,
+    "body_id": 802799,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 21,
+     "positive_contacts": 21,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 6,
+       "pre_node": 0,
+       "post_node": 146403,
+       "pre_body": 10001,
+       "post_body": 802799,
+       "contacts": 21,
+       "graph_weight": 5.775000095367432,
+       "v3_weight": 5.775000095367432,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 9,
+     "positive_contacts": 9,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23090797,
+       "pre_node": 146403,
+       "post_node": 147865,
+       "pre_body": 802799,
+       "post_body": 804642,
+       "contacts": 5,
+       "graph_weight": 1.375,
+       "v3_weight": 1.375,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23090825,
+       "pre_node": 146403,
+       "post_node": 144432,
+       "pre_body": 802799,
+       "post_body": 800146,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 146577,
+    "body_id": 803025,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 15,
+     "positive_contacts": 15,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 32,
+       "pre_node": 0,
+       "post_node": 146577,
+       "pre_body": 10001,
+       "post_body": 803025,
+       "contacts": 9,
+       "graph_weight": 2.4750001430511475,
+       "v3_weight": 2.4750001430511475,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      },
+      {
+       "edge_index": 14590,
+       "pre_node": 6,
+       "post_node": 146577,
+       "pre_body": 10010,
+       "post_body": 803025,
+       "contacts": 6,
+       "graph_weight": 1.6500000953674316,
+       "v3_weight": 1.6500000953674316,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 123,
+     "positive_contacts": 123,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23132663,
+       "pre_node": 146577,
+       "post_node": 144432,
+       "pre_body": 803025,
+       "post_body": 800146,
+       "contacts": 123,
+       "graph_weight": 33.82500076293945,
+       "v3_weight": 33.82500076293945,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 147419,
+    "body_id": 804088,
+    "cell_type": "IN21A032",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14637,
+       "pre_node": 6,
+       "post_node": 147419,
+       "pre_body": 10010,
+       "post_body": 804088,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A032"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 18,
+     "positive_contacts": 0,
+     "negative_contacts": 18,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23318072,
+       "pre_node": 147419,
+       "post_node": 147865,
+       "pre_body": 804088,
+       "post_body": 804642,
+       "contacts": 18,
+       "graph_weight": -4.950000286102295,
+       "v3_weight": -4.950000286102295,
+       "pre_type": "IN21A032",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 148035,
+    "body_id": 804856,
+    "cell_type": "IN18B034",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 46,
+     "positive_contacts": 46,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 4,
+       "pre_node": 0,
+       "post_node": 148035,
+       "pre_body": 10001,
+       "post_body": 804856,
+       "contacts": 24,
+       "graph_weight": 6.600000381469727,
+       "v3_weight": 6.600000381469727,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B034"
+      },
+      {
+       "edge_index": 14536,
+       "pre_node": 6,
+       "post_node": 148035,
+       "pre_body": 10010,
+       "post_body": 804856,
+       "contacts": 22,
+       "graph_weight": 6.050000190734863,
+       "v3_weight": 6.050000190734863,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B034"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23436473,
+       "pre_node": 148035,
+       "post_node": 144432,
+       "pre_body": 804856,
+       "post_body": 800146,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN18B034",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 148582,
+    "body_id": 805525,
+    "cell_type": "IN18B034",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 29,
+     "positive_contacts": 29,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 50,
+       "pre_node": 0,
+       "post_node": 148582,
+       "pre_body": 10001,
+       "post_body": 805525,
+       "contacts": 6,
+       "graph_weight": 1.6500000953674316,
+       "v3_weight": 1.6500000953674316,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B034"
+      },
+      {
+       "edge_index": 14534,
+       "pre_node": 6,
+       "post_node": 148582,
+       "pre_body": 10010,
+       "post_body": 805525,
+       "contacts": 23,
+       "graph_weight": 6.325000286102295,
+       "v3_weight": 6.325000286102295,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B034"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23541296,
+       "pre_node": 148582,
+       "post_node": 147865,
+       "pre_body": 805525,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "IN18B034",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 148719,
+    "body_id": 805694,
+    "cell_type": "IN07B055",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14643,
+       "pre_node": 6,
+       "post_node": 148719,
+       "pre_body": 10010,
+       "post_body": 805694,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 20,
+     "positive_contacts": 20,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23564324,
+       "pre_node": 148719,
+       "post_node": 144432,
+       "pre_body": 805694,
+       "post_body": 800146,
+       "contacts": 15,
+       "graph_weight": 4.125,
+       "v3_weight": 4.125,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23564363,
+       "pre_node": 148719,
+       "post_node": 147865,
+       "pre_body": 805694,
+       "post_body": 804642,
+       "contacts": 5,
+       "graph_weight": 1.375,
+       "v3_weight": 1.375,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 149459,
+    "body_id": 806587,
+    "cell_type": "IN07B058",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 138,
+       "pre_node": 0,
+       "post_node": 149459,
+       "pre_body": 10001,
+       "post_body": 806587,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B058"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 13,
+     "positive_contacts": 13,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23690412,
+       "pre_node": 149459,
+       "post_node": 144432,
+       "pre_body": 806587,
+       "post_body": 800146,
+       "contacts": 11,
+       "graph_weight": 3.0250000953674316,
+       "v3_weight": 3.0250000953674316,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23690461,
+       "pre_node": 149459,
+       "post_node": 147865,
+       "pre_body": 806587,
+       "post_body": 804642,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 149592,
+    "body_id": 806737,
+    "cell_type": "IN13A022",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14747,
+       "pre_node": 6,
+       "post_node": 149592,
+       "pre_body": 10010,
+       "post_body": 806737,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN13A022"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 82,
+     "positive_contacts": 0,
+     "negative_contacts": 82,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23710885,
+       "pre_node": 149592,
+       "post_node": 147865,
+       "pre_body": 806737,
+       "post_body": 804642,
+       "contacts": 82,
+       "graph_weight": -22.55000114440918,
+       "v3_weight": -22.55000114440918,
+       "pre_type": "IN13A022",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 149643,
+    "body_id": 806795,
+    "cell_type": "IN13A022",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14641,
+       "pre_node": 6,
+       "post_node": 149643,
+       "pre_body": 10010,
+       "post_body": 806795,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN13A022"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 124,
+     "positive_contacts": 0,
+     "negative_contacts": 124,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23719287,
+       "pre_node": 149643,
+       "post_node": 147865,
+       "pre_body": 806795,
+       "post_body": 804642,
+       "contacts": 124,
+       "graph_weight": -34.10000228881836,
+       "v3_weight": -34.10000228881836,
+       "pre_type": "IN13A022",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 149802,
+    "body_id": 806981,
+    "cell_type": "IN07B055",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 211,
+       "pre_node": 0,
+       "post_node": 149802,
+       "pre_body": 10001,
+       "post_body": 806981,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      },
+      {
+       "edge_index": 14737,
+       "pre_node": 6,
+       "post_node": 149802,
+       "pre_body": 10010,
+       "post_body": 806981,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 24,
+     "positive_contacts": 24,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23744414,
+       "pre_node": 149802,
+       "post_node": 144432,
+       "pre_body": 806981,
+       "post_body": 800146,
+       "contacts": 16,
+       "graph_weight": 4.400000095367432,
+       "v3_weight": 4.400000095367432,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23744434,
+       "pre_node": 149802,
+       "post_node": 147865,
+       "pre_body": 806981,
+       "post_body": 804642,
+       "contacts": 8,
+       "graph_weight": 2.200000047683716,
+       "v3_weight": 2.200000047683716,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150115,
+    "body_id": 807361,
+    "cell_type": "IN07B066",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14687,
+       "pre_node": 6,
+       "post_node": 150115,
+       "pre_body": 10010,
+       "post_body": 807361,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B066"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23793507,
+       "pre_node": 150115,
+       "post_node": 147865,
+       "pre_body": 807361,
+       "post_body": 804642,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23793547,
+       "pre_node": 150115,
+       "post_node": 144432,
+       "pre_body": 807361,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150246,
+    "body_id": 807517,
+    "cell_type": "IN07B058",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 4,
+     "positive_contacts": 4,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14623,
+       "pre_node": 6,
+       "post_node": 150246,
+       "pre_body": 10010,
+       "post_body": 807517,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B058"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 4,
+     "positive_contacts": 4,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23814546,
+       "pre_node": 150246,
+       "post_node": 144432,
+       "pre_body": 807517,
+       "post_body": 800146,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23814564,
+       "pre_node": 150246,
+       "post_node": 147865,
+       "pre_body": 807517,
+       "post_body": 804642,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150498,
+    "body_id": 807815,
+    "cell_type": "IN07B080",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14688,
+       "pre_node": 6,
+       "post_node": 150498,
+       "pre_body": 10010,
+       "post_body": 807815,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B080"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23851181,
+       "pre_node": 150498,
+       "post_node": 147865,
+       "pre_body": 807815,
+       "post_body": 804642,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23851201,
+       "pre_node": 150498,
+       "post_node": 144432,
+       "pre_body": 807815,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150652,
+    "body_id": 807993,
+    "cell_type": "IN07B080",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14689,
+       "pre_node": 6,
+       "post_node": 150652,
+       "pre_body": 10010,
+       "post_body": 807993,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B080"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 13,
+     "positive_contacts": 13,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23872203,
+       "pre_node": 150652,
+       "post_node": 147865,
+       "pre_body": 807993,
+       "post_body": 804642,
+       "contacts": 7,
+       "graph_weight": 1.9250000715255737,
+       "v3_weight": 1.9250000715255737,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 23872211,
+       "pre_node": 150652,
+       "post_node": 144432,
+       "pre_body": 807993,
+       "post_body": 800146,
+       "contacts": 6,
+       "graph_weight": 1.6500000953674316,
+       "v3_weight": 1.6500000953674316,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150679,
+    "body_id": 808023,
+    "cell_type": "IN05B032",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 9,
+     "positive_contacts": 9,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 81,
+       "pre_node": 0,
+       "post_node": 150679,
+       "pre_body": 10001,
+       "post_body": 808023,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN05B032"
+      },
+      {
+       "edge_index": 14607,
+       "pre_node": 6,
+       "post_node": 150679,
+       "pre_body": 10010,
+       "post_body": 808023,
+       "contacts": 5,
+       "graph_weight": 1.375,
+       "v3_weight": 1.375,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN05B032"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 0,
+     "negative_contacts": 1,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23876130,
+       "pre_node": 150679,
+       "post_node": 144432,
+       "pre_body": 808023,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": -0.2750000059604645,
+       "v3_weight": -0.2750000059604645,
+       "pre_type": "IN05B032",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 150740,
+    "body_id": 808097,
+    "cell_type": "IN07B055",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 150,
+       "pre_node": 0,
+       "post_node": 150740,
+       "pre_body": 10001,
+       "post_body": 808097,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 11,
+     "positive_contacts": 11,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23885500,
+       "pre_node": 150740,
+       "post_node": 144432,
+       "pre_body": 808097,
+       "post_body": 800146,
+       "contacts": 11,
+       "graph_weight": 3.0250000953674316,
+       "v3_weight": 3.0250000953674316,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 151056,
+    "body_id": 808493,
+    "cell_type": "IN07B055",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 203,
+       "pre_node": 0,
+       "post_node": 151056,
+       "pre_body": 10001,
+       "post_body": 808493,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 6,
+     "positive_contacts": 6,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23930414,
+       "pre_node": 151056,
+       "post_node": 144432,
+       "pre_body": 808493,
+       "post_body": 800146,
+       "contacts": 6,
+       "graph_weight": 1.6500000953674316,
+       "v3_weight": 1.6500000953674316,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 151382,
+    "body_id": 808873,
+    "cell_type": "IN07B080",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 204,
+       "pre_node": 0,
+       "post_node": 151382,
+       "pre_body": 10001,
+       "post_body": 808873,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B080"
+      },
+      {
+       "edge_index": 14677,
+       "pre_node": 6,
+       "post_node": 151382,
+       "pre_body": 10010,
+       "post_body": 808873,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B080"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 8,
+     "positive_contacts": 8,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 23974336,
+       "pre_node": 151382,
+       "post_node": 144432,
+       "pre_body": 808873,
+       "post_body": 800146,
+       "contacts": 8,
+       "graph_weight": 2.200000047683716,
+       "v3_weight": 2.200000047683716,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 151664,
+    "body_id": 809212,
+    "cell_type": "IN07B055",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 206,
+       "pre_node": 0,
+       "post_node": 151664,
+       "pre_body": 10001,
+       "post_body": 809212,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B055"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 15,
+     "positive_contacts": 15,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24012767,
+       "pre_node": 151664,
+       "post_node": 144432,
+       "pre_body": 809212,
+       "post_body": 800146,
+       "contacts": 11,
+       "graph_weight": 3.0250000953674316,
+       "v3_weight": 3.0250000953674316,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 24012792,
+       "pre_node": 151664,
+       "post_node": 147865,
+       "pre_body": 809212,
+       "post_body": 804642,
+       "contacts": 4,
+       "graph_weight": 1.100000023841858,
+       "v3_weight": 1.100000023841858,
+       "pre_type": "IN07B055",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 151690,
+    "body_id": 809244,
+    "cell_type": "IN07B066",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14678,
+       "pre_node": 6,
+       "post_node": 151690,
+       "pre_body": 10010,
+       "post_body": 809244,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B066"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 5,
+     "positive_contacts": 5,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24016319,
+       "pre_node": 151690,
+       "post_node": 147865,
+       "pre_body": 809244,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 24016340,
+       "pre_node": 151690,
+       "post_node": 144432,
+       "pre_body": 809244,
+       "post_body": 800146,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 151726,
+    "body_id": 809291,
+    "cell_type": "IN07B080",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14734,
+       "pre_node": 6,
+       "post_node": 151726,
+       "pre_body": 10010,
+       "post_body": 809291,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B080"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24021469,
+       "pre_node": 151726,
+       "post_node": 144432,
+       "pre_body": 809291,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "IN07B080",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 152234,
+    "body_id": 809891,
+    "cell_type": "IN07B066",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 207,
+       "pre_node": 0,
+       "post_node": 152234,
+       "pre_body": 10001,
+       "post_body": 809891,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B066"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 11,
+     "positive_contacts": 11,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24084192,
+       "pre_node": 152234,
+       "post_node": 144432,
+       "pre_body": 809891,
+       "post_body": 800146,
+       "contacts": 8,
+       "graph_weight": 2.200000047683716,
+       "v3_weight": 2.200000047683716,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 24084231,
+       "pre_node": 152234,
+       "post_node": 147865,
+       "pre_body": 809891,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "IN07B066",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 153602,
+    "body_id": 811606,
+    "cell_type": "IN21A032",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 95,
+       "pre_node": 0,
+       "post_node": 153602,
+       "pre_body": 10001,
+       "post_body": 811606,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A032"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 115,
+     "positive_contacts": 0,
+     "negative_contacts": 115,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24247247,
+       "pre_node": 153602,
+       "post_node": 144432,
+       "pre_body": 811606,
+       "post_body": 800146,
+       "contacts": 115,
+       "graph_weight": -31.625,
+       "v3_weight": -31.625,
+       "pre_type": "IN21A032",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 154181,
+    "body_id": 812334,
+    "cell_type": "IN21A032",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14673,
+       "pre_node": 6,
+       "post_node": 154181,
+       "pre_body": 10010,
+       "post_body": 812334,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A032"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 15,
+     "positive_contacts": 0,
+     "negative_contacts": 15,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24311386,
+       "pre_node": 154181,
+       "post_node": 144432,
+       "pre_body": 812334,
+       "post_body": 800146,
+       "contacts": 15,
+       "graph_weight": -4.125,
+       "v3_weight": -4.125,
+       "pre_type": "IN21A032",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 155960,
+    "body_id": 814572,
+    "cell_type": "IN21A034",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 98,
+       "pre_node": 0,
+       "post_node": 155960,
+       "pre_body": 10001,
+       "post_body": 814572,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A034"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 10,
+     "positive_contacts": 0,
+     "negative_contacts": 10,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24502882,
+       "pre_node": 155960,
+       "post_node": 147865,
+       "pre_body": 814572,
+       "post_body": 804642,
+       "contacts": 8,
+       "graph_weight": -2.200000047683716,
+       "v3_weight": -2.200000047683716,
+       "pre_type": "IN21A034",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 24502892,
+       "pre_node": 155960,
+       "post_node": 144432,
+       "pre_body": 814572,
+       "post_body": 800146,
+       "contacts": 2,
+       "graph_weight": -0.550000011920929,
+       "v3_weight": -0.550000011920929,
+       "pre_type": "IN21A034",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 160892,
+    "body_id": 903232,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 14,
+     "positive_contacts": 14,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14553,
+       "pre_node": 6,
+       "post_node": 160892,
+       "pre_body": 10010,
+       "post_body": 903232,
+       "contacts": 14,
+       "graph_weight": 3.8500001430511475,
+       "v3_weight": 3.8500001430511475,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 13,
+     "positive_contacts": 13,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 24913396,
+       "pre_node": 160892,
+       "post_node": 147865,
+       "pre_body": 903232,
+       "post_body": 804642,
+       "contacts": 10,
+       "graph_weight": 2.75,
+       "v3_weight": 2.75,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 24913495,
+       "pre_node": 160892,
+       "post_node": 144432,
+       "pre_body": 903232,
+       "post_body": 800146,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 161552,
+    "body_id": 905139,
+    "cell_type": "IN18B031",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 15,
+     "positive_contacts": 15,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14547,
+       "pre_node": 6,
+       "post_node": 161552,
+       "pre_body": 10010,
+       "post_body": 905139,
+       "contacts": 15,
+       "graph_weight": 4.125,
+       "v3_weight": 4.125,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN18B031"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 14,
+     "positive_contacts": 14,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25050551,
+       "pre_node": 161552,
+       "post_node": 144432,
+       "pre_body": 905139,
+       "post_body": 800146,
+       "contacts": 14,
+       "graph_weight": 3.8500001430511475,
+       "v3_weight": 3.8500001430511475,
+       "pre_type": "IN18B031",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 162264,
+    "body_id": 907675,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 16,
+     "positive_contacts": 16,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 142,
+       "pre_node": 0,
+       "post_node": 162264,
+       "pre_body": 10001,
+       "post_body": 907675,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      },
+      {
+       "edge_index": 14552,
+       "pre_node": 6,
+       "post_node": 162264,
+       "pre_body": 10010,
+       "post_body": 907675,
+       "contacts": 14,
+       "graph_weight": 3.8500001430511475,
+       "v3_weight": 3.8500001430511475,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "GFC2"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 104,
+     "positive_contacts": 104,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25166674,
+       "pre_node": 162264,
+       "post_node": 144432,
+       "pre_body": 907675,
+       "post_body": 800146,
+       "contacts": 104,
+       "graph_weight": 28.600000381469727,
+       "v3_weight": 28.600000381469727,
+       "pre_type": "GFC2",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 162696,
+    "body_id": 908895,
+    "cell_type": "IN13A022",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 198,
+       "pre_node": 0,
+       "post_node": 162696,
+       "pre_body": 10001,
+       "post_body": 908895,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN13A022"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 109,
+     "positive_contacts": 0,
+     "negative_contacts": 109,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25229396,
+       "pre_node": 162696,
+       "post_node": 144432,
+       "pre_body": 908895,
+       "post_body": 800146,
+       "contacts": 109,
+       "graph_weight": -29.975000381469727,
+       "v3_weight": -29.975000381469727,
+       "pre_type": "IN13A022",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 164229,
+    "body_id": 926518,
+    "cell_type": "IN12B015",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 2,
+     "contacts": 7,
+     "positive_contacts": 7,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 54,
+       "pre_node": 0,
+       "post_node": 164229,
+       "pre_body": 10001,
+       "post_body": 926518,
+       "contacts": 5,
+       "graph_weight": 1.375,
+       "v3_weight": 1.375,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN12B015"
+      },
+      {
+       "edge_index": 14670,
+       "pre_node": 6,
+       "post_node": 164229,
+       "pre_body": 10010,
+       "post_body": 926518,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN12B015"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 4,
+     "positive_contacts": 0,
+     "negative_contacts": 4,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25407323,
+       "pre_node": 164229,
+       "post_node": 147865,
+       "pre_body": 926518,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": -0.8250000476837158,
+       "v3_weight": -0.8250000476837158,
+       "pre_type": "IN12B015",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 25407506,
+       "pre_node": 164229,
+       "post_node": 144432,
+       "pre_body": 926518,
+       "post_body": 800146,
+       "contacts": 1,
+       "graph_weight": -0.2750000059604645,
+       "v3_weight": -0.2750000059604645,
+       "pre_type": "IN12B015",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 164429,
+    "body_id": 933395,
+    "cell_type": "IN20A.22A001",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 2,
+     "positive_contacts": 2,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 132,
+       "pre_node": 0,
+       "post_node": 164429,
+       "pre_body": 10001,
+       "post_body": 933395,
+       "contacts": 2,
+       "graph_weight": 0.550000011920929,
+       "v3_weight": 0.550000011920929,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN20A.22A001"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 83,
+     "positive_contacts": 83,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25432328,
+       "pre_node": 164429,
+       "post_node": 144432,
+       "pre_body": 933395,
+       "post_body": 800146,
+       "contacts": 83,
+       "graph_weight": 22.825000762939453,
+       "v3_weight": 22.825000762939453,
+       "pre_type": "IN20A.22A001",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 164506,
+    "body_id": 935149,
+    "cell_type": "IN07B058",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 3,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 94,
+       "pre_node": 0,
+       "post_node": 164506,
+       "pre_body": 10001,
+       "post_body": 935149,
+       "contacts": 3,
+       "graph_weight": 0.8250000476837158,
+       "v3_weight": 0.8250000476837158,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN07B058"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 19,
+     "positive_contacts": 19,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25442777,
+       "pre_node": 164506,
+       "post_node": 144432,
+       "pre_body": 935149,
+       "post_body": 800146,
+       "contacts": 12,
+       "graph_weight": 3.3000001907348633,
+       "v3_weight": 3.3000001907348633,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 25442786,
+       "pre_node": 164506,
+       "post_node": 147865,
+       "pre_body": 935149,
+       "post_body": 804642,
+       "contacts": 7,
+       "graph_weight": 1.9250000715255737,
+       "v3_weight": 1.9250000715255737,
+       "pre_type": "IN07B058",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 164558,
+    "body_id": 935961,
+    "cell_type": "IN21A034",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14723,
+       "pre_node": 6,
+       "post_node": 164558,
+       "pre_body": 10010,
+       "post_body": 935961,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A034"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 3,
+     "positive_contacts": 0,
+     "negative_contacts": 3,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25448142,
+       "pre_node": 164558,
+       "post_node": 147865,
+       "pre_body": 935961,
+       "post_body": 804642,
+       "contacts": 3,
+       "graph_weight": -0.8250000476837158,
+       "v3_weight": -0.8250000476837158,
+       "pre_type": "IN21A034",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 164560,
+    "body_id": 935973,
+    "cell_type": "IN21A034",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 14724,
+       "pre_node": 6,
+       "post_node": 164560,
+       "pre_body": 10010,
+       "post_body": 935973,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN21A034"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 2,
+     "contacts": 11,
+     "positive_contacts": 0,
+     "negative_contacts": 11,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25448198,
+       "pre_node": 164560,
+       "post_node": 144432,
+       "pre_body": 935973,
+       "post_body": 800146,
+       "contacts": 10,
+       "graph_weight": -2.75,
+       "v3_weight": -2.75,
+       "pre_type": "IN21A034",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      },
+      {
+       "edge_index": 25448228,
+       "pre_node": 164560,
+       "post_node": 147865,
+       "pre_body": 935973,
+       "post_body": 804642,
+       "contacts": 1,
+       "graph_weight": -0.2750000059604645,
+       "v3_weight": -0.2750000059604645,
+       "pre_type": "IN21A034",
+       "pre_transmitter": "glutamate",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   },
+   {
+    "node_index": 166316,
+    "body_id": 1050765441,
+    "cell_type": "IN13A022",
+    "neurotransmitter": "gaba",
+    "quality": "Reviewed",
+    "gf_to_x": {
+     "edge_count": 1,
+     "contacts": 1,
+     "positive_contacts": 1,
+     "negative_contacts": 0,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 197,
+       "pre_node": 0,
+       "post_node": 166316,
+       "pre_body": 10001,
+       "post_body": 1050765441,
+       "contacts": 1,
+       "graph_weight": 0.2750000059604645,
+       "v3_weight": 0.2750000059604645,
+       "pre_type": "DNp01",
+       "pre_transmitter": "acetylcholine",
+       "post_type": "IN13A022"
+      }
+     ]
+    },
+    "x_to_ttmn": {
+     "edge_count": 1,
+     "contacts": 195,
+     "positive_contacts": 0,
+     "negative_contacts": 195,
+     "zero_fast_contacts": 0,
+     "rows": [
+      {
+       "edge_index": 25562313,
+       "pre_node": 166316,
+       "post_node": 144432,
+       "pre_body": 1050765441,
+       "post_body": 800146,
+       "contacts": 195,
+       "graph_weight": -53.625,
+       "v3_weight": -53.625,
+       "pre_type": "IN13A022",
+       "pre_transmitter": "gaba",
+       "post_type": "TTMn"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "note": "Static existing chemical graph only. Separate leg contacts are not a flow, pathway fraction, transmission measurement, necessity or mediation result."
+}
