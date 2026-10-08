@@ -33,6 +33,7 @@ const files = (a) => ({
     clips: path.join(DIR, `${SET}_${a.file}_rig_clips.glb`), rig: path.join(DIR, `${SET}_${a.file}_rig.glb`),
     joints: path.join(DIR, `${SET}_${a.file}_rig_joints.json`), meta: path.join(DIR, `${SET}_${a.file}_rig_clips.json`)});
 const staged = ANIMALS.every((a) => Object.values(files(a)).every((f) => fs.existsSync(f)));
+if (process.env.NF_ENV_REQUIRE_ASSETS === '1') assert.ok(staged, `${SET}: required exported assets are missing`);
 const SKIP = !staged && `env-animation ${SET} assets not staged under web/assets/hq/envanim`;
 
 const DOF_TOL = 0.01;            // rad beyond a documented display range
@@ -100,6 +101,14 @@ async function measureAnimal(a) {
         const nodes = G.trackNodes(clip).map((n) => root.getObjectByName(n));
         const r = out.clips[clip.name] = {missing: nodes.filter((o) => !o).length, dof: [], offAxis: 0, shift: [], lowest: Infinity,
             lowestAt: 0, stance: {}, maxDriftVp: 0, maxDriftLeg: null, wrapExcess: [], motionStill: true, samples: 0};
+        r.invalidChannels = clip.tracks.filter((tr) => {
+            const [node, property] = tr.name.split('.');
+            if (property === 'quaternion') return !axes[node] && node !== `${a.p}_motion`;
+            if (property === 'position') return !shiftLimits[node] && node !== `${a.p}_motion`;
+            return true;
+        }).map((tr) => tr.name);
+        r.motionFloorError = 0;
+        r.motionOffAxis = 0;
         const live = nodes.filter(Boolean);
         const times = new Set();
         const n = Math.max(240, Math.ceil(clip.duration * 240));
@@ -147,6 +156,8 @@ async function measureAnimal(a) {
             }
             prevTips = tipsNow; prevT = t;
             if (motion) {
+                r.motionFloorError = Math.max(r.motionFloorError, Math.abs(motion.position.y));
+                r.motionOffAxis = Math.max(r.motionOffAxis, Math.hypot(motion.quaternion.x, motion.quaternion.z));
                 const yaw = new THREE.Euler().setFromQuaternion(motion.quaternion, 'YXZ').y;
                 track.push([t, motion.position.clone(), yaw]);
                 if (motion.position.lengthSq() > 1e-12 || Math.abs(yaw) > 1e-9) r.motionStill = false;
@@ -175,7 +186,6 @@ async function measureAnimal(a) {
             const mid = track[Math.floor(track.length / 2)];
             const facing = new THREE.Vector3(Math.sin(mid[2]), 0, Math.cos(mid[2]));
             r.headingCos = r.distanceVp > 1e-6 ? facing.dot(disp.clone().setY(0).normalize()) : null;
-            // Turn side relative to the L legs (authored at -X): + yaw about +Y turns +Z toward +X.
             // + yaw about +Y turns +Z toward +X: toward the L legs when they sit at +X.
             r.turnsTowardL = Math.abs(yawTotal) < 1e-6 ? null : Math.sign(yawTotal) === lSide;
         }
@@ -216,11 +226,22 @@ function report(a, m) {
 }
 
 for (const a of ANIMALS) {
+    test(`${SET} ${a.key}: measured body scale matches metadata; authored L=+X and R=-X`, {skip: SKIP}, async () => {
+        const m = await measured(a);
+        assert.ok(Number.isFinite(m.scale) && m.scale > 0 && Number.isFinite(m.claimedScale) && m.claimedScale > 0);
+        assert.ok(Math.abs(m.scale - m.claimedScale) / m.scale <= 0.02,
+            `measured scale ${m.scale.toFixed(3)} vs metadata ${m.claimedScale}`);
+        assert.equal(m.lSide, 1, 'environment L legs must be at +X without a reflection');
+        assert.equal(m.rSide, -1, 'environment R legs must be at -X without a reflection');
+    });
     test(`${SET} ${a.key}: every clip inside the documented DOF and body-shift limits, on axis, no tarsus vertex below the foot plane`, {skip: SKIP}, async () => {
         const m = await measured(a);
         report(a, m);
         for (const [name, r] of Object.entries(m.clips)) {
             assert.equal(r.missing, 0, `${name}: a track targets a missing node`);
+            assert.deepEqual(r.invalidChannels, [], `${name}: animated root, pivot, mesh or unsupported property`);
+            assert.ok(r.motionFloorError < 1e-6, `${name}: locomotion carrier leaves the floor plane`);
+            assert.ok(r.motionOffAxis < OFF_AXIS_TOL, `${name}: locomotion carrier rotates away from +Y`);
             assert.deepEqual(r.dof.slice(0, 3), [], `${name}: DOF outside its display limits`);
             assert.ok(r.offAxis < OFF_AXIS_TOL, `${name}: rotation off its documented axis (${r.offAxis})`);
             assert.deepEqual(r.shift.slice(0, 3), [], `${name}: body shift outside its limits`);

@@ -58,11 +58,17 @@ ones, get their own section, because for this project they matter as much as cod
 
 ### Added (candidate, presentation only, off by default)
 
-- Opt-in presentation assets (`?assets=hq`): a stylised fly and an arena shell
-  below the floor. The dashboard and replay loader uses the neutral fly
-  (`fly_hq_lod0`) only. The female and male appearance variants (two LODs each)
-  appear in the standalone gallery only until the new renderer is integrated.
-  Appearance never selects a brain dataset, physiology or behaviour.
+- This next candidate includes renderer `750246c`: the dashboard uses the female
+  HQ appearance by default under `?assets=hq`, with a female/male presentation
+  selector and a neutral-asset fallback. Without the flag, the fly is procedural.
+  Appearance never selects brain sex, dataset, physiology or behaviour. The replay
+  HQ loader still uses the neutral fly. The published 0.5.1rc1 notes describe the
+  earlier renderer and remain unchanged.
+- The 3D viewport adds lighting, soft shadows, floor/contact presentation, camera
+  presets, themes and an automatic frame-time quality fallback. Its fly-only root
+  adapter repairs heading and anatomical sides; environment animals retain +X
+  anatomical left without reflection. These are presentation changes, with no
+  new sensory, physics or biological-motion claim.
 - `web/asset_gallery.html`, a standalone, manifest-driven review page: close-range
   orbit, LOD and layer toggles, floor/bounds/axes/scale overlays, a contact sheet,
   and fly rig v2 with six illustrative animation clips. Each clip is labelled
