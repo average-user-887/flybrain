@@ -7,6 +7,11 @@ ones, get their own section, because for this project they matter as much as cod
 
 ## [Unreleased]
 
+- An installable 0.5.1rc2 graphics candidate is prepared from accepted presentation
+  source `c4557e9`; see `docs/RELEASE_NOTES_v0.5.1rc2.md`. It is not published or
+  tagged. The separate BODY-MAP change is excluded, and installed runtime/browser
+  qualification remains outstanding.
+
 ### Changed
 
 - **Split by default.** `neurofly run`, `neurofly_daemon.py` and `./start_daemon.sh`

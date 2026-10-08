@@ -7,7 +7,7 @@ and four rig-v2 appearance files the dashboard loader fetches. Nothing else in t
 staging directory is archived.  Entries are sorted and carry a fixed timestamp and
 mode, so the zip is byte-reproducible from the same inputs.
 
-    python3 tools/assets/package_hq_assets.py --staged web/assets/hq --out DIST/neurofly-hq-assets-0.5.1rc1.zip
+    python3 tools/assets/package_hq_assets.py --staged web/assets/hq --out DIST/neurofly-hq-assets-0.5.1rc2.zip
 """
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ Check the files with `cd web/assets/hq && sha256sum -c SHA256SUMS`.
 * Gallery: serve `web/` (for example `cd web && python3 -m http.server 8799 --bind 127.0.0.1`)
   and open `asset_gallery.html`.
 * Dashboard 3D view and embodied replay: add `?assets=hq` to the URL (off by default).
-  This next renderer candidate offers female/male HQ appearance in the dashboard;
+  This graphics candidate offers female/male HQ appearance in the dashboard;
   appearance never selects brain sex or dataset. The replay uses the neutral fly.
 
 ## Contents
@@ -115,6 +115,12 @@ under those labels: `anim/w3_v2_*` (FAILED: feet through the floor, loop pops) a
 Environment clips use `envanim/v4_*`; `envanim/v3_*` is labelled FAILED and kept
 as evidence of cumulative stance slip, scale/speed mismatch and loop seams.
 Animations are illustrative, not simulated behaviour.
+Mantis walking uses cross-species proxies and artistic estimates; no suitable
+mantis walking dataset was identified in this source review. Engine odours are
+static normalised fields, with no chemical identity, transport or wind advection.
+DEMO vane motion is a preview, not measured wind. Explicit zero wind is CALM;
+missing or non-finite wind remains NOT SIMULATED. No biological success or
+real-time performance is established by installing these files.
 
 Provenance (sources, hashes, budgets, references) is in `provenance/`. Licence: MIT
 (`LICENSE`); third-party notices in `NOTICE`. No textures, recordings or editable
@@ -126,7 +132,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--staged", required=True, type=Path, help="web/assets/hq holding the built files")
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--version", default="0.5.1rc1")
+    ap.add_argument("--version", default="0.5.1rc2")
     args = ap.parse_args()
     manifest = json.loads((ROOT / "web/asset_manifest.json").read_text())
     files = whitelist(manifest)
