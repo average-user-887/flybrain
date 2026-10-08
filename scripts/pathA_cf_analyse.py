@@ -38,9 +38,20 @@ def load_rows(dirs):
     return rows
 
 
-def sparse(path):
-    with np.load(path) as z:
-        return z['node_index'].astype(np.int64), z['counts'].astype(np.int64)
+def sparse(path, n):
+    """Sparse all-neuron spike counts, refused unless physically possible: 1-D integer arrays of equal
+    length, counts >= 0, node indices unique and in [0, n)."""
+    with np.load(path, allow_pickle=False) as z:
+        node, cnt = z['node_index'], z['counts']
+    if (node.ndim != 1 or cnt.ndim != 1 or len(node) != len(cnt)
+            or not np.issubdtype(node.dtype, np.integer) or not np.issubdtype(cnt.dtype, np.integer)):
+        raise SystemExit(f'refusing to analyse: {path}: counts are not equal-length 1-D integer arrays')
+    node, cnt = node.astype(np.int64), cnt.astype(np.int64)
+    if np.any(cnt < 0):
+        raise SystemExit(f'refusing to analyse: {path}: negative spike count')
+    if np.any(node < 0) or np.any(node >= n) or len(np.unique(node)) != len(node):
+        raise SystemExit(f'refusing to analyse: {path}: node index out of range [0, {n}) or duplicated')
+    return node, cnt
 
 
 def set_rate(sp, idx, duration_s=1.0):
@@ -105,6 +116,8 @@ def main():
             raise SystemExit(f"refusing to analyse: row {r['condition']} not bound to prereg {psha}")
     sets = {k: np.array(v['node_index']) for k, v in dict(contract['sets'], **prereg['sets']).items()}
     pv = sets['PVLP151']
+    with np.load(args.graph, allow_pickle=False) as z:
+        n = len(z['ptr']) - 1
     dur = contract['protocol']['duration_ms'] / 1000.0
     want = [(c['id'], s) for c in prereg['conditions'] for s in c['seeds']]
     by = {}
@@ -125,11 +138,11 @@ def main():
             if (rep['id'], s) not in cf or (cl['id'], s) not in cf:
                 continue
             (rr, rp), (cr, cp) = cf[(rep['id'], s)], cf[(cl['id'], s)]
-            a, c = sparse(rp), sparse(cp)
+            a, c = sparse(rp, n), sparse(cp, n)
             gates['G1_clamp_zero'] &= set_rate(c, pv) == 0.0
             ins = [(rr.get('audit') or {}).get('input_sha256'), (cr.get('audit') or {}).get('input_sha256')]
             if (b, s) in frozen:
-                f = sparse(frozen[(b, s)][1])
+                f = sparse(frozen[(b, s)][1], n)
                 gates['G5_replay_reproduces_frozen'] &= all(np.array_equal(x, y) for x, y in zip(a, f))
             else:
                 gates['G5_replay_reproduces_frozen'] = False
@@ -137,7 +150,7 @@ def main():
                 zr, zp = cf[(zo['id'], s)]
                 ins.append((zr.get('audit') or {}).get('input_sha256'))
                 gates['G4_zero_outgoing_semantics'] &= all(
-                    np.array_equal(x, y) for x, y in zip(without(sparse(zp), pv), without(c, pv)))
+                    np.array_equal(x, y) for x, y in zip(without(sparse(zp, n), pv), without(c, pv)))
             gates['G3_identical_inputs'] &= same_input_hashes(ins)
             for k in prereg['readouts']:
                 series[k][0].append(set_rate(a, sets[k], dur))

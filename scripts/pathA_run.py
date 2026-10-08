@@ -58,8 +58,12 @@ def sha256_file(path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def load_v3_arrays(gdir: Path, cdir: Path):
+def load_v3_arrays(gdir: Path, cdir: Path, neurons_sha256: str):
+    """Graph arrays with the v3 transmitter policy applied.  The transmitter table must be
+    the contract's neurons.feather (sha256 checked BEFORE any label is applied)."""
     from brainlab.transmitter_policy import apply_policy, load_transmitters
+    if sha256_file(Path(cdir) / 'normalized/neurons.feather') != neurons_sha256:
+        raise SystemExit('neurons.feather sha256 differs from the contract: refusing to apply its transmitter labels')
     with np.load(gdir / 'graph.npz', allow_pickle=False) as z:
         arrays = {k: z[k] for k in ('ptr', 'post', 'weight', 'ids')}
     labels = load_transmitters(cdir)
@@ -199,7 +203,7 @@ def main():
         base['cf_prereg_sha256'] = cf_sha
 
     from brainlab.brain import Brain
-    arrays = load_v3_arrays(gdir, cdir)
+    arrays = load_v3_arrays(gdir, cdir, contract['data']['neurons_feather_sha256'])
     sets = {k: np.array(v['node_index'], dtype=np.int64) for k, v in dict(contract['sets'], **extra_sets).items()}
     brain = Brain(arrays=arrays, validate=True, dynamics=contract['protocol']['dynamics'],
                   backend=contract['protocol']['backend'])
