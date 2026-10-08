@@ -7631,6 +7631,8 @@ class ArticulatedFly3DViewport {
 
         // Build anatomical fly mesh
         this.buildFlyMesh();
+        // Opt-in presentation assets (web/hq_assets.js, ?assets=hq); a no-op without the flag.
+        if (window.NeuroflyHQAssets) window.NeuroflyHQAssets.attachViewport(this);
 
         // Keep missing telemetry visible without throwing away the last valid frame.
         this.poseStatus = document.createElement('div');

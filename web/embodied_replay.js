@@ -293,6 +293,8 @@
         if (e.code === 'Space' && state.rec && e.target === document.body) { e.preventDefault(); setPlaying(!state.playing); }
     });
 
+    // Opt-in presentation assets (hq_assets.js, ?assets=hq); a no-op without the flag.
+    if (window.NeuroflyHQAssets) window.NeuroflyHQAssets.attachReplay({ THREE, scene, state });
     resize();
     requestAnimationFrame(tick);
     const src = new URLSearchParams(location.search).get('src');

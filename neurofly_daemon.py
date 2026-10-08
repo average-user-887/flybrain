@@ -109,6 +109,7 @@ DASHBOARD_WEB_ASSETS = (
     "web/observation_display.js",
     "web/observation_renderer.js",
     "web/assay_cues_3d.js",
+    "web/hq_assets.js",
     "web/app.js",
     "web/replay.js",
     "web/training.js",
