@@ -27,7 +27,10 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 import nf_geom as g  # noqa: E402
 
-ARGS = g.parse_args({'out': '', 'lod': 0, 'render': 0, 'samples': 48, 'res': 768, 'sex': 'neutral'})
+ARGS = g.parse_args({'out': '', 'lod': 0, 'render': 0, 'samples': 48, 'res': 768, 'sex': 'neutral', 'rig': 'v1'})
+RIG2 = ARGS['rig'] == 'v2'   # v2: articulated wing roots, antennae and halteres; bristles seated on the cuticle
+if ARGS['rig'] not in ('v1', 'v2'):
+    raise SystemExit('--rig must be v1 or v2')
 SEX = ARGS['sex']
 if SEX not in ('neutral', 'female', 'male'):
     raise SystemExit('--sex must be neutral, female or male')
@@ -75,11 +78,53 @@ thorax_frame = g.empty('thorax_frame', g.trans(0, THORAX_Y, 0), fly)   # == thor
 parts = []
 
 
-def body_part(name, geo, mats, smooth=True):
-    obj = g.mesh_object(name, geo, mats, smooth=smooth, parent=thorax_frame)
+def body_part(name, geo, mats, smooth=True, parent=None):
+    obj = g.mesh_object(name, geo, mats, smooth=smooth, parent=parent or thorax_frame)
     parts.append(obj)
     return obj
 
+
+# ------------------------------------------------------------------ rig v2 joints
+# Each articulated part hangs on a chain  <part>_root (translation = pivot, in the
+# thorax frame or its parent joint) -> one node per rotational DOF (rest = identity,
+# rotate about the listed axis) -> <part>_offset (translation = -pivot) -> meshes,
+# whose vertices stay in the thorax frame.  At rest the chain is the identity, so the
+# bind pose equals the v1 geometry, and a loader that lifts meshes by name still
+# places them correctly (static).  See tools/assets/JOINT_CONTRACT.md.
+JOINTS = []
+
+
+def joint_chain(prefix, pivot, dofs, parent=None, parent_pivot=None):
+    parent = parent or thorax_frame
+    base = Vector(pivot) - (Vector(parent_pivot) if parent_pivot is not None else Vector((0, 0, 0)))
+    node = g.empty(prefix + '_root', g.trans(*base), parent)
+    JOINTS.append({'node': prefix + '_root', 'parent': parent.name, 'translation': [round(v, 5) for v in base],
+                   'kind': 'pivot'})
+    for dof, axis, lo, hi, note in dofs:
+        node = g.empty(f'{prefix}_{dof}', None, node)
+        a = Vector(axis).normalized()
+        JOINTS.append({'node': f'{prefix}_{dof}', 'parent': node.parent.name, 'axis': [round(v, 5) for v in a],
+                       'range_rad': [lo, hi], 'rest_rad': 0.0, 'note': note})
+    rot_leaf = node
+    offset = g.empty(prefix + '_offset', g.trans(*(-Vector(pivot))), rot_leaf)
+    JOINTS.append({'node': prefix + '_offset', 'parent': rot_leaf.name, 'translation': [round(-v, 5) for v in pivot],
+                   'kind': 'offset'})
+    return rot_leaf, offset
+
+
+def seat(x, z, ellipsoids, embed=0.03):
+    """Highest cuticle point above (x, z) over the given ellipsoids, sunk by ``embed``."""
+    best = None
+    for (cx, cy, cz), (rx, ry, rz) in ellipsoids:
+        q = 1 - ((x - cx) / rx) ** 2 - ((z - cz) / rz) ** 2
+        if q > 0:
+            y = cy + ry * math.sqrt(q)
+            best = y if best is None else max(best, y)
+    return None if best is None else best - embed
+
+
+THORAX_SHELLS = [((0, 0.05, 0.05), (1.12, 1.18, 1.55)), ((0, 0.55, 0.15), (0.92, 0.72, 1.25)),
+                 ((0, 0.92, -1.25), (0.52, 0.26, 0.42))]
 
 # ------------------------------------------------------------------ thorax
 geo = g.Geo()
@@ -98,6 +143,8 @@ if DETAIL:
                          (-0.75, 0.6, 0.45), (0.75, 0.6, 0.45), (-0.85, -0.3, 0.45), (0.85, -0.3, 0.45),
                          (-0.28, -1.25, 0.75), (0.28, -1.25, 0.75), (-0.5, -1.05, 0.6), (0.5, -1.05, 0.6)]:
         y = 1.12 if z > -1.0 else 1.06
+        if RIG2:   # v1 placed some bases up to ~0.37 above the cuticle (floating hairs)
+            y = seat(x, z, THORAX_SHELLS)
         base = Vector((x, y, z))
         tip = base + Vector((x * 0.25, 0.32, -1.0)).normalized() * length
         g.segment_between(base, tip, 0.028, 0.004, 5, geo=geo)
@@ -119,13 +166,27 @@ for side, name in ((-1, 'l_eye'), (1, 'r_eye')):
 for side, s in (('l', -1), ('r', 1)):
     base = Vector((s * 0.17, HEAD.y + 0.35, HEAD.z + 0.48))
     ped_tip = base + Vector((s * 0.06, 0.02, 0.2))
+    ant_parent = fun_parent = None
+    if RIG2:
+        ped_axis = (ped_tip - base).normalized()
+        # Positive abduct swings the tip away from the midline on both sides.
+        ant_rot, ant_parent = joint_chain(f'{side}_antenna', base, [
+            ('abduct', (0, s, 0), -0.4, 0.8, 'flybody antenna_abduct range; + = tip away from midline'),
+            ('extend', (1, 0, 0), -0.2, 0.5, 'flybody antenna_extend range; + = tip down/forward'),
+            ('twist', tuple(ped_axis), -0.1, 0.09, 'flybody antenna_twist range; about the pedicel axis')])
+        fun_c0 = ped_tip + Vector((0, -0.18, 0.06))
+        fun_axis = (fun_c0 + Vector((0, -0.22, 0)) - ped_tip).normalized()
+        _, fun_parent = joint_chain(f'{side}_funiculus', ped_tip, [
+            ('rotate', tuple(fun_axis), -0.1, 0.1,
+             'passive rotation of funiculus+arista about the funiculus long axis (Gopfert & Robert 2002); '
+             'amplitude stylised')], parent=ant_rot, parent_pivot=base)
     geo = g.Geo()
     g.segment_between(base, ped_tip, 0.09, 0.08, LSEG, geo=geo)
-    body_part(f'{side}_pedicel', geo, [M['head']])
+    body_part(f'{side}_pedicel', geo, [M['head']], parent=ant_parent)
     geo = g.Geo()
     fun_c = ped_tip + Vector((0, -0.18, 0.06))
     g.ellipsoid(fun_c, (0.1, 0.22, 0.1), LSEG, max(6, RINGS // 2), matrix=None, geo=geo)
-    body_part(f'{side}_funiculus', geo, [M['cuticle']])
+    body_part(f'{side}_funiculus', geo, [M['cuticle']], parent=fun_parent)
     geo = g.Geo()
     a0 = fun_c + Vector((s * 0.08, 0.08, 0.04))
     a1 = a0 + Vector((s * 0.35, 0.28, 0.45))
@@ -136,7 +197,7 @@ for side, s in (('l', -1), ('r', 1)):
             p = a0 + axis * (k / 7.0)
             for up in (1, -1):
                 g.segment_between(p, p + Vector((0, up * 0.11, 0.03)), 0.008, 0.002, 3, geo=geo)
-    body_part(f'{side}_arista', geo, [M['bristle']])
+    body_part(f'{side}_arista', geo, [M['bristle']], parent=fun_parent)
 
 # Proboscis (rostrum + haustellum + labellum), retracted under the head.
 geo = g.Geo()
@@ -149,7 +210,10 @@ body_part('c_proboscis', geo, [M['head']])
 if DETAIL:
     geo = g.Geo()
     for x, z in [(-0.3, 1.6), (0.3, 1.6), (-0.15, 1.85), (0.15, 1.85), (-0.55, 1.45), (0.55, 1.45)]:
-        base = Vector((x, HEAD.y + 0.76, z))
+        y = HEAD.y + 0.76
+        if RIG2:
+            y = seat(x, z, [((HEAD.x, HEAD.y, HEAD.z), (0.92, 0.80, 0.55))])
+        base = Vector((x, y, z))
         g.segment_between(base, base + Vector((x * 0.3, 0.3, -0.25)), 0.02, 0.003, 4, geo=geo)
     body_part('c_head_bristles', geo, [M['bristle']])
 
@@ -242,7 +306,16 @@ WING_LEN, WING_W = 4.0, 1.45
 def wing_frame(side):
     hinge = Vector((side * 0.62, 0.95, -0.15))
     yaw = 0.25
-    span = Vector((side * math.sin(yaw), -0.12, -math.cos(yaw))).normalized()
+    droop = -0.12
+    if RIG2:
+        # v2 bind pose: the v1 folded wing passed through the scutum and abdomen.  This
+        # hinge stays embedded in the thorax (ellipsoid form 0.97) and the wing, beyond
+        # its 0.40 root (the base that inserts under the notum), clears thorax, scutum,
+        # scutellum and every sexed abdomen; found by a numeric search, re-checked on
+        # the exported mesh (JOINT_CONTRACT.md).  The folded wing rises ~8.5 degrees.
+        hinge = Vector((side * 0.45, 1.06, -0.45))
+        droop = 0.15
+    span = Vector((side * math.sin(yaw), droop, -math.cos(yaw))).normalized()
     up = Vector((0, 1, 0))
     chord = up.cross(span).normalized() * (-side)       # anterior margin faces outward
     normal = span.cross(chord).normalized()
@@ -260,6 +333,19 @@ def wing_point(side, s, c):
 
 
 for side, name in ((-1, 'l_wing'), (1, 'r_wing')):
+    wing_parent = None
+    if RIG2:
+        hinge, span, chord, normal = wing_frame(side)
+        # Opening (+) moves the tip laterally away from the midline on both sides.
+        _, wing_parent = joint_chain(name, hinge, [
+            ('sweep', (0, -side, 0), 0.0, 3.0,
+             'about the body vertical; 0 = folded rest; 3.0 = flybody wing_yaw span (-1.5..1.5) from its '
+             'folded springref'),
+            ('elevate', tuple(span.cross(Vector((0, 1, 0))).normalized()), -1.7, 0.8,
+             'about the horizontal axis normal to the span (rotates with the sweep); + = tip up; flybody wing_roll range (-1..1.5) relative to its rest 0.7'),
+            ('pitch', tuple(span), -0.27, 3.92,
+             'about the wing span axis (leading edge down = +); flybody wing_pitch range (-1.27..2.92) '
+             'relative to its rest -1.0')])
     n = 24 if LOD == 0 else 10
     verts, faces = [], []
     for i in range(n + 1):
@@ -267,7 +353,7 @@ for side, name in ((-1, 'l_wing'), (1, 'r_wing')):
         verts += [tuple(wing_point(side, s, 1.0)), tuple(wing_point(side, s, -1.0))]
     for i in range(n):
         faces.append((2 * i, 2 * i + 2, 2 * i + 3, 2 * i + 1))
-    body_part(name, g.Geo().extend(verts, faces), [M['wing']], smooth=True)
+    body_part(name, g.Geo().extend(verts, faces), [M['wing']], smooth=True, parent=wing_parent)
     _, _, _, normal = wing_frame(side)
     geo = g.Geo()
     for vein, pts in VEINS.items():
@@ -275,16 +361,26 @@ for side, name in ((-1, 'l_wing'), (1, 'r_wing')):
             continue
         poly = [wing_point(side, s, c) + normal * 0.006 for (s, c) in pts]
         g.ribbon(poly, 0.035 if vein == 'costa' else 0.026, normal, geo=geo)
-    obj = body_part(name + '_veins', geo, [M['vein']], smooth=False)
+    obj = body_part(name + '_veins', geo, [M['vein']], smooth=False, parent=wing_parent)
 
 # ------------------------------------------------------------------ halteres
 for side, name in ((-1, 'l_haltere'), (1, 'r_haltere')):
     base = Vector((side * 0.82, 0.35, -1.0))
+    hal_parent = None
+    if RIG2:
+        # v1 left the haltere base ~0.03 outside the thorax; seat it on the surface.
+        c, r = Vector((0, 0.05, 0.05)), Vector((1.12, 1.18, 1.55))
+        d = base - c
+        f = math.sqrt((d.x / r.x) ** 2 + (d.y / r.y) ** 2 + (d.z / r.z) ** 2)
+        base = c + d * (0.98 / f)
+        _, hal_parent = joint_chain(name, base, [
+            ('beat', tuple(Vector((side * 0.22, -0.12, -0.32)).cross(Vector((0, 1, 0))).normalized()), -0.2, 0.2,
+             'flybody haltere joint range; + = knob up')])
     tip = base + Vector((side * 0.22, -0.12, -0.32))
     geo = g.Geo()
     g.segment_between(base, tip, 0.05, 0.035, LSEG // 2 + 2, geo=geo)
     g.ellipsoid(tip, (0.12, 0.11, 0.15), LSEG, max(6, RINGS // 2), geo=geo)
-    body_part(name, geo, [M['haltere']])
+    body_part(name, geo, [M['haltere']], parent=hal_parent)
 
 # ------------------------------------------------------------------ legs
 def leg_scale(leg):
@@ -358,15 +454,21 @@ all_objs = parts + leg_objs
 tris = g.triangle_count(all_objs)
 print(f'NEUROFLY_ASSET fly lod={LOD} objects={len(all_objs)} triangles={tris}')
 
-if SEX != 'neutral':
+if SEX != 'neutral' or RIG2:
     # Shared rig metadata (exported as glTF extras on the root node).
-    fly['nf_rig'] = 'neurofly-viewport-fly-v1'
+    fly['nf_rig'] = 'neurofly-viewport-fly-v2' if RIG2 else 'neurofly-viewport-fly-v1'
     fly['nf_units'] = 'viewport-mm (about 3x life size; rig frame of ArticulatedFly3DViewport)'
     fly['nf_variant'] = SEX
     fly['nf_display_scale'] = DISPLAY_SCALE
     fly['nf_display_scale_basis'] = 'relative to female; female/male thorax-length ratio 1.15 (David et al. 2003)'
     fly['nf_appearance_only'] = 'no brain dataset, physiology or behaviour is tied to this variant'
 stem = os.path.join(ARGS['out'], f'fly_hq_lod{LOD}' if SEX == 'neutral' else f'fly_{SEX}_lod{LOD}')
+if RIG2:
+    stem = os.path.join(ARGS['out'], f'fly_{SEX}_v2_lod{LOD}')
+    import json
+    with open(stem + '_joints.json', 'w') as fh:
+        json.dump({'rig': 'neurofly-viewport-fly-v2', 'frame': 'thorax frame of the v1 rig (viewport-mm, +Y up, +Z forward)',
+                   'joints': JOINTS}, fh, indent=1)
 g.export_glb(stem + '.glb')
 bpy.ops.wm.save_as_mainfile(filepath=stem + '.blend')
 
@@ -384,6 +486,20 @@ if int(ARGS['render']):
     # Renders show the variant at its display scale about the root origin, so every
     # variant shares 64 px per (female-referenced) viewport-mm.  The GLB stays unscaled.
     fly.scale = (DISPLAY_SCALE,) * 3
+    if RIG2:
+        views['under'] = g.camera('cam_under', (0, -40, -0.6), (0, 0, -0.6), ortho_scale=ORTHO)
     for view, cam in views.items():
         g.render_to(scene, cam, f'{stem}_{view}.png')
+    if RIG2:
+        # Articulation check (after export: the files keep the rest/bind pose).  Values
+        # lie inside the display-safe envelope of JOINT_CONTRACT.md.
+        OPEN_POSE = {'wing_sweep': 1.5, 'wing_elevate': 0.3, 'wing_pitch': 0.3, 'antenna_abduct': 0.4,
+                     'antenna_extend': 0.2, 'haltere_beat': 0.2}
+        by_name = {j['node']: j for j in JOINTS if 'axis' in j}
+        for side in ('l', 'r'):
+            for dof, angle in OPEN_POSE.items():
+                node = bpy.data.objects[f'{side}_{dof}']
+                node.matrix_basis = g.matrix_to_blender(Matrix.Rotation(angle, 4, Vector(by_name[node.name]['axis'])))
+        for view in ('top', 'side', 'under', 'hero'):
+            g.render_to(scene, views[view], f'{stem}_open_{view}.png')
     print(f'NEUROFLY_ASSET renders ortho_scale={ORTHO} px_per_viewport_mm={int(ARGS["res"]) / ORTHO:.3f}')

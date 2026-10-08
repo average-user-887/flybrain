@@ -24,11 +24,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 SOURCES = ['tools/assets/nf_geom.py', 'tools/assets/build_fly.py', 'tools/assets/build_arena.py',
            'tools/assets/measure_assets.py', 'tools/assets/build_all.sh',
-           'tools/assets/build_sex_variants.sh', 'tools/assets/contact_sheet.py', 'tools/assets/render_closeup.py', 'web/hq_assets.js',
+           'tools/assets/build_sex_variants.sh', 'tools/assets/contact_sheet.py', 'tools/assets/render_closeup.py',
+           'tools/assets/build_rig_v2.sh', 'web/hq_assets.js',
            'web/asset_preview.html', 'web/vendor/GLTFLoader.js']
 BUDGETS = {  # provisional, from the asset card; not a measured frame-rate promise
     'fly_hq_lod0.glb': 30000, 'fly_hq_lod1.glb': 8000, 'arena_shell.glb': 20000, 'texture_max_px': 2048,
-    'fly_female_lod0.glb': 30000, 'fly_female_lod1.glb': 8000, 'fly_male_lod0.glb': 30000, 'fly_male_lod1.glb': 8000}
+    'fly_female_lod0.glb': 30000, 'fly_female_lod1.glb': 8000, 'fly_male_lod0.glb': 30000, 'fly_male_lod1.glb': 8000,
+    'fly_female_v2_lod0.glb': 30000, 'fly_female_v2_lod1.glb': 8000, 'fly_male_v2_lod0.glb': 30000,
+    'fly_male_v2_lod1.glb': 8000}
 
 
 def sha256(path):
@@ -196,7 +199,7 @@ def main():
         if name.endswith('.glb'):
             m = glb_metrics(path)
             entry = {'sha256': sha256(path), 'bytes': os.path.getsize(path), **m}
-            if name.startswith(('fly_hq_lod', 'fly_female_lod', 'fly_male_lod')):
+            if name.startswith(('fly_hq_lod', 'fly_female_lod', 'fly_male_lod', 'fly_female_v2', 'fly_male_v2')):
                 entry['preview_placement'] = foot_placement(path)
             if m['images']:
                 problems.append(f'{name}: embeds {m["images"]} texture image(s); check each is <= 2048 px')
@@ -209,6 +212,8 @@ def main():
         elif name.endswith('.png'):
             w, h = png_size(path)
             outputs[name] = {'sha256': sha256(path), 'bytes': os.path.getsize(path), 'width': w, 'height': h}
+        elif name.endswith('_joints.json'):
+            outputs[name] = {'sha256': sha256(path), 'bytes': os.path.getsize(path)}
         elif name.endswith('.blend'):
             outputs[name] = {'sha256': sha256(path), 'bytes': os.path.getsize(path),
                              'note': 'editable source scene; Blender .blend files are not byte-reproducible'}

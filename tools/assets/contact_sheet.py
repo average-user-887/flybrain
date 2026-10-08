@@ -15,8 +15,11 @@ import sys
 from PIL import Image, ImageDraw
 
 out, sheet = sys.argv[1], sys.argv[2]
+V2 = sys.argv[3:5] == ['--rig', 'v2']
 views = ['top', 'side', 'front', 'hero']
 rows = [('female', 0), ('male', 0), ('female', 1), ('male', 1)]
+if V2:   # rest and open-pose articulation checks, both LODs
+    views = ['top', 'side', 'under', 'open_top', 'open_side', 'open_under']
 tile, label_h, pad = 320, 22, 8
 img = Image.new('RGBA', (pad + len(views) * (tile + pad), pad + len(rows) * (tile + label_h + pad) + 20), (24, 30, 44, 255))
 draw = ImageDraw.Draw(img)
@@ -29,14 +32,15 @@ for y in range(0, tile, 16):
 for r, (sex, lod) in enumerate(rows):
     for c, view in enumerate(views):
         x, y = pad + c * (tile + pad), pad + r * (tile + label_h + pad)
-        path = os.path.join(out, f'fly_{sex}_lod{lod}_{view}.png')
+        path = os.path.join(out, f'fly_{sex}_v2_lod{lod}_{view}.png' if V2 else f'fly_{sex}_lod{lod}_{view}.png')
         img.alpha_composite(checker, (x, y + label_h))
         if os.path.exists(path):
             im = Image.open(path).convert('RGBA').resize((tile, tile), Image.LANCZOS)
             img.alpha_composite(im, (x, y + label_h))
-        label = f'{sex} LOD{lod} {view}' + (' (ortho)' if view != 'hero' else ' (persp.)')
+        label = f'{sex} LOD{lod} {view}' + (' (ortho)' if 'hero' not in view else ' (persp.)')
         draw.text((x + 2, y + 4), label, fill=(226, 232, 240, 255))
-draw.text((pad, img.height - 14), 'Appearance only: no brain dataset, physiology or behaviour differs.',
+draw.text((pad, img.height - 14), ('Rig v2 rest + open pose (illustrative, not simulated behaviour). ' if V2 else '')
+          + 'Appearance only: no brain dataset, physiology or behaviour differs.',
           fill=(251, 191, 36, 255))
 img.save(sheet)
 print(sheet, img.size)

@@ -16,6 +16,8 @@ what must not change.
 | `measure_assets.py` | Standard library only. Counts triangles and textures, checks the budgets, hashes outputs and sources, and writes `PROVENANCE.json`. |
 | `build_all.sh` | Runs everything above. `--stage` copies the outputs into `web/assets/hq/`, which is git-ignored. |
 | `build_sex_variants.sh`, `contact_sheet.py`, `render_closeup.py` | Female and male appearance variants: two LODs each, PNGs, a sex-comb close-up and a contact sheet. See [SEX_VARIANTS.md](SEX_VARIANTS.md). These are appearance only and never change the brain, physiology or behaviour. |
+| `build_rig_v2.sh` (`build_fly.py --rig v2`) | Rig v2 for both sexes at both LODs, written to a new versioned directory. It adds articulated wing roots (sweep, elevate, pitch), antennae (abduct, extend, twist, plus funiculus rotation) and halteres, with bind-pose fixes (folded wings clear the body; floating bristles are seated) and rest, open, top, side and underside checks. The contract is [JOINT_CONTRACT.md](JOINT_CONTRACT.md). |
+| `PROVENANCE_RIG_V2.json` | Measurements, floor bounds and hashes for rig v2. |
 | `PROVENANCE_SEX_VARIANTS.json` | Measurements, floor bounds and hashes for the variants. |
 | `PROVENANCE.json` | Tool versions, source SHA-256s, output SHA-256s, measured triangle counts, texture use, budgets and licences from the last build. |
 
@@ -45,6 +47,22 @@ the CPU only (`scene.cycles.device = 'CPU'`, 2 fixed threads) and never touches 
 GPU. `--samples N` and `--res PX` trade quality for time. Running a script resets
 its own scene, so do not point the scripts at an interactive Blender session that
 holds unsaved work.
+
+## Working files and the live Blender GUI
+
+* The files these scripts write (`fly_*.blend`, `arena_*.blend`, `.glb`, `.png`)
+  are **canonical build outputs** whose hashes are recorded in `PROVENANCE*.json`.
+  Never open one as the live working file in the Blender GUI and save over it. For
+  gallery or review scenes, append the asset into a separate working file, for
+  example `output/gallery/gallery_<who>_<date>.blend`, and save only that file.
+* Any live GUI or MCP change runs under the shared GUI lock, after a backup copy
+  (`save_as_mainfile(copy=True)`). Background renders run under the shared render
+  lock.
+* `.blend` files are **not byte-reproducible**: rebuilding the same script gives a
+  different `.blend` hash. The GLBs are reproducible, so the GLB hash is the
+  reference for "same asset". If a canonical `.blend` drifts, rename the drifted
+  file with a dated suffix (never delete it) and restore it from the build or from
+  Blender's `.blend1` copy, if that copy matches the recorded hash.
 
 ## Preview
 

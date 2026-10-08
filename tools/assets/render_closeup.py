@@ -3,7 +3,8 @@
 """Close-up render of one object in a built .blend (for inspecting small details).
 
     blender --background --threads 2 OUT/fly_male_lod0.blend \
-        --python tools/assets/render_closeup.py -- lf_tarsus OUT/fly_male_lod0_sexcomb_closeup.png
+        --python tools/assets/render_closeup.py -- lf_tarsus OUT/fly_male_lod0_sexcomb_closeup.png \
+        [hide=l_wing,r_wing] [view=side]
 """
 import os
 import sys
@@ -14,7 +15,13 @@ from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import nf_geom as g  # noqa: E402
 
-name, out = sys.argv[sys.argv.index('--') + 1:][:2]
+args = sys.argv[sys.argv.index('--') + 1:]
+name, out = args[:2]
+opts = dict(a.split('=', 1) for a in args[2:])
+for prefix in filter(None, opts.get('hide', '').split(',')):
+    for o in bpy.data.objects:
+        if o.name.startswith(prefix):
+            o.hide_render = True
 scene = bpy.context.scene
 obj = bpy.data.objects[name]
 bpy.context.view_layer.update()
@@ -27,6 +34,8 @@ data = bpy.data.cameras.new('closeup')
 data.lens = 100
 cam = bpy.data.objects.new('closeup', data)
 scene.collection.objects.link(cam)
-cam.location = target + Vector((1.2, -1.6, 0.6))
+cam.location = target + (Vector((6.0, 0.0, 0.4)) if opts.get('view') == 'side' else Vector((1.2, -1.6, 0.6)))
+if opts.get('view') == 'side':
+    data.lens = 60
 cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
 g.render_to(scene, cam, out)

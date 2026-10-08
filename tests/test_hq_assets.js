@@ -317,3 +317,61 @@ test('staged sex variants share the rig interface, carry scale metadata and stan
             assert.equal(await hq.attachViewport(vp), 'hq', tag);
         }
     });
+
+// Rig v2 (tools/assets/JOINT_CONTRACT.md), when staged: articulated wings, antennae,
+// halteres; the v1 loader still works; joints rotate about fixed pivots.
+const RIG2 = ['female', 'male'].flatMap((sex) => [0, 1].map((lod) => `fly_${sex}_v2_lod${lod}`))
+    .filter((stem) => fs.existsSync(path.join(WEB, `assets/hq/${stem}.glb`)));
+test('staged rig v2: contract joints exist, rest = bind, pivots fixed, parts stay attached',
+    {skip: RIG2.length === 0}, async () => {
+        for (const stem of RIG2) {
+            const bytes = fs.readFileSync(path.join(WEB, `assets/hq/${stem}.glb`));
+            const gltf = await parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length));
+            const joints = JSON.parse(fs.readFileSync(path.join(WEB, `assets/hq/${stem}_joints.json`), 'utf8')).joints;
+            const sc = gltf.scene;
+            assert.equal(sc.getObjectByName('neurofly_fly').userData.nf_rig, 'neurofly-viewport-fly-v2', stem);
+            assert.equal(HQ.validateFly(THREE, HQ.nodeIndex(sc)), null, stem);
+            for (const j of joints) assert.ok(sc.getObjectByName(j.node), `${stem}: ${j.node}`);
+            assert.ok(Math.abs(HQ.lowestFootY(THREE, sc) + 2.1315) < 1e-4, `${stem}: feet unchanged`);
+            const verts = (name) => {
+                sc.updateMatrixWorld(true);
+                const out = [];
+                sc.getObjectByName(name).traverse((o) => {
+                    const a = o.isMesh && o.geometry.attributes.position;
+                    if (a) for (let k = 0; k < a.count; k += 1) out.push(new THREE.Vector3().fromBufferAttribute(a, k).applyMatrix4(o.matrixWorld));
+                });
+                return out;
+            };
+            const minDist = (pts, p) => Math.min(...pts.map((v) => v.distanceTo(p)));
+            for (const [part, mesh, dofs] of [['l_wing', 'l_wing', ['sweep', 'elevate', 'pitch']],
+                ['r_wing', 'r_wing', ['sweep', 'elevate', 'pitch']], ['l_antenna', 'l_pedicel', ['abduct', 'extend', 'twist']],
+                ['r_haltere', 'r_haltere', ['beat']]]) {
+                const root = joints.find((j) => j.node === `${part}_root`);
+                const pivot = new THREE.Vector3();
+                sc.getObjectByName(`${part}_root`).getWorldPosition(pivot);
+                const rest = minDist(verts(mesh), pivot);
+                for (const dof of dofs) {
+                    const j = joints.find((x) => x.node === `${part}_${dof}`);
+                    sc.getObjectByName(j.node).quaternion.setFromAxisAngle(new THREE.Vector3(...j.axis), j.range_rad[1]);
+                }
+                const p2 = new THREE.Vector3();
+                sc.getObjectByName(`${part}_${dofs[dofs.length - 1]}`).getWorldPosition(p2);
+                assert.ok(p2.distanceTo(pivot) < 1e-6, `${stem} ${part}: pivot moved`);
+                assert.ok(Math.abs(minDist(verts(mesh), pivot) - rest) < 1e-5, `${stem} ${part}: detached`);
+                for (const dof of dofs) sc.getObjectByName(`${part}_${dof}`).quaternion.set(0, 0, 0, 1);
+                assert.ok(root.translation.length === 3);
+            }
+            // Side-symmetric signs: +sweep opens both wings away from the midline.
+            for (const side of ['l', 'r']) {
+                const j = joints.find((x) => x.node === `${side}_wing_sweep`);
+                const before = verts(`${side}_wing`).reduce((m, v) => Math.max(m, Math.abs(v.x)), 0);
+                sc.getObjectByName(j.node).quaternion.setFromAxisAngle(new THREE.Vector3(...j.axis), 1.5);
+                const after = verts(`${side}_wing`).reduce((m, v) => Math.max(m, Math.abs(v.x)), 0);
+                sc.getObjectByName(j.node).quaternion.set(0, 0, 0, 1);
+                assert.ok(after > before + 1, `${stem} ${side}: sweep opens laterally`);
+            }
+            const vp = proceduralViewport();
+            const hq = HQ.create({location: {search: '?assets=hq'}, THREE, document: fakeDoc(), loadGlb: () => Promise.resolve(gltf)});
+            assert.equal(await hq.attachViewport(vp), 'hq', `${stem}: v1 loader still attaches (static)`);
+        }
+    });
