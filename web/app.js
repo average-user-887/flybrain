@@ -5262,29 +5262,67 @@ class DaemonBridgeClient {
         if (label) label.textContent = `${action.replaceAll('_', ' ')} queued: applied when the current simulation step finishes`;
     }
 
+    /** A lost HTTP reply cannot override this request's authoritative final ACK. */
+    async recoverCommandAck(clientCommandId, action, url, identity) {
+        const currentIdentity = () => (this.lastOrderedPacket || this.arena.remotePacket)?.identity;
+        const sameOwner = () => this.connected && this.activeUrl === url && !this.simProcessDown
+            && currentIdentity()?.daemon_run_id === identity?.daemon_run_id;
+        if (!identity?.daemon_run_id || !sameOwner()) return null;
+        const matches = (r) => r?.client_command_id === clientCommandId
+            && typeof r?.command_id === 'string' && r.command_id.length > 0
+            && ['ok', 'error'].includes(r.status) && r.ack?.action === action
+            && r.ack.run_id === identity.daemon_run_id && r.ack.identity?.daemon_run_id === identity.daemon_run_id
+            && typeof r.ack.applied === 'boolean' && (r.status !== 'ok' || r.ack.applied === true)
+            && Number.isInteger(r.ack.identity.activation) && Number.isInteger(identity.activation)
+            && r.ack.identity.activation >= identity.activation
+            && r.ack.identity.activation >= currentIdentity()?.activation
+            && Number.isInteger(r.ack.applied_step) && r.ack.applied_step >= 0
+            && (!Number.isInteger(this.lastAck?.applied_step) || r.ack.applied_step >= this.lastAck.applied_step)
+            && DaemonBridgeClient.newerAck(this.lastSwitchAck, r.ack)
+            && DaemonBridgeClient.newerAck(this.lastAck, r.ack);
+        let receipt = this.commandAckCache.get(clientCommandId);
+        if (!matches(receipt)) {
+            const record = await this.lookupCommandAck(clientCommandId); // GET only; never resend.
+            receipt = record?.state === 'acknowledged' && record.daemon_run_id === identity.daemon_run_id
+                ? record.ack : null;
+        }
+        if (!sameOwner() || !matches(receipt)) return null;
+        this.commandAckCache.delete(clientCommandId);
+        this.commandAckCache.delete(receipt.command_id);
+        return receipt;
+    }
+
     async sendCommand(action, params = {}, onQueued = null, options = {}) {
         if (!this.connected || !this.activeUrl || this.readOnly || this.simProcessDown) return null;
         const switching = ['switch_paradigm', 'switch_backend'].includes(action);
         const clientCommandId = options.clientCommandId || this.newClientCommandId();
+        const commandUrl = this.activeUrl;
+        const commandIdentity = (this.lastOrderedPacket || this.arena.remotePacket)?.identity;
         if (switching) this.switchPending = true;
         try {
-            const res = await fetch(`${this.activeUrl}/api/command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, params, client_command_id: clientCommandId }),
-                signal: AbortSignal.timeout(2000)
-            });
-            if (res.status === 403) {
-                this.markReadOnly();
-                return {status:'error', applied:false, message:'This dashboard is read-only; the command was not applied.'};
+            let res, data;
+            try {
+                res = await fetch(`${commandUrl}/api/command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, params, client_command_id: clientCommandId }),
+                    signal: AbortSignal.timeout(2000)
+                });
+                if (res.status === 403) {
+                    this.markReadOnly();
+                    return {status:'error', applied:false, message:'This dashboard is read-only; the command was not applied.'};
+                }
+                try { data = await res.json(); }
+                catch (e) {
+                    if (['TimeoutError', 'AbortError'].includes(e?.name)) throw e;
+                    data = {status:'error', message:`Daemon returned HTTP ${res.status} without a JSON acknowledgement.`};
+                }
+            } catch (e) {
+                if (['TimeoutError', 'AbortError'].includes(e?.name))
+                    data = await this.recoverCommandAck(clientCommandId, action, commandUrl, commandIdentity);
+                if (!data) throw e;
             }
-            let data;
-            try { data = await res.json(); }
-            catch (e) {
-                if (['TimeoutError', 'AbortError'].includes(e?.name)) throw e;
-                data = {status:'error', message:`Daemon returned HTTP ${res.status} without a JSON acknowledgement.`};
-            }
-            if (res.ok || data) {
+            if (res?.ok || data) {
                 // A long step was running: the command is queued and applied at the next
                 // step boundary; its acknowledgement arrives in the stream.
                 if (data.status === 'queued' && data.command_id) {

@@ -95,13 +95,14 @@ test('a newer request is never overwritten by the older request\'s late acknowle
  const h=harness({post:body=>{const r=replies.shift();if(!(r instanceof Error))r.client_command_id=body.client_command_id;return r;},
   lookup:()=>({daemon_run_id:'daemon',state:'unknown'})});
  await h.hud.setBackend('connectome-plastic');const old=h.posts[0].client_command_id;
+ const initialLookups=h.lookups.length; // shared recovery may do one immediate read-only lookup
  assert.equal(await h.hud.setBackend('connectome-fixed'),true);
  assert.match(h.status(),/^Applied controller connectome-fixed/);
  h.bridge.resolveCommandAcks([ack('connectome-plastic',{activation:3,client_command_id:old,command_id:'daemon-3'})]);
  await h.tick(2);
  assert.match(h.status(),/^Applied controller connectome-fixed/);
  assert.equal(h.bridge.lastSwitchAck.identity.activation,4);
- assert.equal(h.lookups.length,0);                         // superseded request is no longer polled
+ assert.equal(h.lookups.length,initialLookups);            // superseded request is no longer polled
 });
 test('a late HTTP reply for an older activation never replaces a newer acknowledgement',async()=>{
  const h=harness({post:()=>ack('connectome-plastic',{activation:3})});
