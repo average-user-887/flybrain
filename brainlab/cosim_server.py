@@ -67,6 +67,38 @@ MAPPING_WARNINGS = [
 ]
 
 
+# Sensory keys this server reads from a /step packet (everything else is ignored and
+# listed in the reply's ``unconsumed_keys``; ignoring a key is not delivering it).
+CONSUMED_SENSORY_KEYS = frozenset({
+    "mean_odor", "hs_left_shunted", "hs_left_raw", "hs_right_shunted", "hs_right_raw",
+    "optomotor_slip_rad_s", "optomotor_contrast", "looming_trigger", "looming_expansion_rate",
+    "temperature_excess", "temperature_c", "pheromone_cva", "courtship_cva", "wpn_wind_speed",
+    "energy_reserve", "leg_load_uN",
+})
+
+
+def _scalar_input(sensory: Dict[str, Any], keys: Sequence[str], delivery: Dict[str, Any],
+                  channel: str, default: float = 0.0) -> float:
+    """First present key wins (an explicit 0 is never replaced by a fallback key).
+
+    A non-numeric or non-finite value is NOT DELIVERED: ``default`` is used, which
+    injects nothing, and the reason is recorded in ``delivery[channel]``.
+    """
+    for key in keys:
+        if key in sensory:
+            raw = sensory[key]
+            if (isinstance(raw, bool) or not isinstance(raw, (int, float, np.integer, np.floating))
+                    or not math.isfinite(float(raw))):
+                delivery[channel] = {"key": key, "value": None,
+                                     "status": f"NOT DELIVERED: {key} is not a finite number"}
+                return default
+            delivery[channel] = {"key": key, "value": float(raw), "status": "delivered"}
+            return float(raw)
+    delivery[channel] = {"key": None, "value": None,
+                         "status": "NOT DELIVERED: none of " + "/".join(keys) + " in the packet"}
+    return default
+
+
 class ConnectomeServer:
     """Fixed-weight graph server. Refuses to start without the verified graph.
 
@@ -342,7 +374,8 @@ class ConnectomeServer:
         currents = np.zeros(self.n_neurons, dtype=np.float32)
 
         # 1. Olfactory drive
-        mean_odor = float(sensory.get("mean_odor", 0.0))
+        delivery: Dict[str, Any] = {}
+        mean_odor = _scalar_input(sensory, ("mean_odor",), delivery, "orn_food")
         if mean_odor > 0.01:
             i_food = float(min(45.0, mean_odor * 30.0))
             for idx in self.sensory_indices["orn_food"]:
@@ -382,7 +415,12 @@ class ConnectomeServer:
                     currents[idx] += 80.0  # Supra-threshold escape trigger
 
         # 3b. Antennal Thermoreception (TRN -> SEZ)
-        temp_val = float(sensory.get("temperature_excess", max(0.0, float(sensory.get("temperature_c", 25.0)) - 25.0)))
+        # temperature_excess (degC above 25) wins over absolute temperature_c (degC).
+        if "temperature_excess" in sensory:
+            temp_val = _scalar_input(sensory, ("temperature_excess",), delivery, "thermo_receptors")
+        else:
+            temp_val = max(0.0, _scalar_input(sensory, ("temperature_c",), delivery, "thermo_receptors",
+                                              default=25.0) - 25.0)
         if temp_val > 0.5:
             i_thermo = float(min(40.0, temp_val * 4.0))
             for idx in self.sensory_indices["thermo_receptors"]:
@@ -390,7 +428,7 @@ class ConnectomeServer:
                     currents[idx] += i_thermo
 
         # 3c. Courtship Pheromone (cVA -> ORN_DA1)
-        cva_val = float(sensory.get("pheromone_cva", sensory.get("courtship_cva", 0.0)))
+        cva_val = _scalar_input(sensory, ("pheromone_cva", "courtship_cva"), delivery, "courtship_cva")
         if cva_val > 0.01:
             i_cva = float(min(40.0, cva_val * 35.0))
             for idx in self.sensory_indices["courtship_cva"]:
@@ -398,7 +436,7 @@ class ConnectomeServer:
                     currents[idx] += i_cva
 
         # 4. Wind mechanoreception (Johnston's organ drag)
-        wind_speed = float(sensory.get("wpn_wind_speed", 0.0))
+        wind_speed = _scalar_input(sensory, ("wpn_wind_speed",), delivery, "jon_wind")
         if wind_speed > 5.0:
             i_wind = float(min(35.0, wind_speed * 0.15))
             for idx in self.sensory_indices["jon_wind"]:
@@ -495,6 +533,9 @@ class ConnectomeServer:
             "mdn_rate": mdn_rate,
             "dnp01_gf_spikes": dnp01_gf_spikes,
             "engineered_assistance_applied": applied_assistance,
+            # Per-channel key actually read (or why none was).  Delivery is not sensing.
+            "sensory_delivery": delivery,
+            "unconsumed_keys": sorted(str(k) for k in sensory if k not in CONSUMED_SENSORY_KEYS),
             "optomotor": optomotor_reply,
             "locomotion_dn": self._locomotion_dn_reply(spike_counts, sec),
         }

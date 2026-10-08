@@ -713,7 +713,18 @@ class ConnectomeBridge:
             "gr32a_rate": self.gr32a_rate,
             "p1_courtship_rate": self.p1_courtship_rate,
             "wing_extension_command": self.wing_extension_command,
-            "mb_gamma_dopamine": self.mb_gamma_dopamine
+            "mb_gamma_dopamine": self.mb_gamma_dopamine,
+            # Receptor-stage inputs in the units the RPC graph server reads
+            # (brainlab/cosim_server.py step).  Each is the same quantity the bridge
+            # computed above, not a transformed rate: the bilateral mean antennal odour
+            # concentration (arbitrary 0-1, not pn_dm1_norm), the clipped cVA
+            # concentration (0-1, not cva_rate), the relative airspeed in mm/s (the
+            # bridge's own wpn_wind_speed) and the absolute temperature in degC (the
+            # server subtracts its own 25 degC baseline).  Delivery is not sensing.
+            "mean_odor": float(mean_odor),
+            "pheromone_cva": cva_conc,
+            "wpn_wind_speed": float(self.wpn_wind_speed),
+            "temperature_c": float(self.temperature),
         }
 
         # WP5 optomotor input (docs/WP5_OPTOMOTOR.md).  Retinal slip in rad/s

@@ -90,7 +90,11 @@ def validate_trial_clock(value) -> dict:
 # bytes are immutable so callers cannot mutate the object after its hash is
 # computed.  CARD-02B stores this declaration in a new linked run manifest;
 # CARD-02A publishes the version/hash with each graph reply.
-GRAPH_IO_VERSION = 'graph-arena-io-v2-unassisted'
+GRAPH_IO_VERSION = 'graph-arena-io-v3-unassisted'
+# v2 -> v3 (sensory-delivery repair, 2026-10-08): jon_wind also reads the multisensory
+# sandbox's wind_magnitude.  That restores an input the v2 method silently dropped, so
+# the effective experimental I/O changed even though no gain did; saved v2 lineages
+# must go through --continue-io-state (a linked child), never change in place.
 _GRAPH_IO_CONFIG = {
     'schema': 'neurofly.graph-io.v2',
     'version': GRAPH_IO_VERSION,
@@ -125,7 +129,12 @@ _GRAPH_IO_CONFIG = {
          'threshold': '> 0.001', 'status': 'unverified'},
         {'name': 'jon_wind', 'cell_types': ['JO-* (first 50)'], 'entry_stage': 'peripheral receptor',
          'stimulus': 'wind_speed_mm_s', 'formula': 'min(35, 0.15*wind_speed_mm_s)',
-         'threshold': '> 3 mm/s', 'status': 'unverified'},
+         'threshold': '> 3 mm/s', 'status': 'unverified',
+         'accepted_keys': ['wind_speed', 'wind_magnitude'],
+         'units': 'mm/s; world airflow speed hypot(wind vector); no baseline, no normalisation',
+         'precedence': 'first key present in accepted_keys order; an explicit 0 is used and never replaced by a later key; one injection per step',
+         'invalid_input': 'bool, non-numeric, non-finite or negative value -> NOT DELIVERED, no current injected, reported in input_stage.delivery',
+         'vector_only_input': 'a wind vector without a scalar key -> NOT DELIVERED (no vector-to-magnitude mapping is declared)'},
         {'name': 'thermo', 'cell_types': ['thermosensory'], 'entry_stage': 'peripheral receptor',
          'stimulus': 'temperature_degC', 'formula': 'min(40, 2.5*abs(temperature_degC - 24))',
          'threshold': 'abs(temperature_degC - 24) > 2 degC', 'status': 'unverified'},
@@ -136,6 +145,9 @@ _GRAPH_IO_CONFIG = {
     ],
     'removed_undisclosed_drive': ['DNb01 +12 tonic current', '+5 mm/s forward floor',
                                    'ER contrast constant', 'EL +18 tonic current'],
+    'supersedes': {'version': 'graph-arena-io-v2-unassisted',
+                   'change': 'jon_wind read only wind_speed; the multisensory sandbox publishes '
+                             'wind_magnitude, so its airflow was never delivered'},
 }
 GRAPH_IO_CONFIG_JSON = json.dumps(_GRAPH_IO_CONFIG, sort_keys=True, separators=(',', ':'),
                                   ensure_ascii=True)

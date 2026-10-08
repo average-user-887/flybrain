@@ -380,6 +380,36 @@ def identity_rejection(packet_identity: Optional[Dict[str, Any]], packet_daemon_
 GRAPH_NO_STEP_YET = "No graph step for this assay since it was selected"
 
 
+# Scalar airflow-speed keys published by the assays, in precedence order. Both are the
+# world airflow speed in mm/s with no baseline: wind_tunnel ``wind_speed`` =
+# hypot(wind_flow) (maze.py WindTunnelParadigm.sample_stimuli), multisensory
+# ``wind_magnitude`` = hypot(wind_vector) (maze.py MultisensoryLimbBenchmark.sample_stimuli).
+WIND_SPEED_KEYS = ("wind_speed", "wind_magnitude")
+
+
+def resolve_wind_speed(sensory, wind_vector=None):
+    """Return ``(speed_mm_s | None, key | None, delivery_status)`` for the JO wind probe.
+
+    The first key present wins, including an explicit 0, so an alias never overrides it
+    and the probe is injected once.  A non-numeric or non-finite value is not delivered.
+    An assay that publishes only a ``wind`` vector has no defined scalar mapping here:
+    its wind is NOT DELIVERED (the field exists; the mapping is an open decision).
+    """
+    for key in WIND_SPEED_KEYS:
+        if key in sensory:
+            raw = sensory[key]
+            if isinstance(raw, bool) or not isinstance(raw, (int, float, np.integer, np.floating)):
+                return None, key, f"NOT DELIVERED: {key} is not a number"
+            value = float(raw)
+            if not math.isfinite(value) or value < 0.0:
+                return None, key, f"NOT DELIVERED: {key} is not a finite non-negative speed"
+            return value, key, ("delivered" if value > 3.0 else "delivered: at or below the 3 mm/s injection threshold, no current")
+    if "wind" in sensory or wind_vector is not None:
+        return None, None, ("NOT DELIVERED: the assay publishes a wind vector but no scalar "
+                            "wind_speed/wind_magnitude; no vector-to-probe mapping is defined")
+    return None, None, "UNAVAILABLE: no wind field in this assay's stimuli"
+
+
 class GraphArenaController:
     """Arena motor controller for graph backends (connectome-fixed/-plastic/-readout).
 
@@ -704,9 +734,11 @@ class GraphArenaController:
             for idx in self.sensory_indices.get("courtship_cva", ()):
                 if idx < n: currents[idx] += i_cva
 
-        # 4. Wind mechanoreception (Johnston's organ drag)
-        wind_speed = float(sensory.get("wind_speed", 0.0))
-        if wind_speed > 3.0:
+        # 4. Wind mechanoreception (Johnston's organ drag).  The assays publish the same
+        # quantity (world airflow speed, mm/s) under two names; the first present key is
+        # used, so an explicit zero is never replaced by the alias (see resolve_wind_speed).
+        wind_speed, wind_key, wind_status = resolve_wind_speed(sensory, kwargs.get("wind_vector"))
+        if wind_speed is not None and wind_speed > 3.0:
             i_wind = float(min(35.0, wind_speed * 0.15))
             probe_current["jon_wind"] = i_wind
             for idx in self.sensory_indices.get("jon_wind", ()):
@@ -798,6 +830,10 @@ class GraphArenaController:
                 "unavailable": (None if indices else
                                 "no neurons resolved for this probe on this graph"),
             })
+            if name == "jon_wind":
+                # Which assay key carried the signal, or why none did. Delivery is not sensing.
+                input_stage[-1]["stimulus_key"] = wind_key
+                input_stage[-1]["delivery"] = wind_status
 
         raw_motor_command = {"forward_speed_mm_s": float(forward_speed),
                              "yaw_rate_rad_s": float(yaw_rate), "state": state}
