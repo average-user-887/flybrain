@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neurofly"
-version = "0.5.0"
+version = "0.5.1rc1"
 description = "A MaleCNS connectome coupled to an articulated FlyGym body"
 readme = "README.md"
 license = { text = "MIT" }
@@ -75,7 +75,7 @@ py-modules = [
 
 [tool.setuptools.package-data]
 "neurofly._docs" = ["CAPABILITY_MATRIX.md"]
-web = ["*.html", "*.js", "*.css", "vendor/*.js"]
+web = ["*.html", "*.js", "*.css", "asset_manifest.json", "vendor/*.js"]
 brainlab = ["datasets.json", "graph_pins.json", "graph_pins_flywire_783_female.json",
             "source_lock_flywire_783_female.json", "wgpu_v3_math.wgsl"]
 "brainlab.cohort" = ["cohort_contract.json"]
