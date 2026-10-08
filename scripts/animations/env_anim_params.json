@@ -1,0 +1,212 @@
+{
+  "_about": "ENV-ANIM-01 animation parameters, taken from the research table CLAUDE_ENV_ANIM_PARAMS_20261008 (W3 research worker). Class: M measured, D derived, P cross-species proxy, A artistic estimate. Values used by build_env_clips.py; *_class/*_source fields are carried into clip metadata.",
+  "spider": {
+    "stance_clearance": 0.005,
+    "stance_clearance_class": "A: feet set 0.005 viewport-mm above the bind-pose foot plane so the slight idle body pitch never dips a claw below it",
+    "species": "Salticus scenicus (zebra jumping spider), adult/subadult",
+    "fps": 120,
+    "body_length_mm": 6.0,
+    "body_length_class": "M (5.5-7.5 female, 4.0-7.0 male; araneae.nmbe.ch; Parigi et al. 2019)",
+    "model_body_length_viewport_mm": 16.1,
+    "viewport_mm_per_mm": 2.683,
+    "viewport_mm_per_mm_class": "D (model body length / 6.0 mm)",
+    "speed_mm_s": 15.0,
+    "speed_bl_s": 2.5,
+    "speed_class": "D/M: 15 mm/s is the lower end of the derived speed-while-moving range (15-25 mm/s; Shamble et al. 2017 Table S1 and stationary fraction) and equals the high-speed-video-based design speed (Shamble 2017 section 2e); overall mean including stops is 8.6 mm/s",
+    "speed_viewport_mm_s": 40.25,
+    "playback_multiplier_default": 1.0,
+    "loop_cycles": 4,
+    "check_every": 1,
+    "sprite_extent_viewport_mm": 30,
+    "gait": {
+      "cycle_s": 0.2,
+      "cycle_class": "D, L confidence: 8 full steps in 1.2 s (De Agro et al. 2021 Methods) gives 0.15-0.3 s strides (3-7 Hz); 0.2 s (5 Hz, mid-range) chosen so the 15 mm/s stride stays within the rig's leg reach",
+      "duty": 0.65,
+      "duty_class": "P, L-M confidence: tarantula Grammostola rosea 0.63-0.70 (Hao et al. 2019 Table 2)",
+      "swing_height_viewport_mm": 1.1,
+      "swing_height_class": "A",
+      "phase_offsets": {
+        "L1": 0.0,
+        "R2": 0.0,
+        "L3": 0.0,
+        "R4": 0.0,
+        "R1": 0.5,
+        "L2": 0.5,
+        "R3": 0.5,
+        "L4": 0.5
+      },
+      "phase_class": "M (qualitative): alternating tetrapod, set A = L1 R2 L3 R4 and set B = R1 L2 R3 L4 in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
+    },
+    "turn": {
+      "mode": "on the spot",
+      "speed_fraction": 0.0,
+      "yaw_rate_rad_s": 6.28,
+      "yaw_rate_class": "D: one of eight legs steps every ~9 deg of turn (Land 1972 abstract) at the 0.2 s stride -> 360 deg/s, inside the measured 120-1200 deg/s",
+      "note": "turn-side legs move backward and the other side forward relative to the body, as Land 1972 describes; step amplitude here is set by the rig limits, not the 75 deg reported"
+    },
+    "start_stop": {
+      "rest_s": 0.4,
+      "ramp_s": 0.15,
+      "cruise_s": 0.9,
+      "class": "A (stops 0.1-1.5 s as in the Shamble 2017 playback design; fast acceleration assumed)"
+    },
+    "idle": {
+      "duration_s": 3.0,
+      "class": "A: legs still and forelegs down when stationary (Shamble 2017, M qualitative); palp flicks and slight body pitch are artistic",
+      "dofs": [
+        {
+          "node": "sp_palp_L_flick",
+          "amp_rad": 0.2,
+          "period_s": 1.5,
+          "shape": "twitch",
+          "width_s": 0.25
+        },
+        {
+          "node": "sp_palp_R_flick",
+          "amp_rad": 0.2,
+          "period_s": 1.5,
+          "phase": 0.5,
+          "shape": "twitch",
+          "width_s": 0.25
+        },
+        {
+          "node": "sp_body_pitch",
+          "amp_rad": 0.02,
+          "period_s": 3.0
+        }
+      ]
+    },
+    "labels": {
+      "gait": "source-informed (salticid tetrapod phase; tarantula duty proxy; stride timing low confidence)"
+    },
+    "scene_walk": {
+      "segments": [
+        [
+          "rest",
+          0.3
+        ],
+        [
+          "walk",
+          0.8
+        ],
+        [
+          "rest",
+          0.4
+        ],
+        [
+          "turn_left",
+          0.3
+        ],
+        [
+          "rest",
+          0.3
+        ],
+        [
+          "walk",
+          0.6
+        ],
+        [
+          "rest",
+          0.3
+        ]
+      ],
+      "ramp_s": 0.1,
+      "class": "A: composed sequence (stop-and-go as Shamble 2017 describes); timing of each part artistic"
+    }
+  },
+  "mantis": {
+    "stance_clearance": 0.02,
+    "stance_clearance_class": "A: feet set 0.02 viewport-mm above the bind-pose foot plane so the flexed tibia end never dips below it",
+    "species": "Tenodera sinensis, first-instar nymph",
+    "fps": 30,
+    "body_length_mm": 12.5,
+    "body_length_class": "M (10-15 mm first instar; Parigi et al. 2019 Methods)",
+    "model_body_length_viewport_mm": 28.5,
+    "viewport_mm_per_mm": 2.28,
+    "viewport_mm_per_mm_class": "D (model head-to-abdomen length / 12.5 mm)",
+    "speed_mm_s": 5.0,
+    "speed_bl_s": 0.4,
+    "speed_class": "A, L confidence: no mantis walking kinematics found; 3-15 mm/s (0.3-1.0 BL/s) stop-and-go estimate",
+    "speed_viewport_mm_s": 11.4,
+    "playback_multiplier_default": 1.0,
+    "loop_cycles": 2,
+    "check_every": 1,
+    "sprite_extent_viewport_mm": 44,
+    "gait": {
+      "cycle_s": 0.6,
+      "cycle_class": "P/D, L confidence: 0.34-0.85 s adult stick insect (Grabowska et al. 2012); nymph scaling not established, same period used at 1x",
+      "duty": 0.75,
+      "duty_class": "D, L confidence: 0.7-0.8 from the walk/wave gait definition (Grabowska 2012 Fig. 2)",
+      "swing_height_viewport_mm": 1.4,
+      "swing_height_class": "A",
+      "phase_offsets": {
+        "R2": 0.0,
+        "R3": 0.27,
+        "L3": 0.78,
+        "L2": 0.48
+      },
+      "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi"
+    },
+    "raptorial_forelegs": "held folded and raised, not used for walking (A with secondary support: Grabowska 2012 Introduction)",
+    "turn": {
+      "mode": "orienting turn on the spot with a ballistic head/body onset",
+      "speed_fraction": 0.0,
+      "yaw_rate_rad_s": 0.65,
+      "yaw_rate_class": "A: turn duration not available (0.2-0.5 s per orienting turn suggested); 45 deg over 2 gait cycles here so the legs can step",
+      "head_lead_s": 0.04,
+      "head_lead_class": "M (abstract): head, prothorax and abdomen rotations start within 40 ms (Yamawaki et al. 2011, T. aridifolia, life stage not stated)",
+      "head_peak_rad": 0.3,
+      "head_peak_class": "A"
+    },
+    "start_stop": {
+      "rest_s": 0.8,
+      "ramp_s": 0.6,
+      "cruise_s": 1.8,
+      "class": "A (stop-and-go, Kral 2012 qualitative)"
+    },
+    "idle": {
+      "duration_s": 4.4,
+      "class": "D under a labelled scaling assumption: peering sway 2-3 mm at 2-2.5 mm/s (adult Kral 2012 values x 12.5/70); body translates sideways while the head keeps facing forward",
+      "peer_amp_viewport_mm": 2.85,
+      "peer_period_s": 2.2,
+      "dofs": []
+    },
+    "labels": {
+      "gait": "cross-species proxy / artistic estimate (no mantis walking kinematics published)"
+    },
+    "scene_walk": {
+      "segments": [
+        [
+          "rest",
+          0.8
+        ],
+        [
+          "walk",
+          2.4
+        ],
+        [
+          "rest",
+          0.8
+        ],
+        [
+          "turn_left",
+          1.6
+        ],
+        [
+          "rest",
+          0.6
+        ],
+        [
+          "walk",
+          1.8
+        ],
+        [
+          "rest",
+          0.8
+        ]
+      ],
+      "ramp_s": 0.4,
+      "class": "A: composed stop-and-go sequence (Kral 2012 qualitative); timing artistic"
+    }
+  }
+}

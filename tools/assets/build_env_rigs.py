@@ -153,6 +153,12 @@ NODES[f'{P}_motion'] = motion
 JOINTS.append({'node': f'{P}_motion', 'parent': 'root', 'kind': 'locomotion',
                'note': 'root-motion carrier: translation in the floor plane (x, z) and yaw about +Y; identity in '
                        'in-place clips'})
+shift = g.empty(f'{P}_body_shift', None, motion)
+NODES[f'{P}_body_shift'] = shift
+JOINTS.append({'node': f'{P}_body_shift', 'parent': f'{P}_motion', 'kind': 'translation',
+               'translation_axes': {'x': [-3.0, 3.0], 'y': [-0.6, 0.6]},
+               'note': 'body translation relative to the planted feet (lateral peering sway x, bob y); '
+                       'the only translating DOF besides <p>_motion; legs re-solve to keep feet planted'})
 LEG_INFO = {}
 
 if ANIMAL == 'spider':
@@ -162,7 +168,7 @@ if ANIMAL == 'spider':
          mat('spider_brown', (0.16, 0.10, 0.06), roughness=0.6),
          mat('spider_lens', (0.30, 0.18, 0.06), roughness=0.03)]
     body_pivot = (0.0, 3.0, 0.0)
-    bk = chain('sp_body', f'{P}_motion', body_pivot,
+    bk = chain('sp_body', f'{P}_body_shift', body_pivot,
                [('pitch', (1, 0, 0), (-0.15, 0.15), '+ = nose down'),
                 ('roll', (0, 0, 1), (-0.12, 0.12), '+ = left side up'),
                 ('yaw', (0, 1, 0), (-0.2, 0.2), '+ = turn left (toward +X)')])
@@ -191,7 +197,7 @@ if ANIMAL == 'spider':
         sphere((sx * 1.72, 0.85, 8.65), 0.32, pg, mat=1, seg=10, rings=6)
         MESHES.append((f'spider_palp_{side}', pg, M, True, palp))
     legs = [(5.0, 30, 7.8, 0.55), (3.8, 72, 6.6, 0.44), (2.5, 112, 6.5, 0.42), (1.1, 150, 8.0, 0.46)]
-    lims = {'yaw': (-0.6, 0.6), 'lift': (-0.45, 0.6), 'knee': (-0.7, 0.7), 'ankle': (-0.8, 0.8)}
+    lims = {'yaw': (-0.9, 0.9), 'lift': (-0.6, 0.9), 'knee': (-1.0, 1.0), 'ankle': (-1.2, 1.2)}
     for sx, side in ((-1, 'L'), (1, 'R')):
         for i, (z0, yawdeg, L, r) in enumerate(legs):
             leg = f'{side}{i + 1}'
@@ -224,7 +230,7 @@ else:
          mat('mantis_eye', (0.45, 0.55, 0.22), roughness=0.2),
          mat('mantis_pupil', (0.02, 0.02, 0.02), roughness=0.3),
          mat('mantis_spine', (0.12, 0.10, 0.05), roughness=0.4)]
-    bk = chain('mn_body', f'{P}_motion', (0.0, 4.6, 0.0),
+    bk = chain('mn_body', f'{P}_body_shift', (0.0, 4.6, 0.0),
                [('pitch', (1, 0, 0), (-0.12, 0.12), '+ = front down'),
                 ('roll', (0, 0, 1), (-0.15, 0.15), '+ = left side up'),
                 ('yaw', (0, 1, 0), (-0.2, 0.2), '+ = turn left (toward +X)')])
@@ -283,7 +289,7 @@ else:
             g.segment_between(tuple(p), tuple(p + Vector((0, -0.35, -0.95))), 0.14, 0.0, 6, mat=4, geo=fg)
         MESHES += [(f'mn_{side}1_coxa_mesh', cg, M, True, cx), (f'mn_{side}1_femur_mesh', fg, M, True, fe),
                    (f'mn_{side}1_tibia_mesh', tg, M, True, ti)]
-    lims = {'yaw': (-0.6, 0.6), 'lift': (-0.4, 0.6), 'knee': (-0.6, 0.6), 'ankle': (-0.8, 0.8)}
+    lims = {'yaw': (-0.7, 0.7), 'lift': (-0.5, 0.7), 'knee': (-0.8, 0.8), 'ankle': (-1.0, 1.0)}
     for sx, side in ((-1, 'L'), (1, 'R')):
         for idx, (A, K, F, T) in ((2, ((sx * 0.8, 4.4, 1.6), (sx * 6.2, 6.8, 4.4), (sx * 9.2, 0.15, 6.4),
                                        (sx * 9.7, 0.1, 7.6))),
