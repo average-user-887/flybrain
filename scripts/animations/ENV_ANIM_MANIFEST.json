@@ -1,12 +1,12 @@
 {
   "schema": "neurofly.env-animation.v1",
-  "generated_utc": "2026-10-08T17:41:12Z",
+  "generated_utc": "2026-10-08T17:52:13Z",
   "label": "ILLUSTRATIVE animation with source-informed timing; not motion capture, not simulated behaviour; no predator AI, contact physics, retinal stimulus or neural response",
   "conventions": {
     "frame": "three.js +Y up, +Z forward, viewport-mm",
     "playback": "clip seconds are estimated physical seconds; playback multiplier default 1",
     "inplace_vs_rootmotion": "*_inplace keeps <p>_motion fixed (feet slide back in stance); *_rootmotion moves it so stance feet stay planted",
-    "turns": "turn_left = heading rotates toward +X (the anatomical left in a right-handed +Y-up, +Z-forward frame); leg side letters follow the existing viewport convention (L at -X), whose handedness is a separate open renderer question",
+    "turns": "turn_left = heading rotates toward +X, the anatomical left in a right-handed +Y-up, +Z-forward frame; side letters are anatomical (L at +X) since v3; mount without reflection (see ENV_HANDEDNESS_PROOF.json)",
     "scale": "predators use their own viewport-mm-per-mm factor (parameters), not the fly 3.3x"
   },
   "checks": {
@@ -92,13 +92,13 @@
     "source_glb": "env_wind_vane.glb"
   },
   "sources": {
-    "tools/assets/build_env_rigs.py": "9714df638200ca1b1007eafb2c6c56395d9d826b9b5ce9c912e7d43d3d128972",
-    "tools/assets/env/ENV_RIG_CONTRACT.md": "28b53cbf914e4b1ae52e575495bd8a1a2a5c1fbac10f52cbc77bc4fa2d649bba",
+    "tools/assets/build_env_rigs.py": "aff6f8b7bf96100f3fe721c977ba189a3c25f769bc1996c1f9c119313950f8d1",
+    "tools/assets/env/ENV_RIG_CONTRACT.md": "6f6dd17a0566f440a74f224a233b0bfdc65610ba1f4a3abf6813f303e0c37fad",
     "scripts/animations/build_env_clips.py": "78edf2e85f3bc4155809e4a2d0fb5824ff571300120acdb81f13156e2378a02a",
     "scripts/animations/verify_env_clips.py": "858f64d52a40f8707fe3bbbb321eff4c41a7d72a2adb7f89f79dfd03ac542364",
     "scripts/animations/build_env_vane.py": "dc3b814df73573db5c5db7d01b28fb294da4dc8b2a96f73602cc582b5b0ffe92",
-    "scripts/animations/env_anim_params.json": "652301ff3054db9106cf804fae38b5bcdc0025dae634eb11d9384a919ca5df6f",
-    "scripts/animations/measure_env_anim.py": "8e1410d86053e11e536743d0f65e380a64924e954519e4ac4500efb0cc5453d3",
+    "scripts/animations/env_anim_params.json": "1617c5ddff61e20fa56da157d6a8b5a9938313a0a4a1cca6eb3aebe2ef91ae48",
+    "scripts/animations/measure_env_anim.py": "5f6ce6b782e024b00c87545410b5a085f7af2aad9068a98245a4d57a173e2c20",
     "scripts/animations/build_env_anim_all.sh": "e61c6b50a8ca9d9c50f698ece924ac5fac2ca841b7868e19911f70e0440e16f7",
     "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3"
   },
@@ -471,16 +471,16 @@
           "swing_height_viewport_mm": 1.1,
           "swing_height_class": "A",
           "phase_offsets": {
-            "L1": 0.0,
-            "R2": 0.0,
-            "L3": 0.0,
-            "R4": 0.0,
-            "R1": 0.5,
-            "L2": 0.5,
-            "R3": 0.5,
-            "L4": 0.5
+            "R1": 0.0,
+            "L2": 0.0,
+            "R3": 0.0,
+            "L4": 0.0,
+            "L1": 0.5,
+            "R2": 0.5,
+            "L3": 0.5,
+            "R4": 0.5
           },
-          "phase_class": "M (qualitative): alternating tetrapod, set A = L1 R2 L3 R4 and set B = R1 L2 R3 L4 in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
+          "phase_class": "M (qualitative): alternating tetrapod, set A = R1 L2 R3 L4 and set B = L1 R2 L3 R4 (letters on the anatomical side since v3; same two antiphase sets) in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
         },
         "turn": {
           "mode": "on the spot",
@@ -500,14 +500,14 @@
           "class": "A: legs still and forelegs down when stationary (Shamble 2017, M qualitative); palp flicks and slight body pitch are artistic",
           "dofs": [
             {
-              "node": "sp_palp_L_flick",
+              "node": "sp_palp_R_flick",
               "amp_rad": 0.2,
               "period_s": 1.5,
               "shape": "twitch",
               "width_s": 0.25
             },
             {
-              "node": "sp_palp_R_flick",
+              "node": "sp_palp_L_flick",
               "amp_rad": 0.2,
               "period_s": 1.5,
               "phase": 0.5,
@@ -1048,12 +1048,12 @@
           "swing_height_viewport_mm": 1.4,
           "swing_height_class": "A",
           "phase_offsets": {
-            "R2": 0.0,
-            "R3": 0.27,
-            "L3": 0.78,
-            "L2": 0.48
+            "L2": 0.0,
+            "L3": 0.27,
+            "R3": 0.78,
+            "R2": 0.48
           },
-          "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi"
+          "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi; v3 letters on the anatomical side: the same curves on the same physical legs, so the offsets read L2 0, L3 0.27, R3 0.78, R2 0.48 (mirror image of the proxy, equally valid by symmetry)"
         },
         "raptorial_forelegs": "held folded and raised, not used for walking (A with secondary support: Grabowska 2012 Introduction)",
         "turn": {
@@ -1241,27 +1241,27 @@
   },
   "files": {
     "env_jumping_spider_rig.blend": {
-      "sha256": "22e54d253a9b9b334ee941c830a4427ea7acfbc069bf3564eed3e1216060b2e9",
+      "sha256": "5477a5195a6def8741bebb20ed6902bc4df3e017fbcef81673092a4fa4e4fd80",
       "bytes": 997044
     },
     "env_jumping_spider_rig.glb": {
-      "sha256": "c7b497511b091d584ba0aac1ca22ee694b6e2e06b8c27e1f85310996dfaeff5c",
+      "sha256": "061d52f017ffa2df77f17cc8c34e8c9fb4b547f01db53d6591674ba8f3046d2b",
       "bytes": 139744
     },
     "env_jumping_spider_rig_clips.blend": {
-      "sha256": "34118ef6600f921db8704433f61204ae8292fd14b0fa51df8360cb7adfdc56fc",
+      "sha256": "93926a930407551f61c8c6d5214cc90af2856d8d36b8857fd4cf6c8ad5953c74",
       "bytes": 22336090
     },
     "env_jumping_spider_rig_clips.glb": {
-      "sha256": "370cb91b0aa485638e8681632350d98910967e4f16ca5fb4f56bb6f2ec71365d",
+      "sha256": "096e26b479e2046a4874ce5bae91d4040342edeacc7ee27c13f0780728e1bb80",
       "bytes": 875256
     },
     "env_jumping_spider_rig_clips.json": {
-      "sha256": "4a45b4286a323607a5c50d51fa72894d9db1acf1be3e043d12019854a75772a0",
-      "bytes": 45089
+      "sha256": "c29dbc3653a1f1e6764d690286504c6ec2055e2ac47ff62a1de61ed5ac65f0a9",
+      "bytes": 45223
     },
     "env_jumping_spider_rig_clips_verify.json": {
-      "sha256": "789b262ce7d6225fce828a7f0029d12cad567afbdef314b0c628f16a36448e3f",
+      "sha256": "ebf178ce3c9c4bcdfe281d48c26b71248ce34e56f1f48db4b3f4677155f7f778",
       "bytes": 43543
     },
     "env_jumping_spider_rig_idle_inplace_sprites.png": {
@@ -1271,7 +1271,7 @@
       "height": 640
     },
     "env_jumping_spider_rig_joints.json": {
-      "sha256": "352cb58a32ad2d5d483430a0b277432ec27b8a46fba4110afcfef049f467d5cf",
+      "sha256": "9faacf3bbb68031cb473654979ee861a831da965240fd592348b83e89c3bf525",
       "bytes": 26102
     },
     "env_jumping_spider_rig_start_stop_inplace_sprites.png": {
@@ -1299,12 +1299,12 @@
       "height": 640
     },
     "env_jumping_spider_walk_scene.blend": {
-      "sha256": "ab4db5d6f408b4ad09e7765f3a9749f3aa3d1d1474e6ac64448e68e02a69cdd5",
+      "sha256": "ff1bd6830527b68790cdc0cdeecd89c9ced451dd14f8e1460f05e38dc23c6d8e",
       "bytes": 22406067
     },
     "env_jumping_spider_walk_scene.glb": {
-      "sha256": "2af1ca68d9a90cd206d0702ac34129ce353c9d3f30a2919228660081ac1ba2e9",
-      "bytes": 896716
+      "sha256": "c58b21d47a16db4b406b885a64bb0e557228d94d1813f56db7b0bbdd5db46668",
+      "bytes": 896720
     },
     "env_jumping_spider_walk_scene_top_frames.png": {
       "sha256": "8582d172946a480b12fbad221c34a55570c16e35090dc724f653771f1d9dc3ac",
@@ -1313,27 +1313,27 @@
       "height": 640
     },
     "env_mantis_nymph_rig.blend": {
-      "sha256": "37f15404e971a6e04421c97cf2026cf065094f909f5b8d58ded1bb151b41d150",
+      "sha256": "a0875d43040a2257ebe00b6e2854771e099ba4ebdab6c1161d9c2e90422620f8",
       "bytes": 822547
     },
     "env_mantis_nymph_rig.glb": {
-      "sha256": "85396ffd2eb29dccacfb7dc1af8e49578c8e29aa3818c34e112a69dc0a3e54e8",
+      "sha256": "04861cd6ce9b2858b0b0e2da21faba88f95aba8489b28acc042d576780050d03",
       "bytes": 84200
     },
     "env_mantis_nymph_rig_clips.blend": {
-      "sha256": "825b218578b0de14337fe753dc50eba2a2a0ba1881b2990b470de0cbe4c471d9",
+      "sha256": "418b1f73114779edef9751ed27fec3e4c5cd9d4e6dc920c31b710f35efa6f40a",
       "bytes": 10397248
     },
     "env_mantis_nymph_rig_clips.glb": {
-      "sha256": "6d219f859f39757676fcd60eb5041a83df222b6620f7e9b85f551e07a27297f1",
+      "sha256": "179230167759609949e7eb7e73f26a4ee335d6287bce576323004904520b1438",
       "bytes": 316828
     },
     "env_mantis_nymph_rig_clips.json": {
-      "sha256": "6215fdf6144316ed8f1193961bae66c9c14dd46f0f3be0b142638d569d38cc27",
-      "bytes": 26834
+      "sha256": "065cec6346cef98bf1ee28322a800bd580de9985e66006001105a98c8e91d915",
+      "bytes": 27206
     },
     "env_mantis_nymph_rig_clips_verify.json": {
-      "sha256": "d3dde77a18a28aee47edeb28eddb980f51f64b60c98bbf4a0d34c255323550ec",
+      "sha256": "c815a6c7c61d15cb500ba26c775c6bd0f78c002e2de4768bef5aa0d8893d63bf",
       "bytes": 24681
     },
     "env_mantis_nymph_rig_idle_inplace_sprites.png": {
@@ -1343,7 +1343,7 @@
       "height": 640
     },
     "env_mantis_nymph_rig_joints.json": {
-      "sha256": "87bf67affd17997b50a0a9dddb8513e6842fe9e2212dfd0696302dd41141bb87",
+      "sha256": "afb979b5cfc5a4f086fb7cea19c248649f3b8bb6eca552c4fda2ca9eb7ca8f5d",
       "bytes": 18594
     },
     "env_mantis_nymph_rig_start_stop_inplace_sprites.png": {
@@ -1371,11 +1371,11 @@
       "height": 640
     },
     "env_mantis_nymph_walk_scene.blend": {
-      "sha256": "58f1a0463379c67a9f5a216cfd6c5cf459451d9a34e2ee20cd25d9972b219f44",
+      "sha256": "b1530c6bc2c81c2168d0c6abd41f34f406ce3905d6e3db3a34caa893eb3be1de",
       "bytes": 10467225
     },
     "env_mantis_nymph_walk_scene.glb": {
-      "sha256": "174d3233d8b1eee62823849d80cb12249c0a83168cb3acf3ecdb903fccefee0d",
+      "sha256": "696826a408862f0b4ce32d17f8cd0ced1cd319aa62b2e051bbdc75f476f6bbb0",
       "bytes": 338312
     },
     "env_mantis_nymph_walk_scene_top_frames.png": {
@@ -1385,7 +1385,7 @@
       "height": 640
     },
     "env_wind_vane_demo.blend": {
-      "sha256": "1a786e6c405e5c7225e11a6588dc546c72372b3d92e5b12cdd1e804b7418f4fc",
+      "sha256": "1305b8d06312cf1d5a86404ac0d1691ac02f4726cd1bdb154a404d448913a2fa",
       "bytes": 573338
     },
     "env_wind_vane_demo.glb": {

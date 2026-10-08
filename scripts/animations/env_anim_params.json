@@ -26,16 +26,16 @@
       "swing_height_viewport_mm": 1.1,
       "swing_height_class": "A",
       "phase_offsets": {
-        "L1": 0.0,
-        "R2": 0.0,
-        "L3": 0.0,
-        "R4": 0.0,
-        "R1": 0.5,
-        "L2": 0.5,
-        "R3": 0.5,
-        "L4": 0.5
+        "R1": 0.0,
+        "L2": 0.0,
+        "R3": 0.0,
+        "L4": 0.0,
+        "L1": 0.5,
+        "R2": 0.5,
+        "L3": 0.5,
+        "R4": 0.5
       },
-      "phase_class": "M (qualitative): alternating tetrapod, set A = L1 R2 L3 R4 and set B = R1 L2 R3 L4 in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
+      "phase_class": "M (qualitative): alternating tetrapod, set A = R1 L2 R3 L4 and set B = L1 R2 L3 R4 (letters on the anatomical side since v3; same two antiphase sets) in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
     },
     "turn": {
       "mode": "on the spot",
@@ -55,14 +55,14 @@
       "class": "A: legs still and forelegs down when stationary (Shamble 2017, M qualitative); palp flicks and slight body pitch are artistic",
       "dofs": [
         {
-          "node": "sp_palp_L_flick",
+          "node": "sp_palp_R_flick",
           "amp_rad": 0.2,
           "period_s": 1.5,
           "shape": "twitch",
           "width_s": 0.25
         },
         {
-          "node": "sp_palp_R_flick",
+          "node": "sp_palp_L_flick",
           "amp_rad": 0.2,
           "period_s": 1.5,
           "phase": 0.5,
@@ -140,12 +140,12 @@
       "swing_height_viewport_mm": 1.4,
       "swing_height_class": "A",
       "phase_offsets": {
-        "R2": 0.0,
-        "R3": 0.27,
-        "L3": 0.78,
-        "L2": 0.48
+        "L2": 0.0,
+        "L3": 0.27,
+        "R3": 0.78,
+        "R2": 0.48
       },
-      "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi"
+      "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi; v3 letters on the anatomical side: the same curves on the same physical legs, so the offsets read L2 0, L3 0.27, R3 0.78, R2 0.48 (mirror image of the proxy, equally valid by symmetry)"
     },
     "raptorial_forelegs": "held folded and raised, not used for walking (A with secondary support: Grabowska 2012 Introduction)",
     "turn": {
@@ -208,5 +208,6 @@
       "ramp_s": 0.4,
       "class": "A: composed stop-and-go sequence (Kral 2012 qualitative); timing artistic"
     }
-  }
+  },
+  "_handedness": "v3: leg/palp/foreleg side letters follow the anatomical side in the GLB frame (+Y up, +Z forward, right-handed: left = +X). v2 used the old mirrored viewport convention (L at -X)."
 }

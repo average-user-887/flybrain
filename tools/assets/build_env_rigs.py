@@ -185,7 +185,7 @@ if ANIMAL == 'spider':
         sphere((sx * 2.35, 4.75, 5.2), 0.17, ey, mat=2, seg=8, rings=5)
         sphere((sx * 2.4, 5.0, 3.6), 0.4, ey, mat=2, seg=12, rings=8)
     MESHES.append(('spider_eyes', ey, M, True, bk))
-    for sx, side in ((-1, 'L'), (1, 'R')):
+    for sx, side in ((-1, 'R'), (1, 'L')):
         mo = g.Geo()
         g.segment_between((sx * 0.6, 2.4, 6.7), (sx * 0.55, 1.4, 7.3), 0.45, 0.3, 10, mat=3, geo=mo)
         MESHES.append((f'spider_chelicera_{side}', mo, M, True, bk))
@@ -198,7 +198,7 @@ if ANIMAL == 'spider':
         MESHES.append((f'spider_palp_{side}', pg, M, True, palp))
     legs = [(5.0, 30, 7.8, 0.55), (3.8, 72, 6.6, 0.44), (2.5, 112, 6.5, 0.42), (1.1, 150, 8.0, 0.46)]
     lims = {'yaw': (-0.9, 0.9), 'lift': (-0.6, 0.9), 'knee': (-1.0, 1.0), 'ankle': (-1.2, 1.2)}
-    for sx, side in ((-1, 'L'), (1, 'R')):
+    for sx, side in ((-1, 'R'), (1, 'L')):
         for i, (z0, yawdeg, L, r) in enumerate(legs):
             leg = f'{side}{i + 1}'
             a = math.radians(yawdeg)
@@ -263,7 +263,7 @@ else:
         for a, b in zip(pts, pts[1:]):
             g.segment_between(a, b, 0.08, 0.06, 6, mat=1, geo=hd)
     MESHES.append(('mantis_head', hd, M, True, neck))
-    for sx, side in ((-1, 'L'), (1, 'R')):
+    for sx, side in ((-1, 'R'), (1, 'L')):
         S = Vector((sx * 0.65, 9.2, 9.7))
         C = Vector((sx * 1.05, 6.6, 12.0))
         Fe = Vector((sx * 1.2, 10.3, 14.3))
@@ -290,7 +290,7 @@ else:
         MESHES += [(f'mn_{side}1_coxa_mesh', cg, M, True, cx), (f'mn_{side}1_femur_mesh', fg, M, True, fe),
                    (f'mn_{side}1_tibia_mesh', tg, M, True, ti)]
     lims = {'yaw': (-0.7, 0.7), 'lift': (-0.5, 0.7), 'knee': (-0.8, 0.8), 'ankle': (-1.0, 1.0)}
-    for sx, side in ((-1, 'L'), (1, 'R')):
+    for sx, side in ((-1, 'R'), (1, 'L')):
         for idx, (A, K, F, T) in ((2, ((sx * 0.8, 4.4, 1.6), (sx * 6.2, 6.8, 4.4), (sx * 9.2, 0.15, 6.4),
                                        (sx * 9.7, 0.1, 7.6))),
                                   (3, ((sx * 0.8, 4.3, -0.9), (sx * 6.8, 7.1, -4.4), (sx * 9.9, 0.15, -9.6),

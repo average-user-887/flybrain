@@ -95,9 +95,9 @@ def main():
         'conventions': {'frame': 'three.js +Y up, +Z forward, viewport-mm', 'playback': 'clip seconds are estimated '
                         'physical seconds; playback multiplier default 1', 'inplace_vs_rootmotion': '*_inplace keeps '
                         '<p>_motion fixed (feet slide back in stance); *_rootmotion moves it so stance feet stay planted',
-                        'turns': 'turn_left = heading rotates toward +X (the anatomical left in a right-handed +Y-up, '
-                        '+Z-forward frame); leg side letters follow the existing viewport convention (L at -X), whose '
-                        'handedness is a separate open renderer question',
+                        'turns': 'turn_left = heading rotates toward +X, the anatomical left in a right-handed +Y-up, '
+                        '+Z-forward frame; side letters are anatomical (L at +X) since v3; mount without reflection '
+                        '(see ENV_HANDEDNESS_PROOF.json)',
                         'scale': 'predators use their own viewport-mm-per-mm factor (parameters), not the fly 3.3x'},
         'checks': {'glb': 'rest reset vs rig GLB; DOF limits over the whole duration at 240 Hz incl. loop seam; key and '
                    'seam continuity < 0.5 rad; FK ground check of every leg vertex; stance-foot slide per 240 Hz '
