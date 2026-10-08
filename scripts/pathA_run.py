@@ -24,7 +24,13 @@ weights is changed:
   COUNTERFACTUAL, NOT a fix): a frozen preregistration names frozen contract
   conditions and extra cells to clamp with the SAME silencing method above.
   The graph, weights and edges are untouched; rows get the prereg's ids,
-  readouts and seeds, and its sha256 in their provenance.
+  readouts and seeds, and its sha256 in their provenance.  Each such row also
+  records an in-run audit: the post-reset state is at rest with an empty delay
+  queue, and the sha256 of the exact input train.  A prereg may also name an
+  edge-zeroing reference (outgoing weights of named cells set to 0 in an
+  in-memory copy, like the shuffled counterfactual) to check the clamp against
+  zero-outgoing-edge semantics in the real network.  The graph file is
+  re-hashed at the end and must be unchanged.
 
 Output: one JSON line per (condition, seed) with per-readout-set mean rates
 and per-cell counts, plus a sparse full-network spike-count file per run.
@@ -88,11 +94,28 @@ def cf_plan(contract, prereg):
             raise SystemExit(f"{pc['id']}: base condition is itself a counterfactual")
         conds.append(dict(base, id=pc['id'], silence=list(base.get('silence', [])) + list(pc['add_silence']),
                           counterfactual=pc['counterfactual'], readouts=list(prereg['readouts']),
-                          seeds=list(pc['seeds'])))
+                          seeds=list(pc['seeds']), zero_outgoing=list(pc.get('zero_outgoing', []))))
     return prereg['sets'], conds
 
 
-def run_one(brain, stim, rate_hz, silence, readouts, contract, seed):
+def zeroed_weight(arrays, sources):
+    """Edge-zeroing reference: outgoing weights of ``sources`` set to 0 in a copy (graph file untouched)."""
+    ptr, w = arrays['ptr'], arrays['weight'].copy()
+    for s in sources:
+        w[int(ptr[s]):int(ptr[s + 1])] = 0.0
+    return w
+
+
+def state_at_rest(brain, v_rest=-52.0):
+    """True iff every transient (membrane, conductances, refractory, delay queue, active set, clocks) is at rest."""
+    ok = bool(np.all(brain.v == v_rest)) and brain.cursor == 0 and brain.sim_ms == 0.0
+    for name in brain._state_arrays():
+        if name != 'v':
+            ok &= not np.any(getattr(brain, name))
+    return ok
+
+
+def run_one(brain, stim, rate_hz, silence, readouts, contract, seed, audit=None):
     proto = contract['protocol']
     dt = 0.1
     ticks = int(round(proto['duration_ms'] / dt))
@@ -109,6 +132,10 @@ def run_one(brain, stim, rate_hz, silence, readouts, contract, seed):
         events = None
         ev_ticks = np.zeros(0, dtype=np.int64)
     brain.reset_state()
+    if audit is not None:
+        h = hashlib.sha256(np.asarray(stim, np.int64).tobytes())
+        h.update(np.packbits(events).tobytes() if events is not None else b'none')
+        audit.update(initial_state_clean=state_at_rest(brain), input_sha256=h.hexdigest())
     total = np.zeros(brain.n, dtype=np.int64)
     t = 0
     clock = time.perf_counter()
@@ -211,11 +238,16 @@ def main():
             if (cond['id'], seed) in done:
                 continue
             b = brain
+            if cond.get('zero_outgoing'):
+                zo = np.concatenate([sets[z] for z in cond['zero_outgoing']])
+                b = Brain(arrays=dict(arrays, weight=zeroed_weight(arrays, zo)), validate=True,
+                          dynamics=contract['protocol']['dynamics'], backend=contract['protocol']['backend'])
             if cond.get('counterfactual') == 'shuffled_input':
                 b = Brain(arrays=dict(arrays, post=shuffled_post(arrays, stim, 10_000 + seed)),
                           validate=True, dynamics=contract['protocol']['dynamics'],
                           backend=contract['protocol']['backend'])
-            res, total, wall, stim_rate, nev = run_one(b, stim, cond['rate_hz'], silence, readouts, contract, seed)
+            audit = {} if cf_sha else None
+            res, total, wall, stim_rate, nev = run_one(b, stim, cond['rate_hz'], silence, readouts, contract, seed, audit)
             nz = np.flatnonzero(total)
             np.savez_compressed(out / 'counts' / f"{cond['id']}_s{seed}.npz", node_index=nz.astype(np.int32),
                                 counts=total[nz].astype(np.int32))
@@ -224,10 +256,14 @@ def main():
                        counterfactual=cond.get('counterfactual'), wall_s=wall,
                        activated_cells=int(len(stim)), activated_mean_rate_hz=stim_rate,
                        total_spikes=int(total.sum()), firing_neurons=int(len(nz)), readouts=res)
+            if audit is not None:
+                rec.update(audit=audit, zero_outgoing=cond.get('zero_outgoing', []))
             with open(log, 'a') as fh:
                 fh.write(json.dumps(rec) + '\n')
             print(cond['id'], seed, f'{wall:.1f}s', {k: round(v['mean_rate_hz'], 2) for k, v in res.items()}, flush=True)
             del b
+    if sha256_file(gdir / 'graph.npz') != graph_sha:
+        raise SystemExit('graph.npz changed during the run')
 
 
 if __name__ == '__main__':
