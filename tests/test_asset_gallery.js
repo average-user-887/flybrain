@@ -305,3 +305,59 @@ test('clips are named root motion, in-place or DEMO by inspecting the exported t
     assert.match(vane.notes, /NOT SIMULATED/);
     assert.match(vane.notes, /DEMO_vane_swing is a deterministic preview labelled DEMO/);
 });
+
+test('composite scenes have no single anatomical frame; individual rig checks remain applicable', () => {
+    const v = G.validateManifest(MANIFEST);
+    for (const a of v.assets) assert.equal(G.handednessScope(a), a.category === 'scene' ? 'composite' : 'individual', a.id);
+    const mantis = v.assets.find((a) => a.id === 'envanim-mantis-nymph');
+    assert.match(mantis.provenanceLabel, /no suitable mantis walking dataset identified in this source review/);
+    assert.ok(!mantis.notes.includes('no mantis walking kinematics published'));
+});
+
+const PREDATOR_SCENE = path.join(WEB, 'assets/hq/envanim/scene_predator_encounter_illustrative.glb');
+test('actual composed scene review disables imported lights without changing authored materials or transforms',
+    {skip: !fs.existsSync(PREDATOR_SCENE) && 'composed scene not staged'}, async () => {
+        vm.runInContext(read('vendor/GLTFLoader.js'), ctx);
+        const bytes = fs.readFileSync(PREDATOR_SCENE);
+        const gltf = await new Promise((resolve, reject) => new THREE.GLTFLoader().parse(
+            bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length), '', resolve, reject));
+        const model = gltf.scene.clone();
+        const snapshot = (root) => {
+            const values = [];
+            root.traverse((o) => values.push({name: o.name, position: Array.from(o.position.toArray()),
+                quaternion: Array.from(o.quaternion.toArray()), scale: Array.from(o.scale.toArray()),
+                intensity: o.isLight ? o.intensity : null,
+                colors: Array.from([].concat(o.material || []), (m) => m.color ? Array.from(m.color.toArray()) : null)}));
+            return values;
+        };
+        const before = snapshot(model);
+        assert.equal(G.useReviewLighting(model), 2, 'the scene imports sun and fill lights');
+        assert.deepEqual(snapshot(model), before);
+        model.traverse((o) => { if (o.isLight) assert.equal(o.visible, false); });
+        gltf.scene.traverse((o) => { if (o.isLight) assert.equal(o.visible, true, 'cached source stays authored'); });
+    });
+
+const SPIDER_CLIPS = path.join(WEB, 'assets/hq/envanim/v4_env_jumping_spider_rig_clips.glb');
+test('root-motion review floor covers the exported spider trajectory without changing its pose',
+    {skip: !fs.existsSync(SPIDER_CLIPS) && 'v4 spider clips not staged'}, async () => {
+        vm.runInContext(read('vendor/GLTFLoader.js'), ctx);
+        const bytes = fs.readFileSync(SPIDER_CLIPS);
+        const gltf = await new Promise((resolve, reject) => new THREE.GLTFLoader().parse(
+            bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length), '', resolve, reject));
+        const model = gltf.scene;
+        const rest = G.vertexBounds(THREE, model);
+        const clip = gltf.animations.find((c) => c.name === 'walk_forward_rootmotion');
+        const before = model.getObjectByName('sp_motion').position.toArray();
+        const floor = G.clipFloorBounds(THREE, model, rest, clip);
+        const {half} = G.reviewFloorLayout(THREE, floor);
+        assert.deepEqual(model.getObjectByName('sp_motion').position.toArray(), before);
+        assert.ok(floor.max.z > rest.max.z + 25, 'review floor expands past the original small floor');
+        const mixer = new THREE.AnimationMixer(model), action = mixer.clipAction(clip); action.play();
+        for (let k = 0; k <= 60; k += 1) {
+            action.time = clip.duration * k / 60; mixer.update(0);
+            const posed = G.vertexBounds(THREE, model);
+            assert.ok(posed.min.x >= -half && posed.max.x <= half
+                && posed.min.z >= -half && posed.max.z <= half, `trajectory footprint at sample ${k}`);
+        }
+        mixer.stopAllAction();
+    });

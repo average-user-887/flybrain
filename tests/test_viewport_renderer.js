@@ -38,11 +38,43 @@ vm.runInContext([
     declaration('function arenaPointFor3D('),
     declaration('function assayGeometry3DDescriptor('),
     declaration('function disposeThreeTree('),
+    declaration('function restoreViewportPresentationAfterReload('),
     declaration('class ArticulatedFly3DViewport '),
     'this.Viewport = ArticulatedFly3DViewport;'
 ].join('\n'), ctx);
 const {THREE, Viewport} = ctx;
 const FLOOR = Viewport.floorTop();
+
+test('actual appearance change handler preserves 3D, camera, theme, quality and daemon through reload', () => {
+    const node = () => ({style: {}, children: [], attrs: {}, listeners: {}, hidden: false,
+        appendChild(child) { this.children.push(child); }, setAttribute(k, v) { this.attrs[k] = v; },
+        addEventListener(k, fn) { this.listeners[k] = fn; }});
+    const saved = [ctx.document, ctx.window.location, ctx.window.localStorage];
+    try {
+        ctx.document = {getElementById: () => null, createElement: node};
+        ctx.window.localStorage = {setItem() {}, getItem() { return null; }};
+        ctx.window.location = {search: '?assets=hq&daemon=http%3A%2F%2F127.0.0.1%3A8802'};
+        const vp = viewport({});
+        vp.statusPanel = node(); vp.visible = true; vp.cameraMode = 'side'; vp.theme = 'light'; vp.qualitySetting = 'low';
+        vp.hqVariant = {requested: 'female'};
+        vp.buildViewToolbar();
+        const appearance = vp.statusPanel.children[0].children.find((c) => c.attrs['aria-label'] === 'Fly appearance');
+        appearance.value = 'male'; appearance.listeners.change();
+        const params = new URLSearchParams(ctx.window.location.search);
+        assert.equal(params.get('fly'), 'male'); assert.equal(params.get('view'), '3d');
+        assert.equal(params.get('camera'), 'side'); assert.equal(params.get('theme'), 'light'); assert.equal(params.get('quality'), 'low');
+        assert.equal(params.get('daemon'), 'http://127.0.0.1:8802');
+        const restored = viewport({}); restored.container = node(); restored.statusPanel = node(); restored.visible = false;
+        const toggle = {click() { restored.setVisible(!restored.visible); }};
+        ctx.restoreViewportPresentationAfterReload(restored, toggle, ctx.window.location);
+        assert.equal(restored.visible, true); assert.equal(restored.cameraMode, 'side');
+        assert.equal(restored.container.style.display, 'block'); assert.equal(restored.statusPanel.hidden, false);
+        assert.equal(Viewport.readSetting('theme', ['dark', 'light'], 'dark'), 'light');
+        assert.equal(Viewport.readSetting('quality', ['auto', 'high', 'medium', 'low'], 'auto'), 'low');
+    } finally {
+        [ctx.document, ctx.window.location, ctx.window.localStorage] = saved;
+    }
+});
 
 test('HQ appearance requests archive paths; missing variants fall back to neutral and remain opt-in', async () => {
     const requests = [];

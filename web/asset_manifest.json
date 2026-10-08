@@ -1038,7 +1038,7 @@
       "title": "Mantis nymph (W3, articulated)",
       "category": "predator",
       "status": "illustrative",
-      "provenance_label": "cross-species proxy / artistic estimate (no mantis walking kinematics published)",
+      "provenance_label": "cross-species proxy / artistic estimate (no suitable mantis walking dataset identified in this source review)",
       "stand": "bbox",
       "layers": [
         {
@@ -1086,7 +1086,7 @@
         }
       ],
       "sprites": [],
-      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is simulated, and this model never changes looming or retinal input. Illustrative animation with source-informed timing; not motion capture, not simulated behaviour. Gait: cross-species proxy / artistic estimate (no mantis walking kinematics published). Stated speed 5.0 mm/s at playback multiplier 1.0; raptorial forelegs held. Clip names say IN-PLACE (root fixed) or ROOT MOTION (moves through the scene); scene_walk is root motion. Sides: authored +X = anatomical left, no display reflection (W3 handedness proof, renderer 750246c). No strike or jump clips.",
+      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is simulated, and this model never changes looming or retinal input. Illustrative animation with source-informed timing; not motion capture, not simulated behaviour. Gait: cross-species proxy / artistic estimate (no suitable mantis walking dataset identified in this source review). Stated speed 5.0 mm/s at playback multiplier 1.0; raptorial forelegs held. Clip names say IN-PLACE (root fixed) or ROOT MOTION (moves through the scene); scene_walk is root motion. Sides: authored +X = anatomical left, no display reflection (W3 handedness proof, renderer 750246c). No strike or jump clips.",
       "source": "W3 ENV_RIG_CONTRACT.md; ENV_ANIM_MANIFEST.json"
     },
     {

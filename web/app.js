@@ -7561,6 +7561,14 @@ function disposeThreeTree(root) {
 window.neuroflyArenaPointFor3D = arenaPointFor3D;
 window.neuroflyAssayGeometry3DDescriptor = assayGeometry3DDescriptor;
 
+function restoreViewportPresentationAfterReload(viewport, toggleButton, location) {
+    const params = new URLSearchParams(location.search);
+    if (!viewport || params.get('view') !== '3d') return;
+    const camera = params.get('camera');
+    if (['orbit', 'follow', 'chase', 'top', 'side'].includes(camera)) viewport.setCameraMode(camera);
+    if (!viewport.visible && toggleButton) toggleButton.click();
+}
+
 class ArticulatedFly3DViewport {
     // ---------------------------------------------------------------- presentation constants
     // Floor top of every arena surface (updateAssayGeometry) in viewport units.
@@ -8213,6 +8221,10 @@ class ArticulatedFly3DViewport {
                     ArticulatedFly3DViewport.writeSetting('fly', v);
                     const params = new URLSearchParams(window.location.search);
                     params.set('fly', v);
+                    params.set('view', this.visible ? '3d' : '2d');
+                    params.set('camera', this.cameraMode);
+                    params.set('theme', this.theme);
+                    params.set('quality', this.qualitySetting);
                     window.location.search = params.toString();
                 });
             const note = document.createElement('span');
@@ -8748,6 +8760,8 @@ function startNeuroflyApp() {
             viewport3D.setCameraMode(nextMode);
         });
     }
+
+    restoreViewportPresentationAfterReload(viewport3D, btnToggle3D, window.location);
 
     let isPaused = false;
     const btnPause = document.getElementById('btnPauseToggle');

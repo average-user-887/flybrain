@@ -158,6 +158,45 @@
         return {scale: 1, source: 'none'};
     }
 
+    // The gallery's Dashboard/Neutral control owns review lighting. Imported glTF
+    // scene lights use physical intensities that swamp that rig at viewport-mm scale.
+    // Preserve their authored values and transforms; disable them for this review only.
+    function useReviewLighting(model) {
+        let count = 0;
+        model.traverse((o) => { if (o.isLight) { o.visible = false; count += 1; } });
+        return count;
+    }
+    function handednessScope(asset) {
+        return asset && asset.category === 'scene' ? 'composite' : 'individual';
+    }
+    // X/Z rest footprint swept over the selected carrier's linear path.
+    // The review grid adds its normal one-cell margin; pose/camera are untouched.
+    function clipFloorBounds(T, model, restBox, clip) {
+        const box = restBox.clone();
+        model.updateMatrixWorld(true);
+        for (const tr of (clip && clip.tracks) || []) {
+            if (!/_motion\.position$/.test(tr.name)) continue;
+            const motion = model.getObjectByName(tr.name.split('.')[0]);
+            if (!motion || !motion.parent) continue;
+            const matrix = motion.parent.matrixWorld;
+            const origin = new T.Vector3().applyMatrix4(matrix);
+            const radius = Math.max(...[restBox.min.x, restBox.max.x].flatMap((x) =>
+                [restBox.min.z, restBox.max.z].map((z) => Math.hypot(x - origin.x, z - origin.z))));
+            for (let k = 0; k < tr.times.length; k += 1) {
+                const p = new T.Vector3().fromArray(tr.values, 3 * k).applyMatrix4(matrix);
+                box.expandByPoint(new T.Vector3(p.x - radius, restBox.min.y, p.z - radius));
+                box.expandByPoint(new T.Vector3(p.x + radius, restBox.max.y, p.z + radius));
+            }
+        }
+        return box;
+    }
+    function reviewFloorLayout(T, bounds) {
+        const size = bounds.getSize(new T.Vector3());
+        const step = gridStep(Math.max(size.x, size.z, size.y, 1));
+        const half = Math.ceil(Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x), Math.abs(bounds.min.z), Math.abs(bounds.max.z)) / step + 1) * step;
+        return {step, half};
+    }
+
     // ------------------------------------------------------------------ animation
     // Illustrative clips only: never applied to recorded or live telemetry.
     const ANIMATION_LABEL = 'Illustrative animation, not simulated behaviour';
@@ -416,6 +455,7 @@
                 } else {
                     model = gltf.scene.clone();
                 }
+                useReviewLighting(model);
                 let problem = null;
                 if (asset.validate === 'fly') problem = env.lib.validateFly(T, env.lib.nodeIndex(model));
                 const extras = rootExtras(model);
@@ -493,7 +533,15 @@
             if (dashed) l.computeLineDistances();
             return l;
         }
-        function buildOverlays(box, extraBoxes) {
+        function buildOverlays(box, extraBoxes, floorBox) {
+            // Clip selection can resize the review floor; release the old overlays.
+            overlay.traverse((o) => {
+                if (o.geometry) o.geometry.dispose();
+                for (const m of [].concat(o.material || [])) {
+                    if (m.map) m.map.dispose();
+                    m.dispose();
+                }
+            });
             while (overlay.children.length) overlay.remove(overlay.children[0]);
             if (!box) return;
             const own = box;
@@ -501,8 +549,8 @@
             for (const b of extraBoxes || []) box.union(b);
             const size = box.getSize(new T.Vector3());
             const extent = Math.max(size.x, size.z, size.y, 1);
-            const step = gridStep(extent);
-            const half = Math.ceil(Math.max(Math.abs(box.min.x), Math.abs(box.max.x), Math.abs(box.min.z), Math.abs(box.max.z)) / step + 1) * step;
+            const floorBounds = floorBox ? floorBox.clone().union(box) : box;
+            const {step, half} = reviewFloorLayout(T, floorBounds);
             const labelH = Math.max(0.25, extent * 0.045);
             const fy = state.floorY;
             const groups = {};
@@ -557,7 +605,7 @@
         // World-space centroid of each side's leg tips (tarsus meshes) for the current model.
         function sideCentroids() {
             const out = {L: null, R: null};
-            if (!state.current) return out;
+            if (!state.current || handednessScope(state.current.asset) === 'composite') return out;
             state.current.wrap.updateMatrixWorld(true);
             for (const side of ['L', 'R']) {
                 const box = vertexBounds(T, state.current.model, (m) => { for (let o = m; o; o = o.parent) { const sd = tarsusSide(o.name); if (sd) return sd === side; } return false; });
@@ -571,6 +619,11 @@
             const cur = state.current;
             const out = $('handedness');
             if (!cur) return null;
+            if (handednessScope(cur.asset) === 'composite') {
+                state.handedness = {asset: cur.asset.id, scope: 'composite', status: 'not-applicable', rows: []};
+                out.textContent = 'Composite scene: no single anatomical frame. Components retain their authored transforms and may use different legacy frames. The whole-scene six-heading L/R check is not applicable; no component handedness PASS is claimed. Check each individual rig instead.';
+                return state.handedness;
+            }
             const turn = (anim.clips || []).find((c) => /turn_left/.test(c.clip.name) && c.kind === 'ROOT MOTION');
             let yaw = null;
             if (turn) {
@@ -979,6 +1032,8 @@
             anim.action.play();
             anim.action.time = Math.min(time || 0, c.clip.duration);
             anim.mixer.update(0);
+            buildOverlays(state.current.box, state.compare ? [state.compare.box] : [],
+                clipFloorBounds(T, state.current.model, state.current.box, c.clip));
             setPlaying(!!play);
             const missing = trackNodes(c.clip).length - anim.nodes.length;
             $('clipInfo').textContent = c.label + ' · ' + c.clip.duration.toFixed(2) + ' s · ' + c.clip.tracks.length + ' tracks on '
@@ -1263,6 +1318,6 @@
     return {
         MANIFEST_SCHEMA, DEFAULT_MANIFEST_URL, OVERLAYS, FLOOR_TOLERANCE, LEG_PREFIXES,
         validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
-        floorStatus, plinthStatus, standLift, tarsusSide, handednessAt, clipKind, windVaneState, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
+        floorStatus, plinthStatus, standLift, tarsusSide, handednessAt, handednessScope, useReviewLighting, clipFloorBounds, reviewFloorLayout, clipKind, windVaneState, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
     };
 }));
