@@ -78,3 +78,23 @@ validated model. Wings, halteres, antennae, proboscis and bristles are static
 decoration and are not simulated. Eye facets are a shading style. The pose always
 comes from the simulation's own stream, and in the replay the recorded joints stay
 drawn on top.
+
+## Environment, food and predator props
+
+`build_env.py` builds seven props in the same frame and units as the fly
+(three.js, +Y up, +Z forward, one unit = one viewport-mm), each standing on
+y = 0: `fermenting_fruit`, `yeast_patch`, `sugar_water`, `odour_emitter` (with a
+separable `odour_source_marker`), `wind_vane` (rotate `wind_vane_rotor` about +Y;
+its +Z arrow tip points downwind), and two predators, `jumping_spider` and
+`mantis_nymph`. Each GLB root carries a `neurofly_status` extra: DECORATIVE for the
+props and ILLUSTRATIVE for the predators, because no predator stimulus or behaviour
+exists. None of them is a stimulus, field, encoder input or collision shape, and
+none may change looming or retinal input. `build_env_gallery.py` lays them out with
+the fly for review. `env/make_icons.py` writes the SVG and PNG icons and the
+taste-versus-odour legend in `env/icons/`. `env/measure_env.py` writes
+`env/ENV_MANIFEST.json`, which holds the hashes, budgets (props ≤ 8k triangles,
+predators ≤ 12k, no textures), licences and the cited predator ecology.
+
+```sh
+BLENDER="$BLENDER" RENDER_LOCK=/path/to/render.lock tools/assets/build_env_all.sh "$OUT" "$OUT/fly_hq_lod0.glb"
+```
