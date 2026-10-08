@@ -1,0 +1,813 @@
+{
+  "schema": "neurofly.presentation-assets.env.v1",
+  "generated_utc": "2026-10-08T14:53:33Z",
+  "purpose": "Presentation only: food, odour, wind and predator props, icons and a sense legend. Not a stimulus, field, encoder input, collision shape or behaviour. Loading them must not change physics, stimulus geometry, looming or retinal input.",
+  "status_labels": {
+    "DECORATIVE": "food / odour / wind props; the picture does not imply that a sense or field is simulated",
+    "ILLUSTRATIVE": "predators; no predator stimulus or behaviour is implemented"
+  },
+  "frame": "three.js frame, +Y up, +Z forward, 1 unit = 1 viewport-mm (tools/assets/INTERFACE.md); each prop stands on y = 0 and is centred on its reference point. Food props are a nominal size, not a simulated source radius; predators use the fly display scale (~3.3x life).",
+  "sense_convention": {
+    "sugar_taste": "CONTACT (tarsi / proboscis): droplet, solid bar, solid contact ring",
+    "volatile_odour": "AIRBORNE at a distance (antennae): dashed rings and wavy lines; rings mark the source position only, never a concentration or plume",
+    "wind": "arrow tip = where the air moves to (downwind); show NOT SIMULATED without a wind field"
+  },
+  "tools": {
+    "blender": "Blender 4.5.3 LTS",
+    "python": "3.12.3",
+    "render": "Cycles, CPU only, 2 threads; transparent PNG",
+    "icons": "hand-written SVG; PNG via Inkscape"
+  },
+  "sources": {
+    "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3",
+    "tools/assets/build_env.py": "c8d6f8f3a756884aaa3a80c0e808e0fe5d10eaa1f0f62831094b45fc2cc83cf5",
+    "tools/assets/build_env_gallery.py": "32b471a58925f575d9a2408e11e205904827cb714437be361c136f7763a0f1f9",
+    "tools/assets/build_env_all.sh": "39e8ace0a65bd49bed9a18e1a5a3fda8e51afb34f6d1c42f43744d6baea3cb27",
+    "tools/assets/env/make_icons.py": "1413e12a091d5088af39e0747bc234e1fb8fc239d76d136fbc9440b0f5208f8e",
+    "tools/assets/env/contact_sheet.py": "4470b484538c461fafa1a7111b9e12d157642af11fede7821171907d5490afb4",
+    "tools/assets/env/measure_env.py": "77e9c613db12336c88e50eda095ddae09757e9a9279702918ffb4c55649e828f"
+  },
+  "icons": {
+    "env_legend.png": "f4f3b65f66a4f30db2e2a1f04eac8092b22b1efe9f2a32d16eb26df20c7960ad",
+    "env_legend.svg": "0f6335829e605d50c17251297b7666b205a595b153206644a31f4c93fa89ad16",
+    "icon_fermenting_fruit.png": "27d8150ca7a2857eb27827f9bbb528823bd6a6f916eb79880c4352a0a6451785",
+    "icon_fermenting_fruit.svg": "f3033f199ecdaebd12c9c792cc3119a54119ac0d50c2c6fe4cdddcfdd9aabc43",
+    "icon_jumping_spider_illustrative.png": "13c204850f0ef363c8c50867510bb1bcc912572d2080fc225a56f82d70d57136",
+    "icon_jumping_spider_illustrative.svg": "8793f9ac4220cf127513ebc6f1fdc439ce58cd59a3c14022d5ae37c8bdc24da8",
+    "icon_mantis_illustrative.png": "dfaa11cc0901739dc1c2e99b7a88399183b90dc3f1a0c18bf9b493861ef863ff",
+    "icon_mantis_illustrative.svg": "fb969bd72964410d4c54e29c24266e50b06bc0289aba5d2bfce3e413700a76c6",
+    "icon_odour_volatile.png": "2d42224c66598c96b3aea193af8156fbe393917c98c2775cf3356ec24f3d0788",
+    "icon_odour_volatile.svg": "3bab291070921850fcf1d6d5fa6ee4c0e65711a8830993c3dce115e1db45e5c9",
+    "icon_sugar_contact.png": "40a3e191a3fb7ef540037e15bac559a30f128bcac5f4e1f157bbcdf541b2bb87",
+    "icon_sugar_contact.svg": "f62fcde3e812d2a0fc553389a800758573a7b83b8351cc71830fc1ebac40f641",
+    "icon_wind.png": "dab21d4234a10b5bd3bcd571530be033fc3e5f26878cd18a5c2eb20073d2a7ff",
+    "icon_wind.svg": "8e98606200ee92576cded54cc7a1d2c88b9723d79b855ff970bee128da1e80ab",
+    "icon_yeast_patch.png": "99c5cb74a9ff9c725f3fcb16d97fbaff2489234d60e46e45ddcbafb533086516",
+    "icon_yeast_patch.svg": "283700339b2ecd8b33dfdc62c14dbb1b7962e184190f8155156aafcfb77a50f3"
+  },
+  "outputs": {
+    "env_contact_sheet.png": {
+      "sha256": "e80597d8c22f955d3fcb781a2f3aca07c1775d3425d031630d714b98df618498",
+      "bytes": 1394730,
+      "width": 1206,
+      "height": 3857
+    },
+    "env_fermenting_fruit.blend": {
+      "sha256": "0fa94c1337cc0054c0f8127ccab4b7ea526196798528c5327369636f9443a2fc",
+      "bytes": 837112,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_fermenting_fruit.glb": {
+      "sha256": "a5f697d4e4dec9bb4f36fb700cb11061ee4d4322f977964fee8473e9d6f29075",
+      "bytes": 120780,
+      "triangles": 5700,
+      "nodes": 7,
+      "meshes": 6,
+      "materials": [
+        "nf_env_bubble",
+        "nf_env_ferment_brown",
+        "nf_env_ferment_rim",
+        "nf_env_flesh",
+        "nf_env_flesh_core",
+        "nf_env_juice",
+        "nf_env_peel_spot",
+        "nf_env_peel_yellow",
+        "nf_env_seed"
+      ],
+      "alpha_blend_materials": [
+        "nf_env_bubble",
+        "nf_env_juice"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_fermenting_fruit",
+        "fruit_ferment_bruises",
+        "fruit_ferment_bubbles",
+        "fruit_flesh",
+        "fruit_juice_film",
+        "fruit_peel",
+        "fruit_seeds"
+      ],
+      "triangle_budget": 8000,
+      "within_budget": true,
+      "status": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "bbox_three": {
+        "min": [
+          -13.633,
+          0.0,
+          -13.556
+        ],
+        "max": [
+          14.126,
+          4.167,
+          13.103
+        ]
+      },
+      "metadata": {
+        "nominal_size": "24 viewport-mm slice; nominal, not a simulated source radius",
+        "depicts": "fermenting banana slice (cross-section)"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.247,
+            -0.227
+          ],
+          "ortho_scale_viewport_mm": 31.09,
+          "px_per_viewport_mm": 24.702
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            2.084,
+            -0.227
+          ],
+          "ortho_scale_viewport_mm": 29.858,
+          "px_per_viewport_mm": 25.722
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_fermenting_fruit.render.json": {
+      "sha256": "a702d7e6cc96317bb7b458d795d5bf0e1d7693941f036646865efeb32cd8f573",
+      "bytes": 1005
+    },
+    "env_fermenting_fruit_hero.png": {
+      "sha256": "253a0dee16a5ada44abdc8bda2609db18743a6f032abb5550c532b991cd3eb7f",
+      "bytes": 160613,
+      "width": 768,
+      "height": 576
+    },
+    "env_fermenting_fruit_side.png": {
+      "sha256": "07625a20a2d09ca2a574a9a6b0c272760e81610a6d52f64424340d57a150c140",
+      "bytes": 122771,
+      "width": 768,
+      "height": 768
+    },
+    "env_fermenting_fruit_top.png": {
+      "sha256": "66c04336a850880302c98641c67151ae069ab347b750f033dd43fee48f9d0696",
+      "bytes": 428799,
+      "width": 768,
+      "height": 768
+    },
+    "env_gallery.blend": {
+      "sha256": "4beedfe145c1fbd382534db82a61e1beb442fffdf9e78ed75d52ac01ba91d3a6",
+      "bytes": 4534218,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_gallery_hero.png": {
+      "sha256": "362fcde127640a71940dbde944ccfc61d1a3c6096145bab7818cef6145790561",
+      "bytes": 948042,
+      "width": 1600,
+      "height": 960
+    },
+    "env_gallery_top.png": {
+      "sha256": "b9e2699986a4e2b718e0e3826638af73aef4f5e4d8a6d844f17925152a47d906",
+      "bytes": 1233832,
+      "width": 1600,
+      "height": 960
+    },
+    "env_jumping_spider.blend": {
+      "sha256": "4bc4ec1a0299f6b8fd575c8802dd3ad367c4011b4ba0ad2062963f01eaeb2fc9",
+      "bytes": 754498,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_jumping_spider.glb": {
+      "sha256": "fce6eb23ee26b7f0bcd4686a9b9eba14bd7ddb9210b63fdbe9c1a4509c025205",
+      "bytes": 124136,
+      "triangles": 6012,
+      "nodes": 5,
+      "meshes": 4,
+      "materials": [
+        "nf_env_spider_black",
+        "nf_env_spider_brown",
+        "nf_env_spider_eye",
+        "nf_env_spider_lens",
+        "nf_env_spider_white"
+      ],
+      "alpha_blend_materials": [],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_jumping_spider",
+        "spider_body",
+        "spider_eyes",
+        "spider_legs",
+        "spider_mouthparts_palps"
+      ],
+      "triangle_budget": 12000,
+      "within_budget": true,
+      "status": "ILLUSTRATIVE: no predator stimulus or behaviour is implemented; decoration only and must not change looming or retinal input",
+      "bbox_three": {
+        "min": [
+          -8.621,
+          0.01,
+          -8.971
+        ],
+        "max": [
+          8.621,
+          5.995,
+          12.048
+        ]
+      },
+      "metadata": {
+        "depicts": "zebra jumping spider (Salticidae; Salticus scenicus style)",
+        "scale": "fly display scale (~3.3x life); ~6 mm spider -> ~20 viewport-mm"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            1.538
+          ],
+          "ortho_scale_viewport_mm": 23.542,
+          "px_per_viewport_mm": 32.623
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            3.002,
+            1.538
+          ],
+          "ortho_scale_viewport_mm": 23.542,
+          "px_per_viewport_mm": 32.623
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_jumping_spider.render.json": {
+      "sha256": "9288920d8e1bab86927e8841829a9fc06860c74a501e2aea7934e995254f0a25",
+      "bytes": 1051
+    },
+    "env_jumping_spider_hero.png": {
+      "sha256": "b3fbcb3bbb0c9ceea7df875100e4587b87453fd20c09a29661d0e0041c0b6094",
+      "bytes": 142917,
+      "width": 768,
+      "height": 576
+    },
+    "env_jumping_spider_side.png": {
+      "sha256": "520f7fe2a3854d5a9a828b5352a89f8e5fab1276422ed498a7c49f029b446252",
+      "bytes": 166652,
+      "width": 768,
+      "height": 768
+    },
+    "env_jumping_spider_top.png": {
+      "sha256": "df79d83f1b4976e3110fef4fbb254b88aeca1072812fc25cb3634f07b55bda86",
+      "bytes": 256065,
+      "width": 768,
+      "height": 768
+    },
+    "env_mantis_nymph.blend": {
+      "sha256": "355b475710f75479ece5a24dbd22b0386de65361308529d2242ba08c07b56be3",
+      "bytes": 658235,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_mantis_nymph.glb": {
+      "sha256": "81411a2dfc957575ff7409f3309f47e6f2d976bfaa443f5524f112f61ee27786",
+      "bytes": 73256,
+      "triangles": 3436,
+      "nodes": 5,
+      "meshes": 4,
+      "materials": [
+        "nf_env_mantis_dark",
+        "nf_env_mantis_eye",
+        "nf_env_mantis_green",
+        "nf_env_mantis_pupil",
+        "nf_env_mantis_spine"
+      ],
+      "alpha_blend_materials": [],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_mantis_nymph",
+        "mantis_body",
+        "mantis_head",
+        "mantis_raptorial_forelegs",
+        "mantis_walking_legs"
+      ],
+      "triangle_budget": 12000,
+      "within_budget": true,
+      "status": "ILLUSTRATIVE: no predator stimulus or behaviour is implemented; decoration only and must not change looming or retinal input",
+      "bbox_three": {
+        "min": [
+          -10.372,
+          0.011,
+          -15.926
+        ],
+        "max": [
+          10.372,
+          15.076,
+          21.637
+        ]
+      },
+      "metadata": {
+        "depicts": "praying mantis nymph (Mantidae; Tenodera sinensis style)",
+        "scale": "fly display scale (~3.3x life); ~11 mm early nymph -> ~37 viewport-mm"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            2.856
+          ],
+          "ortho_scale_viewport_mm": 42.07,
+          "px_per_viewport_mm": 18.255
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            7.544,
+            2.856
+          ],
+          "ortho_scale_viewport_mm": 42.07,
+          "px_per_viewport_mm": 18.255
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_mantis_nymph.render.json": {
+      "sha256": "c844ee74c3bb2b54c067fd0e1354601af732740b993a59dd4fcfa2291e6389f3",
+      "bytes": 1056
+    },
+    "env_mantis_nymph_hero.png": {
+      "sha256": "3b2d1ad743e5b7031eeb0f0013c11da01dc0df83c962470e1327be08517b5af2",
+      "bytes": 95835,
+      "width": 768,
+      "height": 576
+    },
+    "env_mantis_nymph_side.png": {
+      "sha256": "46ce52d683ac67e2aa572509d81501f378942c1561ee45c7c8f6738954eb7ae4",
+      "bytes": 132859,
+      "width": 768,
+      "height": 768
+    },
+    "env_mantis_nymph_top.png": {
+      "sha256": "bcb39c1b1b0ae84d9defdac25b11befaf50e1d5390d43c1799689a7303aaee39",
+      "bytes": 178264,
+      "width": 768,
+      "height": 768
+    },
+    "env_odour_emitter.blend": {
+      "sha256": "0f107808a2653e81c9122269da10a6f1b254b6f2728346e1511c47e0ec265b92",
+      "bytes": 577841,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_odour_emitter.glb": {
+      "sha256": "af227be8286e8a0a201e14616669b3e97f9c61621f3dcfda134532762b07f935",
+      "bytes": 40392,
+      "triangles": 1480,
+      "nodes": 6,
+      "meshes": 5,
+      "materials": [
+        "nf_env_cotton",
+        "nf_env_marker_pole",
+        "nf_env_marker_violet",
+        "nf_env_odourant",
+        "nf_env_vial_glass"
+      ],
+      "alpha_blend_materials": [
+        "nf_env_odourant",
+        "nf_env_vial_glass"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_odour_emitter",
+        "odour_source_marker",
+        "vial_bottom",
+        "vial_glass",
+        "vial_odourant",
+        "vial_wick"
+      ],
+      "triangle_budget": 8000,
+      "within_budget": true,
+      "status": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "bbox_three": {
+        "min": [
+          -7.6,
+          0.0,
+          -7.6
+        ],
+        "max": [
+          7.6,
+          12.0,
+          7.6
+        ]
+      },
+      "metadata": {
+        "nominal_size": "4.4 viewport-mm vial; marker rings 5 and 7.6 viewport-mm; nominal",
+        "depicts": "odour vial with soaked wick and an odour-source marker",
+        "sense": "volatile odour detected at a DISTANCE (antennae); the dashed rings mark the source position only and are not a measured concentration or plume",
+        "reference_point": "origin = source marker = odour source position"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            0.0
+          ],
+          "ortho_scale_viewport_mm": 17.024,
+          "px_per_viewport_mm": 45.113
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            6.0,
+            0.0
+          ],
+          "ortho_scale_viewport_mm": 17.024,
+          "px_per_viewport_mm": 45.113
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_odour_emitter.render.json": {
+      "sha256": "b461156d719ee89729d61acd51d7995a79a774bc0fc6a8be75610aeba5ed29ca",
+      "bytes": 1228
+    },
+    "env_odour_emitter_hero.png": {
+      "sha256": "288f981f1027f5e9dbf693fe632d2a46e4c8e54c46513c61e1ac9b773a84b72e",
+      "bytes": 154815,
+      "width": 768,
+      "height": 576
+    },
+    "env_odour_emitter_side.png": {
+      "sha256": "5bfc33d7442fc1bfafeead1939cd8f087c17dcf39d74dfecec39daebc30110e8",
+      "bytes": 212783,
+      "width": 768,
+      "height": 768
+    },
+    "env_odour_emitter_top.png": {
+      "sha256": "541851cf9380741cd13215723f764fe269f1fb63a8827b64bfb7714b457836a1",
+      "bytes": 225867,
+      "width": 768,
+      "height": 768
+    },
+    "env_sugar_water.blend": {
+      "sha256": "0eeecdd6d1916410239dfd8566c93ecfbfe1e81907d1a56989bd27a283232818",
+      "bytes": 546795,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_sugar_water.glb": {
+      "sha256": "fee1ecd98797157a60f5c1dd832c18244a374ac3c1b0b5fdf6e24d4f50637982",
+      "bytes": 37440,
+      "triangles": 1420,
+      "nodes": 6,
+      "meshes": 5,
+      "materials": [
+        "nf_env_capillary_glass",
+        "nf_env_clamp",
+        "nf_env_contact_ring",
+        "nf_env_sugar_water"
+      ],
+      "alpha_blend_materials": [
+        "nf_env_capillary_glass",
+        "nf_env_sugar_water"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "capillary_clamp",
+        "capillary_liquid",
+        "capillary_tube",
+        "env_sugar_water",
+        "sugar_contact_marker",
+        "sugar_droplet"
+      ],
+      "triangle_budget": 8000,
+      "within_budget": true,
+      "status": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "bbox_three": {
+        "min": [
+          -4.2,
+          0.0,
+          -25.764
+        ],
+        "max": [
+          4.2,
+          8.963,
+          4.2
+        ]
+      },
+      "metadata": {
+        "nominal_size": "6 viewport-mm droplet, 26 viewport-mm capillary; nominal",
+        "depicts": "sucrose solution droplet at a glass capillary tip",
+        "sense": "taste on CONTACT (tarsi / proboscis); the solid ring marks the contact zone"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            -10.782
+          ],
+          "ortho_scale_viewport_mm": 33.559,
+          "px_per_viewport_mm": 22.885
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            4.481,
+            -10.782
+          ],
+          "ortho_scale_viewport_mm": 33.559,
+          "px_per_viewport_mm": 22.885
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_sugar_water.render.json": {
+      "sha256": "082a041d6dcb39ec18222c759cb2837cda0db2a32888797d78c74ba72a4e454b",
+      "bytes": 1088
+    },
+    "env_sugar_water_hero.png": {
+      "sha256": "6c7c49e3927df1374bc8247df491ef1907c64cc12e633f3f45ab73ee57f87fa1",
+      "bytes": 106447,
+      "width": 768,
+      "height": 576
+    },
+    "env_sugar_water_side.png": {
+      "sha256": "1e25fa6c5ce5ba9e8cc122c06c5eeeef4bee8ebb0c45c396d1f9fabbf73b6eb8",
+      "bytes": 140574,
+      "width": 768,
+      "height": 768
+    },
+    "env_sugar_water_top.png": {
+      "sha256": "dd09bfff22ae1574df0c55a33e6fac06145853dacd4ff25a11d3e72b67815148",
+      "bytes": 202133,
+      "width": 768,
+      "height": 768
+    },
+    "env_wind_vane.blend": {
+      "sha256": "83e07479c6cd38315ada10de9c9a94d20572999e1d13e49800d55792547a81b1",
+      "bytes": 502415,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_wind_vane.glb": {
+      "sha256": "51b15957fcde8102118367098659751c6c4b2c424e4f89564590a88a44225e5a",
+      "bytes": 17528,
+      "triangles": 560,
+      "nodes": 4,
+      "meshes": 2,
+      "materials": [
+        "nf_env_vane_arrow",
+        "nf_env_vane_base",
+        "nf_env_vane_fin",
+        "nf_env_vane_pole"
+      ],
+      "alpha_blend_materials": [],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_wind_vane",
+        "vane_rotor_parts",
+        "vane_stand",
+        "wind_vane_rotor"
+      ],
+      "triangle_budget": 8000,
+      "within_budget": true,
+      "status": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "bbox_three": {
+        "min": [
+          -3.0,
+          0.0,
+          -6.6
+        ],
+        "max": [
+          3.0,
+          10.6,
+          6.0
+        ]
+      },
+      "metadata": {
+        "nominal_size": "13 viewport-mm vane, 9 viewport-mm tall; nominal",
+        "depicts": "wind vane / direction indicator",
+        "direction_convention": "rotate node wind_vane_rotor about +Y; its local +Z (arrow tip) points where the air moves TO (downwind); the orange fin trails upwind. Not a measurement: show NOT SIMULATED when no wind field"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            -0.3
+          ],
+          "ortho_scale_viewport_mm": 14.112,
+          "px_per_viewport_mm": 54.422
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            5.3,
+            -0.3
+          ],
+          "ortho_scale_viewport_mm": 14.112,
+          "px_per_viewport_mm": 54.422
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_wind_vane.render.json": {
+      "sha256": "0161177d6303ad5492a7198e0fc753723c04772154ded51b0f82cabb2533b8dd",
+      "bytes": 1178
+    },
+    "env_wind_vane_hero.png": {
+      "sha256": "7d5a79a59de133626b57c022b5474a5a9c282c0469ba6b44d68040bbdcfa0aad",
+      "bytes": 121866,
+      "width": 768,
+      "height": 576
+    },
+    "env_wind_vane_side.png": {
+      "sha256": "ede165e2bbf69953300ce13abcf014ac4ebd3ffa67b5237f45b7da3aced80bee",
+      "bytes": 163099,
+      "width": 768,
+      "height": 768
+    },
+    "env_wind_vane_top.png": {
+      "sha256": "74a136514c7b40d20de14ff1b41c43a9c69fa1824966c443aaa057942eeb95ba",
+      "bytes": 202646,
+      "width": 768,
+      "height": 768
+    },
+    "env_yeast_patch.blend": {
+      "sha256": "bba6c7fb0c2e313cd21fe304a256db76739c6db710ac5211d98fc1ea0fda3ae1",
+      "bytes": 677892,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "env_yeast_patch.glb": {
+      "sha256": "8979d767b97b624ee8e91c88deb75e261d3f6f6ecd0a9f65b0053e3f0a7abe8a",
+      "bytes": 95804,
+      "triangles": 4936,
+      "nodes": 4,
+      "meshes": 3,
+      "materials": [
+        "nf_env_fly_food",
+        "nf_env_yeast_colony",
+        "nf_env_yeast_dark",
+        "nf_env_yeast_paste"
+      ],
+      "alpha_blend_materials": [
+        "nf_env_fly_food"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "node_names": [
+        "env_yeast_patch",
+        "food_disc",
+        "yeast_colonies",
+        "yeast_paste"
+      ],
+      "triangle_budget": 8000,
+      "within_budget": true,
+      "status": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "bbox_three": {
+        "min": [
+          -9.0,
+          0.0,
+          -9.0
+        ],
+        "max": [
+          9.0,
+          2.274,
+          9.0
+        ]
+      },
+      "metadata": {
+        "nominal_size": "18 viewport-mm patch; nominal, not a simulated source radius",
+        "depicts": "live yeast paste on standard fly food"
+      },
+      "renders": {
+        "top": {
+          "look": "-Y (down); image top = +Z (forward)",
+          "center_three": [
+            0.0,
+            0.0
+          ],
+          "ortho_scale_viewport_mm": 20.16,
+          "px_per_viewport_mm": 38.095
+        },
+        "side": {
+          "look": "-X; image right = +Z",
+          "center_three_yz": [
+            1.137,
+            0.0
+          ],
+          "ortho_scale_viewport_mm": 20.16,
+          "px_per_viewport_mm": 38.095
+        },
+        "hero": {
+          "note": "3/4 perspective preview, not to scale"
+        },
+        "engine": "Cycles CPU, 2 threads",
+        "samples": 32,
+        "resolution_px": 768
+      }
+    },
+    "env_yeast_patch.render.json": {
+      "sha256": "d205cc7b1da9ebb54e668139d0982fc1965a62bd16619d95de0869270cafa729",
+      "bytes": 977
+    },
+    "env_yeast_patch_hero.png": {
+      "sha256": "5e0e44ffbb12d35fe7b7f7bb5f5e95efcb124ae1f5f635fb30054ecff234fefb",
+      "bytes": 165562,
+      "width": 768,
+      "height": 576
+    },
+    "env_yeast_patch_side.png": {
+      "sha256": "edddbba396559598c5a6e4e9d3f028936fadd8c3caad87f818492b767d4f2913",
+      "bytes": 115551,
+      "width": 768,
+      "height": 768
+    },
+    "env_yeast_patch_top.png": {
+      "sha256": "ed6d7a22c1ff093abbe812eebf4777ac93972a1dddac865bf47e866c74377055",
+      "bytes": 484076,
+      "width": 768,
+      "height": 768
+    }
+  },
+  "budgets": {
+    "prop_triangles": 8000,
+    "predator_triangles": 12000,
+    "texture_max_px": 1024,
+    "note": "provisional phone-browser budgets per GLB; no textures are used (material colours only)",
+    "textures_used": 0,
+    "status": "within budget"
+  },
+  "predator_ecology": {
+    "summary": "Both predator families are documented catching Drosophila in laboratory assays and both are reared on D. melanogaster. Field predation on wild D. melanogaster is not documented: Parigi et al. (2019) state that the natural predators of wild populations have not been documented. The models are therefore labelled ILLUSTRATIVE examples of plausible predators, not field ecology.",
+    "jumping_spider": {
+      "model": "Salticidae, styled after the zebra jumping spider Salticus scenicus",
+      "evidence": [
+        {
+          "citation": "Parigi A, Porter C, Cermak M, Pitchers WR, Dworkin I (2019). The behavioral repertoire of Drosophila melanogaster in the presence of two predator species that differ in hunting mode. PLoS ONE 14(5): e0216860.",
+          "doi": "10.1371/journal.pone.0216860",
+          "finding": "Salticus scenicus vs D. melanogaster in arenas: about 50% of spiders captured the fly within 10 min; spiders were maintained on ~5 D. melanogaster per week."
+        },
+        {
+          "citation": "Taylor PW, Jackson RR, Robertson MW (1998). A case of blind spider's buff?: prey-capture by jumping spiders (Araneae, Salticidae) in the absence of visual cues. Journal of Arachnology 26: 369-381.",
+          "url": "https://www.biodiversitylibrary.org/part/228756",
+          "finding": "All 42 salticid species tested caught prey (house flies and Drosophila spp.) in at least one procedure."
+        }
+      ]
+    },
+    "mantis": {
+      "model": "Mantidae nymph, styled after the Chinese mantis Tenodera sinensis (T. aridifolia sinensis)",
+      "evidence": [
+        {
+          "citation": "Parigi et al. (2019), PLoS ONE 14(5): e0216860 (as above).",
+          "doi": "10.1371/journal.pone.0216860",
+          "finding": "Tenodera aridifolia sinensis used as an ambush predator of D. melanogaster; juvenile mantids were fed D. melanogaster. Captures occurred but were rare in the mantid treatment (\"very few individuals were captured\")."
+        }
+      ],
+      "caveat": "Adult T. sinensis are far larger than the fly and take larger prey; the model is an early nymph, the stage the cited study fed on D. melanogaster."
+    }
+  },
+  "licences": {
+    "scripts": "MIT (repository LICENSE)",
+    "generated_assets_and_icons": "MIT (repository LICENSE). Original geometry and artwork: every vertex and path is generated by these scripts. No imported mesh, texture, scan or third-party artwork (no CC0 / CC-BY imports were needed).",
+    "Blender 4.5.3": "GPL-2.0-or-later tool; its licence does not apply to generated output",
+    "Inkscape": "GPL tool used only to rasterise the SVGs; its licence does not apply to output"
+  }
+}
