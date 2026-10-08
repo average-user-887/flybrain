@@ -1008,19 +1008,25 @@
           ]
         }
       ],
-      "joints": "assets/hq/envanim/v3_env_jumping_spider_rig_joints.json",
+      "joints": "assets/hq/envanim/v4_env_jumping_spider_rig_joints.json",
       "lods": [
         {
           "level": 0,
           "label": "single LOD (rig)",
-          "url": "assets/hq/envanim/v3_env_jumping_spider_rig.glb",
+          "url": "assets/hq/envanim/v4_env_jumping_spider_rig.glb",
           "budget_triangles": 12000
         }
       ],
       "clips": [
         {
+          "url": "assets/hq/envanim/v4_env_jumping_spider_rig_clips.glb",
+          "label": "W3 env-anim v4 (repaired candidate)",
+          "notes": "Independent exported-GLB predicates pass; visible browser acceptance remains required."
+        },
+        {
           "url": "assets/hq/envanim/v3_env_jumping_spider_rig_clips.glb",
-          "label": "W3 env-anim v3"
+          "label": "W3 env-anim v3 (FAILED: stance slip, scale/speed mismatch, loop seams)",
+          "notes": "Historical negative evidence; superseded by v4. Playback does not imply acceptance."
         }
       ],
       "sprites": [],
@@ -1058,19 +1064,25 @@
           ]
         }
       ],
-      "joints": "assets/hq/envanim/v3_env_mantis_nymph_rig_joints.json",
+      "joints": "assets/hq/envanim/v4_env_mantis_nymph_rig_joints.json",
       "lods": [
         {
           "level": 0,
           "label": "single LOD (rig)",
-          "url": "assets/hq/envanim/v3_env_mantis_nymph_rig.glb",
+          "url": "assets/hq/envanim/v4_env_mantis_nymph_rig.glb",
           "budget_triangles": 12000
         }
       ],
       "clips": [
         {
+          "url": "assets/hq/envanim/v4_env_mantis_nymph_rig_clips.glb",
+          "label": "W3 env-anim v4 (repaired candidate)",
+          "notes": "Independent exported-GLB predicates pass; visible browser acceptance remains required."
+        },
+        {
           "url": "assets/hq/envanim/v3_env_mantis_nymph_rig_clips.glb",
-          "label": "W3 env-anim v3"
+          "label": "W3 env-anim v3 (FAILED: stance slip, scale/speed mismatch, loop seams)",
+          "notes": "Historical negative evidence; superseded by v4. Playback does not imply acceptance."
         }
       ],
       "sprites": [],
@@ -1090,7 +1102,7 @@
         {
           "level": 0,
           "label": "single LOD",
-          "url": "assets/hq/envanim/v3_env_wind_vane_demo.glb",
+          "url": "assets/hq/envanim/v4_env_wind_vane_demo.glb",
           "budget_triangles": 8000
         }
       ],

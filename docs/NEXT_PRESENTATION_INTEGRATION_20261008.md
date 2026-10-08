@@ -1,0 +1,17 @@
+# Next presentation candidate: integration receipt (2026-10-08)
+
+1. Review only: based on W4 `2e0210b`; includes accepted renderer `750246cc21c621c208a89587dc11533c4eb8121e`. Published `c9fed0a`, sensory `5c64ce9` and running services are unchanged.
+2. Environment source snapshot: `6e9b77acbc63b2f4daf336e0b7ef52a5c943ee5d`; scene source snapshot: `66d7a6f`. Every source hash in their manifests matches this tree.
+3. V4 spider clips SHA256: `29de58fa2c1906919dc59ed58720a1b1e50949cfad7950d2aa6bffe1f0fd72ae`.
+4. V4 mantis clips SHA256: `e28b10a4dbebd177bc31886d47217f7d97c2bdef74d48bfa53b45cc45a08b3c9`.
+5. Optional base archive SHA256: `bf6ea528e94632596365a589befba7e0c48f5e30b777167489e7368e04ad1554`; verified before staging. Scene and v4 assets are staged strictly from manifest file/hash mappings; no recordings or editable Blend files enter the artifact.
+6. The renderer reads the archive's `anim/fly_*_v2_lod*.glb` paths directly. No private root-path aliases are required. Without `?assets=hq`, the fly stays procedural; absent variants fall back to neutral, then the existing procedural failure path.
+7. Female/male appearance is independent of brain sex and dataset. Animations remain gallery-only, explicitly ILLUSTRATIVE with estimated timing; vane preview is DEMO. Present zero wind remains CALM; missing wind remains NOT SIMULATED.
+8. Exact frozen W4 harness SHA256 `074d3e99e826fb8eea60f4169f792e4e5163a6ca3ec6335e6b4dccb956516044`: v3 negative set 6 pass / 4 fail / 0 skips; v4 clean extracted artifact 10 pass / 0 fail / 0 skips.
+9. V3 defects reproduced: spider start/stop drift 2.99% BL and scene walk 8.23% BL; walk seam 0.112 rad; mantis start/stop 2.61% BL and scene walk 3.56% BL; measured speed 3.69 versus stated 5 mm/s. The v3 set and original manifest remain labelled FAILED evidence.
+10. Strengthened v4 checks: 12/12; 240 Hz plus all keys over every full clip, loop seams, measured scale/speed, cumulative stance drift ≤2% BL, ground, joint axes/limits, legal channels and planar locomotion. Maximum root-motion stance drift: spider 0.94% BL, mantis 0.27% BL. In-place foot travel is intentionally excluded from the planted-foot drift predicate.
+11. Anatomical proof from exported GLBs passes all keys and six mount headings: environment L=+X with no reflection; the fly-only reflected mount would mirror these animals. Fly procedural and HQ female/male viewport handedness checks also pass.
+12. Clean extraction: 121 whitelisted assets + 17 metadata entries; all SHA256SUMS pass; focused renderer/gallery/inspector/environment checks 81/81, no skips. The archive includes both animal sets' rig/clip metadata and scene placement metadata so verification also works after extraction.
+13. Supplementary stable fly checks: all four female/male × LOD variants pass full-duration envelope checks; all four historical v2 negatives remain detected. Cue and geometry checks passed. No browser pass is inferred from these checks.
+14. Visible browser acceptance is still required in the disposable preview, including real controls, arena, selected assay, live clock/step, tools panel and browser errors. Root owns that gate and state restoration.
+15. Remaining limits: illustrative motion, no biological validation or leg-to-leg contact check; composed walk-scene export is hash-pinned but not independently rechecked here. FlyGym 66→18 joint ordering remains a separate telemetry defect. No brain, encoder or physics change is included.

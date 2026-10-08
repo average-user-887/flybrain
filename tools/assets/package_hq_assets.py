@@ -32,6 +32,7 @@ META = {
     "provenance/ENV_MANIFEST.json": ROOT / "tools/assets/env/ENV_MANIFEST.json",
     "provenance/ANIM_MANIFEST.json": ROOT / "scripts/animations/ANIM_MANIFEST.json",
     "provenance/ENV_ANIM_MANIFEST.json": ROOT / "scripts/animations/ENV_ANIM_MANIFEST.json",
+    "provenance/ENV_ANIM_V3_FAILED_MANIFEST.json": ROOT / "scripts/animations/ENV_ANIM_V3_FAILED_MANIFEST.json",
     "provenance/ENV_HANDEDNESS_PROOF.json": ROOT / "scripts/animations/ENV_HANDEDNESS_PROOF.json",
     "provenance/ENV_RIG_CONTRACT.md": ROOT / "tools/assets/env/ENV_RIG_CONTRACT.md",
     "provenance/SCENES_MANIFEST.json": ROOT / "tools/assets/env/SCENES_MANIFEST.json",
@@ -49,9 +50,22 @@ def whitelist(manifest: dict) -> list[str]:
         lods = [lod.get("level", i) for i, lod in enumerate(asset.get("lods", []))]
         for lod in asset.get("lods", []):
             urls.add(lod["url"])
+            if asset.get("category") == "scene":
+                scene_url = lod["url"]
+                if not scene_url.endswith(".glb"):
+                    raise SystemExit("unexpected scene path: " + scene_url)
+                urls.add(scene_url[:-4] + ".json")
         for clip in asset.get("clips", []):
             for level in lods:
                 urls.add(clip["url"].replace("{lod}", str(level)))
+            # Preserve the exact exported rig, joints and measurement metadata for
+            # each environment clip set, including the labelled v3 negative set.
+            if asset.get("id") in ("envanim-jumping-spider", "envanim-mantis-nymph"):
+                clip_url = clip["url"]
+                if not clip_url.endswith("_rig_clips.glb"):
+                    raise SystemExit("unexpected environment clip path: " + clip_url)
+                stem = clip_url[:-len("_rig_clips.glb")]
+                urls.update(stem + suffix for suffix in ("_rig.glb", "_rig_joints.json", "_rig_clips.json"))
         if isinstance(asset.get("joints"), str):
             for level in lods:
                 urls.add(asset["joints"].replace("{lod}", str(level)))

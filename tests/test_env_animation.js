@@ -24,7 +24,7 @@ const parse = (file) => {
     const buf = fs.readFileSync(file);
     return new Promise((resolve, reject) => new THREE.GLTFLoader().parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length), '', resolve, reject));
 };
-const SET = process.env.NF_ENVANIM_SET || 'v3';
+const SET = process.env.NF_ENVANIM_SET || 'v4';
 const ANIMALS = [
     {key: 'spider', file: 'env_jumping_spider', p: 'sp', bodyMeshes: /^spider_(body|eyes|chelicera_[LR])$/},
     {key: 'mantis', file: 'env_mantis_nymph', p: 'mn', bodyMeshes: /^mantis_(body|head)$/}
@@ -239,7 +239,7 @@ for (const a of ANIMALS) {
         report(a, m);
         for (const [name, r] of Object.entries(m.clips)) {
             assert.equal(r.missing, 0, `${name}: a track targets a missing node`);
-            assert.deepEqual(r.invalidChannels, [], `${name}: animated root, pivot, mesh or unsupported property`);
+            assert.equal(r.invalidChannels.length, 0, `${name}: animated root, pivot, mesh or unsupported property: ${r.invalidChannels.join(', ')}`);
             assert.ok(r.motionFloorError < 1e-6, `${name}: locomotion carrier leaves the floor plane`);
             assert.ok(r.motionOffAxis < OFF_AXIS_TOL, `${name}: locomotion carrier rotates away from +Y`);
             assert.deepEqual(r.dof.slice(0, 3), [], `${name}: DOF outside its display limits`);

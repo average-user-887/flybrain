@@ -1,0 +1,1406 @@
+{
+  "schema": "neurofly.env-animation.v1",
+  "generated_utc": "2026-10-08T17:52:13Z",
+  "label": "ILLUSTRATIVE animation with source-informed timing; not motion capture, not simulated behaviour; no predator AI, contact physics, retinal stimulus or neural response",
+  "conventions": {
+    "frame": "three.js +Y up, +Z forward, viewport-mm",
+    "playback": "clip seconds are estimated physical seconds; playback multiplier default 1",
+    "inplace_vs_rootmotion": "*_inplace keeps <p>_motion fixed (feet slide back in stance); *_rootmotion moves it so stance feet stay planted",
+    "turns": "turn_left = heading rotates toward +X, the anatomical left in a right-handed +Y-up, +Z-forward frame; side letters are anatomical (L at +X) since v3; mount without reflection (see ENV_HANDEDNESS_PROOF.json)",
+    "scale": "predators use their own viewport-mm-per-mm factor (parameters), not the fly 3.3x"
+  },
+  "checks": {
+    "glb": "rest reset vs rig GLB; DOF limits over the whole duration at 240 Hz incl. loop seam; key and seam continuity < 0.5 rad; FK ground check of every leg vertex; stance-foot slide per 240 Hz sample <= 0.01 viewport-mm in root-motion clips (stance intervals from metadata); travel heading +Z and speed within 5 % for walk_forward_rootmotion",
+    "blender": "every frame: leg-into-body penetration (ray parity, hip sockets excluded), IK target error, lowest leg vertex vs foot plane, display limits",
+    "not_checked": "leg-to-leg contact; the composed walk-scene GLB is the clips GLB plus a ground node and is hashed but not re-verified separately; 2D sprites are checked only by their documented camera/scale, not by image analysis"
+  },
+  "references": [
+    {
+      "id": "shamble2017",
+      "citation": "Shamble PS, Hoy RR, Cohen I, Beatus T (2017) Walking like an ant: a quantitative and experimental approach to understanding locomotor mimicry in the jumping spider Myrmarachne formicaria. Proc R Soc B 284:20170308.",
+      "licence": "CC BY 4.0",
+      "used_for": "salticid tetrapod phase, stationary fraction, speeds (non-mimetic controls Salticus/Sitticus/Phidippus); values only, no files reused"
+    },
+    {
+      "id": "deagro2021",
+      "citation": "De Agro M, Rossler DC, Kim K, Shamble PS (2021) Perception of biological motion by jumping spiders. PLoS Biol 19:e3001172.",
+      "licence": "CC BY 4.0",
+      "used_for": "stride timing (low confidence); no files reused"
+    },
+    {
+      "id": "hao2019",
+      "citation": "Hao X, et al. (2019) Appl Bionics Biomech 4617212 (Grammostola rosea gait).",
+      "licence": "CC BY",
+      "used_for": "duty factor proxy"
+    },
+    {
+      "id": "land1972",
+      "citation": "Land MF (1972) Stepping movements made by jumping spiders during turns mediated by the lateral eyes. J Exp Biol 57:15-40. doi:10.1242/jeb.57.1.15",
+      "licence": "abstract only",
+      "used_for": "turn rates and stepping"
+    },
+    {
+      "id": "parigi2019",
+      "citation": "Parigi A, et al. (2019) PLoS ONE 14(5):e0216860.",
+      "licence": "CC BY 4.0",
+      "used_for": "body sizes (spider, first-instar mantis)"
+    },
+    {
+      "id": "grabowska2012",
+      "citation": "Grabowska M, Godlewska E, Schmidt J, Daun-Gruhn S (2012) Quadrupedal gaits in hexapod animals - inter-leg coordination in free-walking adult stick insects. J Exp Biol 215:4255-4266.",
+      "licence": "values cited only",
+      "used_for": "four-leg phase proxy, stride period, duty"
+    },
+    {
+      "id": "yamawaki2011",
+      "citation": "Yamawaki Y, et al. (2011) J Insect Physiol 57:1010. doi:10.1016/j.jinsphys.2011.04.018",
+      "licence": "abstract only",
+      "used_for": "head/prothorax/abdomen onset within 40 ms"
+    },
+    {
+      "id": "kral2012",
+      "citation": "Kral K (2012) Eur J Entomol 109:295. doi:10.14411/eje.2012.039",
+      "licence": "values cited only",
+      "used_for": "peering sway amplitude/speed (adult, scaled to nymph under a labelled assumption)"
+    }
+  ],
+  "environment": {
+    "node": "wind_vane_rotor (child of env_wind_vane); rotate about +Y only",
+    "telemetry": {
+      "keys": [
+        "sensory.wind_x",
+        "sensory.wind_y"
+      ],
+      "units": "mm/s",
+      "frame": "arena (x, y), as published by the dashboard telemetry (see the W1 sensory contract)"
+    },
+    "frame_map": "arena (x, y) -> three.js (x - cx, ., -(y - cy)) (INTERFACE.md arenaPointFor3D); a wind vector (wx, wy) is therefore (wx, 0, -wy) in the viewport",
+    "formula": "rotor yaw theta = atan2(wx, -wy) radians about +Y; the rotor local +Z (arrow tip) then points where the air moves TO (downwind); the orange fin trails upwind",
+    "checks": {
+      "(wx, wy) = (0, +1)": "theta = atan2(0, -1) = pi: arrow points to viewport -Z, i.e. arena +y",
+      "(wx, wy) = (+1, 0)": "theta = pi/2: arrow points to viewport +X, i.e. arena +x"
+    },
+    "zero_or_missing": "speed below 1e-6 mm/s, non-finite values or no wind field: leave the rotor at rest and show NOT SIMULATED; never animate",
+    "magnitude": "the vane shows direction only; show the speed as a number with units, not as vane motion",
+    "demo_clip": {
+      "name": "DEMO_vane_swing",
+      "seconds": 6.0,
+      "amplitude_deg": 60.0,
+      "label": "DEMO: deterministic preview swing, not measured or simulated wind"
+    },
+    "odour": "odour emitter and source marker have NO animation: odour fields are static, normalised scalar fields with no transport; no plume, advection, turbulence or emission-rate values are drawn",
+    "source_glb": "env_wind_vane.glb"
+  },
+  "sources": {
+    "tools/assets/build_env_rigs.py": "aff6f8b7bf96100f3fe721c977ba189a3c25f769bc1996c1f9c119313950f8d1",
+    "tools/assets/env/ENV_RIG_CONTRACT.md": "6f6dd17a0566f440a74f224a233b0bfdc65610ba1f4a3abf6813f303e0c37fad",
+    "scripts/animations/build_env_clips.py": "78edf2e85f3bc4155809e4a2d0fb5824ff571300120acdb81f13156e2378a02a",
+    "scripts/animations/verify_env_clips.py": "858f64d52a40f8707fe3bbbb321eff4c41a7d72a2adb7f89f79dfd03ac542364",
+    "scripts/animations/build_env_vane.py": "dc3b814df73573db5c5db7d01b28fb294da4dc8b2a96f73602cc582b5b0ffe92",
+    "scripts/animations/env_anim_params.json": "1617c5ddff61e20fa56da157d6a8b5a9938313a0a4a1cca6eb3aebe2ef91ae48",
+    "scripts/animations/measure_env_anim.py": "5f6ce6b782e024b00c87545410b5a085f7af2aad9068a98245a4d57a173e2c20",
+    "scripts/animations/build_env_anim_all.sh": "e61c6b50a8ca9d9c50f698ece924ac5fac2ca841b7868e19911f70e0440e16f7",
+    "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3"
+  },
+  "animals": {
+    "env_jumping_spider_rig": {
+      "rig": "neurofly-env-spider-rig-v1",
+      "bind_pose_vs_static_prop": {
+        "static_file": "env_jumping_spider.glb",
+        "unique_positions_rig": 3102,
+        "unique_positions_static": 3102,
+        "only_in_rig": 0,
+        "only_in_static": 0,
+        "rounding_viewport_mm": 0.001,
+        "triangles_rig": 6012
+      },
+      "triangles": 6012,
+      "clips": {
+        "idle_inplace": {
+          "frames": 360,
+          "fps": 120,
+          "seconds": 3.0,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0024
+        },
+        "walk_forward_inplace": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "walk_forward_rootmotion": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            31.865
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "start_stop_inplace": {
+          "frames": 240,
+          "fps": 120,
+          "seconds": 2.0,
+          "loop": false,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "start_stop_rootmotion": {
+          "frames": 240,
+          "fps": 120,
+          "seconds": 2.0,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            42.262
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "turn_left_inplace": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "turn_left_rootmotion": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 4.9717,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "turn_right_inplace": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "turn_right_rootmotion": {
+          "frames": 96,
+          "fps": 120,
+          "seconds": 0.8,
+          "loop": true,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": -4.9717,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        },
+        "scene_walk_rootmotion": {
+          "frames": 360,
+          "fps": 120,
+          "seconds": 3.0,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            19.136,
+            34.406
+          ],
+          "heading_change_rad": 1.256,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.005
+        }
+      },
+      "glb_verification": {
+        "_rest_reset": {
+          "mismatches": []
+        },
+        "_scale": {
+          "mesh_z_extent_viewport_mm": 17.926,
+          "model_body_length_param_viewport_mm": 16.1,
+          "note": "mesh extent includes palps/mouthparts (spider) or head-to-abdomen-tip (mantis)"
+        },
+        "walk_forward_rootmotion": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00483,
+          "max_stance_slide_per_sample_viewport_mm": 0.00574,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3098,
+          "loop_seam_step_rad": 0.1121,
+          "max_off_axis_quaternion_component": 0.00045,
+          "root_displacement_viewport_mm": [
+            0.0,
+            31.865
+          ],
+          "heading_of_travel_deg": 0.0,
+          "speed_viewport_mm_s": 40.25
+        },
+        "start_stop_rootmotion": {
+          "samples": 479,
+          "hz": 240.0,
+          "duration_s": 1.9917,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00483,
+          "max_stance_slide_per_sample_viewport_mm": 0.00574,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3098,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000452,
+          "root_displacement_viewport_mm": [
+            0.0,
+            42.263
+          ]
+        },
+        "turn_left_rootmotion": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.005,
+          "max_stance_slide_per_sample_viewport_mm": 0.00369,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.4201,
+          "loop_seam_step_rad": 0.1512,
+          "max_off_axis_quaternion_component": 0.000647
+        },
+        "turn_right_rootmotion": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.005,
+          "max_stance_slide_per_sample_viewport_mm": 0.00369,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.4201,
+          "loop_seam_step_rad": 0.1428,
+          "max_off_axis_quaternion_component": 0.000647
+        },
+        "scene_walk_rootmotion": {
+          "samples": 719,
+          "hz": 240.0,
+          "duration_s": 2.9917,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00483,
+          "max_stance_slide_per_sample_viewport_mm": 0.00574,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3357,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000598,
+          "root_displacement_viewport_mm": [
+            19.136,
+            34.406
+          ]
+        },
+        "idle_inplace": {
+          "samples": 721,
+          "hz": 240.0,
+          "duration_s": 2.9917,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00245,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.0209,
+          "loop_seam_step_rad": 0.0006,
+          "max_off_axis_quaternion_component": 7e-06
+        },
+        "walk_forward_inplace": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00483,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.3098,
+          "loop_seam_step_rad": 0.1121,
+          "max_off_axis_quaternion_component": 0.00045
+        },
+        "start_stop_inplace": {
+          "samples": 479,
+          "hz": 240.0,
+          "duration_s": 1.9917,
+          "loop": false,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00483,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.3098,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000452
+        },
+        "turn_left_inplace": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.005,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.4201,
+          "loop_seam_step_rad": 0.1512,
+          "max_off_axis_quaternion_component": 0.000647
+        },
+        "turn_right_inplace": {
+          "samples": 194,
+          "hz": 240.0,
+          "duration_s": 0.7917,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.005,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.4201,
+          "loop_seam_step_rad": 0.1428,
+          "max_off_axis_quaternion_component": 0.000647
+        }
+      },
+      "playback_multiplier_default": 1.0,
+      "estimated_physical_speed_mm_s": 15.0,
+      "estimated_physical_speed_bl_s": 2.5,
+      "gait_label": "source-informed (salticid tetrapod phase; tarantula duty proxy; stride timing low confidence)",
+      "parameters": {
+        "stance_clearance": 0.005,
+        "stance_clearance_class": "A: feet set 0.005 viewport-mm above the bind-pose foot plane so the slight idle body pitch never dips a claw below it",
+        "species": "Salticus scenicus (zebra jumping spider), adult/subadult",
+        "fps": 120,
+        "body_length_mm": 6.0,
+        "body_length_class": "M (5.5-7.5 female, 4.0-7.0 male; araneae.nmbe.ch; Parigi et al. 2019)",
+        "model_body_length_viewport_mm": 16.1,
+        "viewport_mm_per_mm": 2.683,
+        "viewport_mm_per_mm_class": "D (model body length / 6.0 mm)",
+        "speed_mm_s": 15.0,
+        "speed_bl_s": 2.5,
+        "speed_class": "D/M: 15 mm/s is the lower end of the derived speed-while-moving range (15-25 mm/s; Shamble et al. 2017 Table S1 and stationary fraction) and equals the high-speed-video-based design speed (Shamble 2017 section 2e); overall mean including stops is 8.6 mm/s",
+        "speed_viewport_mm_s": 40.25,
+        "playback_multiplier_default": 1.0,
+        "loop_cycles": 4,
+        "check_every": 1,
+        "sprite_extent_viewport_mm": 30,
+        "gait": {
+          "cycle_s": 0.2,
+          "cycle_class": "D, L confidence: 8 full steps in 1.2 s (De Agro et al. 2021 Methods) gives 0.15-0.3 s strides (3-7 Hz); 0.2 s (5 Hz, mid-range) chosen so the 15 mm/s stride stays within the rig's leg reach",
+          "duty": 0.65,
+          "duty_class": "P, L-M confidence: tarantula Grammostola rosea 0.63-0.70 (Hao et al. 2019 Table 2)",
+          "swing_height_viewport_mm": 1.1,
+          "swing_height_class": "A",
+          "phase_offsets": {
+            "R1": 0.0,
+            "L2": 0.0,
+            "R3": 0.0,
+            "L4": 0.0,
+            "L1": 0.5,
+            "R2": 0.5,
+            "L3": 0.5,
+            "R4": 0.5
+          },
+          "phase_class": "M (qualitative): alternating tetrapod, set A = R1 L2 R3 L4 and set B = L1 R2 L3 R4 (letters on the anatomical side since v3; same two antiphase sets) in antiphase; forelegs walk (Shamble 2017 Fig. 1 caption, Fig. 2d, non-mimetic salticid controls)"
+        },
+        "turn": {
+          "mode": "on the spot",
+          "speed_fraction": 0.0,
+          "yaw_rate_rad_s": 6.28,
+          "yaw_rate_class": "D: one of eight legs steps every ~9 deg of turn (Land 1972 abstract) at the 0.2 s stride -> 360 deg/s, inside the measured 120-1200 deg/s",
+          "note": "turn-side legs move backward and the other side forward relative to the body, as Land 1972 describes; step amplitude here is set by the rig limits, not the 75 deg reported"
+        },
+        "start_stop": {
+          "rest_s": 0.4,
+          "ramp_s": 0.15,
+          "cruise_s": 0.9,
+          "class": "A (stops 0.1-1.5 s as in the Shamble 2017 playback design; fast acceleration assumed)"
+        },
+        "idle": {
+          "duration_s": 3.0,
+          "class": "A: legs still and forelegs down when stationary (Shamble 2017, M qualitative); palp flicks and slight body pitch are artistic",
+          "dofs": [
+            {
+              "node": "sp_palp_R_flick",
+              "amp_rad": 0.2,
+              "period_s": 1.5,
+              "shape": "twitch",
+              "width_s": 0.25
+            },
+            {
+              "node": "sp_palp_L_flick",
+              "amp_rad": 0.2,
+              "period_s": 1.5,
+              "phase": 0.5,
+              "shape": "twitch",
+              "width_s": 0.25
+            },
+            {
+              "node": "sp_body_pitch",
+              "amp_rad": 0.02,
+              "period_s": 3.0
+            }
+          ]
+        },
+        "labels": {
+          "gait": "source-informed (salticid tetrapod phase; tarantula duty proxy; stride timing low confidence)"
+        },
+        "scene_walk": {
+          "segments": [
+            [
+              "rest",
+              0.3
+            ],
+            [
+              "walk",
+              0.8
+            ],
+            [
+              "rest",
+              0.4
+            ],
+            [
+              "turn_left",
+              0.3
+            ],
+            [
+              "rest",
+              0.3
+            ],
+            [
+              "walk",
+              0.6
+            ],
+            [
+              "rest",
+              0.3
+            ]
+          ],
+          "ramp_s": 0.1,
+          "class": "A: composed sequence (stop-and-go as Shamble 2017 describes); timing of each part artistic"
+        }
+      },
+      "sprite_sheets": {
+        "idle_inplace": {
+          "file": "env_jumping_spider_rig_idle_inplace_sprites.png",
+          "frames": [
+            0,
+            45,
+            90,
+            135,
+            180,
+            225,
+            270,
+            315
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 30,
+          "px_per_viewport_mm": 10.667
+        },
+        "walk_forward_inplace": {
+          "file": "env_jumping_spider_rig_walk_forward_inplace_sprites.png",
+          "frames": [
+            0,
+            12,
+            24,
+            36,
+            48,
+            60,
+            72,
+            84
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 30,
+          "px_per_viewport_mm": 10.667
+        },
+        "start_stop_inplace": {
+          "file": "env_jumping_spider_rig_start_stop_inplace_sprites.png",
+          "frames": [
+            0,
+            30,
+            60,
+            90,
+            120,
+            150,
+            180,
+            210
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 30,
+          "px_per_viewport_mm": 10.667
+        },
+        "turn_left_inplace": {
+          "file": "env_jumping_spider_rig_turn_left_inplace_sprites.png",
+          "frames": [
+            0,
+            12,
+            24,
+            36,
+            48,
+            60,
+            72,
+            84
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 30,
+          "px_per_viewport_mm": 10.667
+        },
+        "turn_right_inplace": {
+          "file": "env_jumping_spider_rig_turn_right_inplace_sprites.png",
+          "frames": [
+            0,
+            12,
+            24,
+            36,
+            48,
+            60,
+            72,
+            84
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 30,
+          "px_per_viewport_mm": 10.667
+        },
+        "scene_walk_rootmotion": {
+          "file": "env_jumping_spider_walk_scene_top_frames.png",
+          "frames": [
+            0,
+            51,
+            103,
+            154,
+            205,
+            256,
+            308,
+            359
+          ],
+          "views": [
+            "top, fixed camera over the ground"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 82.406
+        }
+      }
+    },
+    "env_mantis_nymph_rig": {
+      "rig": "neurofly-env-mantis-rig-v1",
+      "bind_pose_vs_static_prop": {
+        "static_file": "env_mantis_nymph.glb",
+        "unique_positions_rig": 1819,
+        "unique_positions_static": 1819,
+        "only_in_rig": 0,
+        "only_in_static": 0,
+        "rounding_viewport_mm": 0.001,
+        "triangles_rig": 3436
+      },
+      "triangles": 3436,
+      "clips": {
+        "idle_inplace": {
+          "frames": 132,
+          "fps": 30,
+          "seconds": 4.4,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.001
+        },
+        "walk_forward_inplace": {
+          "frames": 36,
+          "fps": 30,
+          "seconds": 1.2,
+          "loop": true,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0052
+        },
+        "walk_forward_rootmotion": {
+          "frames": 36,
+          "fps": 30,
+          "seconds": 1.2,
+          "loop": true,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            13.3
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0052
+        },
+        "start_stop_inplace": {
+          "frames": 138,
+          "fps": 30,
+          "seconds": 4.6,
+          "loop": false,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0052
+        },
+        "start_stop_rootmotion": {
+          "frames": 138,
+          "fps": 30,
+          "seconds": 4.6,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            27.36
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0052
+        },
+        "turn_left_inplace": {
+          "frames": 72,
+          "fps": 30,
+          "seconds": 2.4,
+          "loop": false,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.02
+        },
+        "turn_left_rootmotion": {
+          "frames": 72,
+          "fps": 30,
+          "seconds": 2.4,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 1.1928,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.02
+        },
+        "turn_right_inplace": {
+          "frames": 72,
+          "fps": 30,
+          "seconds": 2.4,
+          "loop": false,
+          "root_motion": false,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": 0.0,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.02
+        },
+        "turn_right_rootmotion": {
+          "frames": 72,
+          "fps": 30,
+          "seconds": 2.4,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            0.0,
+            0.0
+          ],
+          "heading_change_rad": -1.1928,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.02
+        },
+        "scene_walk_rootmotion": {
+          "frames": 264,
+          "fps": 30,
+          "seconds": 8.8,
+          "loop": false,
+          "root_motion": true,
+          "displacement_per_clip_viewport_mm": [
+            11.224,
+            34.146
+          ],
+          "heading_change_rad": 0.78,
+          "max_leg_body_penetration_viewport_mm": 0.0,
+          "max_foot_target_error_viewport_mm": 0.0,
+          "lowest_leg_vertex_minus_foot_plane": 0.0052
+        }
+      },
+      "glb_verification": {
+        "_rest_reset": {
+          "mismatches": []
+        },
+        "_scale": {
+          "mesh_z_extent_viewport_mm": 37.563,
+          "model_body_length_param_viewport_mm": 28.5,
+          "note": "mesh extent includes palps/mouthparts (spider) or head-to-abdomen-tip (mantis)"
+        },
+        "walk_forward_rootmotion": {
+          "samples": 290,
+          "hz": 240.0,
+          "duration_s": 1.1667,
+          "loop": true,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.0052,
+          "max_stance_slide_per_sample_viewport_mm": 0.00166,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3073,
+          "loop_seam_step_rad": 0.146,
+          "max_off_axis_quaternion_component": 0.00068,
+          "root_displacement_viewport_mm": [
+            0.0,
+            13.3
+          ],
+          "heading_of_travel_deg": 0.0,
+          "speed_viewport_mm_s": 11.4
+        },
+        "start_stop_rootmotion": {
+          "samples": 1097,
+          "hz": 240.0,
+          "duration_s": 4.5667,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.0052,
+          "max_stance_slide_per_sample_viewport_mm": 0.00164,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3073,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000684,
+          "root_displacement_viewport_mm": [
+            0.0,
+            27.36
+          ]
+        },
+        "turn_left_rootmotion": {
+          "samples": 570,
+          "hz": 240.0,
+          "duration_s": 2.3667,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.01999,
+          "max_stance_slide_per_sample_viewport_mm": 6e-05,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.1288,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.00027
+        },
+        "turn_right_rootmotion": {
+          "samples": 570,
+          "hz": 240.0,
+          "duration_s": 2.3667,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.01999,
+          "max_stance_slide_per_sample_viewport_mm": 6e-05,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.1269,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.00027
+        },
+        "scene_walk_rootmotion": {
+          "samples": 2106,
+          "hz": 240.0,
+          "duration_s": 8.7667,
+          "loop": false,
+          "root_motion": true,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.0052,
+          "max_stance_slide_per_sample_viewport_mm": 0.00166,
+          "slide_tolerance_per_sample": 0.01,
+          "max_step_between_keys_rad": 0.3073,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000685,
+          "root_displacement_viewport_mm": [
+            11.224,
+            34.146
+          ]
+        },
+        "idle_inplace": {
+          "samples": 1058,
+          "hz": 240.0,
+          "duration_s": 4.3667,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.00097,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.0486,
+          "loop_seam_step_rad": 0.0453,
+          "max_off_axis_quaternion_component": 0.000784
+        },
+        "walk_forward_inplace": {
+          "samples": 290,
+          "hz": 240.0,
+          "duration_s": 1.1667,
+          "loop": true,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.0052,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.3073,
+          "loop_seam_step_rad": 0.146,
+          "max_off_axis_quaternion_component": 0.00068
+        },
+        "start_stop_inplace": {
+          "samples": 1097,
+          "hz": 240.0,
+          "duration_s": 4.5667,
+          "loop": false,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.0052,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.3073,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.000684
+        },
+        "turn_left_inplace": {
+          "samples": 570,
+          "hz": 240.0,
+          "duration_s": 2.3667,
+          "loop": false,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.01999,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.1288,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.00027
+        },
+        "turn_right_inplace": {
+          "samples": 570,
+          "hz": 240.0,
+          "duration_s": 2.3667,
+          "loop": false,
+          "root_motion": false,
+          "violations": 0,
+          "violation_kinds": {},
+          "lowest_leg_vertex_minus_foot_plane": 0.01999,
+          "max_stance_slide_per_sample_viewport_mm": null,
+          "slide_tolerance_per_sample": null,
+          "max_step_between_keys_rad": 0.1269,
+          "loop_seam_step_rad": null,
+          "max_off_axis_quaternion_component": 0.00027
+        }
+      },
+      "playback_multiplier_default": 1.0,
+      "estimated_physical_speed_mm_s": 5.0,
+      "estimated_physical_speed_bl_s": 0.4,
+      "gait_label": "cross-species proxy / artistic estimate (no mantis walking kinematics published)",
+      "parameters": {
+        "stance_clearance": 0.02,
+        "stance_clearance_class": "A: feet set 0.02 viewport-mm above the bind-pose foot plane so the flexed tibia end never dips below it",
+        "species": "Tenodera sinensis, first-instar nymph",
+        "fps": 30,
+        "body_length_mm": 12.5,
+        "body_length_class": "M (10-15 mm first instar; Parigi et al. 2019 Methods)",
+        "model_body_length_viewport_mm": 28.5,
+        "viewport_mm_per_mm": 2.28,
+        "viewport_mm_per_mm_class": "D (model head-to-abdomen length / 12.5 mm)",
+        "speed_mm_s": 5.0,
+        "speed_bl_s": 0.4,
+        "speed_class": "A, L confidence: no mantis walking kinematics found; 3-15 mm/s (0.3-1.0 BL/s) stop-and-go estimate",
+        "speed_viewport_mm_s": 11.4,
+        "playback_multiplier_default": 1.0,
+        "loop_cycles": 2,
+        "check_every": 1,
+        "sprite_extent_viewport_mm": 44,
+        "gait": {
+          "cycle_s": 0.6,
+          "cycle_class": "P/D, L confidence: 0.34-0.85 s adult stick insect (Grabowska et al. 2012); nymph scaling not established, same period used at 1x",
+          "duty": 0.75,
+          "duty_class": "D, L confidence: 0.7-0.8 from the walk/wave gait definition (Grabowska 2012 Fig. 2)",
+          "swing_height_viewport_mm": 1.4,
+          "swing_height_class": "A",
+          "phase_offsets": {
+            "L2": 0.0,
+            "L3": 0.27,
+            "R3": 0.78,
+            "R2": 0.48
+          },
+          "phase_class": "P: four-leg walk with a back-to-front wave, phi(R2->R3) 0.73, phi(R2->L3) 0.22, phi(R2->L2) 0.52 from adult Carausius morosus with front legs amputated (Grabowska 2012 Figs 6-8); offsets = -phi; v3 letters on the anatomical side: the same curves on the same physical legs, so the offsets read L2 0, L3 0.27, R3 0.78, R2 0.48 (mirror image of the proxy, equally valid by symmetry)"
+        },
+        "raptorial_forelegs": "held folded and raised, not used for walking (A with secondary support: Grabowska 2012 Introduction)",
+        "turn": {
+          "mode": "orienting turn on the spot with a ballistic head/body onset",
+          "speed_fraction": 0.0,
+          "yaw_rate_rad_s": 0.65,
+          "yaw_rate_class": "A: turn duration not available (0.2-0.5 s per orienting turn suggested); 45 deg over 2 gait cycles here so the legs can step",
+          "head_lead_s": 0.04,
+          "head_lead_class": "M (abstract): head, prothorax and abdomen rotations start within 40 ms (Yamawaki et al. 2011, T. aridifolia, life stage not stated)",
+          "head_peak_rad": 0.3,
+          "head_peak_class": "A"
+        },
+        "start_stop": {
+          "rest_s": 0.8,
+          "ramp_s": 0.6,
+          "cruise_s": 1.8,
+          "class": "A (stop-and-go, Kral 2012 qualitative)"
+        },
+        "idle": {
+          "duration_s": 4.4,
+          "class": "D under a labelled scaling assumption: peering sway 2-3 mm at 2-2.5 mm/s (adult Kral 2012 values x 12.5/70); body translates sideways while the head keeps facing forward",
+          "peer_amp_viewport_mm": 2.85,
+          "peer_period_s": 2.2,
+          "dofs": []
+        },
+        "labels": {
+          "gait": "cross-species proxy / artistic estimate (no mantis walking kinematics published)"
+        },
+        "scene_walk": {
+          "segments": [
+            [
+              "rest",
+              0.8
+            ],
+            [
+              "walk",
+              2.4
+            ],
+            [
+              "rest",
+              0.8
+            ],
+            [
+              "turn_left",
+              1.6
+            ],
+            [
+              "rest",
+              0.6
+            ],
+            [
+              "walk",
+              1.8
+            ],
+            [
+              "rest",
+              0.8
+            ]
+          ],
+          "ramp_s": 0.4,
+          "class": "A: composed stop-and-go sequence (Kral 2012 qualitative); timing artistic"
+        }
+      },
+      "sprite_sheets": {
+        "idle_inplace": {
+          "file": "env_mantis_nymph_rig_idle_inplace_sprites.png",
+          "frames": [
+            0,
+            16,
+            33,
+            50,
+            66,
+            82,
+            99,
+            116
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 44,
+          "px_per_viewport_mm": 7.273
+        },
+        "walk_forward_inplace": {
+          "file": "env_mantis_nymph_rig_walk_forward_inplace_sprites.png",
+          "frames": [
+            0,
+            4,
+            9,
+            14,
+            18,
+            22,
+            27,
+            32
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 44,
+          "px_per_viewport_mm": 7.273
+        },
+        "start_stop_inplace": {
+          "file": "env_mantis_nymph_rig_start_stop_inplace_sprites.png",
+          "frames": [
+            0,
+            17,
+            34,
+            52,
+            69,
+            86,
+            104,
+            121
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 44,
+          "px_per_viewport_mm": 7.273
+        },
+        "turn_left_inplace": {
+          "file": "env_mantis_nymph_rig_turn_left_inplace_sprites.png",
+          "frames": [
+            0,
+            9,
+            18,
+            27,
+            36,
+            45,
+            54,
+            63
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 44,
+          "px_per_viewport_mm": 7.273
+        },
+        "turn_right_inplace": {
+          "file": "env_mantis_nymph_rig_turn_right_inplace_sprites.png",
+          "frames": [
+            0,
+            9,
+            18,
+            27,
+            36,
+            45,
+            54,
+            63
+          ],
+          "views": [
+            "side (looking -X, head left)",
+            "top (looking down, head up)"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 44,
+          "px_per_viewport_mm": 7.273
+        },
+        "scene_walk_rootmotion": {
+          "file": "env_mantis_nymph_walk_scene_top_frames.png",
+          "frames": [
+            0,
+            38,
+            75,
+            113,
+            150,
+            188,
+            225,
+            263
+          ],
+          "views": [
+            "top, fixed camera over the ground"
+          ],
+          "tile_px": 320,
+          "ortho_scale_viewport_mm": 104.546
+        }
+      }
+    }
+  },
+  "files": {
+    "env_jumping_spider_rig.blend": {
+      "sha256": "5477a5195a6def8741bebb20ed6902bc4df3e017fbcef81673092a4fa4e4fd80",
+      "bytes": 997044
+    },
+    "env_jumping_spider_rig.glb": {
+      "sha256": "061d52f017ffa2df77f17cc8c34e8c9fb4b547f01db53d6591674ba8f3046d2b",
+      "bytes": 139744
+    },
+    "env_jumping_spider_rig_clips.blend": {
+      "sha256": "93926a930407551f61c8c6d5214cc90af2856d8d36b8857fd4cf6c8ad5953c74",
+      "bytes": 22336090
+    },
+    "env_jumping_spider_rig_clips.glb": {
+      "sha256": "096e26b479e2046a4874ce5bae91d4040342edeacc7ee27c13f0780728e1bb80",
+      "bytes": 875256
+    },
+    "env_jumping_spider_rig_clips.json": {
+      "sha256": "c29dbc3653a1f1e6764d690286504c6ec2055e2ac47ff62a1de61ed5ac65f0a9",
+      "bytes": 45223
+    },
+    "env_jumping_spider_rig_clips_verify.json": {
+      "sha256": "ebf178ce3c9c4bcdfe281d48c26b71248ce34e56f1f48db4b3f4677155f7f778",
+      "bytes": 43543
+    },
+    "env_jumping_spider_rig_idle_inplace_sprites.png": {
+      "sha256": "b614e1d0e73e66e15ed654e4d0a054eb21c1fad640c5efcae0735dad174d2306",
+      "bytes": 646522,
+      "width": 2560,
+      "height": 640
+    },
+    "env_jumping_spider_rig_joints.json": {
+      "sha256": "9faacf3bbb68031cb473654979ee861a831da965240fd592348b83e89c3bf525",
+      "bytes": 26102
+    },
+    "env_jumping_spider_rig_start_stop_inplace_sprites.png": {
+      "sha256": "052435a5491476f4ce3ac85a5b0f83a9d702da8e1bccd998c5ca41de5b6cdb0c",
+      "bytes": 729284,
+      "width": 2560,
+      "height": 640
+    },
+    "env_jumping_spider_rig_turn_left_inplace_sprites.png": {
+      "sha256": "42c0ca7c33fd245f07422bd65de3a780139ee893a2a163c722c6251807c4c93d",
+      "bytes": 485579,
+      "width": 2560,
+      "height": 640
+    },
+    "env_jumping_spider_rig_turn_right_inplace_sprites.png": {
+      "sha256": "a9954ae2c6e388792ed1f736457048c9da3c898e7ac44e081660984f68a27d9e",
+      "bytes": 486862,
+      "width": 2560,
+      "height": 640
+    },
+    "env_jumping_spider_rig_walk_forward_inplace_sprites.png": {
+      "sha256": "daeb237904c00f836850009b3a58703d9e708c9fb85fbb48d2fcbfb2e1524514",
+      "bytes": 485313,
+      "width": 2560,
+      "height": 640
+    },
+    "env_jumping_spider_walk_scene.blend": {
+      "sha256": "ff1bd6830527b68790cdc0cdeecd89c9ced451dd14f8e1460f05e38dc23c6d8e",
+      "bytes": 22406067
+    },
+    "env_jumping_spider_walk_scene.glb": {
+      "sha256": "c58b21d47a16db4b406b885a64bb0e557228d94d1813f56db7b0bbdd5db46668",
+      "bytes": 896720
+    },
+    "env_jumping_spider_walk_scene_top_frames.png": {
+      "sha256": "8582d172946a480b12fbad221c34a55570c16e35090dc724f653771f1d9dc3ac",
+      "bytes": 703707,
+      "width": 1280,
+      "height": 640
+    },
+    "env_mantis_nymph_rig.blend": {
+      "sha256": "a0875d43040a2257ebe00b6e2854771e099ba4ebdab6c1161d9c2e90422620f8",
+      "bytes": 822547
+    },
+    "env_mantis_nymph_rig.glb": {
+      "sha256": "04861cd6ce9b2858b0b0e2da21faba88f95aba8489b28acc042d576780050d03",
+      "bytes": 84200
+    },
+    "env_mantis_nymph_rig_clips.blend": {
+      "sha256": "418b1f73114779edef9751ed27fec3e4c5cd9d4e6dc920c31b710f35efa6f40a",
+      "bytes": 10397248
+    },
+    "env_mantis_nymph_rig_clips.glb": {
+      "sha256": "179230167759609949e7eb7e73f26a4ee335d6287bce576323004904520b1438",
+      "bytes": 316828
+    },
+    "env_mantis_nymph_rig_clips.json": {
+      "sha256": "065cec6346cef98bf1ee28322a800bd580de9985e66006001105a98c8e91d915",
+      "bytes": 27206
+    },
+    "env_mantis_nymph_rig_clips_verify.json": {
+      "sha256": "c815a6c7c61d15cb500ba26c775c6bd0f78c002e2de4768bef5aa0d8893d63bf",
+      "bytes": 24681
+    },
+    "env_mantis_nymph_rig_idle_inplace_sprites.png": {
+      "sha256": "1af16a4c35469d866ea36f25846b239a8b6c2bac834f4c4ae3f57fa69fb743b2",
+      "bytes": 519379,
+      "width": 2560,
+      "height": 640
+    },
+    "env_mantis_nymph_rig_joints.json": {
+      "sha256": "afb979b5cfc5a4f086fb7cea19c248649f3b8bb6eca552c4fda2ca9eb7ca8f5d",
+      "bytes": 18594
+    },
+    "env_mantis_nymph_rig_start_stop_inplace_sprites.png": {
+      "sha256": "5b38650509583604aa4acafa00504f67d5895412c166f6de0e717e1c2d1f9dee",
+      "bytes": 611734,
+      "width": 2560,
+      "height": 640
+    },
+    "env_mantis_nymph_rig_turn_left_inplace_sprites.png": {
+      "sha256": "51c0fb3b98124e89a2d88654c6c95b6c0772f7787b1a62f4d5dd54ca2f8e6b09",
+      "bytes": 657357,
+      "width": 2560,
+      "height": 640
+    },
+    "env_mantis_nymph_rig_turn_right_inplace_sprites.png": {
+      "sha256": "0f99a32d4e68f1b17d6bb1d48c6864bec90178e473b04de219b5f032db4126ab",
+      "bytes": 664160,
+      "width": 2560,
+      "height": 640
+    },
+    "env_mantis_nymph_rig_walk_forward_inplace_sprites.png": {
+      "sha256": "90a7964dd4b98060921f2764e683de803bf662773e041c0e76643c92c7d6eb8f",
+      "bytes": 548214,
+      "width": 2560,
+      "height": 640
+    },
+    "env_mantis_nymph_walk_scene.blend": {
+      "sha256": "b1530c6bc2c81c2168d0c6abd41f34f406ce3905d6e3db3a34caa893eb3be1de",
+      "bytes": 10467225
+    },
+    "env_mantis_nymph_walk_scene.glb": {
+      "sha256": "696826a408862f0b4ce32d17f8cd0ced1cd319aa62b2e051bbdc75f476f6bbb0",
+      "bytes": 338312
+    },
+    "env_mantis_nymph_walk_scene_top_frames.png": {
+      "sha256": "4063d6da602adef190caf6fcbe06c4c3ee4051439f3a648a69c375a34d55b721",
+      "bytes": 714981,
+      "width": 1280,
+      "height": 640
+    },
+    "env_wind_vane_demo.blend": {
+      "sha256": "1305b8d06312cf1d5a86404ac0d1691ac02f4726cd1bdb154a404d448913a2fa",
+      "bytes": 573338
+    },
+    "env_wind_vane_demo.glb": {
+      "sha256": "a7027bfa38ba1066336b04f7e8b9137aa97456e5bd96d86c15f53a593944c8bd",
+      "bytes": 21748
+    },
+    "env_wind_vane_mapping.json": {
+      "sha256": "56979d0779b7a5318ccceeae5a1877ae980fb52621656fa1166ee03e6b2a2e4a",
+      "bytes": 1498
+    }
+  },
+  "problems": [],
+  "licences": {
+    "scripts, rigs, clips": "MIT (repository LICENSE); original geometry and curves",
+    "external sources": "numerical values cited with attribution; no external files, figures or videos were copied",
+    "Blender 4.5.3": "GPL-2.0-or-later tool; its licence does not apply to output"
+  }
+}

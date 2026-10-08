@@ -1,0 +1,277 @@
+{
+  "env_jumping_spider_rig": {
+    "R1": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "R2": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "R3": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "R4": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "L1": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "L2": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "L3": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "L4": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "palp_L": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "palp_R": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1777
+    },
+    "_turns_vs_L_side": {
+      "turn_left_rootmotion": {
+        "pass": true,
+        "headings_deg": {
+          "0": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "41": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "90": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "-128": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "123": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "180": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          }
+        }
+      },
+      "turn_right_rootmotion": {
+        "pass": true,
+        "headings_deg": {
+          "0": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "41": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "90": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "-128": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "123": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "180": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          }
+        }
+      }
+    }
+  },
+  "env_mantis_nymph_rig": {
+    "R2": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "R3": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "L2": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "L3": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "L1_raptorial": {
+      "expected_side": "left",
+      "glb_frame_side": "left",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "R1_raptorial": {
+      "expected_side": "right",
+      "glb_frame_side": "right",
+      "renderer_750246c_prop_mount_no_reflection_correct_at_all_headings": true,
+      "renderer_750246c_fly_mount_with_reflection_would_be_mirrored": true,
+      "samples": 1033
+    },
+    "_turns_vs_L_side": {
+      "turn_left_rootmotion": {
+        "pass": true,
+        "headings_deg": {
+          "0": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "41": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "90": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "-128": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "123": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          },
+          "180": {
+            "drawn_turn": "left",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": true
+          }
+        }
+      },
+      "turn_right_rootmotion": {
+        "pass": true,
+        "headings_deg": {
+          "0": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "41": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "90": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "-128": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "123": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          },
+          "180": {
+            "drawn_turn": "right",
+            "drawn_L_legs": "left",
+            "turn_toward_L_legs": false
+          }
+        }
+      }
+    }
+  },
+  "_method": [
+    "    python3 scripts/animations/prove_env_handedness.py OUTDIR [--json PROOF.json]",
+    "",
+    "For every L*/R* walking leg (and the spider palps and mantis raptorial forelegs) it takes the tip /",
+    "distal point from the exported GLB by forward kinematics, at rest and at every key of every clip, and",
+    "tests the sign of dot(p - body_centre, left) with left = up x forward = (+Y) x (+Z) = +X in the GLB",
+    "frame (right-handed, +Y up, +Z forward; forward x up = -X is the animal's right).",
+    "",
+    "It then applies the renderer 750246c viewport mounting at several headings h (arena frame): the",
+    "fly's root uses rotation.y = h + pi/2 with local X reflected (scale.x = -s, setDisplayScale).  A prop",
+    "mount uses the same rotation WITHOUT the reflection.  On screen, with the Top camera (arena x right, y",
+    "up), the anatomical left of a drawn animal is up x (its drawn forward); with no other rotation and heading h",
+    "that is the arena direction (-sin h, cos h) = world (-sin h, 0, -cos h)."
+  ],
+  "_result": "PASS"
+}
