@@ -8216,7 +8216,7 @@ class ArticulatedFly3DViewport {
                     window.location.search = params.toString();
                 });
             const note = document.createElement('span');
-            note.textContent = 'appearance only: same connectome, body model, stimuli and measurements';
+            note.textContent = 'appearance only: does not select brain sex or dataset; same body model, stimuli and measurements';
             bar.appendChild(note);
         }
         host.appendChild(bar);
