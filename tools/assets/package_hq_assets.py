@@ -2,8 +2,8 @@
 """Build the OPTIONAL presentation-asset zip from an explicit whitelist.
 
 The whitelist is every file web/asset_manifest.json references (fly and prop LODs,
-clip files per LOD, joint contracts, sprites, sheets) plus the two files the
-dashboard loader fetches (hq_assets.js FLY_URL / ARENA_URL).  Nothing else in the
+clip files per LOD, joint contracts, sprites, sheets) plus the neutral fly, arena
+and four rig-v2 appearance files the dashboard loader fetches. Nothing else in the
 staging directory is archived.  Entries are sorted and carry a fixed timestamp and
 mode, so the zip is byte-reproducible from the same inputs.
 
@@ -20,7 +20,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXED_TIME = (2026, 10, 8, 0, 0, 0)
-LOADER_FILES = ("fly_hq_lod0.glb", "arena_shell.glb")
+LOADER_FILES = ("fly_hq_lod0.glb", "arena_shell.glb") + tuple(
+    f"anim/fly_{sex}_v2_lod{lod}.glb" for sex in ("female", "male") for lod in (0, 1)
+)
 META = {
     "LICENSE": ROOT / "LICENSE",
     "NOTICE": ROOT / "NOTICE",
@@ -29,6 +31,10 @@ META = {
     "provenance/PROVENANCE_RIG_V2.json": ROOT / "tools/assets/PROVENANCE_RIG_V2.json",
     "provenance/ENV_MANIFEST.json": ROOT / "tools/assets/env/ENV_MANIFEST.json",
     "provenance/ANIM_MANIFEST.json": ROOT / "scripts/animations/ANIM_MANIFEST.json",
+    "provenance/ENV_ANIM_MANIFEST.json": ROOT / "scripts/animations/ENV_ANIM_MANIFEST.json",
+    "provenance/ENV_HANDEDNESS_PROOF.json": ROOT / "scripts/animations/ENV_HANDEDNESS_PROOF.json",
+    "provenance/ENV_RIG_CONTRACT.md": ROOT / "tools/assets/env/ENV_RIG_CONTRACT.md",
+    "provenance/SCENES_MANIFEST.json": ROOT / "tools/assets/env/SCENES_MANIFEST.json",
     "provenance/JOINT_CONTRACT.md": ROOT / "tools/assets/JOINT_CONTRACT.md",
     "provenance/SEX_VARIANTS.md": ROOT / "tools/assets/SEX_VARIANTS.md",
     "provenance/INTERFACE.md": ROOT / "tools/assets/INTERFACE.md",
@@ -82,6 +88,8 @@ Check the files with `cd web/assets/hq && sha256sum -c SHA256SUMS`.
 * Gallery: serve `web/` (for example `cd web && python3 -m http.server 8799 --bind 127.0.0.1`)
   and open `asset_gallery.html`.
 * Dashboard 3D view and embodied replay: add `?assets=hq` to the URL (off by default).
+  This next renderer candidate offers female/male HQ appearance in the dashboard;
+  appearance never selects brain sex or dataset. The replay uses the neutral fly.
 
 ## Contents
 
@@ -90,6 +98,8 @@ every file `web/asset_manifest.json` references, plus the loader's fly and arena
 Two clip sets are kept on purpose as labelled evidence and are shown in the gallery
 under those labels: `anim/w3_v2_*` (FAILED: feet through the floor, loop pops) and
 `anim/v1-early-PREVIEW_NOT_FINAL/`. The repaired, final clips are `anim/w3_v3_*`.
+Environment clips use `envanim/v4_*`; `envanim/v3_*` is labelled FAILED and kept
+as evidence of cumulative stance slip, scale/speed mismatch and loop seams.
 Animations are illustrative, not simulated behaviour.
 
 Provenance (sources, hashes, budgets, references) is in `provenance/`. Licence: MIT

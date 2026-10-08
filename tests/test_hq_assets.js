@@ -327,13 +327,13 @@ test('staged sex variants share the rig interface, carry scale metadata and stan
 // Rig v2 (tools/assets/JOINT_CONTRACT.md), when staged: articulated wings, antennae,
 // halteres; the v1 loader still works; joints rotate about fixed pivots.
 const RIG2 = ['female', 'male'].flatMap((sex) => [0, 1].map((lod) => `fly_${sex}_v2_lod${lod}`))
-    .filter((stem) => fs.existsSync(path.join(WEB, `assets/hq/${stem}.glb`)));
+    .filter((stem) => fs.existsSync(path.join(WEB, `assets/hq/anim/${stem}.glb`)));
 test('staged rig v2: contract joints exist, rest = bind, pivots fixed, parts stay attached',
     {skip: RIG2.length === 0}, async () => {
         for (const stem of RIG2) {
-            const bytes = fs.readFileSync(path.join(WEB, `assets/hq/${stem}.glb`));
+            const bytes = fs.readFileSync(path.join(WEB, `assets/hq/anim/${stem}.glb`));
             const gltf = await parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length));
-            const joints = JSON.parse(fs.readFileSync(path.join(WEB, `assets/hq/${stem}_joints.json`), 'utf8')).joints;
+            const joints = JSON.parse(fs.readFileSync(path.join(WEB, `assets/hq/anim/${stem}_joints.json`), 'utf8')).joints;
             const sc = gltf.scene;
             assert.equal(sc.getObjectByName('neurofly_fly').userData.nf_rig, 'neurofly-viewport-fly-v2', stem);
             assert.equal(HQ.validateFly(THREE, HQ.nodeIndex(sc)), null, stem);

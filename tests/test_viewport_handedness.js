@@ -167,7 +167,7 @@ test('contact-shadow sizing uses the magnitude of the signed root scale', () => 
 });
 
 // Staged rig v2 GLBs (git-ignored, optional): the real HQ parts on the anatomical left.
-const STAGED = ['female', 'male'].map((sex) => [sex, path.join(WEB, `assets/hq/fly_${sex}_v2_lod0.glb`)])
+const STAGED = ['female', 'male'].map((sex) => [sex, path.join(WEB, `assets/hq/anim/fly_${sex}_v2_lod0.glb`)])
     .filter(([, f]) => fs.existsSync(f));
 test('HQ rig v2 female/male: l_wing and lf_coxa meshes draw on the anatomical left', {skip: STAGED.length === 0}, async () => {
     for (const [sex, file] of STAGED) {

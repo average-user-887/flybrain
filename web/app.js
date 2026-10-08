@@ -7985,7 +7985,8 @@ class ArticulatedFly3DViewport {
         if (!lib || !lib.flagEnabled || !lib.flagEnabled(window.location)) return null;
         const sex = ArticulatedFly3DViewport.readSetting('fly', ['female', 'male'], 'female');
         const lod = vp.governor && vp.governor.level >= 2 ? 1 : 0;
-        const url = `assets/hq/fly_${sex}_v2_lod${lod}.glb`;
+        // Use the optional archive's manifest paths directly (no staging aliases).
+        const url = `assets/hq/anim/fly_${sex}_v2_lod${lod}.glb`;
         const info = {requested: sex, url, loaded: null, rig: null, displayScale: 1, fallback: null};
         vp.hqVariant = info;
         const ensureLoader = () => {

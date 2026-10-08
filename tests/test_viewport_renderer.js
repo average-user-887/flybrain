@@ -25,7 +25,7 @@ function declaration(prefix) {
 
 const statusNode = () => ({style: {}, textContent: ''});
 const ctx = vm.createContext({
-    TextDecoder, console, URL, performance,
+    TextDecoder, console, URL, URLSearchParams, performance,
     window: {location: {search: ''}},
     document: {getElementById: () => null, createElement: () => ({style: {}, getContext: () => null})}
 });
@@ -43,6 +43,48 @@ vm.runInContext([
 ].join('\n'), ctx);
 const {THREE, Viewport} = ctx;
 const FLOOR = Viewport.floorTop();
+
+test('HQ appearance requests archive paths; missing variants fall back to neutral and remain opt-in', async () => {
+    const requests = [];
+    const manifest = JSON.parse(read('asset_manifest.json'));
+    const urls = new Set(manifest.assets.flatMap((a) => a.lods.map((l) => l.url)));
+    const saved = [ctx.window.location, ctx.window.NeuroflyHQAssetsLib, ctx.window.NeuroflyHQAssets, THREE.GLTFLoader];
+    const sentinel = {};
+    try {
+        ctx.window.NeuroflyHQAssets = sentinel;
+        ctx.window.NeuroflyHQAssetsLib = {
+            flagEnabled: (location) => new URLSearchParams(location.search).get('assets') === 'hq',
+            FLY_URL: 'assets/hq/fly_hq_lod0.glb', create: (options) => options
+        };
+        THREE.GLTFLoader = class {
+            load(url, success, unused, failure) {
+                requests.push(url);
+                if (url.includes('fly_male')) return failure(new Error('missing variant'));
+                const root = new THREE.Group(); root.name = 'neurofly_fly';
+                root.userData = {nf_variant: 'female', nf_display_scale: 1};
+                const scene = new THREE.Group(); scene.add(root); success({scene});
+            }
+        };
+        ctx.window.location = {search: ''};
+        assert.equal(Viewport.configureHQVariant({}), null);
+        assert.equal(ctx.window.NeuroflyHQAssets, sentinel);
+        assert.deepEqual(requests, []);
+        ctx.window.location = {search: '?assets=hq'};
+        const female = Viewport.configureHQVariant({governor: {level: 0}});
+        assert.ok(urls.has(female.url), 'female URL is in the packaged gallery whitelist');
+        await ctx.window.NeuroflyHQAssets.loadGlb(female.url);
+        assert.equal(female.loaded, 'female');
+        ctx.window.location = {search: '?assets=hq&fly=male'};
+        const male = Viewport.configureHQVariant({governor: {level: 2}});
+        assert.ok(urls.has(male.url), 'male LOD1 URL is in the packaged gallery whitelist');
+        await ctx.window.NeuroflyHQAssets.loadGlb(male.url);
+        assert.equal(male.loaded, 'neutral (v1)');
+        assert.match(male.fallback, /missing variant/);
+        assert.deepEqual(requests, ['assets/hq/anim/fly_female_v2_lod0.glb', 'assets/hq/anim/fly_male_v2_lod1.glb', 'assets/hq/fly_hq_lod0.glb']);
+    } finally {
+        [ctx.window.location, ctx.window.NeuroflyHQAssetsLib, ctx.window.NeuroflyHQAssets, THREE.GLTFLoader] = saved;
+    }
+});
 
 function viewport(packet) {
     const vp = Object.create(Viewport.prototype);
