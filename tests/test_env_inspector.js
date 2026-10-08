@@ -147,3 +147,31 @@ test('labels never name a chemical the engine does not simulate', () => {
     const html = read('env_inspector.html');
     assert.match(html, /arbitrary normalised units \(0–1\), not ppm or molar/);
 });
+
+test('candidate build (graph I/O v3): multisensory wind reads DELIVERED as reported, vector-only stays NOT DELIVERED, labelled candidate-only', () => {
+    const release = I.viewModel(FX.multisensory_connectome);
+    assert.equal(release.candidate.candidate, false, 'release telemetry is not candidate');
+    const pkt = clone(FX.multisensory_connectome);
+    pkt.identity.graph_io = {version: 'graph-arena-io-v3-unassisted'};
+    const jo = pkt.connectome.input_stage.find((r) => r.name === 'jon_wind');
+    Object.assign(jo, {current_injected: 2.25, n_spiking_this_step: 0, stimulus_key: 'wind_magnitude', delivery: 'delivered'});
+    const vm = I.viewModel(pkt);
+    assert.equal(vm.candidate.candidate, true);
+    const row = vm.input.rows.find((r) => r.name === 'jon_wind');
+    assert.equal(row.current, 2.25, 'the reported current, not computed');
+    assert.equal(row.state, 'delivered-silent');
+    assert.match(row.text, /reported: delivered \(key wind_magnitude\)/);
+    const cav = vm.caveats.join('\n');
+    assert.match(cav, /CANDIDATE BUILD.*NOT the currently deployed behaviour/);
+    assert.doesNotMatch(cav, /key mismatch/);
+    // Vector-only wind in the candidate (t-maze/open arena): the row says NOT DELIVERED.
+    const vec = clone(pkt);
+    delete vec.stimuli.wind_magnitude;
+    Object.assign(vec.connectome.input_stage.find((r) => r.name === 'jon_wind'), {current_injected: 0, stimulus_key: null,
+        delivery: 'NOT DELIVERED: the assay publishes a wind vector but no scalar wind_speed/wind_magnitude; no vector-to-probe mapping is defined'});
+    const v2 = I.viewModel(vec);
+    assert.equal(v2.input.rows.find((r) => r.name === 'jon_wind').state, 'not-delivered');
+    assert.match(v2.caveats.join('\n'), /vector-only wind/);
+    // Without the candidate fields the release caveat stays.
+    assert.match(release.caveats.join('\n'), /NOT DELIVERED in this assay/);
+});

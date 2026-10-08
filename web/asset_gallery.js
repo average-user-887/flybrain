@@ -55,6 +55,9 @@
                 status: String(a.status || 'illustrative'), stand, node: a.node || null,
                 validate: a.validate || null, notes: String(a.notes || ''),
                 transform: a.transform || null, layers: compileLayers(layers || []),
+                clips: (Array.isArray(a.clips) ? a.clips : []).filter((c) => c && typeof c.url === 'string' && !/^[a-z]+:\/\//i.test(c.url) && !c.url.startsWith('/'))
+                    .map((c) => ({url: c.url, label: String(c.label || c.url), name: c.name || null, notes: String(c.notes || '')})),
+                joints: typeof a.joints === 'string' && !/^[a-z]+:\/\//i.test(a.joints) && !a.joints.startsWith('/') ? a.joints : null,
                 displayScale: a.display_scale === 'extras' || Number.isFinite(a.display_scale) ? a.display_scale : null,
                 appearanceOnly: a.appearance_only === true,
                 lods: lods.map((l, k) => ({level: Number.isFinite(l.level) ? l.level : k, label: String(l.label || ('LOD' + k)),
@@ -152,6 +155,78 @@
         return {scale: 1, source: 'none'};
     }
 
+    // ------------------------------------------------------------------ animation
+    // Illustrative clips only: never applied to recorded or live telemetry.
+    const ANIMATION_LABEL = 'Illustrative animation, not simulated behaviour';
+    const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
+    function trackNodes(clip) {
+        const out = [];
+        for (const t of (clip && clip.tracks) || []) {
+            const name = String(t.name || '').split('.')[0];
+            if (name && !out.includes(name)) out.push(name);
+        }
+        return out;
+    }
+    function clipSummary(animations) {
+        return (animations || []).map((c) => ({name: c.name || '(unnamed)', duration: Number(c.duration) || 0,
+            tracks: (c.tracks || []).length, nodes: trackNodes(c)}));
+    }
+    // Local rotation of a joint as Euler XYZ degrees, and the angle away from its bind pose.
+    function jointReadout(T, obj, bindQuat) {
+        const e = new T.Euler().setFromQuaternion(obj.quaternion, 'XYZ');
+        const d = (r) => r * 180 / Math.PI;
+        const delta = bindQuat ? d(2 * Math.acos(Math.min(1, Math.abs(obj.quaternion.dot(bindQuat))))) : null;
+        return {x: d(e.x), y: d(e.y), z: d(e.z), delta};
+    }
+
+    // Signed angle (rad) of a joint rotation about its documented DOF axis (W2 rig v2:
+    // bind = rest = 0; each DOF node rotates only about its own axis).
+    function dofAngle(q, axis) {
+        const n = Math.hypot(axis[0], axis[1], axis[2]) || 1;
+        const s = (q.x * axis[0] + q.y * axis[1] + q.z * axis[2]) / n;
+        let a = 2 * Math.atan2(s, q.w);
+        if (a > Math.PI) a -= 2 * Math.PI;
+        if (a < -Math.PI) a += 2 * Math.PI;
+        return a;
+    }
+    const lerpTable = (xs, ys, x) => {
+        if (x <= xs[0]) return ys[0];
+        for (let i = 1; i < xs.length; i += 1) if (x <= xs[i]) return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1]);
+        return ys[ys.length - 1];
+    };
+    // W2 rig v2 joint contract: documented source ranges plus the measured display-safe
+    // envelope.  A folded wing (sweep < 0.5) keeps pitch at 0; an open wing stays in the
+    // intersection of the contract's measured pitch intervals.
+    const WING_MIN_ELEVATE = [[0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 3.0], [0, 0, -0.1, -0.9, -0.8, -0.6, -0.3, 0, 0.2, 0.4, 0.4]];
+    const OPEN_PITCH = [-0.07, 0.13];
+    const ANTENNA_MAX_EXTEND = [[-0.4, 0.0, 0.1, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8], [0.4, 0.4, 0.35, 0.35, 0.3, 0.25, 0.2, 0.15, -0.05]];
+    function envelopeViolations(angles, ranges, tol) {
+        const t = Number.isFinite(tol) ? tol : 0.02;
+        const out = [];
+        for (const [node, a] of Object.entries(angles)) {
+            const r = ranges && ranges[node];
+            if (r && (a < r[0] - t || a > r[1] + t)) out.push(node + ' ' + a.toFixed(3) + ' outside source range [' + r[0] + ', ' + r[1] + ']');
+        }
+        for (const side of ['l', 'r']) {
+            const sw = angles[side + '_wing_sweep'], el = angles[side + '_wing_elevate'], pi = angles[side + '_wing_pitch'];
+            if (Number.isFinite(sw) && Number.isFinite(el)) {
+                const lo = lerpTable(WING_MIN_ELEVATE[0], WING_MIN_ELEVATE[1], sw);
+                if (el < lo - t) out.push(side + '_wing_elevate ' + el.toFixed(3) + ' below display-safe minimum ' + lo.toFixed(3) + ' at sweep ' + sw.toFixed(3));
+                if (el > 0.8 + t) out.push(side + '_wing_elevate ' + el.toFixed(3) + ' above 0.8');
+            }
+            if (Number.isFinite(sw) && Number.isFinite(pi) && sw < 0.5 && Math.abs(pi) > t) out.push(side + '_wing_pitch ' + pi.toFixed(3) + ' while folded (sweep ' + sw.toFixed(3) + ' < 0.5)');
+            // Open wing: the intersection of every measured safe pitch interval in the
+            // contract, [-0.07, 0.13] (conservative; the sparse table is not interpolated).
+            if (Number.isFinite(sw) && Number.isFinite(pi) && sw >= 0.5 && (pi < OPEN_PITCH[0] - t || pi > OPEN_PITCH[1] + t)) out.push(side + '_wing_pitch ' + pi.toFixed(3) + ' outside the open-wing safe pitch [' + OPEN_PITCH[0] + ', ' + OPEN_PITCH[1] + ']');
+            const ab = angles[side + '_antenna_abduct'], ex = angles[side + '_antenna_extend'];
+            if (Number.isFinite(ab) && Number.isFinite(ex)) {
+                const hi = lerpTable(ANTENNA_MAX_EXTEND[0], ANTENNA_MAX_EXTEND[1], ab);
+                if (ex > hi + t) out.push(side + '_antenna_extend ' + ex.toFixed(3) + ' above display-safe ' + hi.toFixed(3) + ' at abduct ' + ab.toFixed(3));
+            }
+        }
+        return out;
+    }
+
     // A plinth (stand: none) must stay wholly below the floor top: never a wall or cue.
     function plinthStatus(topY, floorY) {
         if (!Number.isFinite(topY)) return {gap: null, state: 'unknown', text: 'no geometry'};
@@ -187,7 +262,8 @@
             sheet: q.get('sheet') === '1',
             view: q.get('view') || null,
             lighting: q.get('lights') === 'neutral' ? 'neutral' : 'dashboard',
-            compare: q.get('compare') || null
+            compare: q.get('compare') || null,
+            clip: q.get('clip') || null
         };
     }
 
@@ -325,7 +401,8 @@
                     declared: Object.entries(extras).filter(([k, v]) => /^neurofly_/.test(k) && typeof v === 'string')
                 };
                 state.records[asset.id + '@' + lod.level] = rec;
-                return {wrap, model, rec, box: placed};
+                rec.clips = clipSummary(gltf.animations);
+                return {wrap, model, rec, box: placed, animations: gltf.animations || []};
             });
         }
 
@@ -629,6 +706,7 @@
                     + ' · display scale ' + state.compare.rec.displayScale.toFixed(4) + ' · floor ' + state.compare.rec.floor.state : '';
                 applyLayerVisibility();
                 renderLodButtons(asset); renderLayerToggles(asset); renderFacts(asset, inst.rec);
+                setupAnimation(asset, inst);
                 if (assetChanged || state.compare) focus(query.view || '34');
                 if (assetChanged) renderLodTable(asset);
                 renderAssetList();
@@ -645,6 +723,206 @@
                 report(asset.id + ' LOD' + lod.level + ': ' + err.message);
                 return null;
             });
+        }
+
+        // ----------------------------------------------------------- animation
+        // The gallery is a standalone page with no telemetry: clips play on the gallery's
+        // own model only.  The label below is persistent while an animated asset is shown.
+        const anim = {mixer: null, clips: [], action: null, playing: false, speed: 1, loop: true, bind: new Map(), nodes: [], wanted: null};
+        state.anim = anim;
+        function clipLoad(asset, lod) {
+            // Embedded animations plus any separate clip GLBs listed in the manifest
+            // ('{lod}' in a clip url selects the clip file built for the shown LOD).
+            return Promise.all(asset.clips.map((c) => ({...c, url: c.url.replace('{lod}', String(lod))})).map((c) => loadGlb(c.url).then((g) => (g.animations || []).map((a) => ({clip: a, label: (a.name || 'unnamed clip') + ' · ' + c.label, src: c.url})),
+                (err) => { report(asset.id + ' clip ' + c.url + ': ' + err.message); return []; })));
+        }
+        function setupAnimation(asset, inst) {
+            const prevName = anim.action ? anim.action.getClip().name : anim.wanted;
+            const prevTime = anim.action ? anim.action.time : 0;
+            const wasPlaying = anim.playing;
+            if (anim.mixer) anim.mixer.stopAllAction();
+            anim.mixer = null; anim.action = null; anim.clips = []; anim.bind = new Map(); anim.nodes = [];
+            const embedded = (inst.animations || []).map((a) => ({clip: a, label: a.name || 'clip', src: inst.rec.url}));
+            const jointsUrl = asset.joints ? asset.joints.replace('{lod}', String(inst.rec.lod)) : null;
+            return Promise.all([clipLoad(asset, inst.rec.lod), loadJoints(jointsUrl)]).then(([lists, contract]) => {
+                if (!state.current || state.current.model !== inst.model) return;
+                anim.contract = contract;
+                anim.clips = embedded.concat(...lists);
+                const box = $('animPanel');
+                box.hidden = !anim.clips.length;
+                $('animLabel').hidden = !anim.clips.length;
+                if (!anim.clips.length) { $('joints').textContent = ''; return; }
+                inst.model.updateMatrixWorld(true);
+                const rf = vertexBounds(T, inst.model, (m) => { for (let o = m; o; o = o.parent) if (/^(lf|lm|lh|rf|rm|rh)_tarsus$/.test(o.name || '')) return true; return false; });
+                anim.restFoot = rf ? rf.min.y : NaN;
+                anim.mixer = new T.AnimationMixer(inst.model);
+                const sel = $('clip');
+                sel.textContent = '';
+                anim.clips.forEach((c, i) => sel.append(el('option', {value: String(i)}, c.label + ' (' + c.clip.duration.toFixed(2) + ' s)')));
+                let idx = anim.clips.findIndex((c) => c.clip.name === prevName);
+                if (idx < 0) idx = 0;
+                sel.value = String(idx);
+                chooseClip(idx, prevName === anim.clips[idx].clip.name ? prevTime : 0, wasPlaying);
+            });
+        }
+        const jointCache = {};
+        function loadJoints(url) {
+            if (!url) return Promise.resolve(null);
+            if (!jointCache[url]) jointCache[url] = fetch(url, {cache: 'no-store'}).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then((d) => {
+                    const axes = {}, ranges = {};
+                    for (const j of d.joints || []) if (Array.isArray(j.axis)) { axes[j.node] = j.axis; if (Array.isArray(j.range_rad)) ranges[j.node] = j.range_rad; }
+                    return {axes, ranges, rig: d.rig || null};
+                }).catch((e) => { report('joint contract ' + url + ': ' + e.message); return null; });
+            return jointCache[url];
+        }
+        function currentAngles() {
+            const out = {};
+            if (!anim.contract) return out;
+            for (const n of anim.nodes) {
+                const ax = anim.contract.axes[n];
+                const o = state.current.model.getObjectByName(n);
+                if (ax && o) out[n] = dofAngle(o.quaternion, ax);
+            }
+            return out;
+        }
+        // Sample the whole clip on the gallery model against the documented envelope,
+        // then restore the time it started from.
+        const isTarsus = (m) => { for (let o = m; o; o = o.parent) if (/^(lf|lm|lh|rf|rm|rh)_tarsus$/.test(o.name || '')) return true; return false; };
+        function scanEnvelope() {
+            if (!anim.action || !anim.contract) return null;
+            const clip = anim.action.getClip();
+            const dur = clip.duration, keep = anim.action.time, n = Math.max(120, Math.ceil(dur * 60));
+            const model = state.current.model;
+            const movesLegs = trackNodes(clip).some((x) => /_(coxa|femur|tibia)_joint$/.test(x));
+            const found = [];
+            let lowest = Infinity;
+            for (let k = 0; k <= n; k += 1) {
+                anim.action.time = dur * k / n; anim.mixer.update(0);
+                for (const v of envelopeViolations(currentAngles(), anim.contract.ranges)) found.push('t=' + (dur * k / n).toFixed(2) + ' s ' + v);
+                if (movesLegs) { model.updateMatrixWorld(true); const b = vertexBounds(T, model, isTarsus); if (b) lowest = Math.min(lowest, b.min.y); }
+            }
+            anim.action.time = keep; anim.mixer.update(0);
+            const notes = [];
+            if (movesLegs && Number.isFinite(lowest) && Number.isFinite(anim.restFoot) && lowest < anim.restFoot - 1e-3)
+                notes.push('feet go ' + (anim.restFoot - lowest).toFixed(3) + ' viewport-mm below the rest foot plane (through the floor)');
+            const q0 = new T.Quaternion(), q1 = new T.Quaternion();
+            for (const tr of clip.tracks) {
+                if (!/\.quaternion$/.test(tr.name)) continue;
+                for (let i = 1; i < tr.times.length; i += 1) {
+                    q0.fromArray(tr.values, 4 * i - 4); q1.fromArray(tr.values, 4 * i);
+                    const jump = 2 * Math.acos(Math.min(1, Math.abs(q0.dot(q1))));
+                    if (jump > 1.0) notes.push('one-frame pop: ' + tr.name.split('.')[0] + ' key ' + (i - 1) + '→' + i + ' (t=' + tr.times[i - 1].toFixed(3) + ' s) jumps ' + jump.toFixed(2) + ' rad');
+                }
+            }
+            return {samples: n + 1, violations: found, notes};
+        }
+        function chooseClip(i, time, play) {
+            const c = anim.clips[i];
+            if (!c || !anim.mixer) return;
+            if (anim.action) anim.action.stop();
+            // Bind pose for the readout: the joints as loaded, before the clip moves them.
+            for (const [name, q] of anim.bind) { const o = state.current.model.getObjectByName(name); if (o) o.quaternion.copy(q); }
+            anim.nodes = trackNodes(c.clip).filter((n) => state.current.model.getObjectByName(n));
+            for (const n of anim.nodes) if (!anim.bind.has(n)) anim.bind.set(n, state.current.model.getObjectByName(n).quaternion.clone());
+            anim.action = anim.mixer.clipAction(c.clip);
+            applyLoop();
+            anim.action.play();
+            anim.action.time = Math.min(time || 0, c.clip.duration);
+            anim.mixer.update(0);
+            setPlaying(!!play);
+            const missing = trackNodes(c.clip).length - anim.nodes.length;
+            $('clipInfo').textContent = c.label + ' · ' + c.clip.duration.toFixed(2) + ' s · ' + c.clip.tracks.length + ' tracks on '
+                + anim.nodes.length + ' joints' + (missing ? ' · ' + missing + ' track targets absent in this LOD' : '') + ' · ' + c.src;
+            const scan = scanEnvelope();
+            anim.envelope = scan;
+            const env = $('envelope');
+            if (!scan) { env.textContent = 'Joint envelope: not checked (no joint contract for this asset)'; env.className = 'status bad'; }
+            else {
+                const lines = [scan.violations.length ? 'Joint envelope (W2 contract): ' + scan.violations.length + ' violation(s) over ' + scan.samples + ' samples'
+                    : 'Joint envelope (W2 contract): inside over ' + scan.samples + ' samples of the clip'];
+                lines.push(...scan.violations.slice(0, 4), ...scan.notes.slice(0, 4).map((x) => 'Clip check: ' + x));
+                env.textContent = lines.join('\n');
+                env.className = 'status ' + (scan.violations.length || scan.notes.length ? 'bad' : 'ok');
+            }
+            renderJoints();
+        }
+        function applyLoop() {
+            if (!anim.action) return;
+            anim.action.setLoop(anim.loop ? T.LoopRepeat : T.LoopOnce, Infinity);
+            anim.action.clampWhenFinished = true;
+        }
+        function setPlaying(on) {
+            anim.playing = on;
+            if (anim.action) anim.action.paused = !on;
+            $('animPlay').textContent = on ? 'Pause' : 'Play';
+            $('animPlay').setAttribute('aria-pressed', on ? 'true' : 'false');
+            $('animState').textContent = on ? 'PLAYING' : 'PAUSED';
+        }
+        function renderJoints() {
+            const t = $('joints');
+            t.textContent = '';
+            if (!anim.action) return;
+            const hdr = el('tr');
+            for (const h of ['joint', 'θ about axis', 'range', 'from bind', '']) hdr.append(el('th', {}, h));
+            t.append(hdr);
+            const angles = currentAngles();
+            const bad = new Set(envelopeViolations(angles, anim.contract && anim.contract.ranges).map((v) => v.split(' ')[0]));
+            for (const n of anim.nodes) {
+                const o = state.current.model.getObjectByName(n);
+                const r = jointReadout(T, o, anim.bind.get(n));
+                const tr = el('tr', {'data-joint': n});
+                const bar = el('span', {class: 'jbar'});
+                bar.style.width = Math.min(48, Math.abs(r.delta || 0) / 2) + 'px';  // 2° per px, capped
+                const cell = el('td'); cell.append(bar);
+                const th = angles[n];
+                const rg = anim.contract && anim.contract.ranges[n];
+                tr.append(el('td', {}, n), el('td', bad.has(n) ? {class: 'bad'} : {}, th === undefined ? '–' : th.toFixed(3) + ' rad (' + (th * 180 / Math.PI).toFixed(1) + '°)' + (bad.has(n) ? ' ⚠' : '')),
+                    el('td', {}, rg ? '[' + rg[0] + ', ' + rg[1] + ']' : '–'),
+                    el('td', {}, (r.delta === null ? '–' : r.delta.toFixed(1) + '°')), cell);
+                t.append(tr);
+            }
+            $('animTime').textContent = 't = ' + anim.action.time.toFixed(2) + ' / ' + anim.action.getClip().duration.toFixed(2) + ' s · speed ×' + anim.speed;
+        }
+        $('clip').addEventListener('change', () => { anim.wanted = null; chooseClip(Number($('clip').value), 0, anim.playing); });
+        $('animPlay').addEventListener('click', () => {
+            if (!anim.action) return;
+            if (anim.atRest) { anim.atRest = false; anim.action.reset(); anim.action.play(); }
+            if (!anim.loop && anim.action.time >= anim.action.getClip().duration - 1e-6) { anim.action.reset(); anim.action.play(); }
+            setPlaying(!anim.playing);
+        });
+        $('animReset').addEventListener('click', () => {
+            if (!anim.action) return;
+            anim.atRest = false; anim.action.reset(); anim.action.play(); anim.action.time = 0; anim.mixer.update(0); setPlaying(false); renderJoints();
+        });
+        $('animRest').addEventListener('click', () => {
+            if (!anim.action) return;
+            anim.action.stop();          // deactivates the clip; Play or Reset restarts it
+            for (const [name, q] of anim.bind) { const o = state.current.model.getObjectByName(name); if (o) o.quaternion.copy(q); }
+            setPlaying(false);
+            anim.atRest = true;
+            $('animTime').textContent = 'rest (bind) pose · clip stopped';
+            renderJointsAtRest();
+        });
+        function renderJointsAtRest() {
+            const t = $('joints'); t.textContent = '';
+            const hdr = el('tr'); for (const h of ['joint', 'θ about axis', 'range', 'from bind', '']) hdr.append(el('th', {}, h)); t.append(hdr);
+            for (const n of anim.nodes) { const rg = anim.contract && anim.contract.ranges[n]; const tr = el('tr', {'data-joint': n}); tr.append(el('td', {}, n), el('td', {}, '0.000 rad (rest)'), el('td', {}, rg ? '[' + rg[0] + ', ' + rg[1] + ']' : '–'), el('td', {}, '0.0°'), el('td')); t.append(tr); }
+        }
+        $('animLoop').addEventListener('change', () => { anim.loop = $('animLoop').checked; applyLoop(); });
+        for (const v of SPEEDS) $('animSpeed').append(el('option', {value: String(v)}, '×' + v));
+        $('animSpeed').value = '1';
+        $('animSpeed').addEventListener('change', () => { anim.speed = Number($('animSpeed').value); renderJoints(); });
+        if (query.clip) anim.wanted = query.clip;
+        let lastTick = null, lastJoints = 0;
+        function animTick(nowMs) {
+            const dt = lastTick === null ? 0 : Math.min(0.1, (nowMs - lastTick) / 1000);
+            lastTick = nowMs;
+            if (anim.mixer && anim.action && anim.playing) {
+                anim.mixer.update(dt * anim.speed);
+                if (!anim.loop && anim.action.time >= anim.action.getClip().duration - 1e-6) setPlaying(false);
+                if (nowMs - lastJoints > 150) { lastJoints = nowMs; renderJoints(); }
+            }
         }
 
         // ----------------------------------------------------------- contact sheet
@@ -778,7 +1056,8 @@
             });
         }
 
-        (function tick() {
+        (function tick(nowMs) {
+            animTick(nowMs || 0);
             if (renderer) {
                 if ($('spin').checked && state.current) state.current.wrap.rotation.y += 0.005;
                 if (controls) controls.update();
@@ -792,6 +1071,6 @@
     return {
         MANIFEST_SCHEMA, DEFAULT_MANIFEST_URL, OVERLAYS, FLOOR_TOLERANCE, LEG_PREFIXES,
         validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
-        floorStatus, plinthStatus, standLift, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
+        floorStatus, plinthStatus, standLift, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
     };
 }));

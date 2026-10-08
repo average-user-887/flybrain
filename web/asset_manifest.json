@@ -28,21 +28,21 @@
       },
       {
         "id": "antennae",
-        "label": "Antennae (static)",
+        "label": "Antennae (rig v1: static)",
         "match": [
           "^[lr]_(pedicel|funiculus|arista)$"
         ]
       },
       {
         "id": "wings",
-        "label": "Wings + veins (static, not simulated)",
+        "label": "Wings + veins (rig v1: static, not simulated)",
         "match": [
           "^[lr]_wing(_veins)?$"
         ]
       },
       {
         "id": "halteres",
-        "label": "Halteres (static, not simulated)",
+        "label": "Halteres (rig v1: static, not simulated)",
         "match": [
           "^[lr]_haltere$"
         ]
@@ -68,6 +68,61 @@
         "label": "Arena shell plinth (below floor; not a wall, cue or scale)",
         "match": [
           "^shell_(rect|round)$"
+        ]
+      }
+    ],
+    "fly_v2": [
+      {
+        "id": "body",
+        "label": "Body (thorax, scutum, head, abdomen, proboscis)",
+        "match": [
+          "^c_thorax$",
+          "^c_scutum$",
+          "^c_head$",
+          "^c_abdomen\\d+$",
+          "^c_proboscis$"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "Compound eyes (flat-shaded style, not ommatidia)",
+        "match": [
+          "^[lr]_eye$"
+        ]
+      },
+      {
+        "id": "antennae",
+        "label": "Antennae (presentation joints: animated, not simulated)",
+        "match": [
+          "^[lr]_(pedicel|funiculus|arista)$"
+        ]
+      },
+      {
+        "id": "wings",
+        "label": "Wings + veins (presentation joints: animated, not simulated)",
+        "match": [
+          "^[lr]_wing(_veins)?$"
+        ]
+      },
+      {
+        "id": "halteres",
+        "label": "Halteres (presentation joints: animated, not simulated)",
+        "match": [
+          "^[lr]_haltere$"
+        ]
+      },
+      {
+        "id": "bristles",
+        "label": "Bristles (static)",
+        "match": [
+          "_bristles$"
+        ]
+      },
+      {
+        "id": "legs",
+        "label": "Legs (display pose)",
+        "match": [
+          "^(lf|lm|lh|rf|rm|rh)_(coxa|trochanterfemur|tibia|tarsus)$"
         ]
       }
     ]
@@ -208,6 +263,146 @@
       ],
       "notes": "Appearance only: choosing it never switches the brain dataset, changes physiology or body mechanics, or implies sex-specific behaviour. Six visible segments, A5/A6 fully dark, shorter rounded abdomen, stylised sex comb on the front basitarsus. Display scale 0.8696 = 1/1.15 female/male thorax ratio (David et al. 2003), applied to the whole root. Sources: tools/assets/SEX_VARIANTS.md.",
       "source": "tools/assets/SEX_VARIANTS.md"
+    },
+    {
+      "id": "fly-female-v2",
+      "title": "Fruit fly, female, rig v2 (animatable)",
+      "category": "fly",
+      "status": "illustrative",
+      "layers": "fly_v2",
+      "stand": "tarsus",
+      "validate": "fly",
+      "display_scale": "extras",
+      "appearance_only": true,
+      "lods": [
+        {
+          "level": 0,
+          "label": "LOD0 (desktop)",
+          "url": "assets/hq/anim/fly_female_v2_lod0.glb",
+          "budget_triangles": 30000
+        },
+        {
+          "level": 1,
+          "label": "LOD1 (phone)",
+          "url": "assets/hq/anim/fly_female_v2_lod1.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "clips": [
+        {
+          "url": "assets/hq/anim/w3_v2_fly_female_v2_lod{lod}_clips.glb",
+          "label": "W3 v2 final",
+          "notes": "Six illustrative clips built per sex and LOD on the W2 rig v2."
+        },
+        {
+          "url": "assets/hq/anim/v1-early-PREVIEW_NOT_FINAL/w3_v1_early_clips.glb",
+          "label": "W3 v1-early PREVIEW_NOT_FINAL (failed the envelope; kept as evidence)",
+          "notes": "Superseded."
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_hero.png",
+          "label": "rest (hero)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_open_side.png",
+          "label": "wings open (side)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_open_top.png",
+          "label": "wings open (top)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_open_under.png",
+          "label": "wings open (underside)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_groom_full_cycle_sprites.png",
+          "label": "groom_full_cycle sprite sheet (W3)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_groom_full_cycle_checks.png",
+          "label": "grooming side/top/underside checks (W3)"
+        },
+        {
+          "url": "assets/hq/anim/fly_female_v2_lod0_wingbeat_loop_sprites.png",
+          "label": "wingbeat_loop sprite sheet (W3)"
+        }
+      ],
+      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. Appearance only.",
+      "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
+      "joints": "assets/hq/anim/fly_female_v2_lod{lod}_joints.json"
+    },
+    {
+      "id": "fly-male-v2",
+      "title": "Fruit fly, male, rig v2 (animatable)",
+      "category": "fly",
+      "status": "illustrative",
+      "layers": "fly_v2",
+      "stand": "tarsus",
+      "validate": "fly",
+      "display_scale": "extras",
+      "appearance_only": true,
+      "lods": [
+        {
+          "level": 0,
+          "label": "LOD0 (desktop)",
+          "url": "assets/hq/anim/fly_male_v2_lod0.glb",
+          "budget_triangles": 30000
+        },
+        {
+          "level": 1,
+          "label": "LOD1 (phone)",
+          "url": "assets/hq/anim/fly_male_v2_lod1.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "clips": [
+        {
+          "url": "assets/hq/anim/w3_v2_fly_male_v2_lod{lod}_clips.glb",
+          "label": "W3 v2 final",
+          "notes": "Six illustrative clips built per sex and LOD on the W2 rig v2."
+        },
+        {
+          "url": "assets/hq/anim/v1-early-PREVIEW_NOT_FINAL/w3_v1_early_clips.glb",
+          "label": "W3 v1-early PREVIEW_NOT_FINAL (failed the envelope; kept as evidence)",
+          "notes": "Superseded."
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_hero.png",
+          "label": "rest (hero)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_open_side.png",
+          "label": "wings open (side)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_open_top.png",
+          "label": "wings open (top)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_open_under.png",
+          "label": "wings open (underside)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_groom_full_cycle_sprites.png",
+          "label": "groom_full_cycle sprite sheet (W3)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_groom_full_cycle_checks.png",
+          "label": "grooming side/top/underside checks (W3)"
+        },
+        {
+          "url": "assets/hq/anim/fly_male_v2_lod0_wingbeat_loop_sprites.png",
+          "label": "wingbeat_loop sprite sheet (W3)"
+        }
+      ],
+      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. Appearance only.",
+      "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
+      "joints": "assets/hq/anim/fly_male_v2_lod{lod}_joints.json"
     },
     {
       "id": "arena-shell-rect",
@@ -760,6 +955,10 @@
     {
       "url": "assets/hq/env_contact_sheet.png",
       "label": "W3 contact sheet (Blender)"
+    },
+    {
+      "url": "assets/hq/anim/anim_contact_sheet.png",
+      "label": "W3 animation contact sheet (all clips, all variants)"
     }
   ]
 }

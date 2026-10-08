@@ -47,6 +47,11 @@
            background: repeating-conic-gradient(#111827 0% 25%, #1f2937 0% 50%) 50% / 16px 16px; }
   figure img { display: block; width: 100%; height: auto; }
   figcaption { margin-top: 6px; font: 11px monospace; color: var(--muted); background: var(--panel); padding: 2px 4px; border-radius: 3px; }
+  .animlabel { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 4px 8px; border: 1px dashed #f59e0b; border-radius: 5px;
+               background: rgba(6,9,19,.85); color: var(--warn); font: bold 12px monospace; pointer-events: none; }
+  #joints { table-layout: auto; } #joints td:first-child { white-space: nowrap; overflow-wrap: normal; }
+  select { max-width: 100%; }
+  .jbar { display: inline-block; height: 6px; background: var(--accent); border-radius: 2px; vertical-align: middle; }
   #sheet img { display: block; max-width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 6px; }
   #sheet a { color: var(--accent); font-size: 12px; }
 </style>
@@ -55,8 +60,8 @@
 <header>
   <h1>NeuroFly asset gallery <span class="badge s-illustrative">OPT-IN REVIEW PAGE</span></h1>
   <div class="banner">Presentation assets only. No simulation runs on this page and nothing here changes physics, stimuli,
-    encoders, the brain or recordings. Models are stylised and illustrative, not anatomical reconstructions: wings, halteres,
-    antennae and bristles are static decoration. Every number below is measured from the loaded geometry. Not linked from the
+    encoders, the brain or recordings. Models are stylised and illustrative, not anatomical reconstructions. Bristles are static. On rig v1 assets wings, halteres and antennae are static too; on rig v2 assets they
+    are presentation joints (animated, not simulated) and any clip is illustrative animation, not simulated behaviour. Every number below is measured from the loaded geometry. Not linked from the
     dashboard; the dashboard's default view is unchanged.</div>
   <div class="muted" id="manifestInfo">Reading manifest…</div>
   <div class="muted" id="unitsNote"></div>
@@ -68,7 +73,9 @@
     <div id="assetList"></div>
   </nav>
   <div>
-    <div id="view" aria-label="3D view: drag to orbit, scroll to zoom, right-drag to pan"></div>
+    <div id="view" aria-label="3D view: drag to orbit, scroll to zoom, right-drag to pan">
+      <div id="animLabel" class="animlabel" role="note" hidden>Illustrative animation, not simulated behaviour · <span id="animState">PAUSED</span></div>
+    </div>
     <div class="views">
       <span class="muted">Camera:</span>
       <button data-view="34">3/4</button><button data-view="top">top</button><button data-view="side">side</button>
@@ -82,6 +89,14 @@
     <div class="panel"><h2>Level of detail</h2><div id="lods"></div>
       <label>Compare beside (+X) <select id="compare"><option value="">none</option></select></label>
       <div class="muted" id="compareInfo"></div></div>
+    <div class="panel" id="animPanel" hidden><h2>Animation (illustrative)</h2>
+      <div class="muted">Canned clip on this gallery model only. Never applied to recorded or live telemetry; not a simulated behaviour, decision or flight.</div>
+      <label>Clip <select id="clip"></select></label>
+      <div class="views"><button id="animPlay" aria-pressed="false">Play</button><button id="animReset" title="back to the start of the clip (t = 0)">Reset</button><button id="animRest" title="stop the clip and show the bind (rest) pose">Rest pose</button>
+        <label style="display:inline"><input type="checkbox" id="animLoop" checked> loop</label>
+        <label style="display:inline">speed <select id="animSpeed"></select></label></div>
+      <div class="muted" id="clipInfo"></div><div class="status" id="envelope"></div><div class="status" id="animTime"></div>
+      <table id="joints"></table></div>
     <div class="panel"><h2>Layers</h2><div id="layers"></div></div>
     <div class="panel"><h2>Overlays</h2><div id="overlays"></div></div>
     <div class="panel"><h2>Measured</h2><dl id="facts"></dl><p class="muted" id="notes"></p></div>

@@ -181,3 +181,58 @@ test('W3 props and predators: decorative / illustrative, standing on the floor, 
     assert.match(env.find((a) => a.id === 'env-sugar-water').notes, /Sugar taste is NOT SIMULATED/);
     assert.ok(v.sheets.some((s) => /env_legend/.test(s.url)));
 });
+
+test('animation helpers: track targets, clip summary, joint readout from bind', () => {
+    const clip = new THREE.AnimationClip('wing_open', 1.5, [
+        new THREE.QuaternionKeyframeTrack('l_wing_root.quaternion', [0, 1.5], [0, 0, 0, 1, 0, 0, 0.3826834, 0.9238795]),
+        new THREE.QuaternionKeyframeTrack('r_wing_root.quaternion', [0, 1.5], [0, 0, 0, 1, 0, 0, -0.3826834, 0.9238795]),
+        new THREE.VectorKeyframeTrack('l_wing_root.position', [0, 1.5], [0, 0, 0, 0, 0, 0])]);
+    assert.deepEqual(G.trackNodes(clip), ['l_wing_root', 'r_wing_root']);
+    assert.deepEqual(G.clipSummary([clip]), [{name: 'wing_open', duration: 1.5, tracks: 3, nodes: ['l_wing_root', 'r_wing_root']}]);
+    const root = new THREE.Group();
+    const j = new THREE.Group(); j.name = 'l_wing_root'; root.add(j);
+    const bind = j.quaternion.clone();
+    const mixer = new THREE.AnimationMixer(root);
+    mixer.clipAction(clip).play();
+    mixer.update(1.5 - 1e-9);
+    const r = G.jointReadout(THREE, j, bind);
+    assert.ok(Math.abs(r.z - 45) < 0.01, String(r.z));
+    assert.ok(Math.abs(r.delta - 45) < 0.01, String(r.delta));
+    assert.equal(G.ANIMATION_LABEL, 'Illustrative animation, not simulated behaviour');
+    assert.ok(G.SPEEDS.includes(1));
+});
+
+test('canned clips stay in the standalone gallery: no telemetry view plays an animation', () => {
+    for (const js of ['app.js', 'hq_assets.js', 'embodied_replay.js', 'replay.js', 'env_inspector.js'])
+        assert.ok(!/AnimationMixer|clipAction/.test(read(js)), js);
+    const html = read('asset_gallery.html');
+    assert.match(html, /Illustrative animation, not simulated behaviour/);
+    assert.match(html, /Never applied to recorded or live telemetry/);
+    const v = G.validateManifest({schema: G.MANIFEST_SCHEMA, assets: [{id: 'a', lods: [{url: 'assets/a.glb'}],
+        clips: [{url: 'assets/c.glb', label: 'ok'}, {url: 'https://x/c.glb'}, {url: '/abs.glb'}]}]});
+    assert.deepEqual(v.assets[0].clips.map((c) => c.url), ['assets/c.glb'], 'remote and absolute clip urls dropped');
+});
+
+test('rig v2 joint envelope: signed DOF angle and the W2 contract limits', () => {
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, -1, 0), 0.5);
+    assert.ok(Math.abs(G.dofAngle(q, [0, -1, 0]) - 0.5) < 1e-9);
+    assert.ok(Math.abs(G.dofAngle(q, [0, 1, 0]) + 0.5) < 1e-9, 'sign follows the documented axis');
+    const ranges = {l_wing_sweep: [0, 3], l_wing_elevate: [-1.7, 0.8], l_wing_pitch: [-0.27, 3.92], l_antenna_abduct: [-0.4, 0.8], l_antenna_extend: [-0.2, 0.5]};
+    assert.deepEqual(G.envelopeViolations({l_wing_sweep: 1.4, l_wing_elevate: 0.09, l_wing_pitch: 0.1}, ranges), []);
+    assert.match(G.envelopeViolations({l_wing_sweep: 3.2}, ranges).join(), /outside source range/);
+    assert.match(G.envelopeViolations({l_wing_sweep: 2.0, l_wing_elevate: 0.0}, ranges).join(), /below display-safe minimum 0\.200/);
+    assert.match(G.envelopeViolations({l_wing_sweep: 0.2, l_wing_elevate: 0, l_wing_pitch: 0.3}, ranges).join(), /while folded/);
+    assert.match(G.envelopeViolations({l_antenna_abduct: 0.6, l_antenna_extend: 0.3}, ranges).join(), /above display-safe 0\.200/);
+    assert.deepEqual(G.envelopeViolations({l_antenna_abduct: 0.6, l_antenna_extend: 0.2}, ranges), []);
+});
+
+test('layer wording is variant-aware: v1 static, v2 animated presentation joints', () => {
+    const v = G.validateManifest(MANIFEST);
+    const lab = (id, layer) => v.assets.find((a) => a.id === id).layers.find((l) => l.id === layer).label;
+    for (const layer of ['wings', 'antennae', 'halteres']) {
+        assert.match(lab('fly-hq', layer), /static/);
+        assert.match(lab('fly-female-v2', layer), /animated, not simulated/);
+        assert.doesNotMatch(lab('fly-female-v2', layer), /static/);
+    }
+    assert.match(read('asset_gallery.html'), /presentation joints \(animated, not simulated\)/);
+});

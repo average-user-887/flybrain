@@ -144,6 +144,19 @@
         };
     }
 
+    // Candidate build detection: the sensory-delivery repair (graph I/O v3) publishes a
+    // per-frame `delivery` on the jon_wind row and declares graph-arena-io-v3.  Release
+    // telemetry has neither.  Candidate-only functionality, not the deployed behaviour.
+    function ioCandidate(pkt) {
+        const id = (pkt && pkt.identity) || {};
+        const declared = JSON.stringify(id.graph_io || (pkt && pkt.connectome && pkt.connectome.graph_io) || '');
+        const m = declared.match(/graph-arena-io-v(\d+)/);
+        const stages = pkt && pkt.connectome && Array.isArray(pkt.connectome.input_stage) ? pkt.connectome.input_stage : [];
+        const rowDelivery = stages.some((r) => r && typeof r.delivery === 'string');
+        const version = m ? Number(m[1]) : null;
+        return {candidate: rowDelivery || (version !== null && version >= 3), version, rowDelivery};
+    }
+
     // Delivered receptor input, row by row as the telemetry reports it.  Never computed here.
     function inputRows(pkt) {
         const id = pkt.identity || {};
@@ -155,11 +168,16 @@
                     : 'this frame carries no connectome.input_stage';
             return {available: false, text: UNAVAILABLE + ' · ' + why, rows: []};
         }
+        const cand = ioCandidate(pkt);
         const rows = stages.map((s) => {
             const cur = s.current_injected;
             const spikes = s.n_spiking_this_step;
             let state, text;
-            if (backend === BRIDGE_RPC && BRIDGE_MISSING.includes(s.name)) {
+            if (typeof s.delivery === 'string' && /^NOT DELIVERED/.test(s.delivery)) {
+                state = 'not-delivered'; text = s.delivery + ' (as reported)';
+            } else if (typeof s.delivery === 'string' && /^UNAVAILABLE/.test(s.delivery)) {
+                state = 'unavailable'; text = s.delivery + ' (as reported)';
+            } else if (backend === BRIDGE_RPC && !cand.candidate && BRIDGE_MISSING.includes(s.name)) {
                 state = 'not-delivered'; text = NOT_DELIVERED + ' (RPC bridge packet keys do not match; W1 §0.5, unverified by a run)';
             } else if (cur === null || cur === undefined) {
                 state = 'unavailable'; text = UNAVAILABLE + (s.unavailable ? ' · ' + s.unavailable : (s.detail ? ' · ' + s.detail : ''));
@@ -172,7 +190,9 @@
             } else {
                 state = 'delivered-silent'; text = 'delivered but not detected: 0 of ' + s.n_cells + ' cells spiked';
             }
-            return {name: String(s.name || '?'), cellTypes: s.cell_types, current: num(cur), nCells: num(s.n_cells),
+            if (typeof s.delivery === 'string' && state !== 'not-delivered' && state !== 'unavailable')
+                text += ' · reported: ' + s.delivery + (s.stimulus_key ? ' (key ' + s.stimulus_key + ')' : '');
+            return {name: String(s.name || '?'), cellTypes: s.cell_types, delivery: s.delivery || null, stimulusKey: s.stimulus_key || null, current: num(cur), nCells: num(s.n_cells),
                 spiking: num(spikes), status: s.status || null, threshold: s.threshold, formula: s.formula || null, state, text};
         });
         return {available: true, rows, units: 'model current units (arbitrary)'};
@@ -190,6 +210,15 @@
         const assay = String(id.assay || pkt.paradigm || '');
         const st = pkt.stimuli || {};
         const out = [];
+        const cand = ioCandidate(pkt);
+        if (cand.candidate) {
+            out.push('CANDIDATE BUILD (sensory-delivery repair, graph I/O v' + (cand.version || 3) + '): candidate-only functionality, NOT the currently deployed behaviour. Wind delivery to the graph is reported per frame in the jon_wind row; delivery is not detection.');
+            if (pt(st.wind) && !('wind_speed' in st) && !('wind_magnitude' in st)) out.push('Wind → graph: ' + NOT_DELIVERED + ' (vector-only wind; no vector-to-probe mapping is defined, also in the candidate).');
+            if (/wind-tunnel/.test(assay)) out.push('Wind → graph (jon_wind) only above 3 mm/s, speed only; wind direction is not encoded in the graph.');
+            if (String(id.backend) === BRIDGE_RPC) out.push('RPC bridge mode (candidate): odour, cVA, wind and temperature keys are repaired in this build; values are shown as reported.');
+            if ('food_contact' in st) out.push('Food contact: distance test (3.5–4 mm), not taste. Taste is ' + NOT_SIMULATED + '.');
+            return out;
+        }
         if (/multisensory/.test(assay)) out.push('Wind → graph: ' + NOT_DELIVERED + ' in this assay. The arena emits wind_magnitude, the graph probe reads wind_speed (known key mismatch, W1 §0.4; backend fix is a separate card). The jon_wind row below is shown exactly as the telemetry reports it.');
         else if (/t-maze|open-arena|labyrinth/.test(assay) || (pt(st.wind) && !('wind_speed' in st))) out.push('Wind → graph: ' + NOT_DELIVERED + ' (no wind_speed in this assay; W1 §0.4).');
         if (/wind-tunnel/.test(assay)) out.push('Wind → graph (jon_wind) only above 3 mm/s, speed only; wind direction is not encoded in the graph.');
@@ -228,7 +257,7 @@
             concentration: concentrationRows(pkt), lateral: NOT_PUBLISHED + ' (left/right antennal values stay inside the simulation)',
             wind: windOf(pkt), input: inputRows(pkt), response: responseOf(pkt), looming,
             predators: predators === null ? UNAVAILABLE : (predators === 0 ? 'none live (the daemon builds arenas with no predators)' : predators + ' in scene'),
-            caveats: caveats(pkt), notSimulated: NOT_SIMULATED_LIST.slice()
+            caveats: caveats(pkt), notSimulated: NOT_SIMULATED_LIST.slice(), candidate: ioCandidate(pkt)
         };
     }
 
@@ -441,7 +470,8 @@
                 $('wind').textContent = f.text; $('caveats').textContent = ''; $('ident').textContent = '';
                 return;
             }
-            $('ident').textContent = 'assay ' + vm.assay + ' · backend ' + vm.backend + (vm.graph ? ' (connectome graph)' : '')
+            $('ident').textContent = (vm.candidate.candidate ? '[CANDIDATE BUILD · graph I/O v' + (vm.candidate.version || 3) + ' · not deployed] ' : '')
+                + 'assay ' + vm.assay + ' · backend ' + vm.backend + (vm.graph ? ' (connectome graph)' : '')
                 + ' · step ' + fmt(vm.step, 0) + ' · sim t ' + fmt(vm.simTime, 2) + ' s';
             table('srcTable', ['ID', 'source', 'x, y (mm)', 'emission'], vm.sources.length ? vm.sources.map((s) => ({cells: [
                 {text: s.id}, {text: s.label + ' [' + s.key + ']'}, {text: fmt(s.pos[0], 1) + ', ' + fmt(s.pos[1], 1)}, {text: s.emission}]}))
@@ -507,6 +537,6 @@
         STALE_AFTER_S, UNITS_ODOUR, NOT_SIMULATED, NOT_PUBLISHED, NOT_DELIVERED, UNAVAILABLE, ANTENNA_LENGTH_MM, ANTENNA_ANGLE_RAD,
         BRIDGE_RPC, SOURCE_KEYS, NOT_SIMULATED_LIST, PLUME_EQUATION, PLUME_ASSUMPTIONS,
         freshness, antennaPoints, sourcesOf, concentrationRows, windOf, inputRows, responseOf, caveats, viewModel,
-        illustrativePlume, parseQuery, start
+        illustrativePlume, parseQuery, ioCandidate, start
     };
 }));

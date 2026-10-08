@@ -33,6 +33,45 @@ ones, get their own section, because for this project they matter as much as cod
 - README: `neurofly run` without a prepared graph falls back visibly to the modular
   controller (it did not exit), and the daemon binds 127.0.0.1 by default.
 
+### Migration (draft for the next release notes)
+
+- **Graph I/O v3: saved connectome runs need `--continue-io-state`.** The sensory
+  delivery repair bumps the declared graph I/O from `graph-arena-io-v2-unassisted`
+  to `graph-arena-io-v3-unassisted`, because the multisensory sandbox's airflow
+  now reaches the JO wind probe. A run saved under v2 (or with no recorded I/O)
+  is refused on an ordinary resume, with nothing written. Restart with
+  `--continue-io-state` to create a linked child run from a verified checkpoint.
+  The parent is never changed or reinterpreted.
+
+### Fixed (candidate, not yet released)
+
+- **Multisensory wind reaches the graph.** The JO wind probe reads `wind_speed`,
+  else `wind_magnitude` (both are the world airflow speed in mm/s). The first key
+  present wins, an explicit 0 is kept, and a non-finite value is not delivered.
+  The `jon_wind` input row reports `stimulus_key` and `delivery`. Assays that
+  publish only a wind vector stay NOT DELIVERED. Gains, thresholds and formulas
+  are unchanged. Delivery is not evidence of sensing
+  (`docs/SENSORY_DELIVERY_REPAIR_20261008.md`).
+- **RPC bridge packet keys.** The experimental `hybrid-bridge-rpc-experimental`
+  path now sends the keys the server reads for odour, cVA, wind and temperature,
+  and non-finite inputs are no longer injected at the cap.
+
+### Added (candidate, presentation only, off by default)
+
+- Opt-in presentation assets (`?assets=hq`): a stylised fly in neutral, female
+  and male appearance at two LODs, and an arena shell below the floor. Appearance
+  never selects a brain dataset, physiology or behaviour.
+- `web/asset_gallery.html`, a standalone, manifest-driven review page: close-range
+  orbit, LOD and layer toggles, floor/bounds/axes/scale overlays, a contact sheet,
+  and fly rig v2 with six illustrative animation clips. Each clip is labelled
+  "illustrative animation, not simulated behaviour" and checked against the
+  documented joint envelope.
+- `web/env_inspector.html`, a read-only environment inspector that follows
+  `docs/SENSORY_CAPABILITY_CONTRACT.md`. It shows field concentration, delivered
+  receptor input and neural response separately, with explicit paused, stale and
+  unavailable states.
+- Food, odour, wind and illustrative predator props, with icons and a sense legend.
+
 ## [0.5.0] - 2026-10-08
 
 First stable 0.5 release, on top of `v0.5.0rc2`. **Research software; not biological
