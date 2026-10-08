@@ -179,7 +179,7 @@ def save_reset_fixture(brain, path):
     brain.reset_state()
     arrays = {f'state__{k}': np.ascontiguousarray(getattr(brain, k)) for k in brain._state_arrays()}
     arrays.update({f'scalar__{k}': np.array(getattr(brain, k)) for k in STATE_SCALARS})
-    np.savez(path, dynamics=np.array(str(brain.dynamics)), **arrays)
+    np.savez_compressed(path, dynamics=np.array(str(brain.dynamics)), **arrays)
     return state_digest(brain)
 
 
