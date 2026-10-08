@@ -33,6 +33,32 @@ ones, get their own section, because for this project they matter as much as cod
 - README: `neurofly run` without a prepared graph falls back visibly to the modular
   controller (it did not exit), and the daemon binds 127.0.0.1 by default.
 
+## [0.5.0] - 2026-10-08
+
+First stable 0.5 release, on top of `v0.5.0rc2`. **Research software; not biological
+validation.** Details: `docs/RELEASE_NOTES_v0.5.0.md`.
+
+### Changed
+
+- **Split processes are the default**, and the connectome is the default backend. When
+  no prepared graph is available, the dashboard shows a visible no-graph fallback
+  instead of silently substituting another controller.
+
+### Added
+
+- **Labelled reference-fly walking demo** (FlyGym 2.1.0, Apache-2.0). It is not the
+  connectome and is labelled as such in the live view, replays and diagnostic summaries.
+- **Separate FlyWire 783 female brain**, import by CLI only. You obtain the data
+  yourself; the annotation licence is unresolved and no annotation data is shipped.
+  No female dashboard or body mapping exists.
+
+### Known limitations
+
+- Known-circuit tests: grooming A1 PASS (a reproduction of Shiu 2024, not embodied
+  grooming); escape A2 FAIL.
+- No motion or direction-selectivity success is claimed.
+- Cosmetic backlog: the replay sidebar shows "undefined" for Duration/Drum.
+
 ## [0.5.0rc2] - 2026-10-07 (PRERELEASE)
 
 Second release candidate, on top of `v0.5.0rc1`. **Experimental prerelease; not
@@ -352,6 +378,7 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 
 Tagged as `v0.3.0` (`b6031b7`); no changelog was kept before this version.
 
+[0.5.0]: https://github.com/average-user-887/flybrain/compare/v0.5.0rc2...v0.5.0
 [0.5.0rc2]: https://github.com/average-user-887/flybrain/compare/v0.5.0rc1...v0.5.0rc2
 [0.5.0rc1]: https://github.com/average-user-887/flybrain/compare/v0.4.0...v0.5.0rc1
 [0.4.0]: https://github.com/average-user-887/flybrain/compare/v0.3.0...v0.4.0
