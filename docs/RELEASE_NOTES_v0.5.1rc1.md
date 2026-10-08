@@ -30,9 +30,12 @@ or reinterpreted.
 
 ## Added (opt-in, presentation only, off by default)
 
-- `?assets=hq`: a stylised fly (neutral, female, male; two LODs) and an arena shell for
-  the dashboard 3D view and the embodied replay. Appearance never selects a brain
-  dataset, physiology or behaviour. Recorded poses always drive the surface.
+- `?assets=hq`: a stylised fly and an arena shell for the dashboard 3D view and the
+  embodied replay. The loader uses the neutral fly (`fly_hq_lod0`) only. The female and
+  male appearance variants (two LODs each) are shown in the standalone gallery only
+  until the new renderer is integrated; there is no variant selector in the dashboard or
+  replay. Appearance never selects a brain dataset, physiology or behaviour. Recorded
+  poses always drive the surface.
 - `web/asset_gallery.html`: a standalone, manifest-driven review page with LOD, layer
   and overlay toggles, a contact sheet, and fly rig v2 with nine illustrative clips.
   Every clip carries the label "illustrative animation, not simulated behaviour" and is
