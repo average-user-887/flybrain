@@ -144,3 +144,14 @@ def test_paired_summary_is_descriptive():
     assert abs(p['percent_change'] - 100 * (-26 / 3) / (130 / 3)) < 1e-9
     assert cfa.paired([0.0, 0.0], [1.0, 0.0])['percent_change'] is None  # no percent over a zero denominator
     assert not any(k in p for k in ('verdict', 'pass', 'supported'))
+
+
+def test_g3_rejects_null_missing_or_malformed_input_hashes():
+    good = 'a' * 64
+    assert cfa.same_input_hashes([good, good, good])
+    assert not cfa.same_input_hashes([None, None])         # the false pass Astra found: {None} has one element
+    assert not cfa.same_input_hashes([good, None])
+    assert not cfa.same_input_hashes([])
+    assert not cfa.same_input_hashes(['A' * 64, 'A' * 64])  # not lowercase hex
+    assert not cfa.same_input_hashes(['a' * 63, 'a' * 63])  # wrong length
+    assert not cfa.same_input_hashes([good, 'b' * 64])      # unequal

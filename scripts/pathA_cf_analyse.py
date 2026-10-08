@@ -55,6 +55,15 @@ def without(sp, idx):
     return node[keep], cnt[keep]
 
 
+def same_input_hashes(hashes):
+    """G3: True only if every hash is a 64-char lowercase hex string and all are equal.
+    A missing, null or malformed hash rejects (a set of identical Nones must not pass)."""
+    hashes = list(hashes)
+    ok = len(hashes) > 0 and all(isinstance(h, str) and len(h) == 64 and all(c in '0123456789abcdef' for c in h)
+                                 for h in hashes)
+    return ok and len(set(hashes)) == 1
+
+
 def paired(intact, cf):
     """Descriptive paired summary (unit tested).  Percent only with a nonzero intact mean."""
     i, c = np.asarray(intact, float), np.asarray(cf, float)
@@ -118,7 +127,7 @@ def main():
             (rr, rp), (cr, cp) = cf[(rep['id'], s)], cf[(cl['id'], s)]
             a, c = sparse(rp), sparse(cp)
             gates['G1_clamp_zero'] &= set_rate(c, pv) == 0.0
-            ins = {rr['audit']['input_sha256'], cr['audit']['input_sha256']}
+            ins = [(rr.get('audit') or {}).get('input_sha256'), (cr.get('audit') or {}).get('input_sha256')]
             if (b, s) in frozen:
                 f = sparse(frozen[(b, s)][1])
                 gates['G5_replay_reproduces_frozen'] &= all(np.array_equal(x, y) for x, y in zip(a, f))
@@ -126,10 +135,10 @@ def main():
                 gates['G5_replay_reproduces_frozen'] = False
             if zo and (zo['id'], s) in cf:
                 zr, zp = cf[(zo['id'], s)]
-                ins.add(zr['audit']['input_sha256'])
+                ins.append((zr.get('audit') or {}).get('input_sha256'))
                 gates['G4_zero_outgoing_semantics'] &= all(
                     np.array_equal(x, y) for x, y in zip(without(sparse(zp), pv), without(c, pv)))
-            gates['G3_identical_inputs'] &= len(ins) == 1
+            gates['G3_identical_inputs'] &= same_input_hashes(ins)
             for k in prereg['readouts']:
                 series[k][0].append(set_rate(a, sets[k], dur))
                 series[k][1].append(set_rate(c, sets[k], dur))
@@ -159,6 +168,8 @@ def main():
                           f"{v['seeds_lower']}/{v['seeds_higher']}/{v['seeds_equal']}; per seed {v['diff_hz']}")
     (out / 'cf_results.md').write_text('\n'.join(md) + '\n')
     print(status, gates)
+    if status == 'INVALID':
+        raise SystemExit(2)
 
 
 if __name__ == '__main__':
