@@ -32,11 +32,17 @@ from pathlib import Path
 
 import numpy as np
 
-from .brain import Brain
+from .brain import STATE_ARRAYS, Brain
 from .engine import (E_EXC_MV, KERNEL_OPTIONS, R_MAX_HZ, REFRACTORY_MS, DELAY_MS, TAU_M_MS,
                      TAU_SYN_MS, V_REST_MV, V_RESET_MV, V_THRESHOLD_MV, njit)
 
 E_LIGHT_MV = E_EXC_MV          # light-gated TRP/TRPL conductance; capped by the engine ceiling
+# S3 repair (8 Oct): the complete mutable v6 state, declared HERE and independent of
+# ``self.dynamics``.  The inherited Brain dispatch keys rel_ring on dynamics in ('v4','v5'), so
+# a runner that relabelled ``brain.dynamics = 'v6'`` silently dropped rel_ring from every
+# snapshot / restore / reset (ASTRA_INVALID_V6_SNAPSHOT).
+V6_STATE_ARRAYS = STATE_ARRAYS + ('rel_ring', 'h_state', 'g_light', 'rel_m')
+PT_STATE_KEYS = ('pt_stages', 'pt_a', 'pt_ring', 'pt_cur')
 
 
 @njit(**KERNEL_OPTIONS)
@@ -258,18 +264,26 @@ class BrainV6(Brain):
         self.dynamics_label = 'v6'
 
     def _state_arrays(self):
-        return super()._state_arrays() + ('h_state', 'g_light', 'rel_m')
+        return V6_STATE_ARRAYS
 
     def snapshot_state(self):
         s = super().snapshot_state()
         if self.pt is not None:
             s.update(self.pt.state())
         s['v6_params_sha256'] = self.v6_params_sha256
+        s['v6_graded_set_sha256'] = self.graded_report['graded_set_sha256'] if self.graded_report else None
         return s
 
     def restore_state(self, state):
-        if state.get('v6_params_sha256') not in (None, self.v6_params_sha256):
+        need = V6_STATE_ARRAYS + (PT_STATE_KEYS if self.pt is not None else ()) + ('v6_params_sha256',)
+        missing = [k for k in need if k not in state]
+        if missing:
+            raise ValueError(f'v6 snapshot incomplete (missing {missing}); refused')
+        if state['v6_params_sha256'] != self.v6_params_sha256:
             raise ValueError('snapshot written under other v6 parameters; refused')
+        mine = self.graded_report['graded_set_sha256'] if self.graded_report else None
+        if state.get('v6_graded_set_sha256') != mine:
+            raise ValueError('snapshot written under another graded cell set; refused')
         super().restore_state(state)
         if self.pt is not None:
             self.pt.set_state(state)

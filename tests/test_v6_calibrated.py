@@ -47,3 +47,92 @@ def test_phototransduction_adapts():
     pt = Phototransduction(dict(G=5.0, Ka=0.5, tau_a_ms=200, tau_p0_ms=8, n_stages=4, dead_time_ms=10), 1)
     g = [pt.step(np.array([1.0]))[0] for _ in range(2000)]
     assert max(g) > 1.5 * g[-1] > 0
+
+
+# --- S3 repair: complete, dynamics-label-independent snapshot/restore/reset --------------
+
+def _brain_s3(arrays, n):
+    ct = np.array(['R1-R6'] * 20 + ['L1'] * 20 + ['X'] * (n - 40))
+    p = {'phototransduction': dict(G=68.8, Ka=0.0072, Kt=1.0, tau_a_ms=200, tau_p0_ms=4.3, n_stages=4,
+                                   dead_time_ms=10, encoder_to_intensity=0.01),
+         'types': {'R1-R6': {'release': {'kind': 'sigmoid', 'gain': 17.8, 'vh_mV': -47.0, 's_mV': 1.0,
+                                         'kappa': 1.0, 'tau_s_ms': 200.0}},
+                   'L1': {'tau_m_ms': 50.0, 'e_leak_mV': -40.0,
+                          'ih': {'g': 1.2, 'vh_mV': -60.0, 'k_mV': 5.0, 'tau_ms': 300.0, 'E_mV': -30.0}}}}
+    b = BrainV6(None, p, 'z' * 64, light_nodes=np.arange(20), cell_type=ct, arrays=dict(arrays),
+                graded_policy=np.ones(n, np.uint8))
+    b.dynamics = 'v6'            # exactly what scripts/v6/measure_tuning_v6.py does
+    return b
+
+
+def _cond(b, level, ms=40):
+    d = np.zeros(b.n, np.float32); d[:20] = level
+    return _run(b, d, ms)
+
+
+def _mutable(b):
+    out = {k: getattr(b, k).copy() for k in ('v', 'g', 'refractory', 'queue', 'queue_count', 'counts', 'active',
+                                             'active_flag', 'nactive', 'rel_ring', 'h_state', 'g_light', 'rel_m')}
+    out.update(b.pt.state()); out['cursor'] = b.cursor
+    return out
+
+
+def test_v6_snapshot_contains_rel_ring_even_when_relabelled():
+    arrays = random_graph(); n = len(arrays['ids'])
+    b = _brain_s3(arrays, n)
+    _cond(b, 10.0)
+    s = b.snapshot_state()
+    assert 'rel_ring' in s and s['rel_ring'].any()      # failed before the repair: key absent
+
+
+def test_v6_restore_is_bit_identical_and_condition_order_independent():
+    arrays = random_graph(); n = len(arrays['ids'])
+    b = _brain_s3(arrays, n)
+    _cond(b, 10.0, 60)                                   # shared gray baseline
+    snap = b.snapshot_state(); ref = _mutable(b)
+    direct = _cond(b, 20.0)                              # B straight from the snapshot
+    b.restore_state(snap)
+    _cond(b, 0.0)                                        # A ...
+    b.restore_state(snap)                                # ... then restore
+    for k, v in _mutable(b).items():
+        assert np.array_equal(np.asarray(v), np.asarray(ref[k])), k
+    assert np.array_equal(direct, _cond(b, 20.0))        # B after A == B directly
+
+
+def test_v6_reset_clears_every_mutable_array():
+    arrays = random_graph(); n = len(arrays['ids'])
+    b = _brain_s3(arrays, n)
+    _cond(b, 20.0)
+    b.reset_state()
+    fresh = _brain_s3(arrays, n)
+    for k, v in _mutable(b).items():
+        assert np.array_equal(np.asarray(v), np.asarray(_mutable(fresh)[k])), k
+
+
+def test_v6_incomplete_or_foreign_snapshot_is_refused():
+    import pytest
+    arrays = random_graph(); n = len(arrays['ids'])
+    b = _brain_s3(arrays, n)
+    _cond(b, 10.0)
+    s = b.snapshot_state()
+    for k in ('rel_ring', 'pt_ring', 'v6_params_sha256'):
+        bad = dict(s); bad.pop(k)
+        with pytest.raises(ValueError):
+            b.restore_state(bad)
+    bad = dict(s); bad['v6_params_sha256'] = 'q' * 64
+    with pytest.raises(ValueError):
+        b.restore_state(bad)
+
+
+def test_v6_two_conditions_either_order_bit_identical():
+    arrays = random_graph(); n = len(arrays['ids'])
+    res = {}
+    for order in (('A', 'B'), ('B', 'A')):
+        b = _brain_s3(arrays, n)
+        _cond(b, 10.0, 60)
+        snap = b.snapshot_state()
+        for c in order:
+            b.restore_state(snap)
+            res[(order, c)] = _cond(b, 0.0 if c == 'A' else 20.0)
+    assert np.array_equal(res[(('A', 'B'), 'A')], res[(('B', 'A'), 'A')])
+    assert np.array_equal(res[(('A', 'B'), 'B')], res[(('B', 'A'), 'B')])
