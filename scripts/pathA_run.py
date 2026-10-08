@@ -20,6 +20,12 @@ weights is changed:
   uniformly over all neurons, in memory, with the condition's seed; weights
   and every other edge are untouched.  The pinned graph file is never written.
 
+* Silencing counterfactual (``--cf-silence-prereg``; LABELLED OFFLINE
+  COUNTERFACTUAL, NOT a fix): a frozen preregistration names frozen contract
+  conditions and extra cells to clamp with the SAME silencing method above.
+  The graph, weights and edges are untouched; rows get the prereg's ids,
+  readouts and seeds, and its sha256 in their provenance.
+
 Output: one JSON line per (condition, seed) with per-readout-set mean rates
 and per-cell counts, plus a sparse full-network spike-count file per run.
 """
@@ -66,6 +72,24 @@ def shuffled_post(arrays, sources, seed):
         a, b = int(ptr[s]), int(ptr[s + 1])
         new[a:b] = rng.integers(0, n, size=b - a, dtype=np.int64).astype(np.int32)
     return new
+
+
+def cf_plan(contract, prereg):
+    """Conditions of a silencing-counterfactual prereg: frozen contract conditions
+    plus a clamp of the prereg's cells.  Returns (extra sets, condition list)."""
+    by_id = {c['id']: c for c in contract['conditions']}
+    clash = set(prereg['sets']) & set(contract['sets'])
+    if clash:
+        raise SystemExit(f'prereg sets shadow contract sets: {sorted(clash)}')
+    conds = []
+    for pc in prereg['conditions']:
+        base = by_id[pc['base_condition']]
+        if base.get('counterfactual'):
+            raise SystemExit(f"{pc['id']}: base condition is itself a counterfactual")
+        conds.append(dict(base, id=pc['id'], silence=list(base.get('silence', [])) + list(pc['add_silence']),
+                          counterfactual=pc['counterfactual'], readouts=list(prereg['readouts']),
+                          seeds=list(pc['seeds'])))
+    return prereg['sets'], conds
 
 
 def run_one(brain, stim, rate_hz, silence, readouts, contract, seed):
@@ -119,11 +143,23 @@ def main():
     ap.add_argument('--only', default=None, help='comma list of condition ids (default all)')
     ap.add_argument('--timing-probe', action='store_true',
                     help='harness timing only: stimulate the contract timing set, print wall time, record nothing')
+    ap.add_argument('--cf-silence-prereg', default=None,
+                    help='LABELLED OFFLINE COUNTERFACTUAL: frozen prereg adding a clamp to frozen conditions')
+    ap.add_argument('--cf-silence-prereg-sha256', default=None)
     args = ap.parse_args()
     cpath = Path(args.contract)
     if sha256_file(cpath) != args.contract_sha256:
         raise SystemExit('Contract sha256 mismatch: refusing to run an unfrozen protocol')
     contract = json.loads(cpath.read_text())
+    conditions, extra_sets, cf_sha = contract['conditions'], {}, None
+    if args.cf_silence_prereg:
+        cf_sha = sha256_file(args.cf_silence_prereg)
+        if cf_sha != args.cf_silence_prereg_sha256:
+            raise SystemExit('Counterfactual prereg sha256 mismatch: refusing to run an unfrozen prereg')
+        prereg = json.loads(Path(args.cf_silence_prereg).read_text())
+        if prereg['frozen_contract_sha256'] != args.contract_sha256:
+            raise SystemExit('Counterfactual prereg was written for a different contract')
+        extra_sets, conditions = cf_plan(contract, prereg)
     gdir = Path(os.environ['NEUROFLY_GRAPH_DIR'])
     cdir = Path(os.environ['NEUROFLY_CONNECTOME_DIR'])
     graph_sha = sha256_file(gdir / 'graph.npz')
@@ -132,10 +168,12 @@ def main():
     # Immutable run provenance (scripts/pathA_provenance.py): bound into every row.
     base = prov.expected(args.contract_sha256, graph_sha, contract['protocol']['dynamics'],
                          contract['protocol']['backend'], prov.engine_sha256(), prov.code_sha())
+    if cf_sha:
+        base['cf_prereg_sha256'] = cf_sha
 
     from brainlab.brain import Brain
     arrays = load_v3_arrays(gdir, cdir)
-    sets = {k: np.array(v['node_index'], dtype=np.int64) for k, v in contract['sets'].items()}
+    sets = {k: np.array(v['node_index'], dtype=np.int64) for k, v in dict(contract['sets'], **extra_sets).items()}
     brain = Brain(arrays=arrays, validate=True, dynamics=contract['protocol']['dynamics'],
                   backend=contract['protocol']['backend'])
     if args.timing_probe:
@@ -163,13 +201,13 @@ def main():
             done.add((r['condition'], r['seed']))
     only = set(args.only.split(',')) if args.only else None
     cf_brain = {}
-    for cond in contract['conditions']:
+    for cond in conditions:
         if only and cond['id'] not in only:
             continue
         stim = np.concatenate([sets[s] for s in cond['activate']]) if cond['activate'] else np.zeros(0, np.int64)
         silence = np.concatenate([sets[s] for s in cond.get('silence', [])]) if cond.get('silence') else np.zeros(0, np.int64)
-        readouts = {r: sets[r] for r in contract['tests'][cond['test']]['readouts']}
-        for seed in contract['protocol']['seeds']:
+        readouts = {r: sets[r] for r in cond.get('readouts') or contract['tests'][cond['test']]['readouts']}
+        for seed in cond.get('seeds') or contract['protocol']['seeds']:
             if (cond['id'], seed) in done:
                 continue
             b = brain
