@@ -1,8 +1,11 @@
 # Dashboard 3D viewport: left/right and heading check (2026-10-08)
 
-Status: **finding and proposal only. Nothing has been swapped.** The orchestrator
-decides. `tests/test_viewport_handedness.js` pins the current behaviour, so a
-deliberate fix has to update that test and this note together.
+Status: **repaired on the renderer branch after the orchestrator's GO** (the
+proposal below, applied as written). `tests/test_viewport_handedness.js` now checks
+the real viewport class: head direction in the Top camera against the 2D arena at
+eight headings, and recorded left coxae projected to screen space on the anatomical
+left, procedurally and at HQ display scales 1 and 0.8696. The pre-repair mapping
+fails 4 of those 5 tests.
 
 ## What was checked
 
@@ -12,7 +15,7 @@ deliberate fix has to update that test and this note together.
   forward direction is the horizontal part of (head − thorax); FlyGym 2 puts both
   eye bodies on the head joint. Anatomical left is up × forward. Each frame is also
   turned rigidly about z to nine headings, which keeps its handedness.
-* **The viewport as built** (`ArticulatedFly3DViewport.updatePose`, unchanged). Arena
+* **The viewport before the repair** (`ArticulatedFly3DViewport.updatePose` at 0f2d86f). Arena
   (x, y) is drawn at world (x, ·, −y). The root is rotated about Y by
   −heading + π/2, and the L coxae sit at local x = −1.
 
@@ -41,13 +44,13 @@ that flip. Two things follow:
    right. This confirms the note in `tools/assets/INTERFACE.md` §2. Relative to
    the true heading, the side they land on changes with the heading.
 
-## Proposal (for decision)
+## Repair (proposed, then applied after the GO)
 
 Make the fly transform proper with two lines in `updatePose`:
 
 ```js
 this.flyGroup.rotation.set(0, this.lastHeading + Math.PI / 2, 0);   // was -heading + pi/2
-this.flyGroup.scale.x = -displayScale;                               // mirror local X once
+this.flyGroup.scale.set(-s, s, s);  // setDisplayScale: mirror local X once
 ```
 
 With these two lines the head points along the heading at every angle, and every
@@ -62,10 +65,11 @@ Things to review with the fix:
 * The coxa yaw sign (`rotation.y = baseAngle + coxa·0.8`) mirrors with the leg, so
   protraction and retraction should be checked against a recorded walk once the
   side is fixed.
-* `tests/test_viewport_handedness.js` should then expect `headDot = 1` and the L legs
-  on the drawn left.
+* Every consumer of the signed scale uses its magnitude. The contact-shadow size
+  reads `Math.abs(scale.y)`, and the stand scan works in y only.
+* Contact colours follow the leg index, not the position, so they are unchanged.
 
-## Related finding (not fixed; telemetry interpretation)
+## Separate backlog finding (NOT repaired here; telemetry interpretation)
 
 When the FlyGym body supplies `joint_angles_rad` (`neurofly_daemon.py`,
 `c_bridge.last_body_obs`), the packet carries the first 18 of FlyGym's 66 joint
@@ -74,3 +78,7 @@ viewport reads them as six legs × (coxa, femur, tibia). On that path, legs L2 t
 R3 are therefore drawn from the wrong joints. The modular daemon's synthetic
 18-value stream does match the viewport's layout. A fix would need the packet to
 say its joint order, which is a telemetry change outside this presentation card.
+Truthful limitation until then: on the FlyGym-body path, the dashboard leg angles
+for every leg except L1's coxa yaw are not those legs' joints. Body position,
+heading and the embodied replay page (which draws recorded body positions) are not
+affected.

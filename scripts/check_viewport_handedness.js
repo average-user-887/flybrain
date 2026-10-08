@@ -11,9 +11,9 @@
  * (eye midpoint - thorax); anatomical left = up x f.  A body part is on the
  * anatomical left when (part - thorax) . left > 0.
  *
- * Viewport (ArticulatedFly3DViewport.updatePose, unchanged): arena (x, y) is drawn at
- * world (x, ., -y), the root is rotated about Y by -heading + pi/2, and the L coxae sit
- * at local x = -1.  Mapping world back to arena gives (x, -z).
+ * Viewport (ArticulatedFly3DViewport.updatePose): arena (x, y) is drawn at world
+ * (x, ., -y), the root is rotated about Y by heading + pi/2 with its local X reflected,
+ * and the L coxae sit at local x = -1.  Mapping world back to arena gives (x, -z).
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -72,7 +72,11 @@ function recordedSides(segments, frame) {
 
 function viewportSides(THREE, heading) {
     const g = new THREE.Group();
-    g.rotation.set(0, -heading + Math.PI / 2, 0);   // exactly updatePose
+    // updatePose after the handedness repair: rotation heading + pi/2, root local X
+    // reflected (setDisplayScale).  The pre-repair mapping was -heading + pi/2 and no
+    // reflection.  tests/test_viewport_handedness.js checks the real viewport class.
+    g.rotation.set(0, heading + Math.PI / 2, 0);
+    g.scale.set(-1, 1, 1);
     g.updateMatrixWorld(true);
     const arena = (v) => [v.x, -v.z];                 // world -> arena
     const fwd = arena(new THREE.Vector3(0, 0, 1).transformDirection(g.matrixWorld));

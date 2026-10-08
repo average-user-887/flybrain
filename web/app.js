@@ -7951,6 +7951,16 @@ class ArticulatedFly3DViewport {
             this.contactSpheres.push(contactMesh);
         });
         this.flyGroup.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        this.setDisplayScale(1);
+    }
+
+    // The rig is authored with the L legs and every l_* part at local -X while the head
+    // is +Z and up is +Y, i.e. in a mirrored frame (docs/RENDERER_HANDEDNESS_20261008.md).
+    // One reflection of the root's local X turns it into a proper anatomical frame, so
+    // L parts land on the fly's left.  Size consumers must use Math.abs(scale.x).
+    setDisplayScale(s) {
+        const size = Number.isFinite(s) && s > 0 ? s : 1;
+        this.flyGroup.scale.set(-size, size, size);
     }
 
     setContactColor(leg, hex, emissiveIntensity) {
@@ -8019,7 +8029,7 @@ class ArticulatedFly3DViewport {
         if (status === this.hqStatusSeen) return;
         this.hqStatusSeen = status;
         if (status === 'hq' && this.hqVariant && this.flyGroup) {
-            this.flyGroup.scale.setScalar(this.hqVariant.displayScale || 1);
+            this.setDisplayScale(this.hqVariant.displayScale || 1);
         }
         this.refreshStand();
         this.updateRendererStatus(true);
@@ -8271,7 +8281,7 @@ class ArticulatedFly3DViewport {
         const p = this.flyGroup.position;
         if (this.contactShadow) {
             this.contactShadow.visible = !!this.lastPose;
-            const s = this.flyGroup.scale.x || 1;
+            const s = Math.abs(this.flyGroup.scale.y) || 1;   // scale.x is negative (mirror)
             const height = Math.max(0, p.y - (this.standOffset ?? 0) - ArticulatedFly3DViewport.illustrativeLiftMm());
             this.contactShadow.position.set(p.x, ArticulatedFly3DViewport.floorTop() + 0.012, p.z);
             this.contactShadow.rotation.y = this.flyGroup.rotation.y;
@@ -8643,7 +8653,8 @@ class ArticulatedFly3DViewport {
         const stand = this.standOffset ?? ArticulatedFly3DViewport.standOffsetFor(ArticulatedFly3DViewport.proceduralLowestLegY());
         this.flyGroup.position.set(xMm, zMm + stand, -yMm);
         if (this.lastHeading !== null) {
-            this.flyGroup.rotation.set(0, -this.lastHeading + Math.PI / 2, 0);
+            // Local +Z (head) -> world (cos h, 0, -sin h) = arena (cos h, sin h), as in the 2D view.
+            this.flyGroup.rotation.set(0, this.lastHeading + Math.PI / 2, 0);
         }
         if (validPosition) this.applyPendingOrbitFrame();
         const anglesRad = this.lastJointAngles;
