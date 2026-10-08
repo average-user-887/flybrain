@@ -86,6 +86,60 @@ def manifest_files(manifest_path, root, pinned_sha, problems, label):
     return out
 
 
+def _arg(argv, flag):
+    return argv[argv.index(flag) + 1] if flag in argv and argv.index(flag) + 1 < len(argv) else None
+
+
+def check_exits(exits, prereg, psha, rows):
+    """Every expected shard of prereg run_procedure.shards has exactly one exit record, and that record
+    is bound to it: exit_code 0; argv = timeout (pinned seconds) wrapping scripts/pathA_run.py with the pinned
+    contract and prereg sha256 arguments, --only = exactly the shard's ids, --out = the directory holding exactly
+    those rows; its log exists, hashes to log_sha256 and holds a line for every row.  Unrelated, duplicate or
+    missing records are refused."""
+    problems = []
+    rp = prereg['run_procedure']
+    shards = {sh['name']: sh for sh in rp['shards']}
+    row_dir = {k: str(Path(path).parent.parent.resolve()) for k, (_, path) in rows.items()}
+    seen = {}
+    for e in exits:
+        argv = [str(x) for x in (e.get('argv') or [])]
+        only = _arg(argv, '--only')
+        match = [n for n, sh in shards.items() if only == ','.join(sh['only'])]
+        if len(match) != 1:
+            problems.append(f'exit record {argv[:3]} matches no expected shard')
+            continue
+        name = match[0]
+        if name in seen:
+            problems.append(f'duplicate exit record for shard {name}')
+            continue
+        seen[name] = e
+        sh = shards[name]
+        if e.get('exit_code') != 0 or isinstance(e.get('exit_code'), bool):
+            problems.append(f'shard {name} exit_code {e.get("exit_code")!r}')
+        if argv[:3] != ['timeout', '--signal=TERM', str(rp['timeout_s'])] or len(argv) < 5 \
+                or not argv[4].endswith('scripts/pathA_run.py'):
+            problems.append(f'shard {name} argv is not timeout {rp["timeout_s"]} wrapping scripts/pathA_run.py')
+        if _arg(argv, '--contract-sha256') != prereg['frozen_contract_sha256'] or _arg(argv, '--cf-silence-prereg-sha256') != psha:
+            problems.append(f'shard {name} argv contract/prereg sha256 differ from the pins')
+        want = {(c['id'], s) for c in prereg['conditions'] if c['id'] in sh['only'] for s in c['seeds']}
+        out = _arg(argv, '--out')
+        have = {k for k, d in row_dir.items() if out is not None and d == str(Path(out).resolve())}
+        if have != want:
+            problems.append(f'shard {name} --out holds {len(have)} rows, expected exactly its {len(want)}')
+        log = Path(str(e.get('log')))
+        if not log.is_file() or hashlib.sha256(log.read_bytes()).hexdigest() != e.get('log_sha256'):
+            problems.append(f'shard {name} log missing or its sha256 differs from the record')
+        else:
+            lines = log.read_text(errors='replace').splitlines()
+            missing = [k for k in sorted(want) if not any(l.startswith(f'{k[0]} {k[1]} ') for l in lines)]
+            if missing:
+                problems.append(f'shard {name} log lacks rows {missing[:3]}')
+    for name in shards:
+        if name not in seen:
+            problems.append(f'no exit record for shard {name} (fail closed)')
+    return problems
+
+
 def evaluate(contract, prereg, psha, rows, exits, frozen, clamp, fixture, code_sha, graph_sha_now, n):
     """All gates; returns (gates, problems, report).  Pure given loaded inputs (unit tested)."""
     pins, problems = prereg['pins'], []
@@ -111,8 +165,8 @@ def evaluate(contract, prereg, psha, rows, exits, frozen, clamp, fixture, code_s
     if set(rows) != set(expected):
         fail('G6_complete_and_bound', f'rows missing {sorted(set(expected) - set(rows))[:5]} or extra '
                                       f'{sorted(set(rows) - set(expected))[:5]}')
-    if not exits or any(e.get('exit_code') != 0 for e in exits):
-        fail('G6_complete_and_bound', f'shard exit codes {[e.get("exit_code") for e in exits]} (need all 0, >=1 shard)')
+    for m in check_exits(exits, prereg, psha, rows):
+        fail('G6_complete_and_bound', m)
     if graph_sha_now != pins['graph_npz_sha256']:
         fail('G6_complete_and_bound', 'graph.npz sha256 changed')
     by_id = {c['id']: c for c in contract['conditions']}
@@ -128,6 +182,9 @@ def evaluate(contract, prereg, psha, rows, exits, frozen, clamp, fixture, code_s
         for k, v in want_prov.items():
             if p.get(k) != v:
                 fail('G6_complete_and_bound', f'{key} provenance {k}={p.get(k)!r}')
+        for sd in (p.get('seed'), r.get('seed')):  # recorded seed == the externally expected seed of this row
+            if not isinstance(sd, int) or isinstance(sd, bool) or sd != key[1] or key[1] not in c['seeds']:
+                fail('G6_complete_and_bound', f'{key} recorded seed {sd!r} is not the expected seed')
         a = r.get('audit') or {}
         base = by_id[c['base_condition']]
         n_act = sum(len(contract['sets'][s]['node_index']) for s in base['activate'])

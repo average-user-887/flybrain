@@ -180,14 +180,20 @@ def synthetic(tmp_path):
                             reset_state_sha256=sdig, graph_npz_sha256='a' * 64, engine_sha256='e' * 64,
                             base_weight_sha256='1' * 64, deleted_weight_sha256='2' * 64))
     rows, frozen, clamp = {}, {}, {}
-    (tmp_path / 'counts').mkdir()
+    shard_of = lambda c: 'sA' if c['arm'] in ('intact', 'sham_empty_deletion') else 'sB'  # noqa: E731
+    prereg['run_procedure'] = dict(timeout_s=3500, shards=[
+        dict(name=nm, only=[c['id'] for c in prereg['conditions'] if shard_of(c) == nm]) for nm in ('sA', 'sB')])
+    for nm in ('sA', 'sB'):
+        (tmp_path / nm / 'counts').mkdir(parents=True)
+    logs = {'sA': [], 'sB': []}
     for c in prereg['conditions']:
         for s in c['seeds']:
             node = np.array([0, 5], np.int32) if c['arm'] != 'all_output_clamp' else np.array([0], np.int32)
             cnt = np.array([10 + s, 3], np.int32) if c['arm'] != 'all_output_clamp' else np.array([8], np.int32)
             if c['arm'] == 'direct_edge_deletion':
                 cnt = cnt - np.array([1, 0], np.int32)
-            p = tmp_path / 'counts' / f"{c['id']}_s{s}.npz"
+            p = tmp_path / shard_of(c) / 'counts' / f"{c['id']}_s{s}.npz"
+            logs[shard_of(c)].append(f"{c['id']} {s} 1.0s {{}}")
             np.savez(p, node_index=node, counts=cnt)
             seq = [s, 2000, 2]
             r = dict(condition=c['id'], seed=s, zero_edges=[3, 7] if c['arm'] == 'direct_edge_deletion' else [],
@@ -202,7 +208,16 @@ def synthetic(tmp_path):
                 frozen[('B', s)] = p
             if c['arm'] == 'all_output_clamp':
                 clamp[('B', s)] = p
-    args = dict(contract=contract, prereg=prereg, psha='p' * 64, rows=rows, exits=[dict(exit_code=0)], frozen=frozen,
+    exits = []
+    for sh in prereg['run_procedure']['shards']:
+        log = tmp_path / f"{sh['name']}.log"
+        log.write_text('\n'.join(logs[sh['name']]) + '\n')
+        exits.append(dict(exit_code=0, log=str(log), log_sha256=sha(log),
+                          argv=['timeout', '--signal=TERM', '3500', sys.executable, '/w/scripts/pathA_run.py',
+                                '--contract-sha256', 'c' * 64, '--cf-silence-prereg', '/w/p.json',
+                                '--cf-silence-prereg-sha256', 'p' * 64, '--out', str(tmp_path / sh['name']),
+                                '--only', ','.join(sh['only'])]))
+    args = dict(contract=contract, prereg=prereg, psha='p' * 64, rows=rows, exits=exits, frozen=frozen,
                 clamp=clamp, fixture=fx, code_sha='f' * 40, graph_sha_now='a' * 64, n=n)
     return args
 
@@ -215,6 +230,12 @@ def test_analyser_valid_synthetic_passes_every_gate(tmp_path):
 
 @pytest.mark.parametrize('defect,gate', [
     ('exit_missing', 'G6_complete_and_bound'), ('exit_nonzero', 'G6_complete_and_bound'),
+    ('seed_missing', 'G6_complete_and_bound'), ('seed_999', 'G6_complete_and_bound'),
+    ('unrelated_exit', 'G6_complete_and_bound'), ('missing_shard', 'G6_complete_and_bound'),
+    ('duplicate_shard', 'G6_complete_and_bound'), ('wrong_log_hash', 'G6_complete_and_bound'),
+    ('log_missing', 'G6_complete_and_bound'), ('log_lacks_row', 'G6_complete_and_bound'),
+    ('no_timeout_wrapper', 'G6_complete_and_bound'), ('wrong_prereg_arg', 'G6_complete_and_bound'),
+    ('wrong_out_dir', 'G6_complete_and_bound'), ('timeout_exit_124', 'G6_complete_and_bound'),
     ('code_sha', 'G6_complete_and_bound'), ('row_missing', 'G6_complete_and_bound'),
     ('graph_changed', 'G6_complete_and_bound'),
     ('state_hash', 'G2_clean_state'), ('rng_state', 'G2_clean_state'), ('fixture_tampered', 'G2_clean_state'),
@@ -231,7 +252,35 @@ def test_analyser_rejects_each_defect(tmp_path, defect, gate):
     if defect == 'exit_missing':
         a['exits'] = []
     elif defect == 'exit_nonzero':
-        a['exits'] = [dict(exit_code=0), dict(exit_code=-15)]
+        a['exits'][1]['exit_code'] = -15
+    elif defect == 'seed_missing':  # reviewer reproduction 1
+        del rows[('B_intact', 1)][0]['provenance']['seed']
+    elif defect == 'seed_999':
+        rows[('B_direct_edge_deletion', 0)][0]['provenance']['seed'] = 999
+    elif defect == 'unrelated_exit':  # reviewer reproduction 2: one unrelated record only
+        a['exits'] = [dict(argv=['/bin/true'], exit_code=0, log='/nonexistent', log_sha256='0' * 64)]
+    elif defect == 'missing_shard':
+        a['exits'] = a['exits'][:1]
+    elif defect == 'duplicate_shard':
+        a['exits'] = [a['exits'][0], dict(a['exits'][0]), a['exits'][1]]
+    elif defect == 'wrong_log_hash':
+        a['exits'][0]['log_sha256'] = '0' * 64
+    elif defect == 'log_missing':
+        Path(a['exits'][1]['log']).unlink()
+    elif defect == 'log_lacks_row':
+        lg = Path(a['exits'][1]['log'])
+        lg.write_text('\n'.join(lg.read_text().splitlines()[1:]) + '\n')
+        a['exits'][1]['log_sha256'] = sha(lg)
+    elif defect == 'no_timeout_wrapper':
+        a['exits'][0]['argv'] = a['exits'][0]['argv'][3:]
+    elif defect == 'wrong_prereg_arg':
+        av = a['exits'][0]['argv']
+        av[av.index('--cf-silence-prereg-sha256') + 1] = 'q' * 64
+    elif defect == 'wrong_out_dir':
+        av = a['exits'][0]['argv']
+        av[av.index('--out') + 1] = str(Path(a['fixture']).parent / 'sB')
+    elif defect == 'timeout_exit_124':
+        a['exits'][1]['exit_code'] = 124
     elif defect == 'code_sha':
         rows[('B_intact', 1)][0]['provenance']['code_sha'] = 'd' * 40
     elif defect == 'row_missing':

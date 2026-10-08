@@ -97,3 +97,29 @@ Each row records:
 `scripts/pathA_shard.py` captures the exit code, PIDs, times and log hash.
 `scripts/pathA_gf_edge_analyse.py` checks every identity against these external pins
 rather than against the rows. Negative regressions are in `tests/test_pathA_gf_edge.py`.
+
+## Checker-only amendment (after ASTRA_DIRECT_EDGE_PRELAUNCH_REVIEW_20261008)
+
+This amendment supersedes prereg `ff2b59ad` at 80bb93c. The rows, conditions,
+inputs, gains and arms are unchanged; only `run_procedure` and `amendments` in the
+JSON differ.
+
+The analyser previously had two false passes:
+- A missing provenance seed, or a seed of 999, still passed every gate.
+- A single unrelated exit record also passed every gate.
+
+It now requires two things:
+- **Seeds:** each row's recorded seed, both the row field and the provenance field,
+  must equal the expected seed for that row.
+- **Exit records:** each shard in the pinned plan (sA, sB, sC) must have exactly one
+  exit record. That record must show:
+  - exit code 0;
+  - an argv of `timeout --signal=TERM 3500` wrapping `scripts/pathA_run.py`, with the
+    pinned contract and prereg sha256 arguments;
+  - `--only` equal to exactly the shard's IDs;
+  - `--out` holding exactly that shard's rows;
+  - a log that exists, matches `log_sha256` and has a line for every row.
+
+Unrelated, duplicate and missing records are refused, and a missing record fails
+closed. The timeout now runs inside the `pathA_shard.py` child, so a timeout exit code
+of 124 is captured and fails.
