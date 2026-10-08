@@ -1,0 +1,765 @@
+{
+  "schema": "neurofly-asset-manifest/1",
+  "note": "Presentation assets for web/asset_gallery.html only. Appearance, never simulation: nothing listed here changes physics, stimuli, encoders, the brain or recordings. Files under assets/hq/ are git-ignored and staged by tools/assets/build_all.sh --stage.",
+  "units": {
+    "name": "viewport-mm",
+    "note": "1 unit = 1 viewport-mm. The fly is drawn about 8.3 units long, roughly 3x life size (illustrative scale shared with the dashboard 3D viewport). Not a measurement scale."
+  },
+  "floor_y": -0.02,
+  "layer_sets": {
+    "fly": [
+      {
+        "id": "body",
+        "label": "Body (thorax, scutum, head, abdomen, proboscis)",
+        "match": [
+          "^c_thorax$",
+          "^c_scutum$",
+          "^c_head$",
+          "^c_abdomen\\d+$",
+          "^c_proboscis$"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "Compound eyes (flat-shaded style, not ommatidia)",
+        "match": [
+          "^[lr]_eye$"
+        ]
+      },
+      {
+        "id": "antennae",
+        "label": "Antennae (static)",
+        "match": [
+          "^[lr]_(pedicel|funiculus|arista)$"
+        ]
+      },
+      {
+        "id": "wings",
+        "label": "Wings + veins (static, not simulated)",
+        "match": [
+          "^[lr]_wing(_veins)?$"
+        ]
+      },
+      {
+        "id": "halteres",
+        "label": "Halteres (static, not simulated)",
+        "match": [
+          "^[lr]_haltere$"
+        ]
+      },
+      {
+        "id": "bristles",
+        "label": "Bristles (static)",
+        "match": [
+          "_bristles$"
+        ]
+      },
+      {
+        "id": "legs",
+        "label": "Legs (display pose)",
+        "match": [
+          "^(lf|lm|lh|rf|rm|rh)_(coxa|trochanterfemur|tibia|tarsus)$"
+        ]
+      }
+    ],
+    "shell": [
+      {
+        "id": "shell",
+        "label": "Arena shell plinth (below floor; not a wall, cue or scale)",
+        "match": [
+          "^shell_(rect|round)$"
+        ]
+      }
+    ]
+  },
+  "assets": [
+    {
+      "id": "fly-hq",
+      "title": "Fruit fly, stylised (neutral, default)",
+      "category": "fly",
+      "status": "illustrative",
+      "layers": "fly",
+      "stand": "tarsus",
+      "validate": "fly",
+      "lods": [
+        {
+          "level": 0,
+          "label": "LOD0 (desktop)",
+          "url": "assets/hq/fly_hq_lod0.glb",
+          "budget_triangles": 30000
+        },
+        {
+          "level": 1,
+          "label": "LOD1 (phone)",
+          "url": "assets/hq/fly_hq_lod1.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/fly_hq_lod0_top.png",
+          "label": "top (2D sprite, head up)"
+        },
+        {
+          "url": "assets/hq/fly_hq_lod0_side.png",
+          "label": "side (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_hq_lod0_front.png",
+          "label": "front (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_hq_lod0_hero.png",
+          "label": "3/4 (perspective)"
+        }
+      ],
+      "notes": "Stylised surface, not an anatomical reconstruction. Wings, halteres, antennae and bristles are static decoration. Leg pose is a display pose; the dashboard keeps its own pose stream. Appearance does not select a brain dataset or physiology."
+    },
+    {
+      "id": "fly-female",
+      "title": "Fruit fly, female appearance (W2)",
+      "category": "fly",
+      "status": "illustrative",
+      "layers": "fly",
+      "stand": "tarsus",
+      "validate": "fly",
+      "display_scale": "extras",
+      "appearance_only": true,
+      "lods": [
+        {
+          "level": 0,
+          "label": "LOD0 (desktop)",
+          "url": "assets/hq/fly_female_lod0.glb",
+          "budget_triangles": 30000
+        },
+        {
+          "level": 1,
+          "label": "LOD1 (phone)",
+          "url": "assets/hq/fly_female_lod1.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/fly_female_lod0_top.png",
+          "label": "top (2D sprite, head up)"
+        },
+        {
+          "url": "assets/hq/fly_female_lod0_side.png",
+          "label": "side (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_female_lod0_front.png",
+          "label": "front (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_female_lod0_hero.png",
+          "label": "3/4 (perspective)"
+        }
+      ],
+      "notes": "Appearance only: choosing it never switches the brain dataset, changes physiology or body mechanics, or implies sex-specific behaviour. Seven visible segments, dark posterior band on every tergite, longer pointed abdomen (stylised profile). Display scale 1.0 (reference). Sources: tools/assets/SEX_VARIANTS.md.",
+      "source": "tools/assets/SEX_VARIANTS.md"
+    },
+    {
+      "id": "fly-male",
+      "title": "Fruit fly, male appearance (W2)",
+      "category": "fly",
+      "status": "illustrative",
+      "layers": "fly",
+      "stand": "tarsus",
+      "validate": "fly",
+      "display_scale": "extras",
+      "appearance_only": true,
+      "lods": [
+        {
+          "level": 0,
+          "label": "LOD0 (desktop)",
+          "url": "assets/hq/fly_male_lod0.glb",
+          "budget_triangles": 30000
+        },
+        {
+          "level": 1,
+          "label": "LOD1 (phone)",
+          "url": "assets/hq/fly_male_lod1.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/fly_male_lod0_top.png",
+          "label": "top (2D sprite, head up)"
+        },
+        {
+          "url": "assets/hq/fly_male_lod0_side.png",
+          "label": "side (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_male_lod0_front.png",
+          "label": "front (ortho)"
+        },
+        {
+          "url": "assets/hq/fly_male_lod0_hero.png",
+          "label": "3/4 (perspective)"
+        },
+        {
+          "url": "assets/hq/fly_male_lod0_sexcomb_closeup.png",
+          "label": "sex comb close-up (stylised 10 teeth)"
+        }
+      ],
+      "notes": "Appearance only: choosing it never switches the brain dataset, changes physiology or body mechanics, or implies sex-specific behaviour. Six visible segments, A5/A6 fully dark, shorter rounded abdomen, stylised sex comb on the front basitarsus. Display scale 0.8696 = 1/1.15 female/male thorax ratio (David et al. 2003), applied to the whole root. Sources: tools/assets/SEX_VARIANTS.md.",
+      "source": "tools/assets/SEX_VARIANTS.md"
+    },
+    {
+      "id": "arena-shell-rect",
+      "title": "Arena shell, rectangle (example 60 x 40)",
+      "category": "arena",
+      "status": "illustrative",
+      "layers": "shell",
+      "stand": "none",
+      "node": "shell_rect",
+      "transform": {
+        "position": [
+          0,
+          -0.06,
+          0
+        ],
+        "scale": [
+          71.6,
+          0.6,
+          51.6
+        ]
+      },
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/arena_shell.glb",
+          "budget_triangles": 20000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/arena_shell_rect_top.png",
+          "label": "top (2D)"
+        },
+        {
+          "url": "assets/hq/arena_shell_preview.png",
+          "label": "shell + fly (perspective)"
+        }
+      ],
+      "notes": "Plinth below the floor top (y = -0.06 < -0.02). No rim, wall, tick or glow, so it never reads as a boundary, cue or scale. Dashboard scales it from the simulation bounds plus a margin of 2 + 6 %."
+    },
+    {
+      "id": "arena-shell-round",
+      "title": "Arena shell, round (example 60 diameter)",
+      "category": "arena",
+      "status": "illustrative",
+      "layers": "shell",
+      "stand": "none",
+      "node": "shell_round",
+      "transform": {
+        "position": [
+          0,
+          -0.06,
+          0
+        ],
+        "scale": [
+          71.6,
+          0.6,
+          71.6
+        ]
+      },
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/arena_shell.glb",
+          "budget_triangles": 20000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/arena_shell_round_top.png",
+          "label": "top (2D)"
+        },
+        {
+          "url": "assets/hq/arena_shell_below.png",
+          "label": "from below the floor"
+        }
+      ],
+      "notes": "As the rectangle shell. With the round shell the dashboard hides the rectangular floor."
+    },
+    {
+      "id": "env-fermenting-fruit",
+      "title": "Fermenting fruit (banana slice) (W3)",
+      "category": "food",
+      "status": "decorative",
+      "layers": [
+        {
+          "id": "fruit_ferment_bruises",
+          "label": "fruit ferment bruises",
+          "match": [
+            "^fruit_ferment_bruises$"
+          ]
+        },
+        {
+          "id": "fruit_ferment_bubbles",
+          "label": "fruit ferment bubbles",
+          "match": [
+            "^fruit_ferment_bubbles$"
+          ]
+        },
+        {
+          "id": "fruit_flesh",
+          "label": "fruit flesh",
+          "match": [
+            "^fruit_flesh$"
+          ]
+        },
+        {
+          "id": "fruit_juice_film",
+          "label": "fruit juice film",
+          "match": [
+            "^fruit_juice_film$"
+          ]
+        },
+        {
+          "id": "fruit_peel",
+          "label": "fruit peel",
+          "match": [
+            "^fruit_peel$"
+          ]
+        },
+        {
+          "id": "fruit_seeds",
+          "label": "fruit seeds",
+          "match": [
+            "^fruit_seeds$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_fermenting_fruit.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_fermenting_fruit_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_fermenting_fruit_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_fermenting_fruit_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_fermenting_fruit.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-yeast-patch",
+      "title": "Yeast / food patch (W3)",
+      "category": "food",
+      "status": "decorative",
+      "layers": [
+        {
+          "id": "food_disc",
+          "label": "food disc",
+          "match": [
+            "^food_disc$"
+          ]
+        },
+        {
+          "id": "yeast_colonies",
+          "label": "yeast colonies",
+          "match": [
+            "^yeast_colonies$"
+          ]
+        },
+        {
+          "id": "yeast_paste",
+          "label": "yeast paste",
+          "match": [
+            "^yeast_paste$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_yeast_patch.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_yeast_patch_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_yeast_patch_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_yeast_patch_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_yeast_patch.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-sugar-water",
+      "title": "Sugar-water droplet at a capillary (contact taste) (W3)",
+      "category": "food",
+      "status": "decorative",
+      "layers": [
+        {
+          "id": "capillary_clamp",
+          "label": "capillary clamp",
+          "match": [
+            "^capillary_clamp$"
+          ]
+        },
+        {
+          "id": "capillary_liquid",
+          "label": "capillary liquid",
+          "match": [
+            "^capillary_liquid$"
+          ]
+        },
+        {
+          "id": "capillary_tube",
+          "label": "capillary tube",
+          "match": [
+            "^capillary_tube$"
+          ]
+        },
+        {
+          "id": "sugar_contact_marker",
+          "label": "sugar contact marker",
+          "match": [
+            "^sugar_contact_marker$"
+          ]
+        },
+        {
+          "id": "sugar_droplet",
+          "label": "sugar droplet",
+          "match": [
+            "^sugar_droplet$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_sugar_water.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_sugar_water_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_sugar_water_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_sugar_water_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_sugar_contact.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape. Sugar taste is NOT SIMULATED in the engine (food_contact is a distance test).",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-odour-emitter",
+      "title": "Odour vial + source marker (W3)",
+      "category": "odour",
+      "status": "decorative",
+      "layers": [
+        {
+          "id": "odour_source_marker",
+          "label": "odour source marker",
+          "match": [
+            "^odour_source_marker$"
+          ]
+        },
+        {
+          "id": "vial_bottom",
+          "label": "vial bottom",
+          "match": [
+            "^vial_bottom$"
+          ]
+        },
+        {
+          "id": "vial_glass",
+          "label": "vial glass",
+          "match": [
+            "^vial_glass$"
+          ]
+        },
+        {
+          "id": "vial_odourant",
+          "label": "vial odourant",
+          "match": [
+            "^vial_odourant$"
+          ]
+        },
+        {
+          "id": "vial_wick",
+          "label": "vial wick",
+          "match": [
+            "^vial_wick$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_odour_emitter.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_odour_emitter_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_odour_emitter_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_odour_emitter_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_odour_volatile.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape. Engine odours are static normalised fields with no chemical identity or transport.",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-wind-vane",
+      "title": "Wind direction vane (W3)",
+      "category": "wind",
+      "status": "decorative",
+      "layers": [
+        {
+          "id": "vane_stand",
+          "label": "vane stand",
+          "match": [
+            "^vane_stand$"
+          ]
+        },
+        {
+          "id": "vane_rotor_parts",
+          "label": "vane rotor parts",
+          "match": [
+            "^vane_rotor_parts$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_wind_vane.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_wind_vane_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_wind_vane_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_wind_vane_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_wind.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "DECORATIVE: presentation only; not a stimulus, field, encoder input or collision shape. Engine wind is one uniform vector per assay (mm/s).",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-jumping-spider",
+      "title": "Jumping spider (Salticus-style) (W3)",
+      "category": "predator",
+      "status": "illustrative",
+      "layers": [
+        {
+          "id": "spider_body",
+          "label": "spider body",
+          "match": [
+            "^spider_body$"
+          ]
+        },
+        {
+          "id": "spider_eyes",
+          "label": "spider eyes",
+          "match": [
+            "^spider_eyes$"
+          ]
+        },
+        {
+          "id": "spider_legs",
+          "label": "spider legs",
+          "match": [
+            "^spider_legs$"
+          ]
+        },
+        {
+          "id": "spider_mouthparts_palps",
+          "label": "spider mouthparts palps",
+          "match": [
+            "^spider_mouthparts_palps$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_jumping_spider.glb",
+          "budget_triangles": 12000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_jumping_spider_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_jumping_spider_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_jumping_spider_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_jumping_spider_illustrative.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is implemented; decoration only and must not change looming or retinal input. Looming in the engine is an abstract expanding disc; this model never changes looming or retinal input.",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "env-mantis-nymph",
+      "title": "Mantis nymph (W3)",
+      "category": "predator",
+      "status": "illustrative",
+      "layers": [
+        {
+          "id": "mantis_body",
+          "label": "mantis body",
+          "match": [
+            "^mantis_body$"
+          ]
+        },
+        {
+          "id": "mantis_head",
+          "label": "mantis head",
+          "match": [
+            "^mantis_head$"
+          ]
+        },
+        {
+          "id": "mantis_raptorial_forelegs",
+          "label": "mantis raptorial forelegs",
+          "match": [
+            "^mantis_raptorial_forelegs$"
+          ]
+        },
+        {
+          "id": "mantis_walking_legs",
+          "label": "mantis walking legs",
+          "match": [
+            "^mantis_walking_legs$"
+          ]
+        }
+      ],
+      "stand": "bbox",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/env_mantis_nymph.glb",
+          "budget_triangles": 12000
+        }
+      ],
+      "sprites": [
+        {
+          "url": "assets/hq/env_mantis_nymph_top.png",
+          "label": "top"
+        },
+        {
+          "url": "assets/hq/env_mantis_nymph_side.png",
+          "label": "side"
+        },
+        {
+          "url": "assets/hq/env_mantis_nymph_hero.png",
+          "label": "hero"
+        },
+        {
+          "url": "assets/hq/icon_mantis_illustrative.png",
+          "label": "icon"
+        }
+      ],
+      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is implemented; decoration only and must not change looming or retinal input. Looming in the engine is an abstract expanding disc; this model never changes looming or retinal input.",
+      "source": "tools/assets/env/ENV_MANIFEST.json"
+    }
+  ],
+  "sheets": [
+    {
+      "url": "assets/hq/env_legend.png",
+      "label": "legend: contact taste vs volatile odour vs wind; dashed frame = illustrative"
+    },
+    {
+      "url": "assets/hq/env_contact_sheet.png",
+      "label": "W3 contact sheet (Blender)"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeuroFly environment inspector</title>
+<style>
+  :root { --bg: #060913; --panel: #0f172a; --line: #334155; --text: #e2e8f0; --muted: #94a3b8; --warn: #fbbf24; --ok: #4ade80; --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  h2 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .banner { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #f59e0b; border-radius: 6px; color: var(--warn); font: 12px monospace; }
+  .badge { font: 10px monospace; padding: 0 4px; border: 1px solid #92400e; border-radius: 3px; color: var(--warn); }
+  #freshness { margin: 8px 0 0; padding: 6px 10px; border-radius: 6px; font: bold 13px monospace; border: 2px solid var(--line); }
+  #freshness[data-state="live"]::before { content: "● "; color: var(--ok); }
+  #freshness[data-state="replay"]::before { content: "▶ "; }
+  #freshness[data-state="paused"], #freshness[data-state="replay-paused"] { border-style: dashed; color: var(--muted); }
+  #freshness[data-state="paused"]::before, #freshness[data-state="replay-paused"]::before { content: "❚❚ "; }
+  #freshness[data-state="stale"], #freshness[data-state="disconnected"], #freshness[data-state="halted"], #freshness[data-state="unavailable"], #freshness[data-state="no-source"] { border-color: #b45309; color: var(--warn); }
+  #freshness[data-state="stale"]::before, #freshness[data-state="disconnected"]::before, #freshness[data-state="halted"]::before, #freshness[data-state="unavailable"]::before { content: "⚠ "; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 12px; padding: 12px 16px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  #map { width: 100%; aspect-ratio: 1 / 1; max-height: 74vh; display: block; border: 1px solid var(--line); border-radius: 8px; }
+  .panel { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-bottom: 10px; }
+  .panel.dim, .data.dim { opacity: .55; }
+  label { margin-right: 10px; font-size: 13px; white-space: nowrap; }
+  input[type=text] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; width: 220px; font: 12px monospace; }
+  button { background: #111827; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); }
+  table { border-collapse: collapse; font: 11px monospace; width: 100%; }
+  th, td { border-bottom: 1px solid var(--line); padding: 3px 4px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+  th { color: var(--muted); font-weight: normal; }
+  .ns { color: var(--warn); font-weight: bold; }
+  .pre { white-space: pre-wrap; font: 12px monospace; }
+  .muted { color: var(--muted); font-size: 12px; }
+  #errors { white-space: pre-wrap; font: 12px monospace; color: var(--warn); border: 1px solid #b45309; border-radius: 6px; padding: 6px 8px; margin: 0 16px 10px; }
+  ul { margin: 4px 0; padding-left: 18px; font-size: 12px; }
+  .legend span { display: inline-block; margin-right: 12px; font: 12px monospace; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NeuroFly environment inspector <span class="badge">OPT-IN · READ-ONLY</span></h1>
+  <div class="banner">Shows only telemetry the daemon publishes (W1 sensory capability contract, docs/SENSORY_CAPABILITY_CONTRACT.md §4).
+    Field concentration, delivered receptor input and neural response are reported separately: delivering an input is not a response.
+    Every odour value is in arbitrary normalised units (0–1), not ppm or molar. Anything not simulated reads NOT SIMULATED.
+    This page never sends a command and is not linked from the dashboard.</div>
+  <div style="margin-top:8px">
+    <label>Daemon <input type="text" id="daemonUrl" value="http://127.0.0.1:8769" aria-label="loopback daemon URL"></label>
+    <button id="connectBtn">Connect read-only</button>
+    <span id="replayCtl" hidden><button id="playBtn">pause</button> <button id="stepBtn">step</button></span>
+    <span class="muted" id="sourceInfo">No source. Connect to a daemon, or open with ?src=&lt;recorded frames&gt;.</span>
+  </div>
+  <div id="freshness" data-state="no-source" role="status" aria-live="polite">NO SOURCE</div>
+  <div class="muted" id="ident"></div>
+</header>
+<div id="errors" hidden></div>
+<main>
+  <div>
+    <canvas id="map" aria-label="Arena map: sources, fly, derived antennal sample points and wind arrow"></canvas>
+    <div class="panel" style="margin-top:8px">
+      <h2>Map layers</h2>
+      <label><input type="checkbox" data-layer="sources"> sources</label>
+      <label><input type="checkbox" data-layer="ids"> IDs</label>
+      <label><input type="checkbox" data-layer="fly"> fly + heading</label>
+      <label><input type="checkbox" data-layer="antennae"> antennal points (derived)</label>
+      <label><input type="checkbox" data-layer="wind"> wind arrow</label>
+      <label><input type="checkbox" data-layer="scale"> scale</label>
+      <label><input type="checkbox" data-layer="plume"> illustrative plume shape</label>
+      <div class="legend" style="margin-top:6px">
+        <span>■ F food (attractive)</span><span>▲ R aversive</span><span>◆ P cVA</span><span>◆ Q female</span><span>● N nozzle (dashed ring = σ)</span>
+        <span>★ G goal</span><span>✚ H/C heat/cool</span><span>○ L*/R* antennal points, derived</span><span>→ fly heading</span>
+      </div>
+      <p class="muted">Antennal points are derived from model constants (2.0 mm at heading ±45°, arena.py:81-82); the daemon does not publish them.</p>
+      <details><summary class="muted">Illustrative plume: equation and assumptions</summary><div class="pre muted" id="plumeEq"></div></details>
+    </div>
+  </div>
+  <div>
+    <div class="panel data"><h2>1 · Sources (scene)</h2><table id="srcTable"></table></div>
+    <div class="panel data"><h2>2 · Field concentration at the fly</h2>
+      <div class="muted">Legend: arbitrary normalised units (0–1), not ppm or molar. Static fields; no transport.</div>
+      <table id="concTable"></table></div>
+    <div class="panel data"><h2>3 · Wind</h2><div class="pre" id="wind"></div></div>
+    <div class="panel data"><h2>4 · Delivered receptor input to the connectome (as reported)</h2>
+      <div class="muted">connectome.input_stage[].current_injected, model current units (arbitrary). Not computed by this page.</div>
+      <table id="inputTable"></table></div>
+    <div class="panel data"><h2>5 · Neural response</h2><table id="respTable"></table></div>
+    <div class="panel data"><h2>Looming and predators</h2><div class="pre" id="looming"></div><div class="pre" id="predators"></div></div>
+    <div class="panel"><h2>Caveats for this assay and backend</h2><div class="pre ns" id="caveats"></div></div>
+    <div class="panel"><h2>Not simulated</h2><ul id="notSim"></ul></div>
+  </div>
+</main>
+<script src="env_inspector.js"></script>
+<script>
+  window.NeuroflyEnvInspector.start({document, window, location: window.location});
+</script>
+</body>
+</html>

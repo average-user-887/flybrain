@@ -1,0 +1,505 @@
+{
+ "_note": "Single telemetry frames captured 2026-10-08 from throwaway isolated daemons (CPU, LIF v3 numba kernel; MaleCNS connectome-fixed, and modular), trimmed to the keys the environment inspector reads. Test fixture only, not a result.",
+ "frames": {
+  "multisensory_connectome": {
+   "type": "telemetry",
+   "run_id": "94f2fcad15c1457e96d4f1200655bb0a",
+   "identity": {
+    "assay": "multisensory-sandbox",
+    "backend": "connectome-fixed",
+    "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+    "synthetic": false,
+    "test_mode": false
+   },
+   "paused": false,
+   "halted": false,
+   "error": null,
+   "status": "online",
+   "step": 13193,
+   "sim_time_s": 263.86,
+   "paradigm": "multisensory-sandbox",
+   "stimuli": {
+    "odor_a": 0.007477941240343598,
+    "odor_b": 0.005439893412144374,
+    "odor_cva": 0.0015443633089821662,
+    "cva_concentration": 0.0015443633089821662,
+    "wind": [
+     -15.0,
+     0.0
+    ],
+    "food_contact": false,
+    "temperature": 24.103919575747497,
+    "wind_magnitude": 15.0,
+    "egocentric_wind": 0.0,
+    "jo_antenna_deflect_un": 1.7999999999999998,
+    "temperature_left": 24.103277896328542,
+    "temperature_right": 24.072838874089207
+   },
+   "scene": {
+    "food_pos": [
+     45.0,
+     45.0
+    ],
+    "repellent_pos": [
+     -45.0,
+     -45.0
+    ],
+    "pheromone_pos": [
+     45.0,
+     -45.0
+    ],
+    "hotspot_pos": [
+     -40.0,
+     40.0
+    ],
+    "cool_pos": [
+     45.0,
+     45.0
+    ],
+    "stripe_contrast": 1.0,
+    "invert_sectors": false,
+    "food": [],
+    "hazards": [],
+    "predators": []
+   },
+   "world_bounds": [
+    -75.0,
+    -75.0,
+    75.0,
+    75.0
+   ],
+   "fly": {
+    "x": 0.0,
+    "y": 0.0,
+    "heading": 0.0,
+    "speed": 0.0,
+    "radius": 1.5,
+    "state": "GRAPH"
+   },
+   "sensory": {
+    "temp": 24.1,
+    "odor_a": 0.007,
+    "odor_b": 0.005,
+    "cva": 0.002,
+    "wind_x": -15.0,
+    "wind_y": 0.0
+   },
+   "connectome": {
+    "input_stage": [
+     {
+      "cell_types": [
+       "ORN_DM1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 35*stimulus)",
+      "name": "orn_food",
+      "status": "unverified",
+      "stimulus": "mean_a | odor_conc | odor_a",
+      "threshold": "> 0.001",
+      "current_injected": 0.261728,
+      "n_cells": 50,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "ORN_DA2"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(45, 40*stimulus)",
+      "name": "orn_danger",
+      "status": "unverified",
+      "stimulus": "mean_b | odor_b",
+      "threshold": "> 0.001",
+      "current_injected": 0.217596,
+      "n_cells": 48,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "R1-R6 left"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_l",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_l",
+      "threshold": null,
+      "current_injected": 0.0,
+      "n_cells": 100,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "R1-R6 right"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_r",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_r",
+      "threshold": null,
+      "current_injected": 0.0,
+      "n_cells": 100,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "LC4",
+       "LPLC2"
+      ],
+      "entry_stage": "visual projection neuron; bypasses retina and optic lobe",
+      "formula": "min(55, 15 + 40*theta_rad)",
+      "name": "looming",
+      "status": "unverified",
+      "stimulus": "looming_detected | looming_theta",
+      "threshold": "looming_detected or theta_rad > 0.15",
+      "current_injected": 0.0,
+      "n_cells": 311,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "ORN_DA1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 30*stimulus)",
+      "name": "courtship_cva",
+      "status": "unverified",
+      "stimulus": "cva_concentration | cva_odor",
+      "threshold": "> 0.001",
+      "current_injected": 0.046331,
+      "n_cells": 50,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "JO-* (first 50)"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 0.15*wind_speed_mm_s)",
+      "name": "jon_wind",
+      "status": "unverified",
+      "stimulus": "wind_speed_mm_s",
+      "threshold": "> 3 mm/s",
+      "current_injected": 0.0,
+      "n_cells": 50,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "thermosensory"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 2.5*abs(temperature_degC - 24))",
+      "name": "thermo",
+      "status": "unverified",
+      "stimulus": "temperature_degC",
+      "threshold": "abs(temperature_degC - 24) > 2 degC",
+      "current_injected": 0.0,
+      "n_cells": 25,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     }
+    ],
+    "dn_rates": {
+     "dna02_l": 0.0,
+     "dna02_r": 0.0,
+     "dnp09": 0.0,
+     "dnb01": 0.0,
+     "mdn": 0.0,
+     "gf": 0.0
+    }
+   }
+  },
+  "wind_tunnel_connectome": {
+   "type": "telemetry",
+   "run_id": "11d5899bf7974dcaba51f56cc8a8ba39",
+   "identity": {
+    "assay": "wind-tunnel",
+    "backend": "connectome-fixed",
+    "label": "Full prepared MaleCNS graph, fixed weights, LIF proxy dynamics.",
+    "synthetic": false,
+    "test_mode": false
+   },
+   "paused": false,
+   "halted": false,
+   "error": null,
+   "status": "online",
+   "step": 69,
+   "sim_time_s": 1.38,
+   "paradigm": "wind-tunnel",
+   "stimuli": {
+    "odor_conc": 0.5245302126760759,
+    "wind": [
+     -25.0,
+     0.0
+    ],
+    "wind_speed": 25.0,
+    "wind_direction_rad": 3.141592653589793,
+    "temperature_left": 25.0,
+    "temperature_right": 25.0,
+    "odor_a": 0.48663006922101515,
+    "odor_b": 0.0
+   },
+   "scene": {
+    "stripe_contrast": 1.0,
+    "invert_sectors": false,
+    "food": [],
+    "hazards": [],
+    "predators": [],
+    "nozzle_pos": [
+     180.0,
+     30.0
+    ],
+    "filament_sigma": 3.5
+   },
+   "world_bounds": [
+    0.0,
+    0.0,
+    200.0,
+    60.0
+   ],
+   "fly": {
+    "x": 18.80551,
+    "y": 30.1078,
+    "heading": 6.203,
+    "speed": 0.0,
+    "radius": 1.5,
+    "state": "GRAPH"
+   },
+   "sensory": {
+    "temp": 24.0,
+    "odor_a": 0.487,
+    "odor_b": 0.0,
+    "cva": 0.0,
+    "wind_x": -25.0,
+    "wind_y": 0.0
+   },
+   "connectome": {
+    "input_stage": [
+     {
+      "cell_types": [
+       "ORN_DM1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 35*stimulus)",
+      "name": "orn_food",
+      "status": "unverified",
+      "stimulus": "mean_a | odor_conc | odor_a",
+      "threshold": "> 0.001",
+      "current_injected": 17.032052,
+      "n_cells": 50,
+      "n_spiking_this_step": 31,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "ORN_DA2"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(45, 40*stimulus)",
+      "name": "orn_danger",
+      "status": "unverified",
+      "stimulus": "mean_b | odor_b",
+      "threshold": "> 0.001",
+      "current_injected": 0.0,
+      "n_cells": 48,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "R1-R6 left"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_l",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_l",
+      "threshold": null,
+      "current_injected": 0.0,
+      "n_cells": 100,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "R1-R6 right"
+      ],
+      "entry_stage": "photoreceptor",
+      "formula": "20*mean(stimulus)*contrast",
+      "name": "photoreceptor_r",
+      "status": "unverified",
+      "stimulus": "retina_photoreceptors_r",
+      "threshold": null,
+      "current_injected": 0.0,
+      "n_cells": 100,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "LC4",
+       "LPLC2"
+      ],
+      "entry_stage": "visual projection neuron; bypasses retina and optic lobe",
+      "formula": "min(55, 15 + 40*theta_rad)",
+      "name": "looming",
+      "status": "unverified",
+      "stimulus": "looming_detected | looming_theta",
+      "threshold": "looming_detected or theta_rad > 0.15",
+      "current_injected": 0.0,
+      "n_cells": 311,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "ORN_DA1"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 30*stimulus)",
+      "name": "courtship_cva",
+      "status": "unverified",
+      "stimulus": "cva_concentration | cva_odor",
+      "threshold": "> 0.001",
+      "current_injected": 0.0,
+      "n_cells": 50,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "JO-* (first 50)"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(35, 0.15*wind_speed_mm_s)",
+      "name": "jon_wind",
+      "status": "unverified",
+      "stimulus": "wind_speed_mm_s",
+      "threshold": "> 3 mm/s",
+      "current_injected": 3.75,
+      "n_cells": 50,
+      "n_spiking_this_step": 0,
+      "unavailable": null
+     },
+     {
+      "cell_types": [
+       "thermosensory"
+      ],
+      "entry_stage": "peripheral receptor",
+      "formula": "min(40, 2.5*abs(temperature_degC - 24))",
+      "name": "thermo",
+      "status": "unverified",
+      "stimulus": "temperature_degC",
+      "threshold": "abs(temperature_degC - 24) > 2 degC",
+      "current_injected": 0.0,
+      "n_cells": 25,
+      "n_spiking_this_step": 20,
+      "unavailable": null
+     }
+    ],
+    "dn_rates": {
+     "dna02_l": 0.0,
+     "dna02_r": 0.0,
+     "dnp09": 0.0,
+     "dnb01": 0.0,
+     "mdn": 0.0,
+     "gf": 0.0
+    }
+   }
+  },
+  "multisensory_modular": {
+   "type": "telemetry",
+   "run_id": "0acfef100a3941b4a952b1b6f4fb3c1c",
+   "identity": {
+    "assay": "multisensory-sandbox",
+    "backend": "modular",
+    "label": "Hand-built modular controller with explicit assay reflexes. Not the connectome.",
+    "synthetic": false,
+    "test_mode": false
+   },
+   "paused": false,
+   "halted": false,
+   "error": null,
+   "status": "online",
+   "step": 1763,
+   "sim_time_s": 35.26,
+   "paradigm": "multisensory-sandbox",
+   "stimuli": {
+    "odor_a": 0.16585529592587755,
+    "odor_b": 4.5169590281821185e-05,
+    "odor_cva": 0.0008624264452113576,
+    "cva_concentration": 0.0008624264452113576,
+    "wind": [
+     -15.0,
+     0.0
+    ],
+    "food_contact": false,
+    "temperature": 24.021158139422912,
+    "wind_magnitude": 15.0,
+    "egocentric_wind": -0.7223008789881025,
+    "jo_antenna_deflect_un": 1.7999999999999998,
+    "temperature_left": 24.020236000376,
+    "temperature_right": 24.007935687322
+   },
+   "scene": {
+    "food_pos": [
+     45.0,
+     45.0
+    ],
+    "repellent_pos": [
+     -45.0,
+     -45.0
+    ],
+    "pheromone_pos": [
+     45.0,
+     -45.0
+    ],
+    "hotspot_pos": [
+     -40.0,
+     40.0
+    ],
+    "cool_pos": [
+     45.0,
+     45.0
+    ],
+    "stripe_contrast": 1.0,
+    "invert_sectors": false,
+    "food": [],
+    "hazards": [],
+    "predators": []
+   },
+   "world_bounds": [
+    -75.0,
+    -75.0,
+    75.0,
+    75.0
+   ],
+   "fly": {
+    "x": 18.50561,
+    "y": 16.05539,
+    "heading": 0.722,
+    "speed": 2.66,
+    "radius": 1.5,
+    "state": "SURGE"
+   },
+   "sensory": {
+    "temp": 24.0,
+    "odor_a": 0.166,
+    "odor_b": 0.0,
+    "cva": 0.001,
+    "wind_x": -15.0,
+    "wind_y": 0.0
+   },
+   "connectome": null
+  }
+ }
+}
