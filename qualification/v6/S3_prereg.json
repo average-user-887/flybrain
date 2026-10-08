@@ -1,0 +1,29 @@
+{
+  "contract": "v6 S3 EXPLORATORY blind motion test: PREREGISTRATION, frozen and committed before any S3 run (owner decision 8 Oct; CLAUDE_TO_ASTRA_OWNER_DECISIONS_20261008 item 1)",
+  "label": "EXPLORATORY. S1 and S2 validation is NOT EVALUABLE and is never upgraded by this test. The input stage is the S1-A3 arm (FIT REJECTED, held-out 2/4, TRANSFER FAIL); the medulla shape fit is S2-A (exploratory); leak40 is a hypothetical, non-identifiable LMC leak sensitivity. A pass here is an exploratory observation that needs independent replication, not a calibrated-model result.",
+  "params": {"arm": "S2-A-leak40", "file": "qualification/v6/params_v6_S2A_leak40.json", "sha256": "135220ca7e9bc01c5d88f4fee321dea7e2c5fe57c0c1db24de76187f5ee4962f",
+             "diagnostic_status": "DIAGNOSTIC PASS 6/6 on the S2 transfer contract acf3bfd2…b2e (diagnostic thresholds only)"},
+  "pins": {"graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+           "photoreceptor_io_sha256": "0446223b82a485e5de77fc8a4b99d1cabe2c3a668392c97f46b265963f46e033",
+           "yaw_axes": "docs/receipts/v5_raw/yaw_axes.json (declared posteriority coefficients, unchanged)"},
+  "lattice_arms": {
+    "axial-v1": "the published default encoder frame (sheared; disclosed), yaw front-to-back L/R 123.13/123.94 deg",
+    "malecns-hex-v2": "opt-in corrected MaleCNS frame from d6806ee (claude/lattice-encoder-fix-20261008), cherry-picked here as 43ecd79, default unchanged; yaw 159.32/161.68 deg. Absolute orientation NOT established (LATTICE_CORRECTION_PREREG_20261008); both arms are reported, neither is privileged."
+  },
+  "protocol": "WP5 sections 13-14 / LIF_DYNAMICS_SPEC 9.9 tuning protocol exactly as scripts/lattice_fix/measure_tuning_cpu.py (d6806ee): PhotoreceptorGratingEncoder i_max 20, lambda 30 deg, 1.5 Hz, contrast 1, no noise, step 2 ms; gray 1000 ms settle + 1000 ms baseline window, then per condition 500 ms grating settle + 2000 ms window (3 cycles) from the shared gray snapshot; conditions dir0, dir45, ..., dir315 (both eyes same lattice direction) plus yaw_ccw and yaw_cw; flicker excluded (zero spatial frequency, lattice-independent). For v6 the encoder level on R1-R6 is light (x 0.01, BG0 units): gray 10 = BG-1, grating 0-20 = 0-0.2.",
+  "runner": "scripts/v6/measure_tuning_v6.py (copy of measure_tuning_cpu.py; asserts the encoder drives only R1-R6). v6 has NO GPU path: v6 runs on CPU, numba single thread per process, nice, taskset 0-3, each lattice arm split into two processes (dir0-dir135 + yaw_ccw | dir180-dir315 + yaw_cw), merged by scripts/v6/merge_parts.py which asserts the gray readouts are identical.",
+  "comparators": {
+    "v5_gpu_same_session": "v5 primary (default kinetics and graded policy), both lattice arms, same runner (--engine v5 --backend cuda), on the GTX 1660 Ti (CUDA_DEVICE_ORDER=PCI_BUS_ID, CUDA_VISIBLE_DEVICES=GPU-9f715928-77f8-a22c-953d-659ecdb072b9, CUPY_GPU_MEMORY_LIMIT=4500000000) under flock <storage-root>/gpu-1660.lock, one GPU job at a time, in this session. Never the P620.",
+    "v5_cpu_existing": "v5 primary on CPU, both lattices, already run by the lattice worker with the identical protocol code: flybrain-lattice-evidence-20261008/rerun/v5_primary_cpu_axial-v1.npz sha256 d519af9e48ecb090abd83a22392af5615a4d60d76d2ef5793cf90c3c8e147d23 and v5_primary_cpu_malecns-hex-v2.npz sha256 8caf4fa08b1acc70ddf9a511eee5a430e585f00ab7db577e817e671ff896a9b5 (same CPU backend as v6; not rerun)",
+    "backend_note": "CPU and GPU v5 are known to disagree (lattice result item 9); v6-vs-v5 differences are read against the CPU comparator first and the GPU comparator second, descriptively"
+  },
+  "analysis": "scripts/v5_measurement/analyse_tuning.py UNCHANGED (spec 7.10 statistic and gate, verbatim), then scripts/v6/s3_gates.py",
+  "gates_per_lattice_arm": {
+    "G1": "verbatim 7.10 T4/T5 clause: DSI >= 0.2 in at least one T4/T5 subtype (per eye) whose D1 response magnitude is >= 0.5 mV",
+    "G2": "opposite-preferring pair: for at least one of T4a/T4b, T4c/T4d, T5a/T5b, T5c/T5d (same eye), BOTH members have magnitude >= 0.5 mV and DSI >= 0.2 AND their preferred directions differ by >= 135 deg",
+    "G3": "verbatim DNa02 yaw clause: yaw_ccw gives DNa02 L-R >= +1 Hz AND yaw_cw gives L-R <= -1 Hz",
+    "EXPLORATORY_PASS": "G1 and G2 and G3, reported per lattice arm; no arm is selected after the fact"
+  },
+  "rules": "Blind: the motion protocol has never been run under any v6 parameter set before this commit. No parameter, lattice, window, threshold or analysis change after seeing results; any rerun (crash only) is recorded with its reason. Results are reported for both lattice arms and all comparators whatever they show.",
+  "interpretation_limits": "No result is claimed as calibrated-model evidence; a FAIL does not by itself localise the cause (input stage, medulla parameters, lattice, missing anatomy or engine), and a PASS does not validate S1/S2."
+}
