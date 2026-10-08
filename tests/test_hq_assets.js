@@ -222,6 +222,14 @@ test('replay rig stretches each leg mesh exactly between recorded joint position
     assert.deepEqual(real.femurs, [[3, 4]]);
 });
 
+test('lowestFootY measures the tarsus vertices in the root frame and leaves the root where it was', async () => {
+    const gltf = await parse(glb(FULL, 2));
+    gltf.scene.position.set(5, 7, -3);
+    assert.equal(HQ.lowestFootY(THREE, gltf.scene), -2);      // synthetic tarsus spans y 0..-2
+    assert.equal(JSON.stringify(gltf.scene.position.toArray()), "[5,7,-3]");
+    assert.equal(HQ.lowestFootY(THREE, (await parse(glb(['c_thorax'], 2))).scene), null);
+});
+
 // The real Blender export, when it has been staged (tools/assets/README.md); skipped otherwise.
 const BUILT = path.join(WEB, 'assets/hq/fly_hq_lod0.glb');
 test('the staged Blender GLB (if present) passes the same validation', {skip: !fs.existsSync(BUILT)}, async () => {
@@ -231,6 +239,16 @@ test('the staged Blender GLB (if present) passes the same validation', {skip: !f
         const bytes = fs.readFileSync(file);
         const gltf = await parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length));
         assert.equal(HQ.validateFly(THREE, HQ.nodeIndex(gltf.scene)), null, `lod${lod}`);
+        // Static preview placement: the feet are the lowest geometry, and standing the
+        // root on the floor top (-0.02) puts nothing below it.
+        const foot = HQ.lowestFootY(THREE, gltf.scene);
+        let lowest = Infinity;
+        gltf.scene.updateMatrixWorld(true);
+        gltf.scene.traverse((o) => {
+            const a = o.isMesh && o.geometry.attributes.position;
+            if (a) for (let k = 0; k < a.count; k += 1) lowest = Math.min(lowest, new THREE.Vector3().fromBufferAttribute(a, k).applyMatrix4(o.matrixWorld).y);
+        });
+        assert.ok(Math.abs(foot - lowest) < 1e-9, `lod${lod}: feet ${foot} vs mesh ${lowest}`);
         const vp = proceduralViewport();
         const hq = HQ.create({location: {search: '?assets=hq'}, THREE, document: fakeDoc(),
             loadGlb: () => Promise.resolve(gltf)});

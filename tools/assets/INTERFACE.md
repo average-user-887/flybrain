@@ -71,6 +71,41 @@ these assets should settle.
 * Blender is Z-up. The scripts compute everything in the three.js frame and convert
   with `(X, Y, Z) → (X, −Z, Y)`; the exporter's +Y-up option inverts this exactly.
 
+### Static preview placement (`asset_preview.html`, `arena_shell_preview.png`)
+
+The GLB root frame is the viewport's `flyGroup` frame. In the display pose, the
+feet hang **below** that root's origin, so a model placed at the origin pokes
+through the floor and the plinth. The previews have no physics. They stand the
+model from its own geometry by lifting the root by
+`surface_top − min(tarsus vertex y)`, where the minimum is an exact scan of every
+`<leg>_tarsus` mesh vertex (claws included) in the root frame. The scan is done by
+`lowestFootY` in `hq_assets.js`, by `build_arena.py` in Blender and by
+`foot_placement` in `measure_assets.py`, and the three agree:
+
+| | lf | lm | lh | rf | rm | rh | mesh minimum |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| lowest tarsus y, LOD0 and LOD1 | −2.1315 | −1.8798 | −2.1054 | −2.1315 | −1.8798 | −2.1054 | −2.1315 (an lf/rf claw) |
+
+The stand height is −0.02 − (−2.1315) = **2.1115** viewport-mm on the dashboard
+floor top (−0.02). With the round shell the floor is hidden, so the preview uses
+the shell top instead: −0.06 + 2.1315 = 2.0715. This placement exists only in the
+previews. It is never applied to recorded or streamed poses, and the GLB root frame
+is unchanged.
+
+### Where the feet meet the floor in the live views (reported, not changed)
+
+* **Dashboard viewport.** The illustrative rig puts the contact spheres (and so
+  the HQ tarsus tips, which end at the sphere centre at −2.4 in the tibia group)
+  below the floor top. With the illustrative lift (zBody 0.5) and no joint stream,
+  the sphere bottoms sit at y ≈ −2.15. With sample joint angles they sit between
+  −1.39 and −2.14. The floor top is −0.02. This comes from the procedural rig's
+  fixed segment lengths and joint mapping, not from the HQ loader, so it is left
+  for the viewport owner.
+* **Embodied replay.** Each HQ tarsus mesh ends exactly on the recorded
+  `<leg>_tarsus5` body point. In a 5 s FlyGym walk those points sit 0.023–0.624 mm
+  above the ground plane (z = 0), and 0.023–0.095 mm during recorded stance. The
+  drawn feet therefore show the recorded data as it is.
+
 ### Embodied replay (`embodied_replay.js`)
 
 * World frame: MuJoCo, **Z up, millimetres, real size**. The skeleton comes from

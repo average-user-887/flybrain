@@ -12,7 +12,7 @@ what must not change.
 | --- | --- |
 | `nf_geom.py` | Shared bpy helpers: three.js↔Blender frame conversion, lathe and ellipsoid builders, materials, glTF export, and Cycles CPU render settings. |
 | `build_fly.py` | Builds the fly: head, faceted compound eyes, antennae (pedicel, funiculus, feathered arista), proboscis, thorax with scutum, scutellum and bristles, five abdominal tergites, folded wings with veins, halteres, and six legs (coxa, trochanter+femur, tibia, five tarsomeres and claws) with FlyGym joint names. Writes `fly_hq_lod<N>.glb` and `.blend`; with `--render 1` it also writes orthographic and 3/4 PNGs. |
-| `build_arena.py` | Builds the unit-size `shell_rect` and `shell_round` plinths, which are visual only and sit below the floor. Writes `arena_shell.glb` and `.blend`, top-view PNGs, and a preview of the fly standing on the shell. |
+| `build_arena.py` | Builds the unit-size `shell_rect` and `shell_round` plinths, which are visual only and sit below the floor. Writes `arena_shell.glb` and `.blend`, top-view PNGs, a preview scene `arena_preview.blend` with the fly standing on the floor top (lift measured from the tarsus vertices; see INTERFACE.md), a perspective preview, and a view from below the floor. |
 | `measure_assets.py` | Standard library only. Counts triangles and textures, checks the budgets, hashes outputs and sources, and writes `PROVENANCE.json`. |
 | `build_all.sh` | Runs everything above. `--stage` copies the outputs into `web/assets/hq/`, which is git-ignored. |
 | `PROVENANCE.json` | Tool versions, source SHA-256s, output SHA-256s, measured triangle counts, texture use, budgets and licences from the last build. |

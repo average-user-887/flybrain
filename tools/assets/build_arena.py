@@ -27,7 +27,8 @@ from mathutils import Vector  # noqa: E402
 
 import nf_geom as g  # noqa: E402
 
-ARGS = g.parse_args({'out': '', 'render': 0, 'samples': 48, 'res': 768, 'fly': ''})
+ARGS = g.parse_args({'out': '', 'render': 0, 'samples': 48, 'res': 768, 'fly': '', 'stand': 1})
+FLOOR_TOP = -0.02          # dashboard floor top (three.js y); shell top sits at -0.06
 CHAMFER = 0.025
 SEG = 96
 
@@ -99,7 +100,26 @@ if int(ARGS['render']):
     g.mesh_object('preview_dashboard_floor', floor_geo, [floor_mat], smooth=False)
     if ARGS['fly'] and os.path.exists(ARGS['fly']):
         bpy.ops.import_scene.gltf(filepath=ARGS['fly'])
+        root = bpy.data.objects.get('neurofly_fly')
+        bpy.context.view_layer.update()
+        # Static preview placement (no physics): measure the lowest vertex of every
+        # <leg>_tarsus mesh (claws included) in world space and lift the GLB root so
+        # that foot rests on the floor top.  Blender z == three.js y.
+        tips = {}
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and obj.name.endswith('_tarsus'):
+                tips[obj.name[:-len('_tarsus')]] = min((obj.matrix_world @ v.co).z for v in obj.data.vertices)
+        lowest = min(tips.values())
+        lift = FLOOR_TOP - lowest if int(ARGS['stand']) else 0.0
+        if root is not None:
+            root.location.z += lift
+        print('NEUROFLY_ASSET feet ' + ' '.join(f'{k}={v:.4f}' for k, v in sorted(tips.items()))
+              + f' lowest={lowest:.4f} floor_top={FLOOR_TOP} lift={lift:.4f}')
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ARGS['out'], 'arena_preview.blend'))
     hero = g.camera('cam_hero', (52, 40, 58), (0, 0, 0), lens=45)
     scene.render.resolution_y = int(res * 0.625)
     g.render_to(scene, hero, f'{stem}_preview.png')
+    # From below the floor: anything that pokes through the plinth shows up here.
+    below = g.camera('cam_below', (14, -9, 16), (0, 0.5, 0), lens=45)
+    g.render_to(scene, below, f'{stem}_below.png')
     print('NEUROFLY_ASSET arena renders done')

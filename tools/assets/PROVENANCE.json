@@ -1,6 +1,6 @@
 {
   "schema": "neurofly.presentation-assets.v1",
-  "generated_utc": "2026-10-08T13:51:33Z",
+  "generated_utc": "2026-10-08T14:13:51Z",
   "purpose": "Presentation only. Stylised surface; not anatomical validation, not simulated biology.",
   "tools": {
     "blender": "Blender 4.5.3 LTS",
@@ -11,16 +11,21 @@
   "sources": {
     "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3",
     "tools/assets/build_fly.py": "733ed790f58781757a748c34363fda6c476f927629bdc0d2c5ac4d3255a61db6",
-    "tools/assets/build_arena.py": "c72528523f095201b7fed4e7ec601bbbf33fc7a8406929b12acc0133bd16baed",
-    "tools/assets/measure_assets.py": "ef3775090c46016222d67ed595fa3ef690cfab387255dae492669b79dfe32bd3",
+    "tools/assets/build_arena.py": "1c9eb107de8d840558ea6b7844812ddfb32abf9fdffbe74ce5d0722abd36ce82",
+    "tools/assets/measure_assets.py": "35b1c305af01565ed290d6654c2043fe594f70a017f4df6c9ab67080e42460e4",
     "tools/assets/build_all.sh": "c99fb9a37bc3db4caf9f70ef6293652cd18665d1e3d5699b353a2c87abd13398",
-    "web/hq_assets.js": "59945d6adba24ab85139ef2fbb8eabc1abeaf49584fea59d05cb1f9e82df7e7c",
-    "web/asset_preview.html": "3b921c2f7b2d75e5c1adaac304494ff819ebb4c49beb3fb718101dadda81c1ac",
+    "web/hq_assets.js": "f2a15a7d6da613b034fa2deb2e81650b6b38fc86661d91e37ef7ee3226c0413d",
+    "web/asset_preview.html": "6b28498376a5088492c1b1234bcc589507ae70d96079a9d7ada265c0cfcd4372",
     "web/vendor/GLTFLoader.js": "5c15967ba830918a9caea6338712c994c354bccd4edc4569bde411c3ec06a3e6"
   },
   "outputs": {
+    "arena_preview.blend": {
+      "sha256": "bc13876dfef4397b8a36857126a372b657d7edd0037ee539638f472ddd798f0a",
+      "bytes": 1983973,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
     "arena_shell.blend": {
-      "sha256": "a74b67ef2cf9c09932a3d4c5ca81b456de876a53600f6b90f4ad8c61e0332bbe",
+      "sha256": "922595146d89315ff9cc3e89a507bf3df21bb7275f8e9e3109521db5b94156c6",
       "bytes": 477642,
       "note": "editable source scene; Blender .blend files are not byte-reproducible"
     },
@@ -47,20 +52,32 @@
       "triangle_budget": 20000,
       "within_budget": true
     },
+    "arena_shell_below.png": {
+      "sha256": "ca337297d9c6bc2fa7b8442d3ec0ffef8af1f26ede7508c583aefcff2b9542e8",
+      "bytes": 167502,
+      "width": 768,
+      "height": 480
+    },
+    "arena_shell_below_BEFORE_fix.png": {
+      "sha256": "9464febf5e24141416750be57248db8c3f76318c5c2a4095bde143deeba7db83",
+      "bytes": 186025,
+      "width": 768,
+      "height": 480
+    },
     "arena_shell_preview.png": {
-      "sha256": "6d0d04432d12f9824c29ed09465484a55d7ac039749fb4259ab2893211153b35",
-      "bytes": 170397,
+      "sha256": "79303447eb291733d0de80d1494d9fd0b1559a87dad344e3f39d465007936ed6",
+      "bytes": 174056,
       "width": 768,
       "height": 480
     },
     "arena_shell_rect_top.png": {
-      "sha256": "b77fca323fd7084ae776c9e0e27f861286545d46166c662043d8d8c7d0bca1e1",
+      "sha256": "b05aca2e27374c39bf1783e63355a6b88e6413f0e1f8af8fc2cbbcfe4bcfa11c",
       "bytes": 370865,
       "width": 768,
       "height": 768
     },
     "arena_shell_round_top.png": {
-      "sha256": "ffb4865155eb3d2c78e6df33c161c63288dc44ac494c887a611dc423b02164d0",
+      "sha256": "aac941634e631baebba9ff6bf2104112cc5e00e18fd8e49cb0754f33318fe6db",
       "bytes": 332135,
       "width": 768,
       "height": 768
@@ -167,6 +184,20 @@
         "rm_trochanterfemur",
         "thorax_frame"
       ],
+      "preview_placement": {
+        "tarsus_lowest_y": {
+          "lf": -2.1315,
+          "lh": -2.1054,
+          "lm": -1.8798,
+          "rf": -2.1315,
+          "rh": -2.1054,
+          "rm": -1.8798
+        },
+        "mesh_lowest_y": -2.1315,
+        "floor_top_y": -0.02,
+        "preview_stand_height": 2.1115,
+        "derivation": "stand height = floor_top_y - min(tarsus_lowest_y); exact vertex scan in the GLB root frame (display pose); static preview placement only, never applied to poses"
+      },
       "triangle_budget": 30000,
       "within_budget": true
     },
@@ -294,6 +325,20 @@
         "rm_trochanterfemur",
         "thorax_frame"
       ],
+      "preview_placement": {
+        "tarsus_lowest_y": {
+          "lf": -2.1315,
+          "lh": -2.1054,
+          "lm": -1.8798,
+          "rf": -2.1315,
+          "rh": -2.1054,
+          "rm": -1.8798
+        },
+        "mesh_lowest_y": -2.1315,
+        "floor_top_y": -0.02,
+        "preview_stand_height": 2.1115,
+        "derivation": "stand height = floor_top_y - min(tarsus_lowest_y); exact vertex scan in the GLB root frame (display pose); static preview placement only, never applied to poses"
+      },
       "triangle_budget": 8000,
       "within_budget": true
     }

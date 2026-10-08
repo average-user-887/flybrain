@@ -79,6 +79,74 @@ def glb_metrics(path):
     }
 
 
+def _mat_mul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
+
+
+def _node_matrix(node):
+    if 'matrix' in node:
+        m = node['matrix']                      # column-major
+        return [[m[c * 4 + r] for c in range(4)] for r in range(4)]
+    x, y, z, w = node.get('rotation', [0, 0, 0, 1])
+    sx, sy, sz = node.get('scale', [1, 1, 1])
+    tx, ty, tz = node.get('translation', [0, 0, 0])
+    r = [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+         [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+         [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
+    return [[r[0][0] * sx, r[0][1] * sy, r[0][2] * sz, tx], [r[1][0] * sx, r[1][1] * sy, r[1][2] * sz, ty],
+            [r[2][0] * sx, r[2][1] * sy, r[2][2] * sz, tz], [0, 0, 0, 1]]
+
+
+def foot_placement(path, floor_top=-0.02):
+    """Lowest world-space y of each <leg>_tarsus mesh (claws included) in the GLB root frame.
+
+    Exact vertex scan (no bounding-box approximation).  The static preview stands the
+    model on the dashboard floor by lifting the root by floor_top - min(tips).
+    """
+    with open(path, 'rb') as fh:
+        data = fh.read()
+    doc = read_glb(path)
+    clen = struct.unpack_from('<I', data, 12)[0]
+    bin_off = 20 + clen + 8
+    nodes, acc, views = doc['nodes'], doc['accessors'], doc['bufferViews']
+
+    def positions(index):
+        a = acc[index]
+        v = views[a['bufferView']]
+        stride = v.get('byteStride', 12)
+        base = bin_off + v.get('byteOffset', 0) + a.get('byteOffset', 0)
+        return [struct.unpack_from('<fff', data, base + i * stride) for i in range(a['count'])]
+
+    lows, overall = {}, float('inf')
+
+    def walk(i, parent, leg):
+        node = nodes[i]
+        m = _mat_mul(parent, _node_matrix(node))
+        name = node.get('name', '')
+        if name.endswith('_tarsus'):
+            leg = name[:-len('_tarsus')]
+        nonlocal overall
+        if 'mesh' in node:
+            for prim in doc['meshes'][node['mesh']]['primitives']:
+                for (x, y, z) in positions(prim['attributes']['POSITION']):
+                    wy = m[1][0] * x + m[1][1] * y + m[1][2] * z + m[1][3]
+                    overall = min(overall, wy)
+                    if leg:
+                        lows[leg] = min(lows.get(leg, float('inf')), wy)
+        for c in node.get('children', []):
+            walk(c, m, leg)
+
+    ident = [[1.0 if r == c else 0.0 for c in range(4)] for r in range(4)]
+    for root in doc['scenes'][doc.get('scene', 0)]['nodes']:
+        walk(root, ident, None)
+    lowest = min(lows.values()) if lows else None
+    return {'tarsus_lowest_y': {k: round(v, 4) for k, v in sorted(lows.items())},
+            'mesh_lowest_y': round(overall, 4), 'floor_top_y': floor_top,
+            'preview_stand_height': round(floor_top - lowest, 4) if lowest is not None else None,
+            'derivation': 'stand height = floor_top_y - min(tarsus_lowest_y); exact vertex scan in the GLB '
+                          'root frame (display pose); static preview placement only, never applied to poses'}
+
+
 def png_size(path):
     with open(path, 'rb') as fh:
         head = fh.read(24)
@@ -108,6 +176,8 @@ def main():
         if name.endswith('.glb'):
             m = glb_metrics(path)
             entry = {'sha256': sha256(path), 'bytes': os.path.getsize(path), **m}
+            if name.startswith('fly_hq_lod'):
+                entry['preview_placement'] = foot_placement(path)
             if m['images']:
                 problems.append(f'{name}: embeds {m["images"]} texture image(s); check each is <= 2048 px')
             if name in BUDGETS:

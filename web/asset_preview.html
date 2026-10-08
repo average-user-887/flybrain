@@ -50,6 +50,8 @@
       <dt>fly nodes</dt><dd id="flyNodes">&ndash;</dd>
       <dt>shell triangles</dt><dd id="shellTris">&ndash;</dd>
       <dt>textures</dt><dd id="textures">&ndash;</dd>
+      <dt>lowest foot (GLB)</dt><dd id="footY">&ndash;</dd>
+      <dt>stand height</dt><dd id="standY">&ndash;</dd>
       <dt>loader check</dt><dd id="valid">&ndash;</dd>
     </dl>
     <div id="status">Loading&hellip;</div>
@@ -116,6 +118,7 @@
         const url = 'assets/hq/fly_hq_lod' + lod + '.glb';
         load(url).then((gltf) => {
             fly = gltf.scene; if (!fly.userData.nfEncoded) { lib.matchRendererEncoding(THREE, fly, renderer); fly.userData.nfEncoded = true; } scene.add(fly);
+            standFly();
             const s = stats(fly);
             $('flyTris').textContent = s.tris.toLocaleString();
             $('flyNodes').textContent = String(s.nodes);
@@ -125,10 +128,24 @@
             status('loaded ' + url);
         }).catch((err) => status('could not load ' + url + ' (' + (err.message || err) + '). Build and stage it: tools/assets/README.md', true));
     }
+    // Static preview placement only (no physics here): lift the GLB root so its lowest
+    // foot vertex (lowestFootY, claws included, measured from the loaded geometry) rests
+    // on the top of the visible surface: the dashboard floor (y = -0.02) when it is
+    // shown, else the shell top (y = -0.06).  The GLB root frame itself is unchanged.
+    const FLOOR_TOP = -0.02, SHELL_TOP = -0.06;
+    function standFly() {
+        if (!fly) return;
+        const lowest = lib.lowestFootY(THREE, fly);
+        if (lowest === null) { $('footY').textContent = 'no tarsus nodes'; return; }
+        const surface = floor.visible ? FLOOR_TOP : (shell ? SHELL_TOP : FLOOR_TOP);
+        fly.position.y = surface - lowest;
+        $('footY').textContent = lowest.toFixed(4);
+        $('standY').textContent = fly.position.y.toFixed(4) + ' (surface ' + surface + ')';
+    }
     function showShell() {
         if (shell) { scene.remove(shell); shell = null; }
         const which = $('shell').value;
-        if (!which) { $('shellTris').textContent = '–'; return; }
+        if (!which) { $('shellTris').textContent = '–'; floor.visible = true; standFly(); return; }
         load('assets/hq/arena_shell.glb').then((gltf) => {
             if (!gltf.scene.userData.nfEncoded) { lib.matchRendererEncoding(THREE, gltf.scene, renderer); gltf.scene.userData.nfEncoded = true; }
             const src = gltf.scene.getObjectByName(which);
@@ -140,6 +157,7 @@
             const margin = 2 + 0.06 * Math.max(w, d);
             shell.position.y = -0.06; shell.scale.set(w + 2 * margin, 0.6, d + 2 * margin);
             floor.visible = which === 'shell_rect';
+            standFly();
             scene.add(shell);
             $('shellTris').textContent = stats(node).tris.toLocaleString();
         }).catch((err) => status('could not load arena shell (' + (err.message || err) + ')', true));
@@ -151,7 +169,9 @@
         ['fly_hq_lod0_top.png', 'Fly top (2D sprite, head up)'], ['fly_hq_lod0_side.png', 'Fly side (ortho)'],
         ['fly_hq_lod0_front.png', 'Fly front (ortho)'], ['fly_hq_lod0_hero.png', 'Fly 3/4 (perspective)'],
         ['arena_shell_rect_top.png', 'Shell rect top (2D)'], ['arena_shell_round_top.png', 'Shell round top (2D)'],
-        ['arena_shell_preview.png', 'Shell + fly (perspective)']];
+        ['arena_shell_preview.png', 'Shell + fly (perspective)'],
+        ['arena_shell_below.png', 'From below the floor (after foot fix)'],
+        ['arena_shell_below_BEFORE_fix.png', 'From below the floor (before foot fix)']];
     for (const [file, caption] of images) {
         const fig = document.createElement('figure');
         const img = document.createElement('img');

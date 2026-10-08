@@ -98,6 +98,30 @@
         });
     }
 
+    // Lowest foot point of a fly GLB in its own root frame (root at identity): the
+    // minimum y over every vertex of the <leg>_tarsus meshes, claws included.  Used
+    // only to stand the static preview model on a surface; never applied to poses.
+    function lowestFootY(T, root) {
+        if (!T || !root) return null;
+        const saved = [root.position.clone(), root.quaternion.clone(), root.scale.clone()];
+        root.position.set(0, 0, 0); root.quaternion.set(0, 0, 0, 1); root.scale.set(1, 1, 1);
+        root.updateMatrixWorld(true);
+        let lowest = Infinity;
+        const v = new T.Vector3();
+        for (const leg of LEG_PREFIXES) {
+            const tarsus = root.getObjectByName(leg + '_tarsus');
+            if (!tarsus) continue;
+            tarsus.traverse((m) => {
+                const a = m.isMesh && m.geometry && m.geometry.attributes.position;
+                if (!a) return;
+                for (let k = 0; k < a.count; k += 1) lowest = Math.min(lowest, v.fromBufferAttribute(a, k).applyMatrix4(m.matrixWorld).y);
+            });
+        }
+        root.position.copy(saved[0]); root.quaternion.copy(saved[1]); root.scale.copy(saved[2]);
+        root.updateMatrixWorld(true);
+        return Number.isFinite(lowest) ? lowest : null;
+    }
+
     function create(env) {
         const state = {status: 'off', reason: '', viewport: null, replay: null, restore: null};
         const location = () => env.location || (typeof window !== 'undefined' ? window.location : null);
@@ -423,7 +447,7 @@
     }
 
     return {
-        create, flagEnabled, nodeIndex, validateFly, requiredFlyNodes, matchRendererEncoding,
+        create, flagEnabled, nodeIndex, validateFly, requiredFlyNodes, matchRendererEncoding, lowestFootY,
         VIEWPORT_LEGS, FLY_URL, ARENA_URL, LOADER_URL, VIEWPORT_LABEL, REPLAY_LABEL
     };
 }));
