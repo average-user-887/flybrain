@@ -22,7 +22,7 @@
     const MANIFEST_SCHEMA = 'neurofly-asset-manifest/1';
     const DEFAULT_MANIFEST_URL = 'asset_manifest.json';
     const STAND_MODES = ['tarsus', 'bbox', 'none'];
-    const OVERLAYS = ['floor', 'bounds', 'axes', 'grid', 'ruler', 'labels'];
+    const OVERLAYS = ['floor', 'bounds', 'axes', 'grid', 'ruler', 'labels', 'sides'];
     const LEG_PREFIXES = ['lf', 'lm', 'lh', 'rf', 'rm', 'rh'];
     // Tolerance for "the lowest foot touches the floor": far below one LOD1 facet.
     const FLOOR_TOLERANCE = 1e-3;
@@ -57,6 +57,9 @@
                 transform: a.transform || null, layers: compileLayers(layers || []),
                 clips: (Array.isArray(a.clips) ? a.clips : []).filter((c) => c && typeof c.url === 'string' && !/^[a-z]+:\/\//i.test(c.url) && !c.url.startsWith('/'))
                     .map((c) => ({url: c.url, label: String(c.label || c.url), name: c.name || null, notes: String(c.notes || '')})),
+                displayReflectX: a.display_reflect_x === true,
+                windVane: a.wind_vane && typeof a.wind_vane.rotor === 'string' ? {rotor: a.wind_vane.rotor} : null,
+                provenanceLabel: a.provenance_label ? String(a.provenance_label) : null,
                 joints: typeof a.joints === 'string' && !/^[a-z]+:\/\//i.test(a.joints) && !a.joints.startsWith('/') ? a.joints : null,
                 displayScale: a.display_scale === 'extras' || Number.isFinite(a.display_scale) ? a.display_scale : null,
                 appearanceOnly: a.appearance_only === true,
@@ -234,6 +237,49 @@
         return !!stopped || !(Number.isFinite(lastMs)) || nowMs - lastMs > READOUT_MS;
     }
 
+    // Which side a leg tip belongs to, from its node name: fly (lf/lm/lh = left) or
+    // environment rigs (<p>_L1_tarsus = left).  null for anything else.
+    function tarsusSide(name) {
+        let m = /^([lr])[fmh]_tarsus$/.exec(name || '');
+        if (m) return m[1] === 'l' ? 'L' : 'R';
+        m = /^[a-z]+_([LR])\d_tarsus$/.exec(name || '');
+        return m ? m[1] : null;
+    }
+    const isAnyTarsus = (o) => { for (let x = o; x; x = x.parent) if (tarsusSide(x.name)) return true; return false; };
+    // Handedness at one heading: the world-space L-minus-R leg vector against the animal's
+    // left (up x forward), and the left-turn sign: a + rotation about +Y turns forward
+    // toward up x forward, so a left turn needs a positive yaw.
+    function handednessAt(T, heading, lCentroid, rCentroid, turnLeftYaw) {
+        const forward = new T.Vector3(Math.sin(heading), 0, Math.cos(heading));
+        const left = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), forward);
+        const lr = new T.Vector3().subVectors(lCentroid, rCentroid);
+        const sideOk = lr.dot(left) > 0;
+        const turnOk = turnLeftYaw === null || turnLeftYaw === undefined ? null : turnLeftYaw > 0;
+        return {heading, sideOk, turnOk, lrDotLeft: lr.dot(left)};
+    }
+    // Root motion vs in-place, by inspection: does any track move a *_motion carrier?
+    function clipKind(clip) {
+        if (/^DEMO/i.test((clip && clip.name) || '')) return 'DEMO';
+        for (const tr of (clip && clip.tracks) || []) {
+            if (!/_motion\.(position|quaternion)$/.test(tr.name)) continue;
+            const v = tr.values, w = /position$/.test(tr.name) ? 3 : 4;
+            for (let i = w; i < v.length; i += 1) if (Math.abs(v[i] - v[i % w]) > 1e-6) return 'ROOT MOTION';
+        }
+        return /_motion\./.test(((clip && clip.tracks) || []).map((t) => t.name).join(' ')) || /inplace|in_place/i.test(clip.name || '') ? 'IN-PLACE' : null;
+    }
+
+    // Wind vane from telemetry (W3 env_wind_vane_mapping): rotor yaw = atan2(wx, -wy) about +Y,
+    // arrow tip downwind.  Zero wind (a field that is calm) and missing wind (no field, or a
+    // non-finite value) are different states and are never shown alike.
+    function windVaneState(wx, wy) {
+        const ok = (v) => typeof v === 'number' && Number.isFinite(v);
+        if (!ok(wx) || !ok(wy)) return {state: 'missing', yaw: 0, label: 'NO WIND FIELD: wind not simulated in this view (vane at rest, not a measurement)'};
+        const speed = Math.hypot(wx, wy);
+        if (speed < 1e-6) return {state: 'calm', yaw: 0, speed: 0, label: 'CALM: wind field present, speed 0.00 mm/s (vane at rest)'};
+        return {state: 'directed', yaw: Math.atan2(wx, -wy), speed,
+            label: 'wind ' + speed.toFixed(2) + ' mm/s toward ' + (Math.atan2(wy, wx) * 180 / Math.PI).toFixed(0) + '° (arena frame); vane shows direction only'};
+    }
+
     // A plinth (stand: none) must stay wholly below the floor top: never a wall or cue.
     function plinthStatus(topY, floorY) {
         if (!Number.isFinite(topY)) return {gap: null, state: 'unknown', text: 'no geometry'};
@@ -376,7 +422,19 @@
                 const ds = displayScaleOf(asset.displayScale, extras);
                 model.scale.setScalar(ds.scale);
                 const wrap = new T.Group();
-                wrap.add(model);
+                // Legacy fly-only display adapter (renderer 750246c): viewport-convention fly
+                // assets put l_* parts at local -X, a mirror image; one reflection of local X
+                // draws them anatomically.  Environment animals are authored with +X =
+                // anatomical left and are NEVER reflected.
+                if (asset.displayReflectX) {
+                    const mirror = new T.Group();
+                    mirror.name = 'legacy-fly-reflect-x';
+                    mirror.scale.x = -1;
+                    mirror.add(model);
+                    wrap.add(mirror);
+                } else {
+                    wrap.add(model);
+                }
                 if (asset.transform) {
                     const p = asset.transform.position, s = asset.transform.scale;
                     if (Array.isArray(p)) wrap.position.set(p[0], p[1], p[2]);
@@ -472,7 +530,7 @@
             const lab = (t, c, p) => { const s = textSprite(t, c, labelH); s.position.set(p[0], p[1], p[2]); al.add(s); };
             lab('+X', '#f87171', [len * 1.08, 0, 0]);
             lab('+Y up', '#4ade80', [0, len * 1.08, 0]);
-            lab('+Z forward (fly head)', '#60a5fa', [0, 0, len * 1.08]);
+            lab('+Z forward (head)', '#60a5fa', [0, 0, len * 1.08]);
 
             const ruler = group('ruler');
             const x0 = box.min.x, z0 = box.max.z + step * 0.6, y0 = fy + 0.002;
@@ -483,8 +541,79 @@
             }
             const rs = textSprite(step + ' unit' + (step === 1 ? '' : 's') + ' = ' + step + ' viewport-mm', '#e2e8f0', labelH);
             rs.position.set(x0 + step / 2, y0 + labelH, z0 + step * 0.35); ruler.add(rs);
+            // Drawn L/R labels at the leg-tip centroids of each side, in the same world
+            // transform as everything else (no relabelling: names come from the asset).
+            const sides = group('sides');
+            const cent = sideCentroids();
+            for (const [side, c] of Object.entries(cent)) {
+                if (!c) continue;
+                const sp = textSprite(side === 'L' ? 'L (left legs)' : 'R (right legs)', side === 'L' ? '#facc15' : '#a78bfa', labelH);
+                sp.position.set(c.x, c.y + labelH * 1.2, c.z);
+                sides.add(sp);
+            }
             state.gridStep = step;
             applyOverlayVisibility();
+        }
+        // World-space centroid of each side's leg tips (tarsus meshes) for the current model.
+        function sideCentroids() {
+            const out = {L: null, R: null};
+            if (!state.current) return out;
+            state.current.wrap.updateMatrixWorld(true);
+            for (const side of ['L', 'R']) {
+                const box = vertexBounds(T, state.current.model, (m) => { for (let o = m; o; o = o.parent) { const sd = tarsusSide(o.name); if (sd) return sd === side; } return false; });
+                if (box) out[side] = box.getCenter(new T.Vector3());
+            }
+            return out;
+        }
+        // L/R check at six headings, with the drawn L legs and a left turn evaluated in the
+        // same world transform (the wrap is rotated, the asset itself is untouched).
+        function handednessCheck() {
+            const cur = state.current;
+            const out = $('handedness');
+            if (!cur) return null;
+            const turn = (anim.clips || []).find((c) => /turn_left/.test(c.clip.name) && c.kind === 'ROOT MOTION');
+            let yaw = null;
+            if (turn) {
+                const tr = turn.clip.tracks.find((t) => /_motion\.quaternion$/.test(t.name));
+                if (tr) {
+                    const k = tr.times.length, q0 = new T.Quaternion().fromArray(tr.values, 0), q1 = new T.Quaternion().fromArray(tr.values, 4 * (k - 1));
+                    const e0 = new T.Euler().setFromQuaternion(q0, 'YXZ').y, e1 = new T.Euler().setFromQuaternion(q1, 'YXZ').y;
+                    let d = 0;   // integrate over keys to keep the sign through wraps
+                    for (let i = 1; i < k; i += 1) {
+                        let s = new T.Euler().setFromQuaternion(new T.Quaternion().fromArray(tr.values, 4 * i), 'YXZ').y
+                            - new T.Euler().setFromQuaternion(new T.Quaternion().fromArray(tr.values, 4 * (i - 1)), 'YXZ').y;
+                        while (s > Math.PI) s -= 2 * Math.PI;
+                        while (s < -Math.PI) s += 2 * Math.PI;
+                        d += s;
+                    }
+                    void e0; void e1;
+                    yaw = d;
+                }
+            }
+            const keep = cur.wrap.rotation.y;
+            const rows = [];
+            for (let i = 0; i < 6; i += 1) {
+                const h = i * Math.PI / 3;
+                cur.wrap.rotation.y = h;
+                const c = sideCentroids();
+                rows.push(c.L && c.R ? handednessAt(T, h, c.L, c.R, yaw) : {heading: h, sideOk: null, turnOk: null});
+            }
+            cur.wrap.rotation.y = keep;
+            cur.wrap.updateMatrixWorld(true);
+            state.handedness = {asset: cur.asset.id, reflected: cur.asset.displayReflectX, turnYaw: yaw, rows};
+            out.textContent = '';
+            const t = el('table');
+            const hdr = el('tr'); for (const h of ['heading', 'drawn L legs on the left', 'turn_left turns left']) hdr.append(el('th', {}, h)); t.append(hdr);
+            for (const r of rows) {
+                const tr = el('tr');
+                const cell = (v) => el('td', v === false ? {class: 'bad'} : {}, v === null ? 'n/a' : (v ? 'yes' : 'NO'));
+                tr.append(el('td', {}, Math.round(r.heading * 180 / Math.PI) + '°'), cell(r.sideOk), cell(r.turnOk));
+                t.append(tr);
+            }
+            out.append(el('div', {class: 'muted'}, cur.asset.displayReflectX ? 'Display: legacy fly-only reflected adapter (renderer 750246c; local X mirrored once).'
+                : 'Display: authored frame, no reflection (+X = anatomical left for environment animals).'), t);
+            if (!turn) out.append(el('div', {class: 'muted'}, 'No root-motion turn_left clip on this asset: turn direction not checked.'));
+            return state.handedness;
         }
         function applyOverlayVisibility() {
             for (const g of overlay.children) {
@@ -616,7 +745,7 @@
         function renderOverlayToggles() {
             const box = $('overlays');
             box.textContent = '';
-            const names = {floor: 'Floor plane (y = ' + state.floorY + ')', bounds: 'Bounds box + lowest-point outline',
+            const names = {sides: 'Drawn L/R leg labels', floor: 'Floor plane (y = ' + state.floorY + ')', bounds: 'Bounds box + lowest-point outline',
                 axes: 'Axes (+X red, +Y green up, +Z blue head)', labels: 'Axis labels', grid: 'Grid', ruler: 'Scale ruler'};
             for (const id of OVERLAYS) {
                 const input = el('input', {type: 'checkbox', id: 'ov-' + id, 'data-overlay': id});
@@ -645,6 +774,8 @@
                 row('display scale', rec.displayScale.toFixed(4) + ' (' + rec.displayScaleSource + ')' + (rec.scaleBasis ? ' · ' + rec.scaleBasis : ''));
             }
             if (rec.appearanceOnly || asset.appearanceOnly) row('appearance only', rec.appearanceOnly || 'no brain dataset, physiology or behaviour is tied to this appearance');
+            if (asset.provenanceLabel) row('motion source', asset.provenanceLabel, 'bad');
+            if (asset.displayReflectX) row('display handedness', 'legacy fly-only reflected adapter (renderer 750246c): local X mirrored once');
             for (const [k, v] of rec.declared || []) row(k.replace(/^neurofly_/, ''), v, k === 'neurofly_status' ? 'bad' : '');
             row('stand mode', asset.stand + (asset.stand === 'tarsus' ? ' (lowest tarsus vertex, claws incl.)' : ''));
             if (rec.footMinY !== null) row('lowest foot (GLB root, unscaled)', fmt(rec.footMinY));
@@ -713,7 +844,8 @@
                     + ' · display scale ' + state.compare.rec.displayScale.toFixed(4) + ' · floor ' + state.compare.rec.floor.state : '';
                 applyLayerVisibility();
                 renderLodButtons(asset); renderLayerToggles(asset); renderFacts(asset, inst.rec);
-                setupAnimation(asset, inst);
+                setupAnimation(asset, inst).then(() => { if (state.current && state.current.model === inst.model) handednessCheck(); });
+                setupWindVane(asset, inst);
                 if (assetChanged || state.compare) focus(query.view || '34');
                 if (assetChanged) renderLodTable(asset);
                 renderAssetList();
@@ -741,7 +873,12 @@
         function clipLoad(asset, lod) {
             // Embedded animations plus any separate clip GLBs listed in the manifest
             // ('{lod}' in a clip url selects the clip file built for the shown LOD).
-            return Promise.all(asset.clips.map((c) => ({...c, url: c.url.replace('{lod}', String(lod))})).map((c) => loadGlb(c.url).then((g) => (g.animations || []).map((a) => ({clip: a, label: (a.name || 'unnamed clip') + ' · ' + c.label, src: c.url})),
+            return Promise.all(asset.clips.map((c) => ({...c, url: c.url.replace('{lod}', String(lod))})).map((c) => loadGlb(c.url).then((g) => (g.animations || []).map((a) => {
+                const kind = clipKind(a);
+                const kindLabel = kind === 'ROOT MOTION' ? ' · ROOT MOTION (moves through the scene)' : kind === 'IN-PLACE' ? ' · IN-PLACE (root fixed)'
+                    : kind === 'DEMO' ? ' · DEMO: deterministic preview, not measured or simulated' : '';
+                return {clip: a, label: (a.name || 'unnamed clip') + kindLabel + ' · ' + c.label, src: c.url, kind};
+            }),
                 (err) => { report(asset.id + ' clip ' + c.url + ': ' + err.message); return []; })));
         }
         function setupAnimation(asset, inst) {
@@ -750,7 +887,11 @@
             const wasPlaying = anim.playing;
             if (anim.mixer) anim.mixer.stopAllAction();
             anim.mixer = null; anim.action = null; anim.clips = []; anim.bind = new Map(); anim.nodes = [];
-            const embedded = (inst.animations || []).map((a) => ({clip: a, label: a.name || 'clip', src: inst.rec.url}));
+            const embedded = (inst.animations || []).map((a) => {
+                const kind = clipKind(a);
+                return {clip: a, kind, src: inst.rec.url, label: (a.name || 'clip') + (kind === 'ROOT MOTION' ? ' · ROOT MOTION (moves through the scene)'
+                    : kind === 'IN-PLACE' ? ' · IN-PLACE (root fixed)' : kind === 'DEMO' ? ' · DEMO: deterministic preview, not measured or simulated' : '')};
+            });
             const jointsUrl = asset.joints ? asset.joints.replace('{lod}', String(inst.rec.lod)) : null;
             return Promise.all([clipLoad(asset, inst.rec.lod), loadJoints(jointsUrl)]).then(([lists, contract]) => {
                 if (!state.current || state.current.model !== inst.model) return;
@@ -761,7 +902,7 @@
                 $('animLabel').hidden = !anim.clips.length;
                 if (!anim.clips.length) { $('joints').textContent = ''; return; }
                 inst.model.updateMatrixWorld(true);
-                const rf = vertexBounds(T, inst.model, (m) => { for (let o = m; o; o = o.parent) if (/^(lf|lm|lh|rf|rm|rh)_tarsus$/.test(o.name || '')) return true; return false; });
+                const rf = vertexBounds(T, inst.model, isAnyTarsus);
                 anim.restFoot = rf ? rf.min.y : NaN;
                 anim.mixer = new T.AnimationMixer(inst.model);
                 const sel = $('clip');
@@ -796,13 +937,13 @@
         }
         // Sample the whole clip on the gallery model against the documented envelope,
         // then restore the time it started from.
-        const isTarsus = (m) => { for (let o = m; o; o = o.parent) if (/^(lf|lm|lh|rf|rm|rh)_tarsus$/.test(o.name || '')) return true; return false; };
+        const isTarsus = isAnyTarsus;
         function scanEnvelope() {
             if (!anim.action || !anim.contract) return null;
             const clip = anim.action.getClip();
             const dur = clip.duration, keep = anim.action.time, n = Math.max(120, Math.ceil(dur * 60));
             const model = state.current.model;
-            const movesLegs = trackNodes(clip).some((x) => /_(coxa|femur|tibia)_joint$/.test(x));
+            const movesLegs = trackNodes(clip).some((x) => /_(coxa|femur|tibia)_joint$|_(hip|knee|ankle)_|_motion$|_body_shift$/.test(x));
             const found = [];
             let lowest = Infinity;
             for (let k = 0; k <= n; k += 1) {
@@ -847,8 +988,8 @@
             const env = $('envelope');
             if (!scan) { env.textContent = 'Joint envelope: not checked (no joint contract for this asset)'; env.className = 'status bad'; }
             else {
-                const lines = [scan.violations.length ? 'Joint envelope (W2 contract): ' + scan.violations.length + ' violation(s) over ' + scan.samples + ' samples'
-                    : 'Joint envelope (W2 contract): inside over ' + scan.samples + ' samples of the clip'];
+                const lines = [scan.violations.length ? 'Joint envelope (documented rig contract): ' + scan.violations.length + ' violation(s) over ' + scan.samples + ' samples'
+                    : 'Joint envelope (documented rig contract): inside over ' + scan.samples + ' samples of the clip'];
                 lines.push(...scan.violations.slice(0, 4), ...scan.notes.slice(0, 4).map((x) => 'Clip check: ' + x));
                 env.textContent = lines.join('\n');
                 env.className = 'status ' + (scan.violations.length || scan.notes.length ? 'bad' : 'ok');
@@ -925,16 +1066,56 @@
         $('animSpeed').value = '1';
         $('animSpeed').addEventListener('change', () => { anim.speed = Number($('animSpeed').value); renderJoints(); });
         if (query.clip) anim.wanted = query.clip;
+        // Optional camera follow for ROOT MOTION clips: the target tracks the *_motion carrier,
+        // so an animal walking through the scene stays in view.  Off: the camera stays put.
+        let followPrev = null;
+        function followRoot() {
+            if (!controls || !$('follow').checked || !state.current) { followPrev = null; return; }
+            let carrier = null;
+            state.current.model.traverse((o) => { if (!carrier && /_motion$/.test(o.name || '')) carrier = o; });
+            if (!carrier) return;
+            const p = carrier.getWorldPosition(new T.Vector3());
+            if (followPrev) { const d = p.clone().sub(followPrev); camera.position.add(d); controls.target.add(d); }
+            followPrev = p;
+        }
         function animTick(nowMs) {
             const dt = lastTick === null ? 0 : Math.min(0.1, (nowMs - lastTick) / 1000);
             lastTick = nowMs;
             if (anim.mixer && anim.action && anim.playing) {
                 anim.mixer.update(dt * anim.speed);
+                followRoot();
                 const completed = !anim.loop && anim.action.time >= anim.action.getClip().duration - 1e-6;
                 if (completed) setPlaying(false);          // setPlaying(false) refreshes the readout itself
                 else if (readoutDue(nowMs, lastJoints, false)) { lastJoints = nowMs; renderJoints(); }
             }
         }
+
+        // ----------------------------------------------------------- wind vane mapping
+        // Telemetry mapping preview (W3 env_wind_vane_mapping): no live wind here, so the
+        // viewer sets a test vector; calm and missing are separate states, never alike.
+        let vane = null;
+        function setupWindVane(asset, inst) {
+            const panel = $('vanePanel');
+            vane = asset.windVane ? {rotor: inst.model.getObjectByName(asset.windVane.rotor)} : null;
+            panel.hidden = !vane || !vane.rotor;
+            if (vane && vane.rotor) { vane.rest = vane.rotor.quaternion.clone(); applyVane('missing'); }
+        }
+        function applyVane(mode) {
+            if (!vane || !vane.rotor) return null;
+            if (anim.action && anim.playing) setPlaying(false);
+            const wx = mode === 'missing' ? null : mode === 'calm' ? 0 : Number($('vaneX').value);
+            const wy = mode === 'missing' ? null : mode === 'calm' ? 0 : Number($('vaneY').value);
+            const st = windVaneState(wx, wy);
+            vane.rotor.quaternion.copy(vane.rest).multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), st.yaw));
+            $('vaneState').textContent = st.label;
+            $('vaneState').dataset.state = st.state;
+            state.vane = st;
+            return st;
+        }
+        $('vaneApply').addEventListener('click', () => applyVane('vector'));
+        $('vaneCalm').addEventListener('click', () => applyVane('calm'));
+        $('vaneMissing').addEventListener('click', () => applyVane('missing'));
+        $('handBtn').addEventListener('click', () => handednessCheck());
 
         // ----------------------------------------------------------- contact sheet
         function contactSheet() {
@@ -1082,6 +1263,6 @@
     return {
         MANIFEST_SCHEMA, DEFAULT_MANIFEST_URL, OVERLAYS, FLOOR_TOLERANCE, LEG_PREFIXES,
         validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
-        floorStatus, plinthStatus, standLift, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
+        floorStatus, plinthStatus, standLift, tarsusSide, handednessAt, clipKind, windVaneState, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
     };
 }));

@@ -168,7 +168,8 @@
           "label": "3/4 (perspective)"
         }
       ],
-      "notes": "Stylised surface, not an anatomical reconstruction. Wings, halteres, antennae and bristles are static decoration. Leg pose is a display pose; the dashboard keeps its own pose stream. Appearance does not select a brain dataset or physiology."
+      "notes": "Stylised surface, not an anatomical reconstruction. Wings, halteres, antennae and bristles are static decoration. Leg pose is a display pose; the dashboard keeps its own pose stream. Appearance does not select a brain dataset or physiology.",
+      "display_reflect_x": true
     },
     {
       "id": "fly-female",
@@ -213,7 +214,8 @@
         }
       ],
       "notes": "Appearance only: choosing it never switches the brain dataset, changes physiology or body mechanics, or implies sex-specific behaviour. Seven visible segments, dark posterior band on every tergite, longer pointed abdomen (stylised profile). Display scale 1.0 (reference). Sources: tools/assets/SEX_VARIANTS.md.",
-      "source": "tools/assets/SEX_VARIANTS.md"
+      "source": "tools/assets/SEX_VARIANTS.md",
+      "display_reflect_x": true
     },
     {
       "id": "fly-male",
@@ -262,7 +264,8 @@
         }
       ],
       "notes": "Appearance only: choosing it never switches the brain dataset, changes physiology or body mechanics, or implies sex-specific behaviour. Six visible segments, A5/A6 fully dark, shorter rounded abdomen, stylised sex comb on the front basitarsus. Display scale 0.8696 = 1/1.15 female/male thorax ratio (David et al. 2003), applied to the whole root. Sources: tools/assets/SEX_VARIANTS.md.",
-      "source": "tools/assets/SEX_VARIANTS.md"
+      "source": "tools/assets/SEX_VARIANTS.md",
+      "display_reflect_x": true
     },
     {
       "id": "fly-female-v2",
@@ -345,7 +348,8 @@
       ],
       "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. walk_tripod_loop walks in place (no root motion) and takeoff_prep only prepares: no flight is shown. No proboscis clip (the rig has no proboscis joint). Appearance only.",
       "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
-      "joints": "assets/hq/anim/fly_female_v2_lod{lod}_joints.json"
+      "joints": "assets/hq/anim/fly_female_v2_lod{lod}_joints.json",
+      "display_reflect_x": true
     },
     {
       "id": "fly-male-v2",
@@ -428,7 +432,8 @@
       ],
       "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. walk_tripod_loop walks in place (no root motion) and takeoff_prep only prepares: no flight is shown. No proboscis clip (the rig has no proboscis joint). Appearance only.",
       "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
-      "joints": "assets/hq/anim/fly_male_v2_lod{lod}_joints.json"
+      "joints": "assets/hq/anim/fly_male_v2_lod{lod}_joints.json",
+      "display_reflect_x": true
     },
     {
       "id": "arena-shell-rect",
@@ -971,6 +976,182 @@
       ],
       "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is implemented; decoration only and must not change looming or retinal input. Looming in the engine is an abstract expanding disc; this model never changes looming or retinal input.",
       "source": "tools/assets/env/ENV_MANIFEST.json"
+    },
+    {
+      "id": "envanim-jumping-spider",
+      "title": "Jumping spider (W3, articulated)",
+      "category": "predator",
+      "status": "illustrative",
+      "provenance_label": "source-informed (salticid gait; tarantula duty proxy; stride timing low confidence)",
+      "stand": "bbox",
+      "layers": [
+        {
+          "id": "legs",
+          "label": "Legs (animated presentation joints)",
+          "match": [
+            "^(sp|mn)_[LR]\\d_(femur|shank|tibia|tarsus)$",
+            "_(coxa|femur|tibia)_mesh$"
+          ]
+        },
+        {
+          "id": "body",
+          "label": "Body",
+          "match": [
+            "^(spider|mantis)_(body|head|eyes|chelicera_[LR])$"
+          ]
+        },
+        {
+          "id": "palps",
+          "label": "Palps",
+          "match": [
+            "^spider_palp_[LR]$"
+          ]
+        }
+      ],
+      "joints": "assets/hq/envanim/v3_env_jumping_spider_rig_joints.json",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD (rig)",
+          "url": "assets/hq/envanim/v3_env_jumping_spider_rig.glb",
+          "budget_triangles": 12000
+        }
+      ],
+      "clips": [
+        {
+          "url": "assets/hq/envanim/v3_env_jumping_spider_rig_clips.glb",
+          "label": "W3 env-anim v3"
+        }
+      ],
+      "sprites": [],
+      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is simulated, and this model never changes looming or retinal input. Illustrative animation with source-informed timing; not motion capture, not simulated behaviour. Gait: source-informed (salticid tetrapod phase; tarantula duty proxy; stride timing low confidence). Stated speed 15.0 mm/s at playback multiplier 1.0. Clip names say IN-PLACE (root fixed) or ROOT MOTION (moves through the scene); scene_walk is root motion. Sides: authored +X = anatomical left, no display reflection (W3 handedness proof, renderer 750246c). No strike or jump clips.",
+      "source": "W3 ENV_RIG_CONTRACT.md; ENV_ANIM_MANIFEST.json"
+    },
+    {
+      "id": "envanim-mantis-nymph",
+      "title": "Mantis nymph (W3, articulated)",
+      "category": "predator",
+      "status": "illustrative",
+      "provenance_label": "cross-species proxy / artistic estimate (no mantis walking kinematics published)",
+      "stand": "bbox",
+      "layers": [
+        {
+          "id": "legs",
+          "label": "Legs (animated presentation joints)",
+          "match": [
+            "^(sp|mn)_[LR]\\d_(femur|shank|tibia|tarsus)$",
+            "_(coxa|femur|tibia)_mesh$"
+          ]
+        },
+        {
+          "id": "body",
+          "label": "Body",
+          "match": [
+            "^(spider|mantis)_(body|head|eyes|chelicera_[LR])$"
+          ]
+        },
+        {
+          "id": "palps",
+          "label": "Palps",
+          "match": [
+            "^spider_palp_[LR]$"
+          ]
+        }
+      ],
+      "joints": "assets/hq/envanim/v3_env_mantis_nymph_rig_joints.json",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD (rig)",
+          "url": "assets/hq/envanim/v3_env_mantis_nymph_rig.glb",
+          "budget_triangles": 12000
+        }
+      ],
+      "clips": [
+        {
+          "url": "assets/hq/envanim/v3_env_mantis_nymph_rig_clips.glb",
+          "label": "W3 env-anim v3"
+        }
+      ],
+      "sprites": [],
+      "notes": "ILLUSTRATIVE: no predator stimulus or behaviour is simulated, and this model never changes looming or retinal input. Illustrative animation with source-informed timing; not motion capture, not simulated behaviour. Gait: cross-species proxy / artistic estimate (no mantis walking kinematics published). Stated speed 5.0 mm/s at playback multiplier 1.0; raptorial forelegs held. Clip names say IN-PLACE (root fixed) or ROOT MOTION (moves through the scene); scene_walk is root motion. Sides: authored +X = anatomical left, no display reflection (W3 handedness proof, renderer 750246c). No strike or jump clips.",
+      "source": "W3 ENV_RIG_CONTRACT.md; ENV_ANIM_MANIFEST.json"
+    },
+    {
+      "id": "envanim-wind-vane",
+      "title": "Wind vane: telemetry mapping + DEMO swing (W3)",
+      "category": "wind",
+      "status": "decorative",
+      "stand": "bbox",
+      "wind_vane": {
+        "rotor": "wind_vane_rotor"
+      },
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD",
+          "url": "assets/hq/envanim/v3_env_wind_vane_demo.glb",
+          "budget_triangles": 8000
+        }
+      ],
+      "clips": [],
+      "sprites": [],
+      "notes": "Live mapping (W3): rotor yaw = atan2(wind_x, -wind_y) from sensory.wind_x/y (mm/s, arena frame); the arrow tip points downwind and the vane shows direction only. Zero wind = CALM (field present, vane at rest); missing or non-finite wind = NO WIND FIELD / NOT SIMULATED (vane at rest). DEMO_vane_swing is a deterministic preview labelled DEMO, not measured or simulated wind.",
+      "source": "env_wind_vane_mapping.json"
+    },
+    {
+      "id": "scene-fermenting-fruit-patch",
+      "title": "Scene: fermenting fruit patch (W3)",
+      "category": "scene",
+      "status": "decorative",
+      "stand": "none",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD (phone budget)",
+          "url": "assets/hq/envanim/scene_fermenting_fruit_patch.glb",
+          "budget_triangles": 40000
+        }
+      ],
+      "sprites": [],
+      "notes": "Presentation only: nothing in the scene is simulated; food props at nominal size. Flies in scenes use the authored GLB frame (no fly display reflection is applied inside a composed scene).",
+      "source": "SCENES_MANIFEST.json"
+    },
+    {
+      "id": "scene-sugar-water-feeder",
+      "title": "Scene: sugar-water feeder (W3)",
+      "category": "scene",
+      "status": "decorative",
+      "stand": "none",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD (phone budget)",
+          "url": "assets/hq/envanim/scene_sugar_water_feeder.glb",
+          "budget_triangles": 40000
+        }
+      ],
+      "sprites": [],
+      "notes": "Presentation only; sugar taste is NOT SIMULATED in the engine. Flies in scenes use the authored GLB frame (no fly display reflection is applied inside a composed scene).",
+      "source": "SCENES_MANIFEST.json"
+    },
+    {
+      "id": "scene-predator-encounter-illustrative",
+      "title": "Scene: predator encounter (ILLUSTRATIVE) (W3)",
+      "category": "scene",
+      "status": "illustrative",
+      "stand": "none",
+      "lods": [
+        {
+          "level": 0,
+          "label": "single LOD (phone budget)",
+          "url": "assets/hq/envanim/scene_predator_encounter_illustrative.glb",
+          "budget_triangles": 40000
+        }
+      ],
+      "sprites": [],
+      "notes": "ILLUSTRATIVE scene: no predator stimulus or behaviour; decoration only; must not change looming or retinal input. Flies in scenes use the authored GLB frame (no fly display reflection is applied inside a composed scene).",
+      "source": "SCENES_MANIFEST.json"
     }
   ],
   "sheets": [

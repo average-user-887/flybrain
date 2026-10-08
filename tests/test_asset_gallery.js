@@ -262,3 +262,46 @@ test('player readout: throttled while playing, always refreshed on completion or
     assert.match(src, /if \(!on && anim\.action && !anim\.atRest\) \{ lastJoints = -Infinity; renderJoints\(\); \}/);
     assert.match(src, /if \(completed\) setPlaying\(false\);/);
 });
+
+test('L/R contract: fly assets use the legacy reflected adapter; environment animals are never reflected', () => {
+    const v = G.validateManifest(MANIFEST);
+    for (const a of v.assets) {
+        if (a.category === 'fly') assert.equal(a.displayReflectX, true, a.id);
+        else assert.equal(a.displayReflectX, false, a.id);
+    }
+    assert.equal(G.tarsusSide('lf_tarsus'), 'L');
+    assert.equal(G.tarsusSide('rh_tarsus'), 'R');
+    assert.equal(G.tarsusSide('sp_L3_tarsus'), 'L');
+    assert.equal(G.tarsusSide('mn_R2_tarsus'), 'R');
+    assert.equal(G.tarsusSide('l_wing'), null);
+    // Six headings: L legs at +X (environment contract) are on the left, and a + yaw is a left turn.
+    for (let i = 0; i < 6; i += 1) {
+        const h = i * Math.PI / 3;
+        const rot = (x, z) => new THREE.Vector3(x * Math.cos(h) + z * Math.sin(h), 0, -x * Math.sin(h) + z * Math.cos(h));
+        const ok = G.handednessAt(THREE, h, rot(2, 0), rot(-2, 0), 1.2);
+        assert.equal(ok.sideOk, true, `heading ${i * 60}`);
+        assert.equal(ok.turnOk, true);
+        const mirrored = G.handednessAt(THREE, h, rot(-2, 0), rot(2, 0), -1.2);
+        assert.equal(mirrored.sideOk, false, 'a mirrored asset is caught');
+        assert.equal(mirrored.turnOk, false);
+    }
+});
+
+test('clips are named root motion, in-place or DEMO by inspecting the exported tracks', () => {
+    const still = new THREE.AnimationClip('walk_forward_inplace', 1, [new THREE.VectorKeyframeTrack('sp_motion.position', [0, 1], [0, 0, 0, 0, 0, 0])]);
+    const moving = new THREE.AnimationClip('walk_forward_rootmotion', 1, [new THREE.VectorKeyframeTrack('sp_motion.position', [0, 1], [0, 0, 0, 0, 0, 12])]);
+    const demo = new THREE.AnimationClip('DEMO_vane_swing', 6, [new THREE.QuaternionKeyframeTrack('wind_vane_rotor.quaternion', [0, 6], [0, 0, 0, 1, 0, 0.5, 0, 0.866])]);
+    assert.equal(G.clipKind(still), 'IN-PLACE');
+    assert.equal(G.clipKind(moving), 'ROOT MOTION');
+    assert.equal(G.clipKind(demo), 'DEMO');
+    const v = G.validateManifest(MANIFEST);
+    const sp = v.assets.find((a) => a.id === 'envanim-jumping-spider'), mn = v.assets.find((a) => a.id === 'envanim-mantis-nymph');
+    assert.match(sp.provenanceLabel, /source-informed/);
+    assert.match(mn.provenanceLabel, /cross-species proxy \/ artistic estimate/);
+    for (const a of [sp, mn]) assert.match(a.notes, /ILLUSTRATIVE.*never changes looming or retinal input/);
+    const vane = v.assets.find((a) => a.id === 'envanim-wind-vane');
+    assert.equal(vane.windVane.rotor, 'wind_vane_rotor');
+    assert.match(vane.notes, /CALM/);
+    assert.match(vane.notes, /NOT SIMULATED/);
+    assert.match(vane.notes, /DEMO_vane_swing is a deterministic preview labelled DEMO/);
+});
