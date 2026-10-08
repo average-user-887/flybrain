@@ -85,6 +85,10 @@ def main():
                     'Descriptive comparison only.',
         'label': 'LABELLED OFFLINE COUNTERFACTUAL: existing wiring only, no edge added, not a fix, not an A2 re-grade',
         'status': 'FROZEN FOR ROOT LAUNCH DECISION. Not launched. Any change gives a new sha256.',
+        'amendments': ['checker-only amendment after ASTRA_DIRECT_EDGE_PRELAUNCH_REVIEW_20261008 (supersedes prereg '
+                       'ff2b59ad at 80bb93c): recorded seeds must equal the expected seed of each row; exit records '
+                       'are bound to the pinned shard plan, runner/prereg arguments and verified log bytes; timeout '
+                       'moved inside the wrapper child. Rows, conditions, inputs, gains and arms unchanged.'],
         'origin': 'ASTRA_PVLP151_FINAL_DECISION_20261008 items 8-9 (question raised after the accepted clamp result).',
         'frozen_contract_sha256': sha(Q / 'contract.json'),
         'not_a_fix': cf['not_a_fix'],
@@ -139,11 +143,18 @@ def main():
             'analysis': 'scripts/pathA_gf_edge_analyse.py (external pins; exit 2 if INVALID)',
         },
         'run_procedure': {
-            'launcher': 'one scripts/pathA_shard.py per shard: --exit-file <shard>.exit.json --log <shard>.log -- '
-                        'python scripts/pathA_run.py --contract ... --contract-sha256 <contract> --cf-silence-prereg '
-                        '<this file> --cf-silence-prereg-sha256 <this sha> --out <shard> --only <ids>',
-            'shards': 'one per driven base condition (LC15, LC4 + LC4_0, LPLC2); OMP/BLAS/NUMBA = 1, '
-                      'CUDA_VISIBLE_DEVICES empty, taskset one core each',
+            'launcher': 'one scripts/pathA_shard.py per shard, with the timeout INSIDE its child so the wrapper records '
+                        'the timeout exit code: pathA_shard.py --exit-file <shard>.exit.json --log <shard>.log -- '
+                        'timeout --signal=TERM <timeout_s> python scripts/pathA_run.py --contract ... --contract-sha256 '
+                        '<contract> --cf-silence-prereg <this file> --cf-silence-prereg-sha256 <this sha> --out <dir> '
+                        '--only <ids, comma-joined in the order below>',
+            'timeout_s': 3500,
+            'shards': [dict(name=nm, only=[c['id'] for c in conds if c['base_condition'] in bs])
+                       for nm, bs in (('sA', ['A2_IRR_LC15_200']), ('sB', ['A2_LC4_200', 'A2_LC4_0']),
+                                      ('sC', ['A2_LPLC2_200']))],
+            'shard_binding': 'the analyser requires exactly one exit record per shard, exit_code 0, argv as above, '
+                             '--out holding exactly that shard rows, and a log matching log_sha256 with a line per row; '
+                             'OMP/BLAS/NUMBA = 1, CUDA_VISIBLE_DEVICES empty, taskset one core each',
             'evidence': 'new evidence directory; originals and accepted run read-only',
         },
         'compute': {

@@ -4,6 +4,9 @@
  "question": "How do the paired changes of GF and the other readout populations under deletion of ONLY the 8 existing PVLP151->GF edges compare with those under the accepted all-output clamp of PVLP151? Descriptive comparison only.",
  "label": "LABELLED OFFLINE COUNTERFACTUAL: existing wiring only, no edge added, not a fix, not an A2 re-grade",
  "status": "FROZEN FOR ROOT LAUNCH DECISION. Not launched. Any change gives a new sha256.",
+ "amendments": [
+  "checker-only amendment after ASTRA_DIRECT_EDGE_PRELAUNCH_REVIEW_20261008 (supersedes prereg ff2b59ad at 80bb93c): recorded seeds must equal the expected seed of each row; exit records are bound to the pinned shard plan, runner/prereg arguments and verified log bytes; timeout moved inside the wrapper child. Rows, conditions, inputs, gains and arms unchanged."
+ ],
  "origin": "ASTRA_PVLP151_FINAL_DECISION_20261008 items 8-9 (question raised after the accepted clamp result).",
  "frozen_contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
  "not_a_fix": "A model counterfactual, not proof of biological mediation and not a repair of A2. The original A2 FAIL (contract cd69cb6d) and the unresolved electrical GF-TTMn wiring are unchanged by any outcome. Nothing here re-grades A2, fits physiology or selects stimuli from outcomes.",
@@ -552,8 +555,41 @@
   "analysis": "scripts/pathA_gf_edge_analyse.py (external pins; exit 2 if INVALID)"
  },
  "run_procedure": {
-  "launcher": "one scripts/pathA_shard.py per shard: --exit-file <shard>.exit.json --log <shard>.log -- python scripts/pathA_run.py --contract ... --contract-sha256 <contract> --cf-silence-prereg <this file> --cf-silence-prereg-sha256 <this sha> --out <shard> --only <ids>",
-  "shards": "one per driven base condition (LC15, LC4 + LC4_0, LPLC2); OMP/BLAS/NUMBA = 1, CUDA_VISIBLE_DEVICES empty, taskset one core each",
+  "launcher": "one scripts/pathA_shard.py per shard, with the timeout INSIDE its child so the wrapper records the timeout exit code: pathA_shard.py --exit-file <shard>.exit.json --log <shard>.log -- timeout --signal=TERM <timeout_s> python scripts/pathA_run.py --contract ... --contract-sha256 <contract> --cf-silence-prereg <this file> --cf-silence-prereg-sha256 <this sha> --out <dir> --only <ids, comma-joined in the order below>",
+  "timeout_s": 3500,
+  "shards": [
+   {
+    "name": "sA",
+    "only": [
+     "A2_IRR_LC15_200_REPLAY",
+     "A2_IRR_LC15_200_DEL_PVLP151_GF",
+     "A2_IRR_LC15_200_CF_silence_PVLP151",
+     "A2_IRR_LC15_200_SHAM_DEL_EMPTY"
+    ]
+   },
+   {
+    "name": "sB",
+    "only": [
+     "A2_LC4_200_REPLAY",
+     "A2_LC4_200_DEL_PVLP151_GF",
+     "A2_LC4_200_CF_silence_PVLP151",
+     "A2_LC4_200_SHAM_DEL_EMPTY",
+     "A2_LC4_0_REPLAY",
+     "A2_LC4_0_DEL_PVLP151_GF",
+     "A2_LC4_0_CF_silence_PVLP151"
+    ]
+   },
+   {
+    "name": "sC",
+    "only": [
+     "A2_LPLC2_200_REPLAY",
+     "A2_LPLC2_200_DEL_PVLP151_GF",
+     "A2_LPLC2_200_CF_silence_PVLP151",
+     "A2_LPLC2_200_SHAM_DEL_EMPTY"
+    ]
+   }
+  ],
+  "shard_binding": "the analyser requires exactly one exit record per shard, exit_code 0, argv as above, --out holding exactly that shard rows, and a log matching log_sha256 with a line per row; OMP/BLAS/NUMBA = 1, CUDA_VISIBLE_DEVICES empty, taskset one core each",
   "evidence": "new evidence directory; originals and accepted run read-only"
  },
  "compute": {
