@@ -250,3 +250,15 @@ test('rig v2 clips: repaired v3 first, failed v2 and early preview kept with the
         assert.match(a.notes, /no flight is shown/);
     }
 });
+
+test('player readout: throttled while playing, always refreshed on completion or Pause', () => {
+    assert.equal(G.READOUT_MS, 150);
+    assert.equal(G.readoutDue(1000, 900, false), false, 'within the throttle while playing');
+    assert.equal(G.readoutDue(1000, 800, false), true);
+    assert.equal(G.readoutDue(1000, 990, true), true, 'a stop always refreshes, even inside the throttle');
+    assert.equal(G.readoutDue(1000, -Infinity, false), true, 'first frame refreshes');
+    const src = read('asset_gallery.js');
+    // setPlaying(false) forces renderJoints; completion goes through setPlaying(false).
+    assert.match(src, /if \(!on && anim\.action && !anim\.atRest\) \{ lastJoints = -Infinity; renderJoints\(\); \}/);
+    assert.match(src, /if \(completed\) setPlaying\(false\);/);
+});

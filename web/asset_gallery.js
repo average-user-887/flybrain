@@ -227,6 +227,13 @@
         return out;
     }
 
+    // Live-readout throttle: refresh at most every 150 ms while playing, but always on a
+    // stop (clip completion or manual Pause) so the shown clock is the true final time.
+    const READOUT_MS = 150;
+    function readoutDue(nowMs, lastMs, stopped) {
+        return !!stopped || !(Number.isFinite(lastMs)) || nowMs - lastMs > READOUT_MS;
+    }
+
     // A plinth (stand: none) must stay wholly below the floor top: never a wall or cue.
     function plinthStatus(topY, floorY) {
         if (!Number.isFinite(topY)) return {gap: null, state: 'unknown', text: 'no geometry'};
@@ -730,6 +737,7 @@
         // own model only.  The label below is persistent while an animated asset is shown.
         const anim = {mixer: null, clips: [], action: null, playing: false, speed: 1, loop: true, bind: new Map(), nodes: [], wanted: null};
         state.anim = anim;
+        let lastTick = null, lastJoints = -Infinity;   // animation clock and readout throttle
         function clipLoad(asset, lod) {
             // Embedded animations plus any separate clip GLBs listed in the manifest
             // ('{lod}' in a clip url selects the clip file built for the shown LOD).
@@ -858,6 +866,9 @@
             $('animPlay').textContent = on ? 'Pause' : 'Play';
             $('animPlay').setAttribute('aria-pressed', on ? 'true' : 'false');
             $('animState').textContent = on ? 'PLAYING' : 'PAUSED';
+            // Whenever playback stops (completion or a manual Pause), show the stopped
+            // action's own clock and joints at once, never a throttled earlier readout.
+            if (!on && anim.action && !anim.atRest) { lastJoints = -Infinity; renderJoints(); }
         }
         function renderJoints() {
             const t = $('joints');
@@ -914,14 +925,14 @@
         $('animSpeed').value = '1';
         $('animSpeed').addEventListener('change', () => { anim.speed = Number($('animSpeed').value); renderJoints(); });
         if (query.clip) anim.wanted = query.clip;
-        let lastTick = null, lastJoints = 0;
         function animTick(nowMs) {
             const dt = lastTick === null ? 0 : Math.min(0.1, (nowMs - lastTick) / 1000);
             lastTick = nowMs;
             if (anim.mixer && anim.action && anim.playing) {
                 anim.mixer.update(dt * anim.speed);
-                if (!anim.loop && anim.action.time >= anim.action.getClip().duration - 1e-6) setPlaying(false);
-                if (nowMs - lastJoints > 150) { lastJoints = nowMs; renderJoints(); }
+                const completed = !anim.loop && anim.action.time >= anim.action.getClip().duration - 1e-6;
+                if (completed) setPlaying(false);          // setPlaying(false) refreshes the readout itself
+                else if (readoutDue(nowMs, lastJoints, false)) { lastJoints = nowMs; renderJoints(); }
             }
         }
 
@@ -1071,6 +1082,6 @@
     return {
         MANIFEST_SCHEMA, DEFAULT_MANIFEST_URL, OVERLAYS, FLOOR_TOLERANCE, LEG_PREFIXES,
         validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
-        floorStatus, plinthStatus, standLift, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
+        floorStatus, plinthStatus, standLift, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
     };
 }));
