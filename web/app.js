@@ -7554,7 +7554,7 @@ function disposeThreeTree(root) {
     root.traverse((object) => {
         object.geometry?.dispose?.();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
-        for (const material of materials) material?.dispose?.();
+        for (const material of materials) { material?.map?.dispose?.(); material?.dispose?.(); }
     });
 }
 
@@ -7562,13 +7562,137 @@ window.neuroflyArenaPointFor3D = arenaPointFor3D;
 window.neuroflyAssayGeometry3DDescriptor = assayGeometry3DDescriptor;
 
 class ArticulatedFly3DViewport {
+    // ---------------------------------------------------------------- presentation constants
+    // Floor top of every arena surface (updateAssayGeometry) in viewport units.
+    static floorTop() { return -0.02; }
+    // Body height drawn when no body-height stream exists (also the daemon default).
+    static illustrativeLiftMm() { return 0.5; }
+    // Stand offset of the procedural rig, derived from its geometry: coxa pivot at
+    // thorax 2.2 - 0.2 = 2.0, then coxa 1.0 + femur 2.2 + tibia 2.4 hanging straight
+    // down (the rest pose, the lowest any joint angles can put a foot) and a contact
+    // sphere of radius 0.25 -> lowest point -3.85 below the fly root.  Used until the
+    // exact vertex scan of the built meshes (lowestLegPointY) has run.
+    static proceduralLowestLegY() { return 2.0 - 1.0 - 2.2 - 2.4 - 0.25; }
+    static standOffsetFor(lowestLegY, floorTop = ArticulatedFly3DViewport.floorTop(),
+        referenceLift = ArticulatedFly3DViewport.illustrativeLiftMm()) {
+        // Static presentation placement: at the reference lift and in the rest pose the
+        // lowest leg point touches the floor top.  Never applied per frame, never a clamp.
+        return Number.isFinite(lowestLegY) ? floorTop - lowestLegY - referenceLift : null;
+    }
+
+    // Exact vertex scan of every visible leg mesh (contact spheres included) with the
+    // root at the origin, unrotated, keeping its display scale, and every leg in the
+    // rest pose.  Restores all transforms.  Returns the lowest y relative to the root.
+    static lowestLegPointY(T, flyGroup, legs) {
+        if (!T || !flyGroup || !Array.isArray(legs) || !legs.length) return null;
+        const saved = {p: flyGroup.position.clone(), q: flyGroup.quaternion.clone()};
+        const savedLegs = legs.map((leg) => [leg.coxa.rotation.y, leg.femur.rotation.z, leg.tibia.rotation.z]);
+        flyGroup.position.set(0, 0, 0);
+        flyGroup.quaternion.set(0, 0, 0, 1);
+        for (const leg of legs) { leg.coxa.rotation.y = leg.baseAngle; leg.femur.rotation.z = 0; leg.tibia.rotation.z = 0; }
+        const parent = flyGroup.parent;
+        if (parent) parent.updateMatrixWorld(true); else flyGroup.updateMatrixWorld(true);
+        const inverseParent = parent ? new T.Matrix4().copy(parent.matrixWorld).invert() : new T.Matrix4();
+        const v = new T.Vector3();
+        let lowest = Infinity;
+        const visible = (o) => {
+            for (let x = o; x; x = x.parent) { if (x.visible === false) return false; if (x === flyGroup) break; }
+            const mats = Array.isArray(o.material) ? o.material : [o.material];
+            return mats.some((m) => m && m.visible !== false);
+        };
+        for (const leg of legs) {
+            leg.coxa.traverse((o) => {
+                const a = o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position;
+                if (!a || !visible(o)) return;
+                for (let k = 0; k < a.count; k += 1) {
+                    lowest = Math.min(lowest, v.fromBufferAttribute(a, k).applyMatrix4(o.matrixWorld).applyMatrix4(inverseParent).y);
+                }
+            });
+        }
+        legs.forEach((leg, i) => { [leg.coxa.rotation.y, leg.femur.rotation.z, leg.tibia.rotation.z] = savedLegs[i]; });
+        flyGroup.position.copy(saved.p);
+        flyGroup.quaternion.copy(saved.q);
+        flyGroup.updateMatrixWorld(true);
+        return Number.isFinite(lowest) ? lowest : null;
+    }
+
+    static qualityLevels() {
+        return [
+            {id: 'high', label: 'High', pixelRatioCap: 2, shadows: true, shadowMapSize: 2048},
+            {id: 'medium', label: 'Medium', pixelRatioCap: 1.25, shadows: true, shadowMapSize: 1024},
+            {id: 'low', label: 'Low', pixelRatioCap: 1, shadows: false, shadowMapSize: 0}
+        ];
+    }
+
+    // Frame-time governor: an EMA of the measured frame interval against a budget.
+    // Sustained over-budget frames drop one quality level; a level that failed is never
+    // re-entered automatically, so the quality cannot oscillate.  Stalls longer than
+    // 250 ms (hidden tab, debugger, page switch) are not frame-time samples.
+    static createQualityGovernor(options = {}) {
+        const levels = ArticulatedFly3DViewport.qualityLevels().length;
+        const budgetMs = options.budgetMs ?? 25;  // 40 frames per second
+        const warmupFrames = options.warmupFrames ?? 45;
+        const overFrames = options.overFrames ?? 60;
+        const recoverFrames = options.recoverFrames ?? 900;
+        const alpha = options.alpha ?? 0.1;
+        let level = Math.max(0, Math.min(levels - 1, options.startLevel ?? 0));
+        let ema = null, renderEma = null, over = 0, under = 0, seen = 0;
+        const failed = new Set();
+        const effectiveBudget = () => budgetMs;
+        return {
+            get level() { return level; },
+            get frameMs() { return ema; },
+            get renderMs() { return renderEma; },
+            get budgetMs() { return effectiveBudget(); },
+            get failedLevels() { return [...failed]; },
+            sample(intervalMs, renderMs) {
+                if (Number.isFinite(renderMs)) renderEma = renderEma === null ? renderMs : renderEma + alpha * (renderMs - renderEma);
+                if (!(intervalMs > 0) || intervalMs > 250) { over = 0; under = 0; return null; }
+                ema = ema === null ? intervalMs : ema + alpha * (intervalMs - ema);
+                seen += 1;
+                if (seen < warmupFrames) return null;
+                const budget = effectiveBudget();
+                if (ema > budget) {
+                    over += 1; under = 0;
+                    if (over >= overFrames && level < levels - 1) {
+                        failed.add(level); level += 1; over = 0; seen = 0; ema = null;
+                        return {level, reason: 'over-budget'};
+                    }
+                } else if (ema < budget * 0.55) {
+                    under += 1; over = 0;
+                    if (under >= recoverFrames && level > 0 && !failed.has(level - 1)) {
+                        level -= 1; under = 0; seen = 0; ema = null;
+                        return {level, reason: 'recovered'};
+                    }
+                } else { over = 0; under = 0; }
+                return null;
+            }
+        };
+    }
+
+    // Authored colours are sRGB; the renderer outputs sRGB, so convert once.
+    static displayColor(T, hex) { return new T.Color(hex).convertSRGBToLinear(); }
+
+    static readSetting(key, allowed, fallback) {
+        let value = null;
+        try { value = new URLSearchParams(window.location.search).get(key); } catch (e) { value = null; }
+        if (!allowed.includes(value)) {
+            try { value = window.localStorage.getItem('neurofly.v3d.' + key); } catch (e) { value = null; }
+        }
+        return allowed.includes(value) ? value : fallback;
+    }
+
+    static writeSetting(key, value) {
+        try { window.localStorage.setItem('neurofly.v3d.' + key, value); } catch (e) { /* storage blocked */ }
+    }
+
     constructor(canvasId, containerId, arena) {
         this.canvas = document.getElementById(canvasId);
         this.container = document.getElementById(containerId);
         this.statusPanel = document.getElementById('viewport3DOverlay');
         this.arena = arena;
         this.visible = false;
-        this.cameraMode = 'orbit'; // 'orbit' or 'chase'
+        this.cameraMode = 'orbit'; // 'orbit', 'follow', 'chase', 'top' or 'side'
         this.initialized = false;
         this.cacheIdentity = null;
         this.orbitFrameIdentity = null;
@@ -7583,6 +7707,7 @@ class ArticulatedFly3DViewport {
         this.assayGeometryKey = null;
         this.assayGeometryDescriptor = null;
         this.assayGeometryGroup = null;
+        this.standOffset = ArticulatedFly3DViewport.standOffsetFor(ArticulatedFly3DViewport.proceduralLowestLegY());
         this.init();
     }
 
@@ -7591,6 +7716,15 @@ class ArticulatedFly3DViewport {
 
         const width = this.container.clientWidth || 800;
         const height = this.container.clientHeight || 600;
+        const V = ArticulatedFly3DViewport;
+        this.theme = V.readSetting('theme', ['dark', 'light'], 'dark');
+        this.qualitySetting = V.readSetting('quality', ['auto', 'high', 'medium', 'low'], 'auto');
+        const coarse = (() => { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
+        const smallScreen = Math.min(window.screen?.width || 1024, window.screen?.height || 1024) < 700;
+        const startLevel = this.qualitySetting === 'auto'
+            ? ((coarse || smallScreen) ? 1 : 0)
+            : V.qualityLevels().findIndex((l) => l.id === this.qualitySetting);
+        this.governor = V.createQualityGovernor({startLevel});
 
         // Scene
         this.scene = new THREE.Scene();
@@ -7601,11 +7735,18 @@ class ArticulatedFly3DViewport {
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         this.camera.position.set(0, 25, 45);
 
-        // Renderer
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });
+        // Renderer: MSAA, sRGB output and ACES filmic tone mapping (three r128).  Cue,
+        // outline and contact-state colours opt out of tone mapping so they show their
+        // documented colours.
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false,
+            powerPreference: 'high-performance' });
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.1;
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // OrbitControls
         if (THREE.OrbitControls) {
@@ -7616,23 +7757,35 @@ class ArticulatedFly3DViewport {
             this.controls.target.set(0, 2, 0);
         }
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
-        this.scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-        dirLight.position.set(20, 40, 20);
-        dirLight.castShadow = true;
-        this.scene.add(dirLight);
-
-        const backLight = new THREE.DirectionalLight(0xf59e0b, 0.6);
-        backLight.position.set(-20, 20, -20);
-        this.scene.add(backLight);
+        // Lighting: hemisphere sky/ground fill, a warm key that casts soft shadows and
+        // follows the fly (so the shadow map spends its texels where the fly is), and a
+        // cool fill from the opposite side.
+        this.hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x0b1220, 0.75);
+        this.scene.add(this.hemiLight);
+        this.keyLight = new THREE.DirectionalLight(0xfff1dc, 1.55);
+        this.keyLightOffset = new THREE.Vector3(14, 30, 10);
+        this.keyLight.position.copy(this.keyLightOffset);
+        this.keyLight.castShadow = true;
+        this.keyLight.shadow.mapSize.set(2048, 2048);
+        const sc = this.keyLight.shadow.camera;
+        sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 90;
+        this.keyLight.shadow.bias = -0.0004;
+        this.keyLight.shadow.normalBias = 0.03;
+        this.scene.add(this.keyLight, this.keyLight.target);
+        this.fillLight = new THREE.DirectionalLight(0x93c5fd, 0.45);
+        this.fillLight.position.set(-20, 14, -18);
+        this.scene.add(this.fillLight);
+        this.rimLight = new THREE.DirectionalLight(0xf59e0b, 0.25);
+        this.rimLight.position.set(-6, 10, 26);
+        this.scene.add(this.rimLight);
 
         // Build anatomical fly mesh
+        V.configureHQVariant(this);
         this.buildFlyMesh();
         // Opt-in presentation assets (web/hq_assets.js, ?assets=hq); a no-op without the flag.
         if (window.NeuroflyHQAssets) window.NeuroflyHQAssets.attachViewport(this);
+        this.buildContactShadow();
+        this.refreshStand();
 
         // Keep missing telemetry visible without throwing away the last valid frame.
         this.poseStatus = document.createElement('div');
@@ -7646,8 +7799,11 @@ class ArticulatedFly3DViewport {
             + 'border:1px solid #334155;border-radius:5px;background:rgba(15,23,42,.9);'
             + 'color:#94a3b8;font:10px monospace';
         (this.statusPanel || this.container).appendChild(this.geometryStatus);
+        this.applyTheme(this.theme);
         this.updateAssayGeometry();
         this.updateAssayCues();
+        this.buildViewToolbar();
+        this.applyQualityLevel(this.governor.level);
 
         // Resize handler
         window.addEventListener('resize', () => this.onResize());
@@ -7662,17 +7818,19 @@ class ArticulatedFly3DViewport {
     buildFlyMesh() {
         this.flyGroup = new THREE.Group();
         this.scene.add(this.flyGroup);
+        const c = (hex) => ArticulatedFly3DViewport.displayColor(THREE, hex);
 
         // Materials
-        const thoraxMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.2 });
-        const headMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.4, metalness: 0.3 });
-        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.2, metalness: 0.1 });
-        const abdomenMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.1 });
-        const wingMat = new THREE.MeshStandardMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.45, roughness: 0.1, side: THREE.DoubleSide });
-        const legMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.7 });
+        const thoraxMat = new THREE.MeshStandardMaterial({ color: c(0x2b3442), roughness: 0.45, metalness: 0.15 });
+        const headMat = new THREE.MeshStandardMaterial({ color: c(0x3b4452), roughness: 0.4, metalness: 0.2 });
+        const eyeMat = new THREE.MeshStandardMaterial({ color: c(0xb91c1c), roughness: 0.25, metalness: 0.05 });
+        const abdomenMat = new THREE.MeshStandardMaterial({ color: c(0x1a2230), roughness: 0.55, metalness: 0.1 });
+        const wingMat = new THREE.MeshStandardMaterial({ color: c(0xbae6fd), transparent: true, opacity: 0.35, roughness: 0.15,
+            side: THREE.DoubleSide, depthWrite: false });
+        const legMat = new THREE.MeshStandardMaterial({ color: c(0x56606e), roughness: 0.65 });
 
         // Thorax (center at y=2.2 mm)
-        const thoraxGeo = new THREE.SphereGeometry(1.2, 16, 16);
+        const thoraxGeo = new THREE.SphereGeometry(1.2, 24, 18);
         thoraxGeo.scale(1.0, 1.1, 1.5);
         this.thoraxMesh = new THREE.Mesh(thoraxGeo, thoraxMat);
         this.thoraxMesh.position.set(0, 2.2, 0);
@@ -7680,14 +7838,14 @@ class ArticulatedFly3DViewport {
         this.flyGroup.add(this.thoraxMesh);
 
         // Head
-        const headGeo = new THREE.SphereGeometry(0.8, 16, 16);
+        const headGeo = new THREE.SphereGeometry(0.8, 20, 16);
         headGeo.scale(1.2, 1.0, 0.9);
         const headMesh = new THREE.Mesh(headGeo, headMat);
         headMesh.position.set(0, 0.2, 1.6);
         this.thoraxMesh.add(headMesh);
 
         // Compound Eyes (left & right)
-        const eyeGeo = new THREE.SphereGeometry(0.45, 12, 12);
+        const eyeGeo = new THREE.SphereGeometry(0.45, 16, 12);
         eyeGeo.scale(0.8, 1.2, 1.2);
         const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
         leftEye.position.set(-0.65, 0.2, 0.1);
@@ -7698,7 +7856,7 @@ class ArticulatedFly3DViewport {
         headMesh.add(rightEye);
 
         // Abdomen (posterior)
-        const abdGeo = new THREE.SphereGeometry(1.1, 16, 16);
+        const abdGeo = new THREE.SphereGeometry(1.1, 24, 16);
         abdGeo.scale(0.9, 0.9, 2.0);
         const abdMesh = new THREE.Mesh(abdGeo, abdomenMat);
         abdMesh.position.set(0, -0.1, -2.4);
@@ -7739,7 +7897,7 @@ class ArticulatedFly3DViewport {
             this.thoraxMesh.add(coxaGroup);
 
             // Coxa segment mesh (length ~1.0mm)
-            const coxaGeo = new THREE.CylinderGeometry(0.2, 0.18, 1.0, 8);
+            const coxaGeo = new THREE.CylinderGeometry(0.2, 0.18, 1.0, 10);
             coxaGeo.translate(0, -0.5, 0);
             const coxaMesh = new THREE.Mesh(coxaGeo, legMat);
             coxaGroup.add(coxaMesh);
@@ -7750,7 +7908,7 @@ class ArticulatedFly3DViewport {
             coxaGroup.add(femurGroup);
 
             // Femur segment mesh (length ~2.2mm)
-            const femurGeo = new THREE.CylinderGeometry(0.18, 0.15, 2.2, 8);
+            const femurGeo = new THREE.CylinderGeometry(0.18, 0.15, 2.2, 10);
             femurGeo.translate(0, -1.1, 0);
             const femurMesh = new THREE.Mesh(femurGeo, legMat);
             femurGroup.add(femurMesh);
@@ -7761,19 +7919,21 @@ class ArticulatedFly3DViewport {
             femurGroup.add(tibiaGroup);
 
             // Tibia segment mesh (length ~2.4mm)
-            const tibiaGeo = new THREE.CylinderGeometry(0.15, 0.10, 2.4, 8);
+            const tibiaGeo = new THREE.CylinderGeometry(0.15, 0.10, 2.4, 10);
             tibiaGeo.translate(0, -1.2, 0);
             const tibiaMesh = new THREE.Mesh(tibiaGeo, legMat);
             tibiaGroup.add(tibiaMesh);
 
-            // Tarsus contact indicator sphere (at tip of tibia)
-            const contactGeo = new THREE.SphereGeometry(0.25, 8, 8);
+            // Tarsus contact indicator sphere (at tip of tibia).  Its colour is measured
+            // contact state, so it is not tone mapped.
+            const contactGeo = new THREE.SphereGeometry(0.25, 12, 10);
             const contactMat = new THREE.MeshStandardMaterial({
-                color: 0x64748b,
-                emissive: 0x334155,
+                color: c(0x64748b),
+                emissive: c(0x334155),
                 emissiveIntensity: 0.15,
                 roughness: 0.3
             });
+            contactMat.toneMapped = false;
             const contactMesh = new THREE.Mesh(contactGeo, contactMat);
             contactMesh.position.set(0, -2.4, 0);
             tibiaGroup.add(contactMesh);
@@ -7790,6 +7950,366 @@ class ArticulatedFly3DViewport {
             });
             this.contactSpheres.push(contactMesh);
         });
+        this.flyGroup.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        this.setDisplayScale(1);
+    }
+
+    // The rig is authored with the L legs and every l_* part at local -X while the head
+    // is +Z and up is +Y, i.e. in a mirrored frame (docs/RENDERER_HANDEDNESS_20261008.md).
+    // One reflection of the root's local X turns it into a proper anatomical frame, so
+    // L parts land on the fly's left.  Size consumers must use Math.abs(scale.x).
+    setDisplayScale(s) {
+        const size = Number.isFinite(s) && s > 0 ? s : 1;
+        this.flyGroup.scale.set(-size, size, size);
+    }
+
+    setContactColor(leg, hex, emissiveIntensity) {
+        leg.contactMat.color.setHex(hex);
+        leg.contactMat.emissive.setHex(hex === 0x64748b ? 0x334155 : hex);
+        if (leg.contactMat.color.convertSRGBToLinear) {
+            leg.contactMat.color.convertSRGBToLinear();
+            leg.contactMat.emissive.convertSRGBToLinear();
+        }
+        leg.contactMat.emissiveIntensity = emissiveIntensity;
+    }
+
+    // ---------------------------------------------------------------- presentation layer
+    // Everything below changes how the scene looks, never what it shows: poses, contacts,
+    // arena geometry, cues and every status label come from the code above unchanged.
+
+    // ?assets=hq: use the rig v2 female/male GLB (tools/assets/JOINT_CONTRACT.md).
+    // Appearance only: the brain dataset, body model, stimuli and every measurement are
+    // the same whichever is drawn.  Without the flag nothing changes or is fetched.
+    static configureHQVariant(vp) {
+        const lib = window.NeuroflyHQAssetsLib;
+        if (!lib || !lib.flagEnabled || !lib.flagEnabled(window.location)) return null;
+        const sex = ArticulatedFly3DViewport.readSetting('fly', ['female', 'male'], 'female');
+        const lod = vp.governor && vp.governor.level >= 2 ? 1 : 0;
+        const url = `assets/hq/fly_${sex}_v2_lod${lod}.glb`;
+        const info = {requested: sex, url, loaded: null, rig: null, displayScale: 1, fallback: null};
+        vp.hqVariant = info;
+        const ensureLoader = () => {
+            if (THREE.GLTFLoader) return Promise.resolve(THREE.GLTFLoader);
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = lib.LOADER_URL || 'vendor/GLTFLoader.js';
+                script.onload = () => (THREE.GLTFLoader ? resolve(THREE.GLTFLoader) : reject(new Error('GLTFLoader did not register')));
+                script.onerror = () => reject(new Error('could not load ' + script.src));
+                (document.head || document.body).appendChild(script);
+            });
+        };
+        const load = (u) => ensureLoader().then((Loader) => new Promise((resolve, reject) => {
+            new Loader().load(u, resolve, undefined, (err) => reject(err instanceof Error ? err : new Error(String(err?.message || err))));
+        }));
+        const loadGlb = (u) => {
+            if (u !== url) return load(u);
+            const note = (gltf, fallback) => {
+                const root = gltf?.scene?.getObjectByName?.('neurofly_fly');
+                const extras = root?.userData || {};
+                info.loaded = fallback ? 'neutral (v1)' : (extras.nf_variant || sex);
+                info.rig = extras.nf_rig || null;
+                const scale = Number(extras.nf_display_scale);
+                info.displayScale = Number.isFinite(scale) && scale > 0.5 && scale <= 1.5 ? scale : 1;
+                return gltf;
+            };
+            return load(u).then((g) => note(g, false)).catch((err) => {
+                info.fallback = (err && err.message) || String(err);
+                return load(lib.FLY_URL).then((g) => note(g, true));
+            });
+        };
+        window.NeuroflyHQAssets = lib.create({flyUrl: url, loadGlb});
+        return info;
+    }
+
+    // Called every frame: once the HQ surface is attached, apply the variant's display
+    // scale (uniform, about the root, per SEX_VARIANTS.md) and re-derive the stand.
+    syncHQPresentation() {
+        const hq = window.NeuroflyHQAssets;
+        const status = hq && hq.status;
+        if (status === this.hqStatusSeen) return;
+        this.hqStatusSeen = status;
+        if (status === 'hq' && this.hqVariant && this.flyGroup) {
+            this.setDisplayScale(this.hqVariant.displayScale || 1);
+        }
+        this.refreshStand();
+        this.updateRendererStatus(true);
+    }
+
+    refreshStand() {
+        const lowest = ArticulatedFly3DViewport.lowestLegPointY(THREE, this.flyGroup, this.legs);
+        const offset = ArticulatedFly3DViewport.standOffsetFor(lowest);
+        if (offset !== null) { this.standOffset = offset; this.standLowestY = lowest; }
+        return this.standOffset;
+    }
+
+    buildContactShadow() {
+        // Contact-shadow approximation: a soft elliptical blob on the floor under the
+        // body.  Drawn first and below the cue layer, so it never covers a cue.
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const g = canvas.getContext('2d');
+        if (!g) return;
+        const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+        grad.addColorStop(0.45, 'rgba(0,0,0,0.45)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, size, size);
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({map: texture, transparent: true, depthWrite: false,
+            color: 0x000000, opacity: 0.5});
+        material.toneMapped = false;
+        this.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+        this.contactShadow.name = 'contact-shadow-approximation';
+        this.contactShadow.rotation.order = 'YXZ';
+        this.contactShadow.rotation.x = -Math.PI / 2;
+        this.contactShadow.renderOrder = -1;
+        this.contactShadow.visible = false;
+        this.scene.add(this.contactShadow);
+    }
+
+    floorTexture(repeatX, repeatY) {
+        // A faint 10 mm grid in arena millimetres (one texture cell = 10 x 10 mm).
+        if (!this.floorCanvas) {
+            this.floorCanvas = document.createElement('canvas');
+            this.floorCanvas.width = this.floorCanvas.height = 128;
+        }
+        const light = this.theme === 'light';
+        const g = this.floorCanvas.getContext('2d');
+        if (!g) return null;
+        g.fillStyle = light ? '#dfe5ec' : '#111a2b';
+        g.fillRect(0, 0, 128, 128);
+        g.strokeStyle = light ? 'rgba(71,85,105,0.30)' : 'rgba(148,163,184,0.16)';
+        g.lineWidth = 2;
+        g.strokeRect(1, 1, 126, 126);
+        const texture = new THREE.CanvasTexture(this.floorCanvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(Math.max(1e-3, repeatX), Math.max(1e-3, repeatY));
+        texture.encoding = THREE.sRGBEncoding;
+        texture.anisotropy = Math.min(8, this.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+        return texture;
+    }
+
+    applyTheme(theme) {
+        this.theme = theme === 'light' ? 'light' : 'dark';
+        const light = this.theme === 'light';
+        const bg = light ? 0xe9eef4 : 0x060913;
+        if (this.scene) {
+            this.scene.background = ArticulatedFly3DViewport.displayColor(THREE, bg);
+            if (this.scene.fog) this.scene.fog.color = ArticulatedFly3DViewport.displayColor(THREE, bg);
+        }
+        if (this.hemiLight) {
+            this.hemiLight.color.copy(ArticulatedFly3DViewport.displayColor(THREE, light ? 0xffffff : 0xdbeafe));
+            this.hemiLight.groundColor.copy(ArticulatedFly3DViewport.displayColor(THREE, light ? 0xa3b1c2 : 0x0b1220));
+            this.hemiLight.intensity = light ? 0.9 : 0.75;
+        }
+        if (this.contactShadow) this.contactShadow.material.opacity = light ? 0.38 : 0.5;
+        // Floors are rebuilt with the theme's grid; geometry and dimensions are unchanged.
+        this.assayGeometryKey = null;
+        if (this.initialized) this.updateAssayGeometry();
+        if (this.themeButton) this.themeButton.textContent = light ? 'Theme: Light' : 'Theme: Dark';
+    }
+
+    applyQualityLevel(index) {
+        const levels = ArticulatedFly3DViewport.qualityLevels();
+        const level = levels[Math.max(0, Math.min(levels.length - 1, index))];
+        this.qualityLevel = level;
+        if (!this.renderer) return level;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, level.pixelRatioCap));
+        const shadowsChanged = this.renderer.shadowMap.enabled !== level.shadows;
+        this.renderer.shadowMap.enabled = level.shadows;
+        if (this.keyLight) {
+            this.keyLight.castShadow = level.shadows;
+            if (level.shadows && this.keyLight.shadow.mapSize.x !== level.shadowMapSize) {
+                this.keyLight.shadow.mapSize.set(level.shadowMapSize, level.shadowMapSize);
+                if (this.keyLight.shadow.map) { this.keyLight.shadow.map.dispose(); this.keyLight.shadow.map = null; }
+            }
+        }
+        if (shadowsChanged && this.scene) {
+            this.scene.traverse((o) => {
+                for (const m of [].concat(o.material || [])) if (m) m.needsUpdate = true;
+            });
+        }
+        this.onResize();
+        this.updateRendererStatus(true);
+        return level;
+    }
+
+    noteFrame(intervalMs, renderMs) {
+        if (!this.governor) return;
+        const change = this.governor.sample(intervalMs, renderMs);
+        if (change && this.qualitySetting === 'auto') {
+            this.qualityChange = change;
+            this.applyQualityLevel(change.level);
+        }
+        this.updateRendererStatus(false);
+    }
+
+    updateRendererStatus(force) {
+        if (!this.renderStatus) return;
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (!force && this.renderStatusAt && now - this.renderStatusAt < 500) return;
+        this.renderStatusAt = now;
+        const g = this.governor;
+        const ms = (v) => (Number.isFinite(v) ? v.toFixed(1) + ' ms' : '…');
+        const level = this.qualityLevel ? this.qualityLevel.label : '…';
+        const mode = this.qualitySetting === 'auto' ? 'auto' : 'fixed';
+        const dropped = this.qualityChange && this.qualityChange.reason === 'over-budget' ? ' · lowered to keep the frame budget' : '';
+        const hq = this.hqVariant ? ` · HQ appearance: ${this.hqVariant.loaded || 'loading'}${this.hqVariant.loaded && this.hqVariant.displayScale !== 1 ? ` (display scale ${this.hqVariant.displayScale})` : ''} · appearance only` : '';
+        const props = this.propGroup?.visible && this.propGroup.children.length
+            ? ` · ${this.propGroup.children.length} decorative prop(s) at telemetry cue positions, display size, not a stimulus or collision shape` : '';
+        this.renderStatus.textContent = `Renderer: ${level} (${mode})${dropped} · frame ${ms(g?.frameMs)} / budget ${ms(g?.budgetMs)} · draw ${ms(g?.renderMs)}`
+            + ` · floor grid 10 mm${hq}${props} · lighting, shadows and grid are presentation only`;
+    }
+
+    buildViewToolbar() {
+        const host = this.statusPanel || this.container;
+        if (!host || !document.createElement) return;
+        const bar = document.createElement('div');
+        bar.className = 'v3d-toolbar';
+        bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:5px;font:10px monospace;color:#94a3b8';
+        const control = (el) => {
+            el.style.cssText = 'font:10px monospace;padding:2px 6px;background:#0f172a;color:#e2e8f0;'
+                + 'border:1px solid #334155;border-radius:4px;min-height:24px';
+            bar.appendChild(el);
+            return el;
+        };
+        const select = (label, options, value, onChange) => {
+            const el = control(document.createElement('select'));
+            el.setAttribute('aria-label', label);
+            for (const [v, text] of options) {
+                const o = document.createElement('option');
+                o.value = v; o.textContent = text;
+                el.appendChild(o);
+            }
+            el.value = value;
+            el.addEventListener('change', () => onChange(el.value));
+            return el;
+        };
+        this.cameraSelect = select('Camera preset', [['orbit', 'Cam: Orbit'], ['follow', 'Cam: Follow'],
+            ['chase', 'Cam: Chase'], ['top', 'Cam: Top'], ['side', 'Cam: Side']], this.cameraMode,
+            (v) => this.setCameraMode(v));
+        this.qualitySelect = select('Render quality', [['auto', 'Quality: Auto'], ['high', 'Quality: High'],
+            ['medium', 'Quality: Medium'], ['low', 'Quality: Low']], this.qualitySetting, (v) => {
+            this.qualitySetting = v;
+            ArticulatedFly3DViewport.writeSetting('quality', v);
+            const idx = ArticulatedFly3DViewport.qualityLevels().findIndex((l) => l.id === v);
+            this.qualityChange = null;
+            if (idx >= 0) this.applyQualityLevel(idx); else this.applyQualityLevel(this.governor.level);
+        });
+        this.themeButton = control(document.createElement('button'));
+        this.themeButton.type = 'button';
+        this.themeButton.textContent = this.theme === 'light' ? 'Theme: Light' : 'Theme: Dark';
+        this.themeButton.addEventListener('click', () => {
+            const next = this.theme === 'light' ? 'dark' : 'light';
+            ArticulatedFly3DViewport.writeSetting('theme', next);
+            this.applyTheme(next);
+        });
+        if (this.hqVariant) {
+            select('Fly appearance', [['female', 'Appearance: Female'], ['male', 'Appearance: Male']],
+                this.hqVariant.requested, (v) => {
+                    ArticulatedFly3DViewport.writeSetting('fly', v);
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('fly', v);
+                    window.location.search = params.toString();
+                });
+            const note = document.createElement('span');
+            note.textContent = 'appearance only: same connectome, body model, stimuli and measurements';
+            bar.appendChild(note);
+        }
+        host.appendChild(bar);
+        this.renderStatus = document.createElement('div');
+        this.renderStatus.className = 'v3d-render-status';
+        this.renderStatus.style.cssText = 'margin-top:4px;color:#64748b;font:10px monospace';
+        host.appendChild(this.renderStatus);
+        this.toolbar = bar;
+    }
+
+    // HQ only: decorative W3 props at the cue positions the telemetry already supplies.
+    syncProps(descriptor, geometry) {
+        if (!this.hqVariant || !geometry?.available) { if (this.propGroup) this.propGroup.visible = false; return; }
+        const kinds = {'Food / odor A': 'env_fermenting_fruit', 'Goal odor': 'env_fermenting_fruit',
+            'Odor nozzle': 'env_odour_emitter'};
+        const wanted = (descriptor?.cues || []).filter((c) => c.kind === 'marker' && kinds[c.label]).slice(0, 24);
+        const key = JSON.stringify([geometry.bounds, wanted.map((c) => [c.label, c.x, c.y])]);
+        if (key === this.propKey) return;
+        this.propKey = key;
+        if (!this.propGroup) {
+            this.propGroup = new THREE.Group();
+            this.propGroup.name = 'hq-decorative-props';
+            this.scene.add(this.propGroup);
+            this.propTemplates = {};
+        }
+        this.propGroup.visible = true;
+        while (this.propGroup.children.length) this.propGroup.remove(this.propGroup.children[0]);
+        const cx = (geometry.bounds.minX + geometry.bounds.maxX) / 2;
+        const cy = (geometry.bounds.minY + geometry.bounds.maxY) / 2;
+        for (const cue of wanted) {
+            const name = kinds[cue.label];
+            if (!this.propTemplates[name]) {
+                // The loader script arrives with the HQ fly; until then try again next frame.
+                if (!THREE.GLTFLoader) { this.propKey = null; continue; }
+                this.propTemplates[name] = 'loading';
+                const loader = new THREE.GLTFLoader();
+                loader.load(`assets/hq/${name}.glb`, (gltf) => {
+                    const root = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(root);
+                    const size = new THREE.Vector3(); box.getSize(size);
+                    const s = 4 / Math.max(size.x, size.z, 1e-3);  // display size, not a measurement
+                    const holder = new THREE.Group();
+                    root.position.y = -box.min.y;
+                    holder.add(root);
+                    holder.scale.setScalar(s);
+                    holder.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+                    this.propTemplates[name] = holder;
+                    this.propKey = null;
+                }, undefined, () => { this.propTemplates[name] = 'failed'; });
+                continue;
+            }
+            const template = this.propTemplates[name];
+            if (typeof template === 'string') continue;
+            const prop = template.clone();
+            prop.position.set(cue.x - cx, ArticulatedFly3DViewport.floorTop(), -(cue.y - cy));
+            this.propGroup.add(prop);
+        }
+    }
+
+    // Per-frame presentation: contact shadow and shadow-casting light follow the fly.
+    updatePresentation(dtS) {
+        if (!this.flyGroup) return;
+        const p = this.flyGroup.position;
+        if (this.contactShadow) {
+            this.contactShadow.visible = !!this.lastPose;
+            const s = Math.abs(this.flyGroup.scale.y) || 1;   // scale.x is negative (mirror)
+            const height = Math.max(0, p.y - (this.standOffset ?? 0) - ArticulatedFly3DViewport.illustrativeLiftMm());
+            this.contactShadow.position.set(p.x, ArticulatedFly3DViewport.floorTop() + 0.012, p.z);
+            this.contactShadow.rotation.y = this.flyGroup.rotation.y;
+            this.contactShadow.scale.set(5.2 * s, 10.5 * s, 1);
+            this.contactShadow.material.opacity = (this.theme === 'light' ? 0.38 : 0.5) * Math.max(0.25, 1 - height / 4);
+        }
+        if (this.keyLight) {
+            this.keyLight.position.copy(p).add(this.keyLightOffset);
+            this.keyLight.target.position.copy(p);
+            this.keyLight.target.updateMatrixWorld();
+        }
+        this.updateCameraPreset(dtS);
+    }
+
+    updateCameraPreset(dtS = 1 / 60) {
+        if (!this.camera || !this.flyGroup || !this.lastPose) return;
+        const k = 1 - Math.exp(-Math.max(0, Math.min(0.25, dtS)) * 4);
+        const p = this.flyGroup.position;
+        if (this.cameraMode === 'follow' && this.controls) {
+            // Smooth follow: target and camera move together, the user's orbit offset stays.
+            const dx = (p.x - this.controls.target.x) * k, dy = (p.y - this.controls.target.y) * k, dz = (p.z - this.controls.target.z) * k;
+            this.controls.target.x += dx; this.controls.target.y += dy; this.controls.target.z += dz;
+            this.camera.position.x += dx; this.camera.position.y += dy; this.camera.position.z += dz;
+        } else if (this.cameraMode === 'side') {
+            const goal = new THREE.Vector3(p.x, p.y + 3.5, p.z + 26);
+            this.camera.position.lerp(goal, k);
+            this.camera.lookAt(p.x, p.y + 1.5, p.z);
+        }
     }
 
     onResize() {
@@ -7815,27 +8335,44 @@ class ArticulatedFly3DViewport {
         if (canvas2d) {
             canvas2d.style.display = visible ? 'none' : 'block';
         }
+        this.lastRenderAt = null;
         if (visible) {
-            if (entering && this.cameraMode === 'orbit') this.requestOrbitFrame();
+            if (entering && (this.cameraMode === 'orbit' || this.cameraMode === 'follow')) this.requestOrbitFrame();
             this.onResize();
         }
     }
 
     setCameraMode(mode) {
+        const modes = {orbit: 'Cam: Orbit', follow: 'Cam: Follow', chase: 'Cam: Chase', top: 'Cam: Top', side: 'Cam: Side'};
+        if (!modes[mode]) return;
         const previousMode = this.cameraMode;
-        if (previousMode === 'orbit' && mode === 'chase') {
+        const orbiting = (m) => m === 'orbit' || m === 'follow';
+        if (orbiting(previousMode) && !orbiting(mode)) {
             this.savedOrbitOffset = this.currentOrbitOffset();
         }
         this.cameraMode = mode;
         const btn = document.getElementById('btnCameraMode');
         if (btn) {
-            btn.textContent = mode === 'orbit' ? 'Cam: Orbit' : 'Cam: Chase';
+            btn.textContent = modes[mode];
         }
+        if (this.cameraSelect && this.cameraSelect.value !== mode) this.cameraSelect.value = mode;
         if (this.controls) {
-            this.controls.enabled = (mode === 'orbit');
+            this.controls.enabled = (mode === 'orbit' || mode === 'follow' || mode === 'top');
         }
-        if (previousMode === 'chase' && mode === 'orbit') {
+        if (!orbiting(previousMode) && orbiting(mode)) {
             this.requestOrbitFrame(this.savedOrbitOffset);
+        }
+        // Distance fog helps depth at oblique angles but would grey out a whole-arena top view.
+        if (this.scene?.fog) this.scene.fog.density = mode === 'top' ? 0 : 0.005;
+        if (mode === 'top' && this.controls && this.camera) {
+            // Whole arena from above; zoom and pan stay available.
+            const d = this.assayGeometryDescriptor;
+            const extent = d?.available ? Math.max(d.width, d.depth) : 100;
+            const fov = (this.camera.fov || 45) * Math.PI / 180;
+            const h = extent * 0.56 / Math.tan(fov / 2);
+            this.controls.target.set(0, 0, 0);
+            this.camera.position.set(0, h, h * 0.02);
+            this.controls.update?.();
         }
     }
 
@@ -7866,8 +8403,10 @@ class ArticulatedFly3DViewport {
             this.cueCanvas = document.createElement('canvas');
             this.cueCanvas.width = this.cueCanvas.height = 1024;
             this.cueTexture = new THREE.CanvasTexture(this.cueCanvas);
+            this.cueTexture.encoding = THREE.sRGBEncoding;
             const material = new THREE.MeshBasicMaterial({map:this.cueTexture,transparent:true,
                 depthWrite:false,side:THREE.DoubleSide});
+            material.toneMapped = false;  // cue colours are shown exactly as painted
             this.cuePlane = new THREE.Mesh(new THREE.PlaneGeometry(1,1),material);
             this.cuePlane.rotation.x = -Math.PI/2;
             this.cuePlane.position.y = 0.04;
@@ -7880,6 +8419,7 @@ class ArticulatedFly3DViewport {
             helper.paint(this.cueCanvas.getContext('2d'),descriptor,geometry);
             this.cueTexture.needsUpdate=true;this.cueKey=key;
         }
+        if (this.hqVariant) this.syncProps(descriptor, geometry);
     }
 
     updateAssayGeometry() {
@@ -7913,11 +8453,15 @@ class ArticulatedFly3DViewport {
             const floorGeometry = circle
                 ? new THREE.CircleGeometry(surface.radius, 64)
                 : new THREE.PlaneGeometry(surface.maxX - surface.minX, surface.maxY - surface.minY);
+            // Matte floor with a faint 10 mm grid in arena millimetres (presentation only).
+            const spanX = circle ? 2 * surface.radius : surface.maxX - surface.minX;
+            const spanY = circle ? 2 * surface.radius : surface.maxY - surface.minY;
             const floorMaterial = new THREE.MeshStandardMaterial({
-                color: 0x0b1220, roughness: 0.95, metalness: 0.0, transparent: true, opacity: 0.72,
-                side: THREE.DoubleSide
+                color: 0xffffff, map: this.floorTexture?.(spanX / 10, spanY / 10) || null,
+                roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide
             });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.receiveShadow = true;
             floor.rotation.x = -Math.PI / 2;
             floor.position.set(surfaceCenter.x, -0.02, -surfaceCenter.y);
             group.add(floor);
@@ -7930,12 +8474,20 @@ class ArticulatedFly3DViewport {
                 const length = Math.hypot(dx, dy);
                 const geometry = new THREE.BoxGeometry(length, 2.0, 0.45);
                 const material = new THREE.MeshStandardMaterial({
-                    color: 0x38bdf8, emissive: 0x0c4a6e, emissiveIntensity: 0.25,
-                    roughness: 0.65, transparent: true, opacity: 0.72
+                    color: ArticulatedFly3DViewport.displayColor(THREE, 0x38bdf8),
+                    emissive: ArticulatedFly3DViewport.displayColor(THREE, 0x0c4a6e), emissiveIntensity: 0.25,
+                    roughness: 0.55, transparent: true, opacity: 0.72
                 });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.position.set((wall.p1.x + wall.p2.x) / 2, 1.0, -(wall.p1.y + wall.p2.y) / 2);
                 mesh.rotation.y = Math.atan2(dy, dx);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                // Crisp edges on the same box (presentation only; same dimensions).
+                const edgeMaterial = new THREE.LineBasicMaterial({color: ArticulatedFly3DViewport.displayColor(THREE, 0x7dd3fc),
+                    transparent: true, opacity: 0.8});
+                edgeMaterial.toneMapped = false;
+                mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
                 group.add(mesh);
             }
         } else if (descriptor.outline?.shape === 'circle') {
@@ -7947,7 +8499,8 @@ class ArticulatedFly3DViewport {
                     -(center.y + descriptor.outline.radius * Math.sin(angle)));
             });
             const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-            const outlineMaterial = new THREE.LineBasicMaterial({color: 0xf59e0b});
+            const outlineMaterial = new THREE.LineBasicMaterial({color: ArticulatedFly3DViewport.displayColor(THREE, 0xf59e0b)});
+            outlineMaterial.toneMapped = false;
             group.add(new THREE.LineLoop(outlineGeometry, outlineMaterial));
         } else {
             const halfW = descriptor.width / 2;
@@ -7957,7 +8510,8 @@ class ArticulatedFly3DViewport {
                 new THREE.Vector3(halfW, 0.03, halfD), new THREE.Vector3(-halfW, 0.03, halfD)
             ];
             const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-            const outlineMaterial = new THREE.LineBasicMaterial({color: 0xf59e0b});
+            const outlineMaterial = new THREE.LineBasicMaterial({color: ArticulatedFly3DViewport.displayColor(THREE, 0xf59e0b)});
+            outlineMaterial.toneMapped = false;
             group.add(new THREE.LineLoop(outlineGeometry, outlineMaterial));
         }
         return true;
@@ -7969,7 +8523,7 @@ class ArticulatedFly3DViewport {
     }
 
     applyPendingOrbitFrame() {
-        if (!this.pendingOrbitFrame || this.cameraMode !== 'orbit' || !this.controls
+        if (!this.pendingOrbitFrame || (this.cameraMode !== 'orbit' && this.cameraMode !== 'follow') || !this.controls
                 || !this.lastPose || !this.flyGroup) return false;
         const frame = orbitFrameValues(
             this.camera.position, this.controls.target, this.flyGroup.position, this.pendingOrbitOffset);
@@ -8024,9 +8578,7 @@ class ArticulatedFly3DViewport {
             leg.coxa.rotation.y = leg.baseAngle;
             leg.femur.rotation.z = 0;
             leg.tibia.rotation.z = 0;
-            leg.contactMat.color.setHex(0x64748b);
-            leg.contactMat.emissive.setHex(0x334155);
-            leg.contactMat.emissiveIntensity = 0.15;
+            this.setContactColor(leg, 0x64748b, 0.15);
         }
     }
 
@@ -8095,10 +8647,14 @@ class ArticulatedFly3DViewport {
         // initialized position until the arena supplies one.
         if (!this.lastPose) return;
         const {xMm, yMm} = this.lastPose;
-        const zMm = this.lastBodyZ ?? 0.5; // Illustrative lift when no 3D body height was measured.
-        this.flyGroup.position.set(xMm, zMm + 1.2, -yMm);
+        const zMm = this.lastBodyZ ?? ArticulatedFly3DViewport.illustrativeLiftMm(); // Illustrative lift when no 3D body height was measured.
+        // Static stand from the rig's own geometry (see standOffsetFor): the streamed
+        // body height is added unchanged and the pose is never clamped.
+        const stand = this.standOffset ?? ArticulatedFly3DViewport.standOffsetFor(ArticulatedFly3DViewport.proceduralLowestLegY());
+        this.flyGroup.position.set(xMm, zMm + stand, -yMm);
         if (this.lastHeading !== null) {
-            this.flyGroup.rotation.set(0, -this.lastHeading + Math.PI / 2, 0);
+            // Local +Z (head) -> world (cos h, 0, -sin h) = arena (cos h, sin h), as in the 2D view.
+            this.flyGroup.rotation.set(0, this.lastHeading + Math.PI / 2, 0);
         }
         if (validPosition) this.applyPendingOrbitFrame();
         const anglesRad = this.lastJointAngles;
@@ -8119,17 +8675,18 @@ class ArticulatedFly3DViewport {
             if (contacts) {
                 const isStance = contacts[i];
                 const targetColor = isStance ? 0x22c55e : 0x38bdf8;
-                leg.contactMat.color.setHex(targetColor);
-                leg.contactMat.emissive.setHex(targetColor);
-                leg.contactMat.emissiveIntensity = isStance ? 0.9 : 0.4;
+                this.setContactColor(leg, targetColor, isStance ? 0.9 : 0.4);
             }
         }
 
         if (this.cameraMode === 'chase' && this.lastHeading !== null) {
             const chaseDist = 20.0;
             const chaseHeight = 10.0;
-            const camX = this.flyGroup.position.x - Math.cos(-this.lastHeading + Math.PI / 2) * chaseDist;
-            const camZ = this.flyGroup.position.z + Math.sin(-this.lastHeading + Math.PI / 2) * chaseDist;
+            // Behind the drawn head: the root's local +Z is (sin ry, 0, cos ry) in the world.
+            // (Previously the camera sat 90 degrees off, beside the fly.)
+            const ry = this.flyGroup.rotation.y;
+            const camX = this.flyGroup.position.x - Math.sin(ry) * chaseDist;
+            const camZ = this.flyGroup.position.z - Math.cos(ry) * chaseDist;
             const camY = this.flyGroup.position.y + chaseHeight;
 
             this.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
@@ -8141,8 +8698,14 @@ class ArticulatedFly3DViewport {
 
     render() {
         if (!this.initialized || !this.visible) return;
+        const start = performance.now();
+        const dtS = this.lastRenderAt ? (start - this.lastRenderAt) / 1000 : 1 / 60;
         this.updatePose();
+        this.syncHQPresentation();
+        this.updatePresentation(dtS);
         this.renderer.render(this.scene, this.camera);
+        if (this.lastRenderAt) this.noteFrame(start - this.lastRenderAt, performance.now() - start);
+        this.lastRenderAt = start;
     }
 }
 

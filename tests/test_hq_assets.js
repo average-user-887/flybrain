@@ -105,7 +105,13 @@ test('without the flag nothing is fetched, injected or touched', async () => {
 });
 
 test('dashboard and replay hooks are single guarded calls; GLTFLoader is never loaded statically', () => {
-    assert.equal(app.split('NeuroflyHQAssets').length - 1, 2);
+    // One guarded hook in init(); the only other references are the viewport's opt-in
+    // variant selection (configureHQVariant) and its status read (syncHQPresentation),
+    // both of which return at once without the flag.
+    const methods = ['static configureHQVariant(', 'syncHQPresentation() {'].map((m) => declaration(m.startsWith('static') ? m : '    ' + m));
+    const rest = methods.reduce((text, body) => text.replace(body, ''), app);
+    assert.equal(rest.split('NeuroflyHQAssets').length - 1, 2);
+    assert.match(methods[0], /if \(!lib \|\| !lib\.flagEnabled \|\| !lib\.flagEnabled\(window\.location\)\) return null;/);
     assert.match(app, /this\.buildFlyMesh\(\);\n.*\n\s+if \(window\.NeuroflyHQAssets\) window\.NeuroflyHQAssets\.attachViewport\(this\);/);
     const replay = read('embodied_replay.js');
     assert.match(replay, /if \(window\.NeuroflyHQAssets\) window\.NeuroflyHQAssets\.attachReplay\(\{ THREE, scene, state \}\);/);

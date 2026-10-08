@@ -165,7 +165,10 @@ function paint(ctx, descriptor, geometry, resolution=1024) {
             ctx.globalAlpha=c.kind==='disk'?.3:.9;ctx.beginPath();ctx.ellipse(x,y,r,c.kind==='disk'?c.radius/h*resolution:r,0,0,2*Math.PI);ctx.fill();
         }
         ctx.globalAlpha=1;ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillStyle='#f8fafc';
-        ctx.fillText(c.label,Math.max(90,Math.min(resolution-90,x)),Math.max(18,Math.min(resolution-8,y-12)));
+        const lx=Math.max(90,Math.min(resolution-90,x)),ly=Math.max(18,Math.min(resolution-8,y-12));
+        // Dark outline keeps the label readable on light and dark floors; text and position unchanged.
+        ctx.lineWidth=3;ctx.lineJoin='round';ctx.strokeStyle='rgba(2,6,23,0.85)';ctx.strokeText(c.label,lx,ly);
+        ctx.fillText(c.label,lx,ly);
     }
     ctx.globalAlpha=1;
 }
