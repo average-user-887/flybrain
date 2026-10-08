@@ -1,15 +1,18 @@
-# PVLP151 → GF direct-edge deletion: proposed preregistration (for root review, not run)
+# PVLP151 → GF direct-edge deletion: preregistration (frozen for the root launch decision, not run)
 
-**Status: proposal only.** This preregistration is not frozen and cannot run yet: the
-runner support it needs is not implemented. Nothing runs before root review and GO.
-The JSON record is `pvlp151_gf_edge_prereg.json`, written by
-`scripts/pathA_make_gf_edge_prereg.py`. The read-only inventory it draws on is
-`pvlp151_gf_inventory.json`, written by `scripts/pathA_pvlp151_gf_inventory.py`.
+**Status: frozen for root's launch decision; not launched.** The frozen record is
+`pvlp151_gf_edge_prereg.json`, written by `scripts/pathA_make_gf_edge_prereg.py`. It
+carries the external pins:
+- graph, neurons and engine;
+- the frozen A2 count manifest and the accepted-clamp count manifest, with per-file hashes;
+- the reset fixture and its canonical state digest;
+- the base and deleted v3 weight-array hashes.
 
-**Question.** The accepted all-output clamp of PVLP151 changed GF. Does deleting only
-the existing PVLP151 → GF edges reproduce that GF change, or are indirect recurrent
-routes needed? This question was raised after the accepted result and is labelled as
-such. The analysis is descriptive only.
+**Question.** How do the paired changes in GF and the other readout populations under
+deletion of only the 8 existing PVLP151 → GF edges compare with those under the
+accepted all-output clamp? The comparison is descriptive only. No fraction is inferred,
+and neither similarity nor difference is taken as showing that indirect routes are or
+are not necessary.
 
 ## Inventory (anatomy, not causal contribution)
 
@@ -75,10 +78,22 @@ There are 99 rows:
 That is about 0.62 core-hours, or about 13 min in 3 single-thread CPU shards, within a
 1 h budget. No GPU is used.
 
-## Code needed after review (none implemented yet)
+## Implemented (no simulation run)
 
-- a `zero_edges` field, with the edge indices checked against PVLP151 × GF;
-- per-row hashes of the weight array and the post-reset state;
-- an exit-code-capturing launcher;
-- an analyser extension;
-- tests, including negative fixtures.
+The runner flag reads `direct_edges` and `zero_edges` from the prereg:
+- Before any row, it checks that the listed edges are exactly the PVLP151 → GF edges
+  and body IDs of the pinned graph.
+- The deletion uses an in-memory weight copy, and the runner checks that only the
+  listed weights changed.
+- The empty deletion is byte-identical to the original weights.
+
+Each row records:
+- the hash of the weight array it used;
+- that the parent weight array was not modified;
+- the canonical post-reset state digest;
+- the RNG state digest.
+
+`--save-reset-fixture` writes the immutable reset fixture without stepping.
+`scripts/pathA_shard.py` captures the exit code, PIDs, times and log hash.
+`scripts/pathA_gf_edge_analyse.py` checks every identity against these external pins
+rather than against the rows. Negative regressions are in `tests/test_pathA_gf_edge.py`.

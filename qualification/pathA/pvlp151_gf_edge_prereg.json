@@ -1,15 +1,11 @@
 {
  "schema": "neurofly.pathA.cf_prereg/3",
- "title": "PVLP151->GF direct-edge deletion vs all-output clamp: does removing only the existing PVLP151->GF edges reproduce the GF change seen under the all-output clamp?",
+ "title": "PVLP151->GF direct-edge deletion vs all-output clamp",
+ "question": "How do the paired changes of GF and the other readout populations under deletion of ONLY the 8 existing PVLP151->GF edges compare with those under the accepted all-output clamp of PVLP151? Descriptive comparison only.",
  "label": "LABELLED OFFLINE COUNTERFACTUAL: existing wiring only, no edge added, not a fix, not an A2 re-grade",
- "status": "PROPOSAL FOR ROOT REVIEW. Not frozen, not runnable: the runner support listed under required_runner_changes is NOT implemented yet. No simulation until Root reviews and GOes; any amendment gives a new sha256.",
- "origin": "ASTRA_PVLP151_FINAL_DECISION_20261008 items 8-9 (post-hoc question raised after the accepted all-output clamp result; stated as such).",
+ "status": "FROZEN FOR ROOT LAUNCH DECISION. Not launched. Any change gives a new sha256.",
+ "origin": "ASTRA_PVLP151_FINAL_DECISION_20261008 items 8-9 (question raised after the accepted clamp result).",
  "frozen_contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
- "accepted_clamp_prereg_sha256": "bbd8dbcbf4df8dc1ccdd6741e09e5c4089049a25a25c5a917dd2e7857c3e47d7",
- "accepted_clamp_code_sha": "33110a4f3292ab3ce8a5c64ee8a17b2626e1cec1",
- "inventory_sha256": "2881da6d4746cbdd9abba82a2767b03c9ad3d5fff6e4771fd7a00dca3287e0dd",
- "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
- "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
  "not_a_fix": "A model counterfactual, not proof of biological mediation and not a repair of A2. The original A2 FAIL (contract cd69cb6d) and the unresolved electrical GF-TTMn wiring are unchanged by any outcome. Nothing here re-grades A2, fits physiology or selects stimuli from outcomes.",
  "owner_rules": [
   "no invented connections",
@@ -19,134 +15,121 @@
   "no edge added: no gap junction, no invented connection",
   "the graph file and stored A2 results are never altered"
  ],
- "arms": {
-  "intact": "frozen A2 condition, unchanged (sham replay)",
-  "direct_edge_deletion": "the 8 existing PVLP151->GF edges (indices in zero_edges, 603 contacts, all v3 '+') get weight 0 in an in-memory copy of the v3 weight array; every other edge, PVLP151 itself (not clamped) and the graph file are untouched",
-  "all_output_clamp": "the accepted intervention, unchanged: PVLP151 held by the frozen silence_drive",
-  "sham_empty_deletion": "seed 0 only: the deletion code path with an empty edge list on a weight copy; must equal the intact row bit for bit"
+ "pins": {
+  "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+  "engine_sha256": "473946a0b5206b6991d183e2bbac0b199b76bd44ee1321075b43b45fb561803e",
+  "original_a2_code_sha": "6bc971fbd52e6328367ffcc325462923fbf84662",
+  "accepted_clamp_code_sha": "33110a4f3292ab3ce8a5c64ee8a17b2626e1cec1",
+  "accepted_clamp_prereg_sha256": "bbd8dbcbf4df8dc1ccdd6741e09e5c4089049a25a25c5a917dd2e7857c3e47d7",
+  "frozen_counts_manifest": "pvlp151_cf_original_counts.sha256.json",
+  "frozen_counts_manifest_sha256": "79b4fa30ca3a2ad88923672265a9f0fa5133b0656910fc9ec3db03c2b952be08",
+  "frozen_counts_subset_digest": "82c13d3cbd3cec64270b6d5b0a546ff37ffa710936a5be1b11c876afe00de64c",
+  "clamp_counts_manifest": "pvlp151_cf_clamp_counts.sha256.json",
+  "clamp_counts_manifest_sha256": "604f706fdeb56e538db56b6f8b3ab3bdb71fdcb519b407abc347061c28e2a195",
+  "clamp_counts_digest": "838b766343723d82a6cdb999b672096490640096fab9aa346712b2803ebd7017",
+  "inventory_sha256": "2881da6d4746cbdd9abba82a2767b03c9ad3d5fff6e4771fd7a00dca3287e0dd",
+  "reset_fixture_file": "fixtures/pvlp151_gf_reset_state_v3.npz",
+  "reset_fixture_sha256": "fb376710e6be6ff41fa9a332274a052c086e78c7517710372b482be17333dbb9",
+  "reset_state_sha256": "013d9c40387a0d2addcc08923bd3e800b80acd47066cd9a25c611d48cf4672f9",
+  "state_arrays_order": [
+   "v",
+   "g",
+   "refractory",
+   "queue",
+   "queue_count",
+   "counts",
+   "active",
+   "active_flag",
+   "nactive"
+  ],
+  "reset_fixture_note": "one fixture: every arm resets to the same state shape (same n, same dynamics); written by pathA_run.py --save-reset-fixture without stepping",
+  "base_weight_sha256": "40faf59702c7054102017bf1171a7e3088b979f4375a1c668570d2c713e46346",
+  "deleted_weight_sha256": "835bf02373fe1e2340c1836c4b885311519c0d5f56723ba3be42083417cd9790"
  },
+ "direct_edges_from": "PVLP151",
+ "direct_edges_to": "GF",
+ "direct_edge_count": 8,
  "direct_edges": [
   {
    "edge_index": 308294,
-   "pre_node": 156,
    "pre_body": 10173,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 0,
    "post_body": 10001,
-   "post_type": "DNp01",
-   "graph_weight": 31.900001525878906,
+   "pre_node": 156,
+   "post_node": 0,
    "contacts": 116,
-   "edges_arrow_synapse_count": 116,
-   "v3_weight": 31.900001525878906,
-   "v3_sign": "+"
+   "v3_weight": 31.900001525878906
   },
   {
    "edge_index": 308466,
-   "pre_node": 156,
    "pre_body": 10173,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 6,
    "post_body": 10010,
-   "post_type": "DNp01",
-   "graph_weight": 1.100000023841858,
+   "pre_node": 156,
+   "post_node": 6,
    "contacts": 4,
-   "edges_arrow_synapse_count": 4,
-   "v3_weight": 1.100000023841858,
-   "v3_sign": "+"
+   "v3_weight": 1.100000023841858
   },
   {
    "edge_index": 1594127,
-   "pre_node": 1565,
    "pre_body": 11677,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 6,
    "post_body": 10010,
-   "post_type": "DNp01",
-   "graph_weight": 45.10000228881836,
+   "pre_node": 1565,
+   "post_node": 6,
    "contacts": 164,
-   "edges_arrow_synapse_count": 164,
-   "v3_weight": 45.10000228881836,
-   "v3_sign": "+"
+   "v3_weight": 45.10000228881836
   },
   {
    "edge_index": 1594285,
-   "pre_node": 1565,
    "pre_body": 11677,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 0,
    "post_body": 10001,
-   "post_type": "DNp01",
-   "graph_weight": 1.100000023841858,
+   "pre_node": 1565,
+   "post_node": 0,
    "contacts": 4,
-   "edges_arrow_synapse_count": 4,
-   "v3_weight": 1.100000023841858,
-   "v3_sign": "+"
+   "v3_weight": 1.100000023841858
   },
   {
    "edge_index": 1678879,
-   "pre_node": 1704,
    "pre_body": 11826,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 6,
    "post_body": 10010,
-   "post_type": "DNp01",
-   "graph_weight": 44.54999923706055,
+   "pre_node": 1704,
+   "post_node": 6,
    "contacts": 162,
-   "edges_arrow_synapse_count": 162,
-   "v3_weight": 44.54999923706055,
-   "v3_sign": "+"
+   "v3_weight": 44.54999923706055
   },
   {
    "edge_index": 1678972,
-   "pre_node": 1704,
    "pre_body": 11826,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 0,
    "post_body": 10001,
-   "post_type": "DNp01",
-   "graph_weight": 2.4750001430511475,
+   "pre_node": 1704,
+   "post_node": 0,
    "contacts": 9,
-   "edges_arrow_synapse_count": 9,
-   "v3_weight": 2.4750001430511475,
-   "v3_sign": "+"
+   "v3_weight": 2.4750001430511475
   },
   {
    "edge_index": 1925422,
-   "pre_node": 2127,
    "pre_body": 12275,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 0,
    "post_body": 10001,
-   "post_type": "DNp01",
-   "graph_weight": 38.5,
+   "pre_node": 2127,
+   "post_node": 0,
    "contacts": 140,
-   "edges_arrow_synapse_count": 140,
-   "v3_weight": 38.5,
-   "v3_sign": "+"
+   "v3_weight": 38.5
   },
   {
    "edge_index": 1925647,
-   "pre_node": 2127,
    "pre_body": 12275,
-   "pre_type": "PVLP151",
-   "pre_transmitter": "acetylcholine",
-   "post_node": 6,
    "post_body": 10010,
-   "post_type": "DNp01",
-   "graph_weight": 1.100000023841858,
+   "pre_node": 2127,
+   "post_node": 6,
    "contacts": 4,
-   "edges_arrow_synapse_count": 4,
-   "v3_weight": 1.100000023841858,
-   "v3_sign": "+"
+   "v3_weight": 1.100000023841858
   }
  ],
+ "arms": {
+  "intact": "frozen A2 condition, unchanged (sham replay); base v3 weights",
+  "direct_edge_deletion": "the 8 listed PVLP151->GF edges (603 contacts) set to 0 in an in-memory copy of the v3 weights; PVLP151 not clamped; nothing else changes; graph file untouched",
+  "all_output_clamp": "the accepted intervention, unchanged (frozen silence_drive on PVLP151)",
+  "sham_empty_deletion": "seed 0: the weight-copy path with no edge; must equal the intact row bit for bit"
+ },
  "sets": {
   "PVLP151": {
    "node_index": [
@@ -258,6 +241,7 @@
    "id": "A2_IRR_LC15_200_REPLAY",
    "base_condition": "A2_IRR_LC15_200",
    "arm": "intact",
+   "counterfactual": null,
    "add_silence": [],
    "zero_edges": [],
    "seeds": [
@@ -275,6 +259,7 @@
    "id": "A2_IRR_LC15_200_DEL_PVLP151_GF",
    "base_condition": "A2_IRR_LC15_200",
    "arm": "direct_edge_deletion",
+   "counterfactual": "delete_PVLP151_GF_edges",
    "add_silence": [],
    "zero_edges": [
     308294,
@@ -301,6 +286,7 @@
    "id": "A2_IRR_LC15_200_CF_silence_PVLP151",
    "base_condition": "A2_IRR_LC15_200",
    "arm": "all_output_clamp",
+   "counterfactual": "silence_PVLP151",
    "add_silence": [
     "PVLP151"
    ],
@@ -320,6 +306,7 @@
    "id": "A2_IRR_LC15_200_SHAM_DEL_EMPTY",
    "base_condition": "A2_IRR_LC15_200",
    "arm": "sham_empty_deletion",
+   "counterfactual": "sham_empty_deletion",
    "add_silence": [],
    "zero_edges": [],
    "weight_copy": true,
@@ -331,6 +318,7 @@
    "id": "A2_LC4_200_REPLAY",
    "base_condition": "A2_LC4_200",
    "arm": "intact",
+   "counterfactual": null,
    "add_silence": [],
    "zero_edges": [],
    "seeds": [
@@ -348,6 +336,7 @@
    "id": "A2_LC4_200_DEL_PVLP151_GF",
    "base_condition": "A2_LC4_200",
    "arm": "direct_edge_deletion",
+   "counterfactual": "delete_PVLP151_GF_edges",
    "add_silence": [],
    "zero_edges": [
     308294,
@@ -374,6 +363,7 @@
    "id": "A2_LC4_200_CF_silence_PVLP151",
    "base_condition": "A2_LC4_200",
    "arm": "all_output_clamp",
+   "counterfactual": "silence_PVLP151",
    "add_silence": [
     "PVLP151"
    ],
@@ -393,6 +383,7 @@
    "id": "A2_LC4_200_SHAM_DEL_EMPTY",
    "base_condition": "A2_LC4_200",
    "arm": "sham_empty_deletion",
+   "counterfactual": "sham_empty_deletion",
    "add_silence": [],
    "zero_edges": [],
    "weight_copy": true,
@@ -404,6 +395,7 @@
    "id": "A2_LPLC2_200_REPLAY",
    "base_condition": "A2_LPLC2_200",
    "arm": "intact",
+   "counterfactual": null,
    "add_silence": [],
    "zero_edges": [],
    "seeds": [
@@ -421,6 +413,7 @@
    "id": "A2_LPLC2_200_DEL_PVLP151_GF",
    "base_condition": "A2_LPLC2_200",
    "arm": "direct_edge_deletion",
+   "counterfactual": "delete_PVLP151_GF_edges",
    "add_silence": [],
    "zero_edges": [
     308294,
@@ -447,6 +440,7 @@
    "id": "A2_LPLC2_200_CF_silence_PVLP151",
    "base_condition": "A2_LPLC2_200",
    "arm": "all_output_clamp",
+   "counterfactual": "silence_PVLP151",
    "add_silence": [
     "PVLP151"
    ],
@@ -466,6 +460,7 @@
    "id": "A2_LPLC2_200_SHAM_DEL_EMPTY",
    "base_condition": "A2_LPLC2_200",
    "arm": "sham_empty_deletion",
+   "counterfactual": "sham_empty_deletion",
    "add_silence": [],
    "zero_edges": [],
    "weight_copy": true,
@@ -477,6 +472,7 @@
    "id": "A2_LC4_0_REPLAY",
    "base_condition": "A2_LC4_0",
    "arm": "intact",
+   "counterfactual": null,
    "add_silence": [],
    "zero_edges": [],
    "seeds": [
@@ -494,6 +490,7 @@
    "id": "A2_LC4_0_DEL_PVLP151_GF",
    "base_condition": "A2_LC4_0",
    "arm": "direct_edge_deletion",
+   "counterfactual": "delete_PVLP151_GF_edges",
    "add_silence": [],
    "zero_edges": [
     308294,
@@ -520,6 +517,7 @@
    "id": "A2_LC4_0_CF_silence_PVLP151",
    "base_condition": "A2_LC4_0",
    "arm": "all_output_clamp",
+   "counterfactual": "silence_PVLP151",
    "add_silence": [
     "PVLP151"
    ],
@@ -538,33 +536,32 @@
  ],
  "gates": {
   "G1_clamp_zero": "PVLP151 spike count 0 in every clamp row.",
-  "G2_clean_state": "every row records initial_state_clean = true AND a sha256 of the full post-reset state (all state arrays + clocks), identical across all rows.",
-  "G3_identical_inputs": "all arms of one base condition and seed carry the same 64-hex input_sha256.",
-  "G4_deletion_exact": "per deletion row, the recorded sha256 of the weight array used equals the pinned v3 array with exactly the listed 8 indices set to 0 (recomputed offline); the listed indices map to (pre, post) in PVLP151 x GF in the pinned graph; graph.npz unchanged.",
-  "G5_shams": "(a) intact rows reproduce the frozen A2 counts (32-file manifest 79b4fa30) bit for bit; (b) clamp rows reproduce the accepted 33110a4 clamp counts bit for bit; (c) each sham_empty_deletion row equals its intact row bit for bit.",
-  "G6_complete_and_bound": "all rows present; provenance pins (contract, graph, neurons, engine 473946a0, code, this prereg) on every row; captured exit code 0 for every shard process.",
-  "on_failure": "any of G1-G4, G5c or G6 fails: INVALID, no interpretation. G5a/G5b failure: disclosed first; only same-code contemporaneous arms are compared."
+  "G2_clean_state": "the pinned reset fixture passes an independent check (v float32 at -52 mV everywhere, every other state array and clock scalar zero, trailing size n) and its canonical digest (name, dtype, shape, bytes, scalars) equals reset_state_sha256; every row records initial_state_clean = true, state_sha256 = reset_state_sha256 (so no row inherits a parent state), and an RNG seed sequence and state digest equal to the frozen input definition [seed, round(10*rate), n_activated].",
+  "G3_identical_inputs": "all arms of one base condition and seed (and the seed-0 sham) carry the same 64-hex input_sha256.",
+  "G4_deletion_exact": "the runner verified before any row that the 8 listed edges are exactly the PVLP151->GF edges of the pinned graph with the pinned body ids; every deletion row records weight_sha256 = deleted_weight_sha256 and zero_edges = the 8 indices; every other row records base_weight_sha256 and no zero_edges; parent_weight_unchanged true in every row; graph.npz unchanged.",
+  "G5_shams": "(a) intact == frozen A2 counts (manifest pinned, every file hash verified); (b) clamp == accepted clamp counts (manifest pinned, every file hash verified); (c) seed-0 empty-deletion sham == intact, byte for byte.",
+  "G6_complete_and_bound": "exactly the 99 expected rows; provenance pins on every row (contract, graph, v3, cpu, engine, code = the frozen candidate given externally, this prereg); a pathA_shard.py exit record with exit_code 0 for every shard; full shard logs.",
+  "on_failure": "any of G1-G4, G5c or G6 fails: INVALID, no interpretation. G5a or G5b failure: disclosed first; then only same-code contemporaneous arms are compared."
  },
  "report": {
-  "kind": "DESCRIPTIVE ONLY: no threshold, no \"reproduces\" verdict, no pathway fraction.",
-  "per_row": "absolute Hz for the six readouts for every seed and arm, plus the no-input baseline.",
-  "paired": "per seed and as mean+-SD: deletion - intact, clamp - intact, deletion - clamp; seeds lower/higher/equal; percent only with a nonzero denominator.",
-  "all_neuron_controls": "for each arm pair and seed: number of neurons whose spike count differs, summed absolute count difference, and the same restricted to neurons outside the stimulated set, PVLP151 and GF.",
-  "interpretation_limit": "Arms differ by network-wide consequences in a nonlinear recurrent model. A similar GF change under deletion and clamp would not show that the direct edges carry a fixed share, nor that indirect routes are absent; a difference would not identify which indirect route matters. No biological mediation is inferred.",
-  "context_not_criterion": "Inventory: direct PVLP151->GF = 603 contacts, 3.4 % of PVLP151 output contacts; 382 two-hop intermediates (135 types) with signs of both kinds; GF->PVLP151 feedback 18 contacts."
+  "kind": "DESCRIPTIVE ONLY: no threshold, no verdict, no pathway fraction.",
+  "per_row": "absolute Hz of the six readouts for every seed and arm, plus the no-input baseline.",
+  "paired": "per seed and mean+-SD: deletion - intact, clamp - intact, deletion - clamp, for GF and every other readout; seeds lower/higher/equal; percent only with a nonzero denominator.",
+  "all_neuron_controls": "per arm pair and seed: neurons whose count differs and summed absolute difference, overall and outside the stimulated set, PVLP151 and GF.",
+  "interpretation_limit": "Arms differ by network-wide consequences in a nonlinear recurrent model. Neither a similar nor a different GF change under deletion and clamp shows that indirect routes are necessary or unnecessary, or what share any route carries. No biological mediation is inferred.",
+  "analysis": "scripts/pathA_gf_edge_analyse.py (external pins; exit 2 if INVALID)"
  },
- "required_runner_changes": [
-  "prereg condition field zero_edges: edge indices whose v3 weight is set to 0 in an in-memory copy; the runner verifies each index lies in PVLP151 x GF and refuses otherwise (weight_copy=true with an empty list exercises the same path for the sham).",
-  "per-row record of sha256(weight array used) and sha256(full post-reset state) (Astra limit: reset evidenced only by assertions).",
-  "launcher wrapper that captures each shard exit code and end time to <shard>.exit (Astra limit: exit codes not captured).",
-  "analyser extension for the three arms, the shams and the all-neuron controls; unit tests incl. negative fixtures. No engine file changes."
- ],
+ "run_procedure": {
+  "launcher": "one scripts/pathA_shard.py per shard: --exit-file <shard>.exit.json --log <shard>.log -- python scripts/pathA_run.py --contract ... --contract-sha256 <contract> --cf-silence-prereg <this file> --cf-silence-prereg-sha256 <this sha> --out <shard> --only <ids>",
+  "shards": "one per driven base condition (LC15, LC4 + LC4_0, LPLC2); OMP/BLAS/NUMBA = 1, CUDA_VISIBLE_DEVICES empty, taskset one core each",
+  "evidence": "new evidence directory; originals and accepted run read-only"
+ },
  "compute": {
   "device": "CPU, v3 numba reference kernel, 1 thread per process; no GPU",
   "rows": "99 rows: 72 driven (3 conditions x 3 arms x 8 seeds) + 3 seed-0 shams + 24 no-input rows (about 0 s)",
-  "per_run_wall_s": "about 27-31 s (accepted run on this host, 3 shards)",
-  "estimate_core_hours": 0.62,
-  "estimate_wall": "about 13 min in 3 shards (one per driven condition)",
+  "per_run_wall_s": "about 27-31 s (accepted run on this host, 3 shards) plus about 1 s per row for the weight copy and hashes",
+  "estimate_core_hours": 0.65,
+  "estimate_wall": "about 14 min in 3 shards",
   "budget_wall_hours": 1.0,
   "stop_rule": "stop at the budget or any integrity failure; keep partial data; never extrapolate. Fresh resource check first; at most 3 single-thread shards; protected services untouched."
  }
