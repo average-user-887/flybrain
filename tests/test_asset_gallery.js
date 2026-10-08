@@ -236,3 +236,17 @@ test('layer wording is variant-aware: v1 static, v2 animated presentation joints
     }
     assert.match(read('asset_gallery.html'), /presentation joints \(animated, not simulated\)/);
 });
+
+test('rig v2 clips: repaired v3 first, failed v2 and early preview kept with their labels', () => {
+    const v = G.validateManifest(MANIFEST);
+    for (const id of ['fly-female-v2', 'fly-male-v2']) {
+        const a = v.assets.find((x) => x.id === id);
+        assert.match(a.clips[0].url, /w3_v3_.*\{lod\}_clips\.glb$/);
+        assert.match(a.clips[0].label, /v3 \(final, repaired\)/);
+        assert.ok(a.clips.some((c) => /w3_v2_/.test(c.url) && /FAILED/.test(c.label)));
+        assert.ok(a.clips.some((c) => /PREVIEW_NOT_FINAL/.test(c.url) && /PREVIEW_NOT_FINAL/.test(c.label)));
+        assert.match(a.notes, /thorax \(notum\) grooming is omitted/);
+        assert.match(a.notes, /stroke reversal is NOT shown/);
+        assert.match(a.notes, /no flight is shown/);
+    }
+});

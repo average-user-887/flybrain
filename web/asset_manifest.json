@@ -290,9 +290,14 @@
       ],
       "clips": [
         {
+          "url": "assets/hq/anim/w3_v3_fly_female_v2_lod{lod}_clips.glb",
+          "label": "W3 v3 (final, repaired)",
+          "notes": "Nine illustrative clips per sex and LOD."
+        },
+        {
           "url": "assets/hq/anim/w3_v2_fly_female_v2_lod{lod}_clips.glb",
-          "label": "W3 v2 final",
-          "notes": "Six illustrative clips built per sex and LOD on the W2 rig v2."
+          "label": "W3 v2 FAILED (feet through the floor, loop pops; kept as evidence)",
+          "notes": "Superseded by v3."
         },
         {
           "url": "assets/hq/anim/v1-early-PREVIEW_NOT_FINAL/w3_v1_early_clips.glb",
@@ -318,19 +323,27 @@
           "label": "wings open (underside)"
         },
         {
-          "url": "assets/hq/anim/fly_female_v2_lod0_groom_full_cycle_sprites.png",
-          "label": "groom_full_cycle sprite sheet (W3)"
+          "url": "assets/hq/anim/v3_fly_female_v2_lod0_walk_tripod_loop_sprites.png",
+          "label": "walk_tripod_loop sprite sheet (W3 v3)"
         },
         {
-          "url": "assets/hq/anim/fly_female_v2_lod0_groom_full_cycle_checks.png",
-          "label": "grooming side/top/underside checks (W3)"
+          "url": "assets/hq/anim/v3_fly_female_v2_lod0_groom_full_cycle_sprites.png",
+          "label": "groom_full_cycle sprite sheet (W3 v3)"
         },
         {
-          "url": "assets/hq/anim/fly_female_v2_lod0_wingbeat_loop_sprites.png",
-          "label": "wingbeat_loop sprite sheet (W3)"
+          "url": "assets/hq/anim/v3_fly_female_v2_lod0_wingbeat_loop_sprites.png",
+          "label": "wingbeat_loop sprite sheet (W3 v3)"
+        },
+        {
+          "url": "assets/hq/anim/v3_fly_female_v2_lod0_takeoff_prep_sprites.png",
+          "label": "takeoff_prep sprite sheet (W3 v3)"
+        },
+        {
+          "url": "assets/hq/anim/v3_fly_female_v2_lod0_groom_full_cycle_checks.png",
+          "label": "grooming side/top/underside checks (W3 v3)"
         }
       ],
-      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. Appearance only.",
+      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. walk_tripod_loop walks in place (no root motion) and takeoff_prep only prepares: no flight is shown. No proboscis clip (the rig has no proboscis joint). Appearance only.",
       "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
       "joints": "assets/hq/anim/fly_female_v2_lod{lod}_joints.json"
     },
@@ -360,9 +373,14 @@
       ],
       "clips": [
         {
+          "url": "assets/hq/anim/w3_v3_fly_male_v2_lod{lod}_clips.glb",
+          "label": "W3 v3 (final, repaired)",
+          "notes": "Nine illustrative clips per sex and LOD."
+        },
+        {
           "url": "assets/hq/anim/w3_v2_fly_male_v2_lod{lod}_clips.glb",
-          "label": "W3 v2 final",
-          "notes": "Six illustrative clips built per sex and LOD on the W2 rig v2."
+          "label": "W3 v2 FAILED (feet through the floor, loop pops; kept as evidence)",
+          "notes": "Superseded by v3."
         },
         {
           "url": "assets/hq/anim/v1-early-PREVIEW_NOT_FINAL/w3_v1_early_clips.glb",
@@ -388,19 +406,27 @@
           "label": "wings open (underside)"
         },
         {
-          "url": "assets/hq/anim/fly_male_v2_lod0_groom_full_cycle_sprites.png",
-          "label": "groom_full_cycle sprite sheet (W3)"
+          "url": "assets/hq/anim/v3_fly_male_v2_lod0_walk_tripod_loop_sprites.png",
+          "label": "walk_tripod_loop sprite sheet (W3 v3)"
         },
         {
-          "url": "assets/hq/anim/fly_male_v2_lod0_groom_full_cycle_checks.png",
-          "label": "grooming side/top/underside checks (W3)"
+          "url": "assets/hq/anim/v3_fly_male_v2_lod0_groom_full_cycle_sprites.png",
+          "label": "groom_full_cycle sprite sheet (W3 v3)"
         },
         {
-          "url": "assets/hq/anim/fly_male_v2_lod0_wingbeat_loop_sprites.png",
-          "label": "wingbeat_loop sprite sheet (W3)"
+          "url": "assets/hq/anim/v3_fly_male_v2_lod0_wingbeat_loop_sprites.png",
+          "label": "wingbeat_loop sprite sheet (W3 v3)"
+        },
+        {
+          "url": "assets/hq/anim/v3_fly_male_v2_lod0_takeoff_prep_sprites.png",
+          "label": "takeoff_prep sprite sheet (W3 v3)"
+        },
+        {
+          "url": "assets/hq/anim/v3_fly_male_v2_lod0_groom_full_cycle_checks.png",
+          "label": "grooming side/top/underside checks (W3 v3)"
         }
       ],
-      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. Appearance only.",
+      "notes": "Rig v2 (W2 joint contract): wings, antennae, funiculi and halteres are presentation joints (animated, not simulated); legs, body and floor contact unchanged from v1. Clips are illustrative animation, not simulated behaviour: no aerodynamics, mechanosensation, grooming decision or connectome output is implied, and clips are never overlaid on recorded or live telemetry. W3's stated limits: thorax (notum) grooming is omitted, because the rig's planar legs cannot reach it without piercing the body; wing pitch is limited to [-0.07, 0.13] rad, so the large wing rotation at stroke reversal is NOT shown; wingbeat is slowed about 175x (1.25 Hz shown vs 218 Hz cited); antenna motion and funiculus rotation are exaggerated; grooming paths, timing and stroke counts are invented for display. walk_tripod_loop walks in place (no root motion) and takeoff_prep only prepares: no flight is shown. No proboscis clip (the rig has no proboscis joint). Appearance only.",
       "source": "W2 rig v2 joint contract (fly_<sex>_v2_lod<N>_joints.json); tools/assets/SEX_VARIANTS.md",
       "joints": "assets/hq/anim/fly_male_v2_lod{lod}_joints.json"
     },
@@ -957,8 +983,12 @@
       "label": "W3 contact sheet (Blender)"
     },
     {
+      "url": "assets/hq/anim/v3_anim_contact_sheet.png",
+      "label": "W3 v3 animation contact sheet (all clips, all variants)"
+    },
+    {
       "url": "assets/hq/anim/anim_contact_sheet.png",
-      "label": "W3 animation contact sheet (all clips, all variants)"
+      "label": "W3 v2 contact sheet (FAILED export, kept as evidence)"
     }
   ]
 }

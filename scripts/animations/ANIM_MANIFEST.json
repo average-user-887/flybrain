@@ -1,10 +1,10 @@
 {
   "schema": "neurofly.presentation-animations.v1",
-  "generated_utc": "2026-10-08T15:46:53Z",
+  "generated_utc": "2026-10-08T16:52:50Z",
   "label": "Illustrative animation, not simulated behaviour.",
   "rig": "neurofly-viewport-fly-v2 (W2 joint contract, tools/assets/JOINT_CONTRACT.md on claude/ui-assets-20261008)",
   "envelope": {
-    "rule": "W2 contract range AND display-safe envelope for every DOF over the WHOLE duration of every clip; checked on the exported GLB (decoded quaternions, LINEAR interpolation, 20 sub-samples per frame, loop wrap included); zero violations required; no runtime clamping",
+    "rule": "W2 contract range AND display-safe envelope for every DOF over the WHOLE duration of every clip, checked on the exported GLB as a browser plays it: decoded quaternions, LINEAR interpolation, sampled at 240 Hz, loop seam (last key -> first key) included; plus forward kinematics of every leg mesh against the foot plane at every sample, femur-tibia flexion direction, key-to-key and seam continuity (< 0.5 rad per frame), and the GLB rest pose equal to the rig GLB. Zero violations required; no runtime clamping and no body lift.",
     "limits": {
       "wing_sweep": [
         0.0,
@@ -30,7 +30,7 @@
         0.2
       ]
     },
-    "legs": "leg empties (<leg>_coxa_joint, _femur_joint, _tibia_joint) are rotated only; their origins are unchanged; no leg range is defined by the contract, so legs are checked by penetration and the foot plane instead",
+    "legs": "leg empties (<leg>_coxa_joint, _femur_joint, _tibia_joint) are rotated only; their origins are unchanged. The contract defines no leg range, so legs are checked by body penetration (Blender, every frame, <= 0.05 viewport-mm contact grazing), the foot plane (GLB FK at 240 Hz, zero), and anatomical femur-tibia flexion (same direction as the display pose).",
     "player_note": "joints a clip leaves at rest are not keyed; a player resets to rest when it stops a clip (three.js AnimationAction.stop does)"
   },
   "stylised_or_display_scaled": [
@@ -41,6 +41,11 @@
     "antenna_sweep exaggerates the small real active antennal movements so they are visible; funiculus rotation is +/-0.09 rad, far larger than real sound-driven motion.",
     "Grooming legs are posed by planar inverse kinematics on the rig's existing coxa/femur/tibia empties (joint origins unchanged); the paths, timing and number of strokes (two per body part) are invented for display. Thorax (notum) grooming, the last item in the cited order, is omitted because the rig's planar legs cannot reach the notum without piercing the body. Abdominal strokes run along the side of the abdomen and wing strokes under the lifted wing edge.",
     "Body, root, thorax frame and the standing legs never move; real flies shift their body while grooming.",
+    "Legs are posed by inverse kinematics in a plane through each coxa, tilted by a coxa roll, with the femur-tibia joint always flexing the anatomical way. Each stroke uses one (coxa angle, roll) and, where needed, an outward shift of its path (recorded per stroke as outward_shift_viewport_mm) so the femur clears the body: the tarsus then brushes up to that distance outside the surface. Transitions between strokes pick the first clear path (target-space, joint-space, via the tucked pose or via a hover above the foot).",
+    "walk_tripod_loop walks in place (treadmill style): the body does not translate, so the stance feet slide backwards along the foot plane. Duty factor 0.5, stride 1.1 viewport-mm, one cycle in 48 frames at 30 fps (0.625 Hz, about 25x slower than the 16 Hz cited). Real gait is a continuum (DeAngelis 2019); a strict tripod is shown.",
+    "takeoff_prep follows the cited order but cannot show the jump: the root never moves, so the final middle-leg femur-tibia extension is drawn with the middle feet sliding outward on the foot plane. Wings rise to sweep 0.4 / elevate 0.78 (inside the envelope); the real wing elevation is larger. Timing is slowed about 10x.",
+    "idle_antenna_twitch is an invented idle loop of small antennal twitches; it implies no sensory event.",
+    "A proboscis extension clip is NOT provided: the rig has no proboscis joint (c_proboscis is a static mesh in the W2 contract), and adding one is W2's rig change, not an animation.",
     "Coxa bases (within 0.45 viewport-mm of their joint) and wing bases (within 0.40) sit in their sockets and are excluded from the penetration test, as in the W2 measurements. Leg-to-leg contact (rubbing) is not tested."
   ],
   "references": [
@@ -85,6 +90,32 @@
       "values": "\"The priority order for cleaning the different body parts is: eyes > antennae > abdomen > wings > thorax.\" \"Front leg cleaning movements are directed to the head whereas the hind legs clean the abdomen, wings, and thoraces.\" Cleaning alternates sweeps of the targeted region with leg rubbing."
     },
     {
+      "id": "mendes2013",
+      "used_for": "walk_tripod_loop: alternating tripods, swing roughly constant, stance shortens with speed",
+      "citation": "Mendes CS, Bartos I, Akay T, Marka S, Mann RS (2013) Quantification of gait parameters in freely walking wild type and sensory deprived Drosophila melanogaster. eLife 2:e00231.",
+      "doi": "10.7554/eLife.00231",
+      "values": "speeds 7.2-44.7 mm/s; step period reaches about 60 ms (16 Hz) at high speed; \"three legs in stance phase and three legs in swing phase at any one time\"; contralateral legs of a segment at phase 0.5"
+    },
+    {
+      "id": "deangelis2019",
+      "used_for": "walk_tripod_loop caveat: flies use a continuum of coordination, not a fixed tripod",
+      "citation": "DeAngelis BD, Zavatone-Veth JA, Clark DA (2019) The manifold structure of limb coordination in walking Drosophila. eLife 8:e46409.",
+      "doi": "10.7554/eLife.46409"
+    },
+    {
+      "id": "card2008",
+      "used_for": "takeoff_prep order: T1/T3 adjust, T2 reposition, wing elevation, pause, T2 extension",
+      "citation": "Card G, Dickinson MH (2008) Visually mediated motor planning in the escape response of Drosophila. Curr Biol 18:1300-1307.",
+      "doi": "10.1016/j.cub.2008.07.094",
+      "values": "\"the first manifestation ... is the positional changes of their T1 and T3 legs ... Approximately 200 ms later, the flies begin to reposition their T2 legs. Just after the T2 legs start to move, flies start to raise their wings ... there is a distinct pause in the motion of the T2 legs, which is followed by their rapid extension to power the jump.\""
+    },
+    {
+      "id": "vonreyn2014",
+      "used_for": "takeoff_prep: long-mode takeoff includes wing elevation before the jump",
+      "citation": "von Reyn CR, Breads P, Peek MY, Zheng GZ, Williamson WR, Yee AL, Leonardo A, Card GM (2014) A spike-timing mechanism for action selection. Nat Neurosci 17:962-970.",
+      "doi": "10.1038/nn.3741"
+    },
+    {
       "id": "hampel2015",
       "used_for": "antennal grooming as a distinct leg movement program",
       "citation": "Hampel S, Franconville R, Simpson JH, Seeds AM (2015) A neural command circuit for grooming movement control. eLife 4:e08758.",
@@ -99,9 +130,9 @@
     "status": "within budget"
   },
   "sources": {
-    "scripts/animations/build_fly_clips.py": "f7c36418a0abd0eaad37edbe52dfb46f82ad91edb22217517610755c1e242824",
-    "scripts/animations/verify_clip_envelope.py": "dea3772c8029a9d51892e6455b6816a2012a60b1a55f2d5b82b752fe5301d6e5",
-    "scripts/animations/measure_clips.py": "6b4038bc7b8dd3fc29d199278fd3971fae4db33e93e919377c0b34a42d32c55a",
+    "scripts/animations/build_fly_clips.py": "4be8afb7c64230e2c9efeee28a3e6fb2408e0d1434baee0f58578c52724da25c",
+    "scripts/animations/verify_clip_envelope.py": "809726d8d1c8591ecac2d40b3cac4c2b7b1013bdb0463b15378d93283f6bcb1f",
+    "scripts/animations/measure_clips.py": "b0b25a5c16996225cce4567f49f6d357b757671b7ddd123c5babf57aab2adb84",
     "scripts/animations/build_clips_all.sh": "99d9c3984d80a7cc2beefd6b4cce132741ad1a90adcc653938d277546bc52f55",
     "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3"
   },
@@ -110,6 +141,7 @@
       "source_rig_glb": "fly_female_v2_lod0.glb",
       "source_rig_glb_sha256": "e4f51915f836bc26524d8a8c4cc6e8e8d296c208688810c86f18b4b4adc585dd",
       "joints_json_sha256": "668cd0d75a075c3f6f01253a347332ecdf3abe1f24cd65edffec34701b7e40a3",
+      "rest_pose_matches_rig": true,
       "triangles": 13488,
       "triangle_budget": 30000,
       "textures": 0,
@@ -118,6 +150,9 @@
         "groom_abdomen_wings_hindlegs",
         "groom_full_cycle",
         "groom_head_forelegs",
+        "idle_antenna_twitch",
+        "takeoff_prep",
+        "walk_tripod_loop",
         "wing_open_fold",
         "wingbeat_loop"
       ],
@@ -131,11 +166,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1421,
-            "substeps_per_frame": 20,
+            "samples": 578,
+            "sample_hz": 240.0,
+            "duration_s": 2.4,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000385,
+            "max_step_between_keys_rad": 0.0979,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -293,11 +336,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 480,
-            "substeps_per_frame": 20,
+            "samples": 202,
+            "sample_hz": 240.0,
+            "duration_s": 0.8,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000713,
+            "max_step_between_keys_rad": 0.3106,
+            "loop_seam_step_rad": 0.0409,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -336,7 +387,7 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -345,7 +396,7 @@
                 "keyed": true
               },
               "l_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -363,8 +414,8 @@
                 "keyed": true
               },
               "l_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -408,7 +459,7 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -417,7 +468,7 @@
                 "keyed": true
               },
               "r_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -435,8 +486,8 @@
                 "keyed": true
               },
               "r_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -455,11 +506,19 @@
           "worst_mesh": "l_pedicel",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1200,
-            "substeps_per_frame": 20,
+            "samples": 490,
+            "sample_hz": 240.0,
+            "duration_s": 2.0,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 0.000688,
+            "max_off_axis_quaternion_component": 6.6e-05,
+            "max_step_between_keys_rad": 0.0366,
+            "loop_seam_step_rad": 0.0366,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": -0.25,
@@ -472,7 +531,7 @@
               },
               "l_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -498,22 +557,22 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_pitch": {
                 "min": 0.0,
@@ -526,12 +585,12 @@
               },
               "l_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_antenna_abduct": {
                 "min": -0.25,
@@ -544,7 +603,7 @@
               },
               "r_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -570,22 +629,22 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_pitch": {
                 "min": 0.0,
@@ -598,30 +657,38 @@
               },
               "r_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               }
             }
           }
         },
         "groom_head_forelegs": {
-          "frames": 219,
+          "frames": 343,
           "fps": 30,
-          "seconds": 7.3,
+          "seconds": 11.433,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0498,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0374,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4361,
-            "substeps_per_frame": 20,
+            "samples": 2746,
+            "sample_hz": 240.0,
+            "duration_s": 11.4333,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 7e-06,
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -634,7 +701,7 @@
               },
               "l_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -642,22 +709,22 @@
                 "keyed": true
               },
               "l_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_haltere_beat": {
                 "min": 0.0,
@@ -706,7 +773,7 @@
               },
               "r_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -714,22 +781,22 @@
                 "keyed": true
               },
               "r_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_haltere_beat": {
                 "min": 0.0,
@@ -771,19 +838,27 @@
           }
         },
         "groom_abdomen_wings_hindlegs": {
-          "frames": 225,
+          "frames": 323,
           "fps": 30,
-          "seconds": 7.5,
+          "seconds": 10.767,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0,
-          "worst_mesh": "",
+          "max_new_penetration_viewport_mm": 0.028,
+          "worst_mesh": "lh_coxa",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4481,
-            "substeps_per_frame": 20,
+            "samples": 2585,
+            "sample_hz": 240.0,
+            "duration_s": 10.7667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.2607,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -933,19 +1008,27 @@
           }
         },
         "groom_full_cycle": {
-          "frames": 449,
+          "frames": 671,
           "fps": 30,
-          "seconds": 14.967,
+          "seconds": 22.367,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0498,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0374,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 8961,
-            "substeps_per_frame": 20,
+            "samples": 5370,
+            "sample_hz": 240.0,
+            "duration_s": 22.3667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -1093,32 +1176,554 @@
               }
             }
           }
+        },
+        "walk_tripod_loop": {
+          "frames": 48,
+          "fps": 30,
+          "seconds": 1.6,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 394,
+            "sample_hz": 240.0,
+            "duration_s": 1.6,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.0474,
+            "loop_seam_step_rad": 0.0441,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
+        },
+        "takeoff_prep": {
+          "frames": 97,
+          "fps": 30,
+          "seconds": 3.233,
+          "loop": false,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 778,
+            "sample_hz": 240.0,
+            "duration_s": 3.2333,
+            "loop": false,
+            "loop_seam_checked": false,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.000981,
+            "max_step_between_keys_rad": 0.0677,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              }
+            }
+          }
+        },
+        "idle_antenna_twitch": {
+          "frames": 90,
+          "fps": 30,
+          "seconds": 3.0,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0025,
+          "worst_mesh": "l_pedicel",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 730,
+            "sample_hz": 240.0,
+            "duration_s": 3.0,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 4.7e-05,
+            "max_step_between_keys_rad": 0.0741,
+            "loop_seam_step_rad": 0.0,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": -0.095,
+                "max": 0.2134,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "l_funiculus_rotate": {
+                "min": -0.0,
+                "max": 0.0485,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": -0.1141,
+                "max": 0.18,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "r_antenna_twist": {
+                "min": -0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "r_funiculus_rotate": {
+                "min": -0.0475,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
         }
       },
       "ik_configs_chosen": {
         "eye": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "antenna": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.0,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.6
         },
         "front_rub": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 0.6,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.75,
+          "outward_shift_viewport_mm": 0.0
         },
         "abdomen": {
-          "coxa_angle_rad": 0.0,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.75,
+          "outward_shift_viewport_mm": 0.45
         },
         "wing": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.0,
+          "outward_shift_viewport_mm": 0.3
         },
         "hind_rub": {
-          "coxa_angle_rad": 0.0,
-          "knee_side": -1
+          "coxa_angle_rad": -0.2,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.5,
+          "outward_shift_viewport_mm": 0.0
         }
       },
       "sprite_sheets": {
@@ -1183,13 +1788,13 @@
           "file": "fly_female_v2_lod0_groom_head_forelegs_sprites.png",
           "frames": [
             0,
-            31,
-            62,
-            93,
-            125,
-            156,
-            187,
-            218
+            49,
+            98,
+            147,
+            195,
+            244,
+            293,
+            342
           ],
           "views": [
             "side",
@@ -1202,13 +1807,13 @@
           "file": "fly_female_v2_lod0_groom_abdomen_wings_hindlegs_sprites.png",
           "frames": [
             0,
-            32,
-            64,
-            96,
-            128,
-            160,
-            192,
-            224
+            46,
+            92,
+            138,
+            184,
+            230,
+            276,
+            322
           ],
           "views": [
             "side",
@@ -1221,16 +1826,73 @@
           "file": "fly_female_v2_lod0_groom_full_cycle_sprites.png",
           "frames": [
             0,
-            64,
-            128,
-            192,
-            256,
-            320,
-            384,
-            448
+            96,
+            191,
+            287,
+            383,
+            479,
+            574,
+            670
           ],
           "views": [
             "side"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "walk_tripod_loop": {
+          "file": "fly_female_v2_lod0_walk_tripod_loop_sprites.png",
+          "frames": [
+            0,
+            6,
+            12,
+            18,
+            24,
+            30,
+            36,
+            42
+          ],
+          "views": [
+            "side",
+            "under"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "takeoff_prep": {
+          "file": "fly_female_v2_lod0_takeoff_prep_sprites.png",
+          "frames": [
+            0,
+            14,
+            27,
+            41,
+            55,
+            69,
+            82,
+            96
+          ],
+          "views": [
+            "side",
+            "front"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "idle_antenna_twitch": {
+          "file": "fly_female_v2_lod0_idle_antenna_twitch_sprites.png",
+          "frames": [
+            0,
+            11,
+            22,
+            34,
+            45,
+            56,
+            68,
+            79
+          ],
+          "views": [
+            "front",
+            "top"
           ],
           "tile_px": 256,
           "ortho_scale_viewport_mm": 12.0
@@ -1239,17 +1901,17 @@
           "file": "fly_female_v2_lod0_groom_full_cycle_checks.png",
           "frames": [
             0,
-            41,
-            81,
+            61,
             122,
-            163,
-            204,
+            183,
             244,
-            285,
-            326,
-            367,
-            407,
-            448
+            305,
+            365,
+            426,
+            487,
+            548,
+            609,
+            670
           ],
           "views": [
             "side",
@@ -1268,42 +1930,60 @@
           "height": 512
         },
         "fly_female_v2_lod0_clips.blend": {
-          "sha256": "70e20a8139a902b8c4d9f7491f57854a87a9fc9bb66e668cb49b3b9551617c39",
-          "bytes": 12671435
+          "sha256": "38b4cb6ac0ee9a210127cccc2dbffb15c9a837d72253fcde8626d12e34aae279",
+          "bytes": 19570715
         },
         "fly_female_v2_lod0_clips.glb": {
-          "sha256": "ffb4ae04298a0f2497abcf3b1d3346ecc2a2557bc26fc3ec2e43d01265f093e4",
-          "bytes": 573840
+          "sha256": "6c75dacea3de6c3bde30767d0a9ed7e28acee6159440470b34ee7366e7f234c6",
+          "bytes": 709068
         },
         "fly_female_v2_lod0_clips.json": {
-          "sha256": "5f08d50e0a18c81e1c8ac158817565d4c25c2b91a48b4c8f15ad6e4fbfce7dc2",
-          "bytes": 24537
+          "sha256": "9b59685075e89a18f5a6fbf5e6cb1e2ab2d7e1863f2778c56992c292fc4930ea",
+          "bytes": 36162
         },
         "fly_female_v2_lod0_envelope.json": {
-          "sha256": "29bd2697a484e4a7079894e6ed7370b31be851b41f2c7128db72776788f7a908",
-          "bytes": 16543
+          "sha256": "127a05c0cc48c0701c6b205164591cb6f10eb7ed033f2a3345a49a4fd5402cd4",
+          "bytes": 26932
         },
         "fly_female_v2_lod0_groom_abdomen_wings_hindlegs_sprites.png": {
-          "sha256": "583d896d9341b48e97cf2e63cec8fe91cae652299e87bfcc449bc52220eb75ab",
-          "bytes": 458776,
+          "sha256": "1fd1feea73131e7eeb626755c106963c29ca1f49cb0616db386f158414da1a7c",
+          "bytes": 516873,
           "width": 2048,
           "height": 512
         },
         "fly_female_v2_lod0_groom_full_cycle_checks.png": {
-          "sha256": "6539ba734dc9bd4f2d0ac6fce8d5a6b281f54001d721243efb0986480d2d24f3",
-          "bytes": 1104964,
+          "sha256": "1a193b07cbaf642ea10edebb406bec46342f6b3228e9ccf0ebe250c845dcc826",
+          "bytes": 1178115,
           "width": 3072,
           "height": 768
         },
         "fly_female_v2_lod0_groom_full_cycle_sprites.png": {
-          "sha256": "a826542e1aa26c6d7c62e80dbcfb5cfedae2f62a8c11027697f7a08571032bec",
-          "bytes": 230946,
+          "sha256": "8f4ff22d824243ad0313c0dc5ea300b71b41aa84f6b29e3cbd82fbf04a7ef290",
+          "bytes": 227070,
           "width": 2048,
           "height": 256
         },
         "fly_female_v2_lod0_groom_head_forelegs_sprites.png": {
-          "sha256": "202e8f1feb013f07c871311bac075b2577411925dacbcbfafc41629681707702",
-          "bytes": 437681,
+          "sha256": "b992ecfb76e4070c863d28f89df789759814dfbafb49c2ec882545b2f9307bdf",
+          "bytes": 426819,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod0_idle_antenna_twitch_sprites.png": {
+          "sha256": "40ba0c640a672e97bf88cd0ae3758fb8cf3b84af5b3b447f687a413b3cd010ca",
+          "bytes": 322829,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod0_takeoff_prep_sprites.png": {
+          "sha256": "e3846565c921bd2d1c5e49799c5f50b5f6d685eb4f8b3071b849a510b3e2b905",
+          "bytes": 497273,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod0_walk_tripod_loop_sprites.png": {
+          "sha256": "72df5e53f2a655c778854341171094577d28a8fa2c1d3cb55d30eb35a5a0d0d7",
+          "bytes": 621954,
           "width": 2048,
           "height": 512
         },
@@ -1325,6 +2005,7 @@
       "source_rig_glb": "fly_female_v2_lod1.glb",
       "source_rig_glb_sha256": "040764e84bc7ef642c6af9bdc8276d749e66f60cc48beb17e30ef55afaa398c1",
       "joints_json_sha256": "668cd0d75a075c3f6f01253a347332ecdf3abe1f24cd65edffec34701b7e40a3",
+      "rest_pose_matches_rig": true,
       "triangles": 4716,
       "triangle_budget": 8000,
       "textures": 0,
@@ -1333,6 +2014,9 @@
         "groom_abdomen_wings_hindlegs",
         "groom_full_cycle",
         "groom_head_forelegs",
+        "idle_antenna_twitch",
+        "takeoff_prep",
+        "walk_tripod_loop",
         "wing_open_fold",
         "wingbeat_loop"
       ],
@@ -1346,11 +2030,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1421,
-            "substeps_per_frame": 20,
+            "samples": 578,
+            "sample_hz": 240.0,
+            "duration_s": 2.4,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000385,
+            "max_step_between_keys_rad": 0.0979,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -1508,11 +2200,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 480,
-            "substeps_per_frame": 20,
+            "samples": 202,
+            "sample_hz": 240.0,
+            "duration_s": 0.8,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000713,
+            "max_step_between_keys_rad": 0.3106,
+            "loop_seam_step_rad": 0.0409,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -1551,7 +2251,7 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -1560,7 +2260,7 @@
                 "keyed": true
               },
               "l_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -1578,8 +2278,8 @@
                 "keyed": true
               },
               "l_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -1623,7 +2323,7 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -1632,7 +2332,7 @@
                 "keyed": true
               },
               "r_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -1650,8 +2350,8 @@
                 "keyed": true
               },
               "r_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -1670,11 +2370,19 @@
           "worst_mesh": "l_pedicel",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1200,
-            "substeps_per_frame": 20,
+            "samples": 490,
+            "sample_hz": 240.0,
+            "duration_s": 2.0,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 0.000688,
+            "max_off_axis_quaternion_component": 6.6e-05,
+            "max_step_between_keys_rad": 0.0366,
+            "loop_seam_step_rad": 0.0366,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": -0.25,
@@ -1687,7 +2395,7 @@
               },
               "l_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -1713,22 +2421,22 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_pitch": {
                 "min": 0.0,
@@ -1741,12 +2449,12 @@
               },
               "l_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_antenna_abduct": {
                 "min": -0.25,
@@ -1759,7 +2467,7 @@
               },
               "r_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -1785,22 +2493,22 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_pitch": {
                 "min": 0.0,
@@ -1813,30 +2521,38 @@
               },
               "r_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               }
             }
           }
         },
         "groom_head_forelegs": {
-          "frames": 219,
+          "frames": 343,
           "fps": 30,
-          "seconds": 7.3,
+          "seconds": 11.433,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.027,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0294,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4361,
-            "substeps_per_frame": 20,
+            "samples": 2746,
+            "sample_hz": 240.0,
+            "duration_s": 11.4333,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 7e-06,
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -1849,7 +2565,7 @@
               },
               "l_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -1857,22 +2573,22 @@
                 "keyed": true
               },
               "l_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_haltere_beat": {
                 "min": 0.0,
@@ -1921,7 +2637,7 @@
               },
               "r_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -1929,22 +2645,22 @@
                 "keyed": true
               },
               "r_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_haltere_beat": {
                 "min": 0.0,
@@ -1986,19 +2702,27 @@
           }
         },
         "groom_abdomen_wings_hindlegs": {
-          "frames": 225,
+          "frames": 323,
           "fps": 30,
-          "seconds": 7.5,
+          "seconds": 10.767,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0,
-          "worst_mesh": "",
+          "max_new_penetration_viewport_mm": 0.0259,
+          "worst_mesh": "lh_coxa",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4481,
-            "substeps_per_frame": 20,
+            "samples": 2585,
+            "sample_hz": 240.0,
+            "duration_s": 10.7667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.2607,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -2148,19 +2872,27 @@
           }
         },
         "groom_full_cycle": {
-          "frames": 449,
+          "frames": 671,
           "fps": 30,
-          "seconds": 14.967,
+          "seconds": 22.367,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.027,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0294,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 8961,
-            "substeps_per_frame": 20,
+            "samples": 5370,
+            "sample_hz": 240.0,
+            "duration_s": 22.3667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -2308,32 +3040,554 @@
               }
             }
           }
+        },
+        "walk_tripod_loop": {
+          "frames": 48,
+          "fps": 30,
+          "seconds": 1.6,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 394,
+            "sample_hz": 240.0,
+            "duration_s": 1.6,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.0474,
+            "loop_seam_step_rad": 0.0441,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
+        },
+        "takeoff_prep": {
+          "frames": 97,
+          "fps": 30,
+          "seconds": 3.233,
+          "loop": false,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 778,
+            "sample_hz": 240.0,
+            "duration_s": 3.2333,
+            "loop": false,
+            "loop_seam_checked": false,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.000981,
+            "max_step_between_keys_rad": 0.0677,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              }
+            }
+          }
+        },
+        "idle_antenna_twitch": {
+          "frames": 90,
+          "fps": 30,
+          "seconds": 3.0,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0069,
+          "worst_mesh": "r_pedicel",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 730,
+            "sample_hz": 240.0,
+            "duration_s": 3.0,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 4.7e-05,
+            "max_step_between_keys_rad": 0.0741,
+            "loop_seam_step_rad": 0.0,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": -0.095,
+                "max": 0.2134,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "l_funiculus_rotate": {
+                "min": -0.0,
+                "max": 0.0485,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": -0.1141,
+                "max": 0.18,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "r_antenna_twist": {
+                "min": -0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "r_funiculus_rotate": {
+                "min": -0.0475,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
         }
       },
       "ik_configs_chosen": {
         "eye": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "antenna": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 1.0,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "front_rub": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 0.6,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.75,
+          "outward_shift_viewport_mm": 0.0
         },
         "abdomen": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.75,
+          "outward_shift_viewport_mm": 0.45
         },
         "wing": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.25,
+          "outward_shift_viewport_mm": 0.15
         },
         "hind_rub": {
           "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.0
         }
       },
       "sprite_sheets": {
@@ -2398,13 +3652,13 @@
           "file": "fly_female_v2_lod1_groom_head_forelegs_sprites.png",
           "frames": [
             0,
-            31,
-            62,
-            93,
-            125,
-            156,
-            187,
-            218
+            49,
+            98,
+            147,
+            195,
+            244,
+            293,
+            342
           ],
           "views": [
             "side",
@@ -2417,13 +3671,13 @@
           "file": "fly_female_v2_lod1_groom_abdomen_wings_hindlegs_sprites.png",
           "frames": [
             0,
-            32,
-            64,
-            96,
-            128,
-            160,
-            192,
-            224
+            46,
+            92,
+            138,
+            184,
+            230,
+            276,
+            322
           ],
           "views": [
             "side",
@@ -2436,16 +3690,73 @@
           "file": "fly_female_v2_lod1_groom_full_cycle_sprites.png",
           "frames": [
             0,
-            64,
-            128,
-            192,
-            256,
-            320,
-            384,
-            448
+            96,
+            191,
+            287,
+            383,
+            479,
+            574,
+            670
           ],
           "views": [
             "side"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "walk_tripod_loop": {
+          "file": "fly_female_v2_lod1_walk_tripod_loop_sprites.png",
+          "frames": [
+            0,
+            6,
+            12,
+            18,
+            24,
+            30,
+            36,
+            42
+          ],
+          "views": [
+            "side",
+            "under"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "takeoff_prep": {
+          "file": "fly_female_v2_lod1_takeoff_prep_sprites.png",
+          "frames": [
+            0,
+            14,
+            27,
+            41,
+            55,
+            69,
+            82,
+            96
+          ],
+          "views": [
+            "side",
+            "front"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "idle_antenna_twitch": {
+          "file": "fly_female_v2_lod1_idle_antenna_twitch_sprites.png",
+          "frames": [
+            0,
+            11,
+            22,
+            34,
+            45,
+            56,
+            68,
+            79
+          ],
+          "views": [
+            "front",
+            "top"
           ],
           "tile_px": 256,
           "ortho_scale_viewport_mm": 12.0
@@ -2454,17 +3765,17 @@
           "file": "fly_female_v2_lod1_groom_full_cycle_checks.png",
           "frames": [
             0,
-            41,
-            81,
+            61,
             122,
-            163,
-            204,
+            183,
             244,
-            285,
-            326,
-            367,
-            407,
-            448
+            305,
+            365,
+            426,
+            487,
+            548,
+            609,
+            670
           ],
           "views": [
             "side",
@@ -2483,42 +3794,60 @@
           "height": 512
         },
         "fly_female_v2_lod1_clips.blend": {
-          "sha256": "8399dbf58db549e34152a0801a59d979079c3c5727b00eff17084a53e0f99d05",
-          "bytes": 12054031
+          "sha256": "8209c1743ade9a62c12b7859c3d0377c15ec4987dc6971fb0dd7b50a6506ce8c",
+          "bytes": 18953311
         },
         "fly_female_v2_lod1_clips.glb": {
-          "sha256": "380e657875910b8779d2c30d4223a15842175a809ed2a538bd25c587e28676c7",
-          "bytes": 397344
+          "sha256": "08dd0edc119cb03745819a67ba4cc57f645bd7e262a02126ecfc6b0f5553512f",
+          "bytes": 532580
         },
         "fly_female_v2_lod1_clips.json": {
-          "sha256": "47fa38e08098325851407e28ef7a5ab2fca1bf7f7d6b32c9c6c5c20ac6aabdd0",
-          "bytes": 24537
+          "sha256": "213bbe7b8553924bc9b6d4203407e20f7886a4ec388aa9602ed4851513ac112f",
+          "bytes": 36168
         },
         "fly_female_v2_lod1_envelope.json": {
-          "sha256": "29bd2697a484e4a7079894e6ed7370b31be851b41f2c7128db72776788f7a908",
-          "bytes": 16543
+          "sha256": "127a05c0cc48c0701c6b205164591cb6f10eb7ed033f2a3345a49a4fd5402cd4",
+          "bytes": 26932
         },
         "fly_female_v2_lod1_groom_abdomen_wings_hindlegs_sprites.png": {
-          "sha256": "95835a082e767a7a34f33ef118c8678a592d7d19dc29ae66b411e0d9258eba51",
-          "bytes": 452639,
+          "sha256": "547b6938107e3d82372aafb7a5a16d9e747e1d75435eca08c1349660ea39073d",
+          "bytes": 513184,
           "width": 2048,
           "height": 512
         },
         "fly_female_v2_lod1_groom_full_cycle_checks.png": {
-          "sha256": "a744e3725f23cb55ba7f2b934224e97c9966116842af781e6334bb51721b6c3e",
-          "bytes": 1095984,
+          "sha256": "690aa07c39ed1ce5c8ff0751666284c852ceee6933f138d76219522d0be85b81",
+          "bytes": 1145754,
           "width": 3072,
           "height": 768
         },
         "fly_female_v2_lod1_groom_full_cycle_sprites.png": {
-          "sha256": "77d252a27df23046204ba092ef48d628e184d1ba9a651c767eed1ad9ee48c90d",
-          "bytes": 226508,
+          "sha256": "675ed77fcf01dd8b640c9aa7b091b6bf3389821948579ca5601a8ce7ff9685f2",
+          "bytes": 223387,
           "width": 2048,
           "height": 256
         },
         "fly_female_v2_lod1_groom_head_forelegs_sprites.png": {
-          "sha256": "327db69038f6ff9599978c56652497b18b4152da45c46f8f041729aabd37bd87",
-          "bytes": 434387,
+          "sha256": "38768082b7bc034ff758f7aaee11b5da68bd2ccb682d0d9e32ede6cc76d23ce3",
+          "bytes": 419761,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod1_idle_antenna_twitch_sprites.png": {
+          "sha256": "f2158dc18e6c38a1125dc3fb1c00f1d225463d2c0f09f2092034768d93068026",
+          "bytes": 319784,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod1_takeoff_prep_sprites.png": {
+          "sha256": "ab29eedf74ae8d760c0c7a024c10c8b5bdbb548733d10bcee9c20db7f7c30603",
+          "bytes": 486016,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_female_v2_lod1_walk_tripod_loop_sprites.png": {
+          "sha256": "c4aff2ad2a77f0cb14d68df250a3ece624fb74e6773ae0050b6456b6dcff597d",
+          "bytes": 617259,
           "width": 2048,
           "height": 512
         },
@@ -2540,6 +3869,7 @@
       "source_rig_glb": "fly_male_v2_lod0.glb",
       "source_rig_glb_sha256": "be8fba124a6719bc352671073dc31dc24bfbf3e7fa9d9e6263e936b2216d8bc2",
       "joints_json_sha256": "668cd0d75a075c3f6f01253a347332ecdf3abe1f24cd65edffec34701b7e40a3",
+      "rest_pose_matches_rig": true,
       "triangles": 13696,
       "triangle_budget": 30000,
       "textures": 0,
@@ -2548,6 +3878,9 @@
         "groom_abdomen_wings_hindlegs",
         "groom_full_cycle",
         "groom_head_forelegs",
+        "idle_antenna_twitch",
+        "takeoff_prep",
+        "walk_tripod_loop",
         "wing_open_fold",
         "wingbeat_loop"
       ],
@@ -2561,11 +3894,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1421,
-            "substeps_per_frame": 20,
+            "samples": 578,
+            "sample_hz": 240.0,
+            "duration_s": 2.4,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000385,
+            "max_step_between_keys_rad": 0.0979,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -2723,11 +4064,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 480,
-            "substeps_per_frame": 20,
+            "samples": 202,
+            "sample_hz": 240.0,
+            "duration_s": 0.8,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000713,
+            "max_step_between_keys_rad": 0.3106,
+            "loop_seam_step_rad": 0.0409,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -2766,7 +4115,7 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -2775,7 +4124,7 @@
                 "keyed": true
               },
               "l_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -2793,8 +4142,8 @@
                 "keyed": true
               },
               "l_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -2838,7 +4187,7 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -2847,7 +4196,7 @@
                 "keyed": true
               },
               "r_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -2865,8 +4214,8 @@
                 "keyed": true
               },
               "r_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -2885,11 +4234,19 @@
           "worst_mesh": "l_pedicel",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1200,
-            "substeps_per_frame": 20,
+            "samples": 490,
+            "sample_hz": 240.0,
+            "duration_s": 2.0,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 0.000688,
+            "max_off_axis_quaternion_component": 6.6e-05,
+            "max_step_between_keys_rad": 0.0366,
+            "loop_seam_step_rad": 0.0366,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": -0.25,
@@ -2902,7 +4259,7 @@
               },
               "l_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -2928,22 +4285,22 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_pitch": {
                 "min": 0.0,
@@ -2956,12 +4313,12 @@
               },
               "l_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_antenna_abduct": {
                 "min": -0.25,
@@ -2974,7 +4331,7 @@
               },
               "r_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -3000,22 +4357,22 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_pitch": {
                 "min": 0.0,
@@ -3028,30 +4385,38 @@
               },
               "r_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               }
             }
           }
         },
         "groom_head_forelegs": {
-          "frames": 219,
+          "frames": 343,
           "fps": 30,
-          "seconds": 7.3,
+          "seconds": 11.433,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0498,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0374,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4361,
-            "substeps_per_frame": 20,
+            "samples": 2746,
+            "sample_hz": 240.0,
+            "duration_s": 11.4333,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 7e-06,
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -3064,7 +4429,7 @@
               },
               "l_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -3072,22 +4437,22 @@
                 "keyed": true
               },
               "l_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_haltere_beat": {
                 "min": 0.0,
@@ -3136,7 +4501,7 @@
               },
               "r_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -3144,22 +4509,22 @@
                 "keyed": true
               },
               "r_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_haltere_beat": {
                 "min": 0.0,
@@ -3201,19 +4566,27 @@
           }
         },
         "groom_abdomen_wings_hindlegs": {
-          "frames": 225,
+          "frames": 323,
           "fps": 30,
-          "seconds": 7.5,
+          "seconds": 10.767,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0,
-          "worst_mesh": "",
+          "max_new_penetration_viewport_mm": 0.016,
+          "worst_mesh": "lh_coxa",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4481,
-            "substeps_per_frame": 20,
+            "samples": 2585,
+            "sample_hz": 240.0,
+            "duration_s": 10.7667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.2543,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -3363,19 +4736,27 @@
           }
         },
         "groom_full_cycle": {
-          "frames": 449,
+          "frames": 671,
           "fps": 30,
-          "seconds": 14.967,
+          "seconds": 22.367,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0498,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0374,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 8961,
-            "substeps_per_frame": 20,
+            "samples": 5370,
+            "sample_hz": 240.0,
+            "duration_s": 22.3667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -3523,32 +4904,554 @@
               }
             }
           }
+        },
+        "walk_tripod_loop": {
+          "frames": 48,
+          "fps": 30,
+          "seconds": 1.6,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 394,
+            "sample_hz": 240.0,
+            "duration_s": 1.6,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.0474,
+            "loop_seam_step_rad": 0.0441,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
+        },
+        "takeoff_prep": {
+          "frames": 97,
+          "fps": 30,
+          "seconds": 3.233,
+          "loop": false,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 778,
+            "sample_hz": 240.0,
+            "duration_s": 3.2333,
+            "loop": false,
+            "loop_seam_checked": false,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.000981,
+            "max_step_between_keys_rad": 0.0677,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              }
+            }
+          }
+        },
+        "idle_antenna_twitch": {
+          "frames": 90,
+          "fps": 30,
+          "seconds": 3.0,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0025,
+          "worst_mesh": "l_pedicel",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 730,
+            "sample_hz": 240.0,
+            "duration_s": 3.0,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 4.7e-05,
+            "max_step_between_keys_rad": 0.0741,
+            "loop_seam_step_rad": 0.0,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": -0.095,
+                "max": 0.2134,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "l_funiculus_rotate": {
+                "min": -0.0,
+                "max": 0.0485,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": -0.1141,
+                "max": 0.18,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "r_antenna_twist": {
+                "min": -0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "r_funiculus_rotate": {
+                "min": -0.0475,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
         }
       },
       "ik_configs_chosen": {
         "eye": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "antenna": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.0,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.6
         },
         "front_rub": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 0.6,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.75,
+          "outward_shift_viewport_mm": 0.0
         },
         "abdomen": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.75,
+          "outward_shift_viewport_mm": 0.15
         },
         "wing": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.25,
+          "outward_shift_viewport_mm": 0.15
         },
         "hind_rub": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": -0.2,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.0,
+          "outward_shift_viewport_mm": 0.0
         }
       },
       "sprite_sheets": {
@@ -3613,13 +5516,13 @@
           "file": "fly_male_v2_lod0_groom_head_forelegs_sprites.png",
           "frames": [
             0,
-            31,
-            62,
-            93,
-            125,
-            156,
-            187,
-            218
+            49,
+            98,
+            147,
+            195,
+            244,
+            293,
+            342
           ],
           "views": [
             "side",
@@ -3632,13 +5535,13 @@
           "file": "fly_male_v2_lod0_groom_abdomen_wings_hindlegs_sprites.png",
           "frames": [
             0,
-            32,
-            64,
-            96,
-            128,
-            160,
-            192,
-            224
+            46,
+            92,
+            138,
+            184,
+            230,
+            276,
+            322
           ],
           "views": [
             "side",
@@ -3651,16 +5554,73 @@
           "file": "fly_male_v2_lod0_groom_full_cycle_sprites.png",
           "frames": [
             0,
-            64,
-            128,
-            192,
-            256,
-            320,
-            384,
-            448
+            96,
+            191,
+            287,
+            383,
+            479,
+            574,
+            670
           ],
           "views": [
             "side"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "walk_tripod_loop": {
+          "file": "fly_male_v2_lod0_walk_tripod_loop_sprites.png",
+          "frames": [
+            0,
+            6,
+            12,
+            18,
+            24,
+            30,
+            36,
+            42
+          ],
+          "views": [
+            "side",
+            "under"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "takeoff_prep": {
+          "file": "fly_male_v2_lod0_takeoff_prep_sprites.png",
+          "frames": [
+            0,
+            14,
+            27,
+            41,
+            55,
+            69,
+            82,
+            96
+          ],
+          "views": [
+            "side",
+            "front"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "idle_antenna_twitch": {
+          "file": "fly_male_v2_lod0_idle_antenna_twitch_sprites.png",
+          "frames": [
+            0,
+            11,
+            22,
+            34,
+            45,
+            56,
+            68,
+            79
+          ],
+          "views": [
+            "front",
+            "top"
           ],
           "tile_px": 256,
           "ortho_scale_viewport_mm": 12.0
@@ -3669,17 +5629,17 @@
           "file": "fly_male_v2_lod0_groom_full_cycle_checks.png",
           "frames": [
             0,
-            41,
-            81,
+            61,
             122,
-            163,
-            204,
+            183,
             244,
-            285,
-            326,
-            367,
-            407,
-            448
+            305,
+            365,
+            426,
+            487,
+            548,
+            609,
+            670
           ],
           "views": [
             "side",
@@ -3698,42 +5658,60 @@
           "height": 512
         },
         "fly_male_v2_lod0_clips.blend": {
-          "sha256": "8d82b35de371d1c51ac9e3751134580522ef96fc6ac9320f0761aac9975afc96",
-          "bytes": 12681938
+          "sha256": "3646111be91adcfc09731b96b2d7bdfd7b80aff37bd5c78309fb7af6787149a8",
+          "bytes": 19581218
         },
         "fly_male_v2_lod0_clips.glb": {
-          "sha256": "2b108cf52f903ce4429567aecddc667c05d4475314f0b46967495807b81e224f",
-          "bytes": 574460
+          "sha256": "216bfa2b7cf708e127cec312cd5516095cff7004a4e44035a612955e5872d7f3",
+          "bytes": 709688
         },
         "fly_male_v2_lod0_clips.json": {
-          "sha256": "9b3ad5e10f7ea721e535da9306d429e8ee1002b69ae4e2a29442e5a1187c87d5",
-          "bytes": 24523
+          "sha256": "37a463627cb27758c1f5528f0a35adfc163b3ffef86d4a7895f3a7b95930f9f2",
+          "bytes": 36143
         },
         "fly_male_v2_lod0_envelope.json": {
-          "sha256": "29bd2697a484e4a7079894e6ed7370b31be851b41f2c7128db72776788f7a908",
-          "bytes": 16543
+          "sha256": "88a05dc26ea00edbfff1a480bb98646ab0677150872f5f9cf8fdd60fc98c7d6c",
+          "bytes": 26932
         },
         "fly_male_v2_lod0_groom_abdomen_wings_hindlegs_sprites.png": {
-          "sha256": "1fcd1dedfcb2ab556a6d9a698552391a5230f9a607f69071593d5a69ac5c2e19",
-          "bytes": 421859,
+          "sha256": "1b860396471f9f052f65ab0f26c80b0407f591e3a59a931ec452babb52123c80",
+          "bytes": 465857,
           "width": 2048,
           "height": 512
         },
         "fly_male_v2_lod0_groom_full_cycle_checks.png": {
-          "sha256": "03ff76dd241f6b52765ce3e61316d3bccb911f975237ee98c49229254165b6f9",
-          "bytes": 1013841,
+          "sha256": "40174cd8912ca17c871e2d61aa7ee4b1081a937be2a850847b3d5d655f7958b7",
+          "bytes": 1043727,
           "width": 3072,
           "height": 768
         },
         "fly_male_v2_lod0_groom_full_cycle_sprites.png": {
-          "sha256": "1f37140649c79bdb79b694ef3b4ad14ff45da710826408b17f12c2450c327844",
-          "bytes": 211203,
+          "sha256": "14f6d93e6b60fee509b1ee7a82638781e1f56ba2813604070e3b926362917d15",
+          "bytes": 206048,
           "width": 2048,
           "height": 256
         },
         "fly_male_v2_lod0_groom_head_forelegs_sprites.png": {
-          "sha256": "bdf49b0c0ee1878bad7c7acc96f7214d27205b225acee7b64de6608b3a354d2b",
-          "bytes": 404788,
+          "sha256": "e7bfdcb16d745bcc30c3004c1b2f7c28dd9a4ead98e15269037d83520124065d",
+          "bytes": 390325,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod0_idle_antenna_twitch_sprites.png": {
+          "sha256": "5c6e3dd7040140d2834722a2e6e53d39ddb0e70d7b903ea6576e84ff51706798",
+          "bytes": 302967,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod0_takeoff_prep_sprites.png": {
+          "sha256": "277fa7d249a2b656134f75139d8b73bbf3fb93a4cfe12199be7cf4154c3bb155",
+          "bytes": 460201,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod0_walk_tripod_loop_sprites.png": {
+          "sha256": "31780666ac5d2819c12e704435e49f5bfcdd0d13773d18f82acf88728bada424",
+          "bytes": 549200,
           "width": 2048,
           "height": 512
         },
@@ -3755,6 +5733,7 @@
       "source_rig_glb": "fly_male_v2_lod1.glb",
       "source_rig_glb_sha256": "3bce4389287c41cbf4b52e3f52f6b5e6574fbb64543dcbc71a87275d90d88cf6",
       "joints_json_sha256": "668cd0d75a075c3f6f01253a347332ecdf3abe1f24cd65edffec34701b7e40a3",
+      "rest_pose_matches_rig": true,
       "triangles": 4940,
       "triangle_budget": 8000,
       "textures": 0,
@@ -3763,6 +5742,9 @@
         "groom_abdomen_wings_hindlegs",
         "groom_full_cycle",
         "groom_head_forelegs",
+        "idle_antenna_twitch",
+        "takeoff_prep",
+        "walk_tripod_loop",
         "wing_open_fold",
         "wingbeat_loop"
       ],
@@ -3776,11 +5758,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1421,
-            "substeps_per_frame": 20,
+            "samples": 578,
+            "sample_hz": 240.0,
+            "duration_s": 2.4,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000385,
+            "max_step_between_keys_rad": 0.0979,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -3938,11 +5928,19 @@
           "worst_mesh": "",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 480,
-            "substeps_per_frame": 20,
+            "samples": 202,
+            "sample_hz": 240.0,
+            "duration_s": 0.8,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000713,
+            "max_step_between_keys_rad": 0.3106,
+            "loop_seam_step_rad": 0.0409,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -3981,7 +5979,7 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -3990,7 +5988,7 @@
                 "keyed": true
               },
               "l_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -4008,8 +6006,8 @@
                 "keyed": true
               },
               "l_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -4053,7 +6051,7 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": -0.2,
                 "max": 0.2,
                 "limit": [
                   -0.2,
@@ -4062,7 +6060,7 @@
                 "keyed": true
               },
               "r_wing_elevate": {
-                "min": 0.0,
+                "min": 0.08,
                 "max": 0.56,
                 "limit": [
                   -1.7,
@@ -4080,8 +6078,8 @@
                 "keyed": true
               },
               "r_wing_sweep": {
-                "min": 0.0,
-                "max": 2.7091,
+                "min": 0.35,
+                "max": 2.75,
                 "limit": [
                   0.0,
                   3.0
@@ -4100,11 +6098,19 @@
           "worst_mesh": "l_pedicel",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 1200,
-            "substeps_per_frame": 20,
+            "samples": 490,
+            "sample_hz": 240.0,
+            "duration_s": 2.0,
+            "loop": true,
+            "loop_seam_checked": true,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 0.000688,
+            "max_off_axis_quaternion_component": 6.6e-05,
+            "max_step_between_keys_rad": 0.0366,
+            "loop_seam_step_rad": 0.0366,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": -0.25,
@@ -4117,7 +6123,7 @@
               },
               "l_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -4143,22 +6149,22 @@
                 "keyed": true
               },
               "l_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_wing_pitch": {
                 "min": 0.0,
@@ -4171,12 +6177,12 @@
               },
               "l_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_antenna_abduct": {
                 "min": -0.25,
@@ -4189,7 +6195,7 @@
               },
               "r_antenna_extend": {
                 "min": -0.05,
-                "max": 0.1893,
+                "max": 0.19,
                 "limit": [
                   -0.2,
                   0.2
@@ -4215,22 +6221,22 @@
                 "keyed": true
               },
               "r_haltere_beat": {
-                "min": -0.1932,
+                "min": 0.0,
                 "max": 0.0,
                 "limit": [
                   -0.2,
                   0.2
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_elevate": {
                 "min": 0.0,
-                "max": 0.54,
+                "max": 0.0,
                 "limit": [
                   -1.7,
                   0.8
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_wing_pitch": {
                 "min": 0.0,
@@ -4243,30 +6249,38 @@
               },
               "r_wing_sweep": {
                 "min": 0.0,
-                "max": 2.7091,
+                "max": 0.0,
                 "limit": [
                   0.0,
                   3.0
                 ],
-                "keyed": true
+                "keyed": false
               }
             }
           }
         },
         "groom_head_forelegs": {
-          "frames": 219,
+          "frames": 343,
           "fps": 30,
-          "seconds": 7.3,
+          "seconds": 11.433,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.027,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0294,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4361,
-            "substeps_per_frame": 20,
+            "samples": 2746,
+            "sample_hz": 240.0,
+            "duration_s": 11.4333,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
-            "max_off_axis_quaternion_component": 7e-06,
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -4279,7 +6293,7 @@
               },
               "l_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -4287,22 +6301,22 @@
                 "keyed": true
               },
               "l_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "l_haltere_beat": {
                 "min": 0.0,
@@ -4351,7 +6365,7 @@
               },
               "r_antenna_extend": {
                 "min": 0.0,
-                "max": 0.1893,
+                "max": 0.18,
                 "limit": [
                   -0.2,
                   0.2
@@ -4359,22 +6373,22 @@
                 "keyed": true
               },
               "r_antenna_twist": {
-                "min": -0.0,
-                "max": 0.0073,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.09
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_funiculus_rotate": {
-                "min": -0.0,
-                "max": 0.0187,
+                "min": 0.0,
+                "max": 0.0,
                 "limit": [
                   -0.1,
                   0.1
                 ],
-                "keyed": true
+                "keyed": false
               },
               "r_haltere_beat": {
                 "min": 0.0,
@@ -4416,19 +6430,27 @@
           }
         },
         "groom_abdomen_wings_hindlegs": {
-          "frames": 225,
+          "frames": 323,
           "fps": 30,
-          "seconds": 7.5,
+          "seconds": 10.767,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.0,
-          "worst_mesh": "",
+          "max_new_penetration_viewport_mm": 0.022,
+          "worst_mesh": "lh_coxa",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 4481,
-            "substeps_per_frame": 20,
+            "samples": 2585,
+            "sample_hz": 240.0,
+            "duration_s": 10.7667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.2508,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -4578,19 +6600,27 @@
           }
         },
         "groom_full_cycle": {
-          "frames": 449,
+          "frames": 671,
           "fps": 30,
-          "seconds": 14.967,
+          "seconds": 22.367,
           "loop": false,
-          "max_new_penetration_viewport_mm": 0.027,
-          "worst_mesh": "lf_tarsus",
+          "max_new_penetration_viewport_mm": 0.0294,
+          "worst_mesh": "rf_trochanterfemur",
           "max_below_foot_plane_viewport_mm": 0.0,
           "envelope_check_exported_glb": {
-            "samples": 8961,
-            "substeps_per_frame": 20,
+            "samples": 5370,
+            "sample_hz": 240.0,
+            "duration_s": 22.3667,
+            "loop": false,
+            "loop_seam_checked": false,
             "violations": 0,
             "violation_kinds": {},
             "max_off_axis_quaternion_component": 0.000322,
+            "max_step_between_keys_rad": 0.4672,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
             "per_joint": {
               "l_antenna_abduct": {
                 "min": 0.0,
@@ -4738,32 +6768,554 @@
               }
             }
           }
+        },
+        "walk_tripod_loop": {
+          "frames": 48,
+          "fps": 30,
+          "seconds": 1.6,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 394,
+            "sample_hz": 240.0,
+            "duration_s": 1.6,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.0,
+            "max_step_between_keys_rad": 0.0474,
+            "loop_seam_step_rad": 0.0441,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
+        },
+        "takeoff_prep": {
+          "frames": 97,
+          "fps": 30,
+          "seconds": 3.233,
+          "loop": false,
+          "max_new_penetration_viewport_mm": 0.0,
+          "worst_mesh": "",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 778,
+            "sample_hz": 240.0,
+            "duration_s": 3.2333,
+            "loop": false,
+            "loop_seam_checked": false,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 0.000981,
+            "max_step_between_keys_rad": 0.0677,
+            "loop_seam_step_rad": null,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": true,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "l_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              },
+              "r_antenna_abduct": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": false
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_antenna_twist": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": false
+              },
+              "r_funiculus_rotate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": false
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.78,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": true
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.4,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": true
+              }
+            }
+          }
+        },
+        "idle_antenna_twitch": {
+          "frames": 90,
+          "fps": 30,
+          "seconds": 3.0,
+          "loop": true,
+          "max_new_penetration_viewport_mm": 0.0069,
+          "worst_mesh": "r_pedicel",
+          "max_below_foot_plane_viewport_mm": 0.0,
+          "envelope_check_exported_glb": {
+            "samples": 730,
+            "sample_hz": 240.0,
+            "duration_s": 3.0,
+            "loop": true,
+            "loop_seam_checked": true,
+            "violations": 0,
+            "violation_kinds": {},
+            "max_off_axis_quaternion_component": 4.7e-05,
+            "max_step_between_keys_rad": 0.0741,
+            "loop_seam_step_rad": 0.0,
+            "foot_plane_y": -2.13148,
+            "foot_plane_checked": false,
+            "max_below_foot_plane": 0.0,
+            "per_joint": {
+              "l_antenna_abduct": {
+                "min": -0.095,
+                "max": 0.2134,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "l_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "l_antenna_twist": {
+                "min": 0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "l_funiculus_rotate": {
+                "min": -0.0,
+                "max": 0.0485,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "l_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "l_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "l_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "l_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              },
+              "r_antenna_abduct": {
+                "min": -0.1141,
+                "max": 0.18,
+                "limit": [
+                  -0.4,
+                  0.6
+                ],
+                "keyed": true
+              },
+              "r_antenna_extend": {
+                "min": 0.0,
+                "max": 0.12,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": true
+              },
+              "r_antenna_twist": {
+                "min": -0.0,
+                "max": 0.05,
+                "limit": [
+                  -0.1,
+                  0.09
+                ],
+                "keyed": true
+              },
+              "r_funiculus_rotate": {
+                "min": -0.0475,
+                "max": 0.0,
+                "limit": [
+                  -0.1,
+                  0.1
+                ],
+                "keyed": true
+              },
+              "r_haltere_beat": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.2,
+                  0.2
+                ],
+                "keyed": false
+              },
+              "r_wing_elevate": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -1.7,
+                  0.8
+                ],
+                "keyed": false
+              },
+              "r_wing_pitch": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  -0.07,
+                  0.13
+                ],
+                "keyed": false
+              },
+              "r_wing_sweep": {
+                "min": 0.0,
+                "max": 0.0,
+                "limit": [
+                  0.0,
+                  3.0
+                ],
+                "keyed": false
+              }
+            }
+          }
         }
       },
       "ik_configs_chosen": {
         "eye": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "antenna": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 1.0,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.25,
+          "outward_shift_viewport_mm": 0.45
         },
         "front_rub": {
-          "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "coxa_angle_rad": 0.6,
+          "knee_side": 1,
+          "coxa_roll_rad": 0.75,
+          "outward_shift_viewport_mm": 0.0
         },
         "abdomen": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.75,
+          "outward_shift_viewport_mm": 0.0
         },
         "wing": {
-          "coxa_angle_rad": -0.3,
-          "knee_side": -1
+          "coxa_angle_rad": 1.8,
+          "knee_side": 1,
+          "coxa_roll_rad": -0.5,
+          "outward_shift_viewport_mm": 0.0
         },
         "hind_rub": {
           "coxa_angle_rad": -0.6,
-          "knee_side": -1
+          "knee_side": 1,
+          "coxa_roll_rad": 0.0,
+          "outward_shift_viewport_mm": 0.0
         }
       },
       "sprite_sheets": {
@@ -4828,13 +7380,13 @@
           "file": "fly_male_v2_lod1_groom_head_forelegs_sprites.png",
           "frames": [
             0,
-            31,
-            62,
-            93,
-            125,
-            156,
-            187,
-            218
+            49,
+            98,
+            147,
+            195,
+            244,
+            293,
+            342
           ],
           "views": [
             "side",
@@ -4847,13 +7399,13 @@
           "file": "fly_male_v2_lod1_groom_abdomen_wings_hindlegs_sprites.png",
           "frames": [
             0,
-            32,
-            64,
-            96,
-            128,
-            160,
-            192,
-            224
+            46,
+            92,
+            138,
+            184,
+            230,
+            276,
+            322
           ],
           "views": [
             "side",
@@ -4866,16 +7418,73 @@
           "file": "fly_male_v2_lod1_groom_full_cycle_sprites.png",
           "frames": [
             0,
-            64,
-            128,
-            192,
-            256,
-            320,
-            384,
-            448
+            96,
+            191,
+            287,
+            383,
+            479,
+            574,
+            670
           ],
           "views": [
             "side"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "walk_tripod_loop": {
+          "file": "fly_male_v2_lod1_walk_tripod_loop_sprites.png",
+          "frames": [
+            0,
+            6,
+            12,
+            18,
+            24,
+            30,
+            36,
+            42
+          ],
+          "views": [
+            "side",
+            "under"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "takeoff_prep": {
+          "file": "fly_male_v2_lod1_takeoff_prep_sprites.png",
+          "frames": [
+            0,
+            14,
+            27,
+            41,
+            55,
+            69,
+            82,
+            96
+          ],
+          "views": [
+            "side",
+            "front"
+          ],
+          "tile_px": 256,
+          "ortho_scale_viewport_mm": 12.0
+        },
+        "idle_antenna_twitch": {
+          "file": "fly_male_v2_lod1_idle_antenna_twitch_sprites.png",
+          "frames": [
+            0,
+            11,
+            22,
+            34,
+            45,
+            56,
+            68,
+            79
+          ],
+          "views": [
+            "front",
+            "top"
           ],
           "tile_px": 256,
           "ortho_scale_viewport_mm": 12.0
@@ -4884,17 +7493,17 @@
           "file": "fly_male_v2_lod1_groom_full_cycle_checks.png",
           "frames": [
             0,
-            41,
-            81,
+            61,
             122,
-            163,
-            204,
+            183,
             244,
-            285,
-            326,
-            367,
-            407,
-            448
+            305,
+            365,
+            426,
+            487,
+            548,
+            609,
+            670
           ],
           "views": [
             "side",
@@ -4913,42 +7522,60 @@
           "height": 512
         },
         "fly_male_v2_lod1_clips.blend": {
-          "sha256": "059758973b5085c4edf4a2abece55c5a288a5a07b96cce2bfb1b0282f74f7d74",
-          "bytes": 12067702
+          "sha256": "33a0d44ce573a87df44b3ab6b17d0e52d05a419d9c5f4c381dab07ba6d9fd186",
+          "bytes": 18966982
         },
         "fly_male_v2_lod1_clips.glb": {
-          "sha256": "9c2427f102c198951e2167d6bdb99a6ceaa04a70d21f039de6967ad3e13da7f6",
-          "bytes": 399644
+          "sha256": "f400d32386337c0c7ddc3403a9f3bef3e7623f8c4fea12d98e6e63daf150ebaf",
+          "bytes": 534876
         },
         "fly_male_v2_lod1_clips.json": {
-          "sha256": "94c8a4101493a1062c5914f3d933bdf8827b6b28f8770a69c5a8f601b2f6759b",
-          "bytes": 24521
+          "sha256": "fcff177e7d18e434296c5b82d54b301d0f9fd5b8228bf5479cd8c2d5f29dfc8d",
+          "bytes": 36142
         },
         "fly_male_v2_lod1_envelope.json": {
-          "sha256": "29bd2697a484e4a7079894e6ed7370b31be851b41f2c7128db72776788f7a908",
-          "bytes": 16543
+          "sha256": "d49e7f2b18460782f65f5416ca32288ce7ed6e054f95b14f8b7df6fcd94a3347",
+          "bytes": 26932
         },
         "fly_male_v2_lod1_groom_abdomen_wings_hindlegs_sprites.png": {
-          "sha256": "c2a7529c4f23292fdcab382c44c8ba1a303e977a1e96a0c032b66c7f799df865",
-          "bytes": 425157,
+          "sha256": "ac8ad2f5631ec231d0e9defb332c62664eb16fba74ab2b5863c74690c0eb4385",
+          "bytes": 463988,
           "width": 2048,
           "height": 512
         },
         "fly_male_v2_lod1_groom_full_cycle_checks.png": {
-          "sha256": "e4c94fecb487741e398af00564192d8ad6d7164f27079af192ee3b4aced6033d",
-          "bytes": 1014854,
+          "sha256": "ea08223927b0ff1071c8f2f8b2ba80d5c091f470d948519224346091317a9212",
+          "bytes": 1039395,
           "width": 3072,
           "height": 768
         },
         "fly_male_v2_lod1_groom_full_cycle_sprites.png": {
-          "sha256": "1ae49c1c78cffc1d5332117383dc26eb2263f62d8c462c1ebfcfcc4f054e6254",
-          "bytes": 207234,
+          "sha256": "8a5721b5470308fe226d4618c4d0f25162df952943a9a6d17ac0c0fac0929360",
+          "bytes": 204091,
           "width": 2048,
           "height": 256
         },
         "fly_male_v2_lod1_groom_head_forelegs_sprites.png": {
-          "sha256": "c4a15340f6cc3ed6049685cb7b2626211d70e46c2f5ecbd6b2d607eb6a9998dd",
-          "bytes": 400991,
+          "sha256": "8a95e2872e4f990d067d296fdc2592e20bae8c74bbf7d5238ba7d6baf3923af4",
+          "bytes": 386478,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod1_idle_antenna_twitch_sprites.png": {
+          "sha256": "b273ed4b3e75b410049820af43b70de66fbb5e2f61bb7f508ab7d7c5ed45249f",
+          "bytes": 301017,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod1_takeoff_prep_sprites.png": {
+          "sha256": "0efdbf330601838ecec307840f2c128e11f37a144c2bcf12e169cae1020e075e",
+          "bytes": 456824,
+          "width": 2048,
+          "height": 512
+        },
+        "fly_male_v2_lod1_walk_tripod_loop_sprites.png": {
+          "sha256": "fe47ffe13ae58d7d9adb5f34704e2f9c989b810be7f5a31b61aefaa05f17d79d",
+          "bytes": 546070,
           "width": 2048,
           "height": 512
         },
@@ -4974,6 +7601,6 @@
   },
   "contact_sheet": {
     "file": "anim_contact_sheet.png",
-    "sha256": "e81893fb884d8eb82f0caa1ae555e11e52021faf19a54e8191e114f47d83af1d"
+    "sha256": "74ae263d1bce46bb047b9d177ec911b6bcae44a71fec68116d10b4f212a1edbe"
   }
 }

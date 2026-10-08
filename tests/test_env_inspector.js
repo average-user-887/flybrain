@@ -148,23 +148,20 @@ test('labels never name a chemical the engine does not simulate', () => {
     assert.match(html, /arbitrary normalised units \(0–1\), not ppm or molar/);
 });
 
-test('candidate build (graph I/O v3): multisensory wind reads DELIVERED as reported, vector-only stays NOT DELIVERED, labelled candidate-only', () => {
+test('graph I/O v3+ mapping: multisensory wind DELIVERED as reported, vector-only stays NOT DELIVERED', () => {
     const release = I.viewModel(FX.multisensory_connectome);
-    assert.equal(release.candidate.candidate, false, 'release telemetry is not candidate');
+    assert.equal(release.io.v3Mapping, false, 'v2 telemetry has no v3 mapping');
     const pkt = clone(FX.multisensory_connectome);
     pkt.identity.graph_io = {version: 'graph-arena-io-v3-unassisted'};
     const jo = pkt.connectome.input_stage.find((r) => r.name === 'jon_wind');
     Object.assign(jo, {current_injected: 2.25, n_spiking_this_step: 0, stimulus_key: 'wind_magnitude', delivery: 'delivered'});
     const vm = I.viewModel(pkt);
-    assert.equal(vm.candidate.candidate, true);
+    assert.equal(vm.io.v3Mapping, true);
     const row = vm.input.rows.find((r) => r.name === 'jon_wind');
     assert.equal(row.current, 2.25, 'the reported current, not computed');
     assert.equal(row.state, 'delivered-silent');
     assert.match(row.text, /reported: delivered \(key wind_magnitude\)/);
-    const cav = vm.caveats.join('\n');
-    assert.match(cav, /CANDIDATE BUILD.*NOT the currently deployed behaviour/);
-    assert.doesNotMatch(cav, /key mismatch/);
-    // Vector-only wind in the candidate (t-maze/open arena): the row says NOT DELIVERED.
+    assert.doesNotMatch(vm.caveats.join('\n'), /key mismatch/);
     const vec = clone(pkt);
     delete vec.stimuli.wind_magnitude;
     Object.assign(vec.connectome.input_stage.find((r) => r.name === 'jon_wind'), {current_injected: 0, stimulus_key: null,
@@ -172,6 +169,18 @@ test('candidate build (graph I/O v3): multisensory wind reads DELIVERED as repor
     const v2 = I.viewModel(vec);
     assert.equal(v2.input.rows.find((r) => r.name === 'jon_wind').state, 'not-delivered');
     assert.match(v2.caveats.join('\n'), /vector-only wind/);
-    // Without the candidate fields the release caveat stays.
     assert.match(release.caveats.join('\n'), /NOT DELIVERED in this assay/);
+});
+
+test('label regression: the v3+ mapping is a feature label; candidate/deployed status only from explicit build provenance', () => {
+    const pkt = clone(FX.multisensory_connectome);
+    pkt.identity.graph_io = {version: 'graph-arena-io-v4-unassisted'};   // a future version
+    Object.assign(pkt.connectome.input_stage.find((r) => r.name === 'jon_wind'), {delivery: 'delivered', stimulus_key: 'wind_magnitude'});
+    const cav = I.viewModel(pkt).caveats.join('\n');
+    assert.match(cav, new RegExp(I.IO_V3_LABEL.replace(/[+]/g, '\\+')));
+    assert.match(cav, /Delivery is not detection/);
+    assert.doesNotMatch(cav, /candidate|deployed|CANDIDATE|not deployed/i, 'no status claimed without provenance');
+    assert.doesNotMatch(read('env_inspector.js'), /CANDIDATE BUILD|not deployed\]/);
+    pkt.build_provenance = {status: 'candidate (unreleased)'};
+    assert.match(I.viewModel(pkt).caveats.join('\n'), /Build status \(from build provenance\): candidate \(unreleased\)/);
 });

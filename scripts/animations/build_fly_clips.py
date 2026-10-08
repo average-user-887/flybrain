@@ -95,6 +95,7 @@ def lerp(a, b, t):
 # ------------------------------------------------------------------ scene
 scene = g.reset_scene()
 scene.render.fps = FPS
+scene.frame_start = 1
 bpy.ops.import_scene.gltf(filepath=ARGS['glb'])
 OBJ = bpy.data.objects
 root = OBJ['neurofly_fly']
@@ -110,14 +111,15 @@ for n in DOFS + LEG_NODES:
     OBJ[n].rotation_mode = 'QUATERNION'
 
 
-def leg_mats(leg, yaw, c, f, t):
+def leg_mats(leg, yaw, c, f, t, roll=0.0):
+    """Coxa: yaw about +Y, then roll about the leg plane's horizontal axis (tilts the plane), then c."""
     side, z_off, _ = LEGS[leg]
-    return (g.trans(side * 1.0, -0.2, z_off) @ g.rot_y(yaw) @ g.rot_x(c),
+    return (g.trans(side * 1.0, -0.2, z_off) @ g.rot_y(yaw) @ g.rot_z(roll) @ g.rot_x(c),
             g.trans(0, -L0, 0) @ g.rot_x(f), g.trans(0, -L1, 0) @ g.rot_x(t))
 
 
 def rest_leg(leg):
-    return (LEGS[leg][2],) + DISPLAY_POSE[leg[1]]
+    return (LEGS[leg][2],) + DISPLAY_POSE[leg[1]] + (0.0,)
 
 
 # The imported display pose must be exactly the documented one; otherwise stop.
@@ -130,7 +132,7 @@ for leg in LEGS:
             raise SystemExit(f'rig mismatch at {leg}_{name}_joint (max error {err:.2e}); check the joint contract')
 
 
-def leg_ik(leg, target, alpha0, knee=1):
+def leg_ik(leg, target, alpha0, knee=1, roll=0.0):
     """Planar IK in the leg's vertical plane through the coxa origin (thorax frame).
 
     Returns (yaw, c, f, t) for the coxa/femur/tibia joints so that the tarsus tip
@@ -138,11 +140,24 @@ def leg_ik(leg, target, alpha0, knee=1):
     straight down toward the target; knee = +1 / -1 picks the elbow solution.
     """
     side, z_off, _ = LEGS[leg]
+    rho = -side * roll                      # mirror-symmetric: the same roll tilts both sides alike
     o = Vector((side * 1.0, -0.2, z_off))
     p = Vector(target)
     dx, dz = p.x - o.x, p.z - o.z
-    yaw = math.atan2(dx, dz)
-    up, vp = math.hypot(dx, dz), p.y - o.y
+    v = p.y - o.y
+    r = math.hypot(dx, dz)
+    if abs(rho) < 1e-9 or r < 1e-9:
+        yaw = math.atan2(dx, dz)
+    else:
+        # plane normal n = cos(rho) X' + sin(rho) Y with X' = (cos yaw, 0, -sin yaw); require (p - o).n = 0
+        phi = math.atan2(dz, dx)
+        cval = max(-1.0, min(1.0, -math.tan(rho) * v / r))
+        cands = [-phi + math.acos(cval), -phi - math.acos(cval)]
+        yaw = max(cands, key=lambda y: dx * math.sin(y) + dz * math.cos(y))
+    xp = (math.cos(yaw), 0.0, -math.sin(yaw))
+    dvec = (math.sin(yaw), 0.0, math.cos(yaw))
+    up = dx * dvec[0] + dz * dvec[2]
+    vp = -math.sin(rho) * (dx * xp[0] + dz * xp[2]) + math.cos(rho) * v
     ku, kv = L0 * math.sin(alpha0), -L0 * math.cos(alpha0)
     wu, wv = up - ku, vp - kv
     d = min(L1 + L2 - 1e-3, max(abs(L1 - L2) + 1e-3, math.hypot(wu, wv)))
@@ -151,7 +166,17 @@ def leg_ik(leg, target, alpha0, knee=1):
     a1 = aw + knee * beta
     nu, nv = ku + L1 * math.sin(a1), kv - L1 * math.cos(a1)
     a2 = math.atan2(up - nu, -(vp - nv))
-    return (yaw, -alpha0, -(a1 - alpha0), -(a2 - a1))
+    return tuple(wrap(x) for x in (yaw, -alpha0, -(a1 - alpha0), -(a2 - a1))) + (rho if roll else 0.0,)
+
+
+def wrap(x):
+    """Angle in (-pi, pi]."""
+    return math.atan2(math.sin(x), math.cos(x))
+
+
+def anatomical(ang):
+    """Femur-tibia joint flexes the same way as in the display pose (tibia angle > 0, < pi)."""
+    return 0.0 < ang[3] < math.pi
 
 
 def apply_pose(pose):
@@ -353,80 +378,152 @@ class Timeline:
         if spec is None:
             return rest_leg(leg)
         if spec == 'tuck':
-            yaw, c, _, _ = rest_leg(leg)
+            yaw, c, _, _, _ = rest_leg(leg)
             a1, t = (1.6, 2.4) if leg[1] == 'f' else (2.0, 2.7)
-            return (yaw, c, -(a1 + c), t)           # femur raised, tibia folded: foot lifted clear
-        _, target, alpha0, knee = spec
-        return leg_ik(leg, target, alpha0, knee)
+            return (yaw, c, -(a1 + c), t, 0.0)      # femur raised, tibia folded: foot lifted clear
+        _, target, alpha0, knee, roll = spec
+        return leg_ik(leg, target, alpha0, knee, roll)
+
+    def _path(self, kind, leg, a, b):
+        """One candidate interpolation u in [0, 1] -> leg angles for a segment a -> b."""
+        ja, jb = self.leg_angles(leg, a), self.leg_angles(leg, b)
+
+        def jl(p, q, u):
+            return tuple(x + wrap(y - x) * u for x, y in zip(p, q))
+        if kind == 'target' and isinstance(a, tuple) and isinstance(b, tuple) and a[3] == b[3]:
+            return lambda u: leg_ik(leg, tuple(lerp(x, y, u) for x, y in zip(a[1], b[1])),
+                                    lerp(a[2], b[2], u), b[3], lerp(a[4], b[4], u))
+        if kind == 'joint':
+            return lambda u: jl(ja, jb, u)
+        if kind in ('tuck', 'hover'):
+            mid = self.leg_angles(leg, 'tuck') if kind == 'tuck' else self.leg_angles(leg, rest_t((leg,), HOVER)[leg])
+            return lambda u: jl(ja, mid, u * 2) if u < 0.5 else jl(mid, jb, u * 2 - 1)
+        return None
+
+    def _score(self, paths, n):
+        worst = 0.0
+        for k in range(n + 1):
+            u = ease(k / n)
+            pose = {leg: fn(u) for leg, fn in paths.items()}
+            if not all(anatomical(v) for v in pose.values()):
+                return math.inf
+            apply_pose(pose)
+            bpy.context.view_layer.update()
+            worst = max(worst, new_penetration()[1], below_floor())
+        return worst
 
     def frames(self):
+        """Per-frame poses.  Each segment picks the first clear path among: target-space IK,
+        joint-space, via the tucked pose, via the hover pose (dense check of every frame)."""
         out = []
+        self.choices = []
         for (f0, l0, d0), (f1, l1, d1) in zip(self.keys, self.keys[1:]):
+            moving = [leg for leg in LEGS if l0.get(leg) != l1.get(leg)]
+            best = None
+            for kind in ('target', 'joint', 'tuck', 'hover'):
+                paths = {leg: self._path(kind, leg, l0.get(leg), l1.get(leg)) for leg in moving}
+                if any(p is None for p in paths.values()):
+                    continue
+                sc = self._score(paths, f1 - f0) if moving else 0.0
+                if best is None or sc < best[0] - 1e-4:
+                    best = (sc, kind, paths)
+                if sc <= 0.0:
+                    break
+            self.choices.append((f0, f1, best[1], round(best[0], 4)))
+            static = {leg: self._path('joint', leg, l0.get(leg), l1.get(leg)) for leg in LEGS if leg not in moving}
             for f in range(f0, f1):
                 t = ease((f - f0) / (f1 - f0))
-                pose = {}
-                for leg in LEGS:
-                    a, b = l0.get(leg), l1.get(leg)
-                    if isinstance(a, tuple) and isinstance(b, tuple):
-                        tgt = tuple(lerp(x, y, t) for x, y in zip(a[1], b[1]))
-                        pose[leg] = leg_ik(leg, tgt, lerp(a[2], b[2], t), b[3])
-                    else:
-                        ja, jb = self.leg_angles(leg, a), self.leg_angles(leg, b)
-                        pose[leg] = tuple(lerp(x, y, t) for x, y in zip(ja, jb))
+                pose = {leg: fn(t) for leg, fn in list(best[2].items()) + list(static.items())}
                 for n in set(d0) | set(d1):
                     pose[n] = lerp(d0.get(n, 0.0), d1.get(n, 0.0), t)
                 out.append(pose)
+        apply_pose({})
         last = self.keys[-1]
         pose = {leg: self.leg_angles(leg, last[1].get(leg)) for leg in LEGS}
         pose.update(last[2])
         out.append(pose)
+        if int(ARGS['debug']):
+            for c in self.choices:
+                if c[3] > 0:
+                    print('NEUROFLY_DEBUG segment', c)
         return out
 
 
-CONFIGS = [(a0, k) for k in (-1, 1) for a0 in (-0.6, -0.3, 0.0, 0.3, 0.6, 0.9, 1.2)]
+# Only knee = +1 keeps the femur-tibia joint flexing the anatomical way (as in the display pose).
+CONFIGS = [(a0, 1, roll) for roll in (0.0, 0.25, -0.25, 0.5, -0.5, 0.75, -0.75) for a0 in (-0.6, -0.2, 0.2, 0.6, 1.0, 1.4, 1.8)]
+
+
+BEST_CACHE = {}
+SHIFTS = (0.0, 0.15, 0.3, 0.45, 0.6)
+
+
+def lateral(p, shift):
+    """Move a LEFT-side target outward (more negative x) by shift."""
+    return (p[0] - shift, p[1], p[2])
 
 
 def best_config(pair, targets, dofs=None):
-    """Pick one (coxa angle, knee side) for a whole stroke: least new penetration over its key targets."""
+    """Pick (coxa angle, knee, coxa roll) and the smallest outward shift of the whole stroke so that
+    the stroke, sampled densely between its key targets, neither pierces the body nor dips below the
+    foot plane, with the femur-tibia joint flexing the anatomical way.  Returns (cfg, shift)."""
+    key = (pair, tuple(targets), tuple(sorted((dofs or {}).items())))
+    if key in BEST_CACHE:
+        return BEST_CACHE[key]
+    dense = []
+    loop = list(targets) + [targets[0]]
+    for p0, p1 in zip(loop, loop[1:]):
+        for k in range(4):
+            dense.append(tuple(lerp(x, y, k / 4) for x, y in zip(p0, p1)))
     best = None
-    for a0, k in CONFIGS:
-        worst = 0.0
-        for t in targets:
-            pose = dict(dofs or {})
-            for leg, tgt in ((pair[0], t), (pair[1], mirror(t))):
-                pose[leg] = leg_ik(leg, tgt, a0, k)
-            apply_pose(pose)
-            bpy.context.view_layer.update()
-            worst = max(worst, new_penetration()[1], below_floor())
-        if best is None or worst < best[0] - 1e-4:
-            best = (worst, a0, k)
+    for shift in SHIFTS:
+        for cfg in CONFIGS:
+            worst = 0.0
+            for t in dense:
+                t = lateral(t, shift)
+                pose = dict(dofs or {})
+                for leg, tgt in ((pair[0], t), (pair[1], mirror(t))):
+                    pose[leg] = leg_ik(leg, tgt, *cfg)
+                    if not anatomical(pose[leg]):
+                        worst = math.inf
+                if worst == math.inf:
+                    break
+                apply_pose(pose)
+                bpy.context.view_layer.update()
+                worst = max(worst, new_penetration()[1], below_floor())
+                if best is not None and worst >= best[0]:
+                    break
+            if best is None or worst < best[0] - 1e-4:
+                best = (worst, cfg, shift)
+        if best[0] <= 0.03:
+            break
     apply_pose({})
     if int(ARGS['debug']):
-        print(f'NEUROFLY_DEBUG best_config {pair} worst={best[0]:.3f} a0={best[1]} knee={best[2]}')
-    return best[1], best[2]
+        print(f'NEUROFLY_DEBUG best_config {pair} worst={best[0]:.3f} cfg={best[1]} shift={best[2]}')
+    BEST_CACHE[key] = (best[1], best[2])
+    return BEST_CACHE[key]
 
 
 def front(target, cfg):
-    return {'lf': ('ik', target, cfg[0], cfg[1]), 'rf': ('ik', mirror(target), cfg[0], cfg[1])}
+    return {'lf': ('ik', target, *cfg), 'rf': ('ik', mirror(target), *cfg)}
 
 
 def front_lr(tl, tr, cfg):
-    return {'lf': ('ik', tl, cfg[0], cfg[1]), 'rf': ('ik', mirror(tr), cfg[0], cfg[1])}
+    return {'lf': ('ik', tl, *cfg), 'rf': ('ik', mirror(tr), *cfg)}
 
 
 def hind(target, cfg):
-    return {'lh': ('ik', target, cfg[0], cfg[1]), 'rh': ('ik', mirror(target), cfg[0], cfg[1])}
+    return {'lh': ('ik', target, *cfg), 'rh': ('ik', mirror(target), *cfg)}
 
 
 def hind_lr(tl, tr, cfg):
-    return {'lh': ('ik', tl, cfg[0], cfg[1]), 'rh': ('ik', mirror(tr), cfg[0], cfg[1])}
+    return {'lh': ('ik', tl, *cfg), 'rh': ('ik', mirror(tr), *cfg)}
 
 
 # Paths (thorax frame, left side), offset outside the measured head / eye / abdomen shells.
 EYE_STROKE = [(-1.12, 1.05, 2.15), (-1.05, 0.55, 2.45), (-0.9, -0.05, 2.5), (-0.75, -0.45, 2.35)]
 EYE_RETURN = (-1.35, 1.2, 2.3)
-ANT_STROKE = [(-0.45, 1.25, 2.4), (-0.6, 0.95, 2.85), (-0.7, 0.45, 3.1)]
-ANT_RETURN = (-0.85, 1.45, 2.6)
+ANT_STROKE = [(-0.45, 1.25, 2.9), (-0.6, 0.95, 3.35), (-0.7, 0.45, 3.6)]
+ANT_RETURN = (-0.85, 1.45, 3.1)
 RUB_FRONT = [(-0.12, -1.5, 2.0), (-0.12, -1.5, 2.6)]
 # Hind legs sweep the ventrolateral abdomen in the vertical plane x = -1 (just outside its widest point).
 ABD_STROKE = [(-1.25, -0.25, -2.0), (-1.25, -0.3, -3.0), (-1.1, -0.3, -4.1), (-0.85, -0.3, -5.05)]
@@ -441,78 +538,122 @@ WING_LIFT = {'l_wing_elevate': 0.25, 'r_wing_elevate': 0.25}
 CHOSEN = {}
 
 
+def rest_t(legs, up=0.0):
+    """Display pose (or a point straight above its foot) as an IK target in the display-pose config."""
+    out = {}
+    for leg in legs:
+        tip, a0, knee = REST_IK[leg]
+        out[leg] = ('ik', (tip[0], tip[1] + up, tip[2]), a0, knee, 0.0)
+    return out
+
+
+def lift_off(tl, f, legs):
+    """Rest -> foot straight up (target space, never below the foot plane) -> tucked."""
+    tl.key(f, rest_t(legs))
+    f += 6
+    tl.key(f, rest_t(legs, HOVER))
+    f += 8
+    tl.key(f, {leg: 'tuck' for leg in legs})
+    return f
+
+
+def set_down(tl, f, legs):
+    """Tucked -> foot straight above its rest point -> lowered onto the foot plane."""
+    tl.key(f, {leg: 'tuck' for leg in legs})
+    f += 8
+    tl.key(f, rest_t(legs, HOVER))
+    f += 8
+    tl.key(f, rest_t(legs))
+    return f
+
+
+HOVER = 0.6
+
+
 def head_groom(tl, f):
     """Front legs: eyes x2, rub, antennae x2, rub (Seeds et al. 2014: eyes before antennae)."""
-    c_eye = best_config(('lf', 'rf'), EYE_STROKE + [EYE_RETURN])
-    c_ant = best_config(('lf', 'rf'), ANT_STROKE + [ANT_RETURN], ANT_HOLD)
-    c_rub = best_config(('lf', 'rf'), RUB_FRONT)
-    CHOSEN.update(eye=c_eye, antenna=c_ant, front_rub=c_rub)
-    tl.key(f, {})
+    c_eye, s_eye = best_config(('lf', 'rf'), EYE_STROKE + [EYE_RETURN])
+    c_ant, s_ant = best_config(('lf', 'rf'), ANT_STROKE + [ANT_RETURN], ANT_HOLD)
+    c_rub, s_rub = best_config(('lf', 'rf'), RUB_FRONT)
+    CHOSEN.update(eye=c_eye + (s_eye,), antenna=c_ant + (s_ant,), front_rub=c_rub + (s_rub,))
+    eye_s, eye_r = [lateral(p, s_eye) for p in EYE_STROKE], lateral(EYE_RETURN, s_eye)
+    ant_s, ant_r = [lateral(p, s_ant) for p in ANT_STROKE], lateral(ANT_RETURN, s_ant)
+    rub = [lateral(p, s_rub) for p in RUB_FRONT]
+    def via(f, legs, dofs=None):
+        f += 14
+        tl.key(f, rest_t(legs, HOVER), dofs)            # neutral hover between strokes of different configs
+        return f
+    f = lift_off(tl, f, ('lf', 'rf'))
     f += 10
-    tl.key(f, {'lf': 'tuck', 'rf': 'tuck'})
-    f += 12
-    tl.key(f, front(EYE_RETURN, c_eye))
+    tl.key(f, front(eye_r, c_eye))
     for _ in range(2):
-        for i, p in enumerate(EYE_STROKE):
-            f += 6 if i else 8
+        for i, p in enumerate(eye_s):
+            f += 9 if i else 12
             tl.key(f, front(p, c_eye))
         f += 10
-        tl.key(f, front(EYE_RETURN, c_eye))
+        tl.key(f, front(eye_r, c_eye))
+    f = via(f, ('lf', 'rf'))
     for k in range(2):                                    # leg rubbing, legs in antiphase
-        f += 8
-        tl.key(f, front_lr(RUB_FRONT[k % 2], RUB_FRONT[(k + 1) % 2], c_rub))
-    f += 10
-    tl.key(f, front(ANT_RETURN, c_ant), ANT_HOLD)
+        f += 14 if k == 0 else 8
+        tl.key(f, front_lr(rub[k % 2], rub[(k + 1) % 2], c_rub))
+    f = via(f, ('lf', 'rf'))
+    f += 14
+    tl.key(f, front(ant_r, c_ant), ANT_HOLD)
     for _ in range(2):
-        for i, p in enumerate(ANT_STROKE):
-            f += 6 if i else 8
+        for i, p in enumerate(ant_s):
+            f += 9 if i else 12
             tl.key(f, front(p, c_ant), ANT_HOLD)
         f += 10
-        tl.key(f, front(ANT_RETURN, c_ant), ANT_HOLD)
+        tl.key(f, front(ant_r, c_ant), ANT_HOLD)
+    f = via(f, ('lf', 'rf'), ANT_HOLD)
     for k in range(2):
-        f += 8
-        tl.key(f, front_lr(RUB_FRONT[k % 2], RUB_FRONT[(k + 1) % 2], c_rub))
-    f += 12
-    tl.key(f, {'lf': 'tuck', 'rf': 'tuck'})
+        f += 14 if k == 0 else 8
+        tl.key(f, front_lr(rub[k % 2], rub[(k + 1) % 2], c_rub))
+    f = via(f, ('lf', 'rf'))
     f += 10
-    tl.key(f, {})
-    return f
+    return set_down(tl, f, ('lf', 'rf'))
 
 
 def body_groom(tl, f):
     """Hind legs: abdomen x2, wings x2, rub (Seeds et al. 2014: abdomen before wings)."""
-    c_abd = best_config(('lh', 'rh'), ABD_STROKE + [ABD_RETURN])
-    c_wing = best_config(('lh', 'rh'), WING_STROKE + [WING_RETURN], WING_LIFT)
-    c_rub = best_config(('lh', 'rh'), RUB_HIND)
-    CHOSEN.update(abdomen=c_abd, wing=c_wing, hind_rub=c_rub)
+    c_abd, s_abd = best_config(('lh', 'rh'), ABD_STROKE + [ABD_RETURN])
+    c_wing, s_wing = best_config(('lh', 'rh'), WING_STROKE + [WING_RETURN], WING_LIFT)
+    c_rub, s_rub = best_config(('lh', 'rh'), RUB_HIND)
+    CHOSEN.update(abdomen=c_abd + (s_abd,), wing=c_wing + (s_wing,), hind_rub=c_rub + (s_rub,))
+    abd_s, abd_r = [lateral(p, s_abd) for p in ABD_STROKE], lateral(ABD_RETURN, s_abd)
+    wing_s, wing_r = [lateral(p, s_wing) for p in WING_STROKE], lateral(WING_RETURN, s_wing)
+    rub = [lateral(p, s_rub) for p in RUB_HIND]
+    def via(f, legs, dofs=None):
+        f += 14
+        tl.key(f, rest_t(legs, HOVER), dofs)            # neutral hover between strokes of different configs
+        return f
+    f = lift_off(tl, f, ('lh', 'rh'))
     f += 10
-    tl.key(f, {'lh': 'tuck', 'rh': 'tuck'})
-    f += 12
-    tl.key(f, hind(ABD_RETURN, c_abd))
+    tl.key(f, hind(abd_r, c_abd))
     for _ in range(2):
-        for i, p in enumerate(ABD_STROKE):
-            f += 6 if i else 8
+        for i, p in enumerate(abd_s):
+            f += 9 if i else 12
             tl.key(f, hind(p, c_abd))
         f += 10
-        tl.key(f, hind(ABD_RETURN, c_abd))
-    f += 10
-    tl.key(f, hind(WING_RETURN, c_wing), WING_LIFT)
+        tl.key(f, hind(abd_r, c_abd))
+    f = via(f, ('lh', 'rh'))
+    f += 14
+    tl.key(f, hind(wing_r, c_wing), WING_LIFT)
     for _ in range(2):
-        for i, p in enumerate(WING_STROKE):
-            f += 7 if i else 8
+        for i, p in enumerate(wing_s):
+            f += 9 if i else 12
             tl.key(f, hind(p, c_wing), WING_LIFT)
         f += 10
-        tl.key(f, hind(WING_RETURN, c_wing), WING_LIFT)
+        tl.key(f, hind(wing_r, c_wing), WING_LIFT)
+    f = via(f, ('lh', 'rh'), WING_LIFT)
+    f += 8
+    tl.key(f, rest_t(('lh', 'rh'), HOVER))
     for k in range(3):
-        f += 8
-        tl.key(f, hind_lr(RUB_HIND[k % 2], RUB_HIND[(k + 1) % 2], c_rub))
+        f += 14 if k == 0 else 8
+        tl.key(f, hind_lr(rub[k % 2], rub[(k + 1) % 2], c_rub))
+    f = via(f, ('lh', 'rh'))
     f += 10
-    tl.key(f, hind(ABD_RETURN, c_abd))
-    f += 12
-    tl.key(f, {'lh': 'tuck', 'rh': 'tuck'})
-    f += 10
-    tl.key(f, {})
-    return f
+    return set_down(tl, f, ('lh', 'rh'))
 
 
 def clip_groom_head():
@@ -523,7 +664,6 @@ def clip_groom_head():
 
 def clip_groom_abdomen_wings():
     tl = Timeline()
-    tl.key(0, {})
     body_groom(tl, 0)
     return tl.frames(), False
 
@@ -532,14 +672,132 @@ def clip_groom_full_cycle():
     tl = Timeline()
     f = head_groom(tl, 0)
     f += 6
-    tl.key(f, {})
     body_groom(tl, f)
     return tl.frames(), False
 
 
+# ------------------------------------------------------------------ batch 2: walking, takeoff prep, idle
+def leg_tip(leg, ang):
+    m0, m1, m2 = leg_mats(leg, *ang)
+    return tuple(m0 @ m1 @ m2 @ Vector((0.0, -L2, 0.0)))
+
+
+def rest_ik(leg):
+    """(tip, alpha0, knee) that reproduce the display pose exactly through leg_ik."""
+    ang = rest_leg(leg)
+    tip = leg_tip(leg, ang)
+    for knee in (1, -1):
+        got = leg_ik(leg, tip, -ang[1], knee)
+        if max(abs(a - b) for a, b in zip(got, ang)) < 1e-6:
+            return tip, -ang[1], knee
+    raise SystemExit('display pose not reproducible by IK for ' + leg)
+
+
+REST_IK = {leg: rest_ik(leg) for leg in LEGS}
+STANCE_LIFT = 0.04          # stance tips sit this far above the display-pose tip so no claw dips below it
+TRIPOD_A = ('lf', 'rm', 'lh')   # alternating tripods (Mendes et al. 2013: three legs in stance at a time)
+
+
+def step_tip(leg, phase, stride, lift, duty=0.5):
+    """Tarsus tip for one leg at gait phase in [0, 1): stance (on the foot plane, moving back) then swing."""
+    tip, _, _ = REST_IK[leg]
+    x, y, z = tip
+    y += STANCE_LIFT
+    if phase < duty:                       # stance: front -> back, linear (constant body speed)
+        u = phase / duty
+        return (x, y, z + stride / 2 - stride * u)
+    u = (phase - duty) / (1 - duty)        # swing: back -> front, raised arc
+    e = ease(u)
+    return (x, y + lift * math.sin(math.pi * u), z - stride / 2 + stride * e)
+
+
+def clip_walk_tripod_loop():
+    n = 48
+    frames = []
+    for i in range(n):
+        pose = {}
+        for leg in LEGS:
+            ph = (i / n + (0.0 if leg in TRIPOD_A else 0.5)) % 1.0
+            _, a0, knee = REST_IK[leg]
+            pose[leg] = leg_ik(leg, step_tip(leg, ph, 1.1, 0.45), a0, knee)
+        frames.append(pose)
+    return frames, True
+
+
+def shifted(leg, dz=0.0, dr=0.0, dy=0.0):
+    """Rest tip moved dz along the body axis and dr radially outward in the floor plane."""
+    tip, a0, knee = REST_IK[leg]
+    side = LEGS[leg][0]
+    return (tip[0] + side * dr, tip[1] + STANCE_LIFT + dy, tip[2] + dz), a0, knee
+
+
+def clip_takeoff_prep():
+    """Card & Dickinson 2008 order: T1/T3 adjust, T2 reposition, wing raise, pause, T2 extension."""
+    keys = []                              # (frame, {leg: (target, a0, knee)}, dofs)
+
+    def legs_at(spec):
+        out = {}
+        for leg in LEGS:
+            if leg in spec:
+                out[leg] = shifted(leg, *spec[leg])
+            else:
+                out[leg] = shifted(leg)
+        return out
+    t13 = {'lf': (0.25, 0.1), 'rf': (0.25, 0.1), 'lh': (-0.2, 0.1), 'rh': (-0.2, 0.1)}
+    t2 = dict(t13, lm=(0.45, 0.0), rm=(0.45, 0.0))
+    t2x = dict(t13, lm=(0.45, 0.75), rm=(0.45, 0.75))
+    raise_ = {'l_wing_sweep': 0.4, 'r_wing_sweep': 0.4, 'l_wing_elevate': 0.78, 'r_wing_elevate': 0.78}
+    keys = [(0, legs_at({}), {}), (10, legs_at({}), {}), (24, legs_at(t13), {}), (30, legs_at(t13), {}),
+            (44, legs_at(t2), {}), (62, legs_at(t2), raise_), (74, legs_at(t2), raise_),
+            (82, legs_at(t2x), raise_), (96, legs_at(t2x), raise_)]
+    lifting = {24: ('lf', 'rf', 'lh', 'rh'), 44: ('lm', 'rm')}   # legs that step (swing arc) into that key
+    frames = []
+    for (f0, l0, d0), (f1, l1, d1) in zip(keys, keys[1:]):
+        for f in range(f0, f1):
+            t = ease((f - f0) / (f1 - f0))
+            pose = {}
+            for leg in LEGS:
+                (p0, a0, k), (p1, _, _) = l0[leg], l1[leg]
+                tgt = [lerp(a, b, t) for a, b in zip(p0, p1)]
+                if leg in lifting.get(f1, ()):
+                    tgt[1] += 0.35 * math.sin(math.pi * (f - f0) / (f1 - f0))
+                pose[leg] = leg_ik(leg, tuple(tgt), a0, k)
+            for nme in set(d0) | set(d1):
+                pose[nme] = lerp(d0.get(nme, 0.0), d1.get(nme, 0.0), t)
+            frames.append(pose)
+    last = keys[-1]
+    pose = {leg: leg_ik(leg, last[1][leg][0], last[1][leg][1], last[1][leg][2]) for leg in LEGS}
+    pose.update(last[2])
+    frames.append(pose)
+    return frames, False
+
+
+def clip_idle_antenna_twitch():
+    n = 90
+    events = [  # (start, length, {dof: peak})
+        (8, 9, {'l_antenna_abduct': 0.22, 'l_funiculus_rotate': 0.05}),
+        (30, 8, {'r_antenna_abduct': 0.18, 'r_antenna_extend': 0.08}),
+        (52, 10, {'l_antenna_extend': 0.12, 'r_antenna_extend': 0.12, 'l_antenna_twist': 0.05,
+                  'r_antenna_twist': 0.05}),
+        (70, 7, {'r_antenna_abduct': -0.12, 'l_antenna_abduct': -0.1, 'r_funiculus_rotate': -0.05}),
+    ]
+    frames = []
+    for i in range(n):
+        pose = {}
+        for f0, ln, peaks in events:
+            if f0 <= i <= f0 + ln:
+                w = math.sin(math.pi * (i - f0) / ln) ** 2
+                for k, v in peaks.items():
+                    pose[k] = pose.get(k, 0.0) + v * w
+        frames.append(pose)
+    return frames, True
+
+
 CLIPS = [('wing_open_fold', clip_wing_open_fold), ('wingbeat_loop', clip_wingbeat_loop),
          ('antenna_sweep', clip_antenna_sweep), ('groom_head_forelegs', clip_groom_head),
-         ('groom_abdomen_wings_hindlegs', clip_groom_abdomen_wings), ('groom_full_cycle', clip_groom_full_cycle)]
+         ('groom_abdomen_wings_hindlegs', clip_groom_abdomen_wings), ('groom_full_cycle', clip_groom_full_cycle),
+         ('walk_tripod_loop', clip_walk_tripod_loop), ('takeoff_prep', clip_takeoff_prep),
+         ('idle_antenna_twitch', clip_idle_antenna_twitch)]
 
 
 def check_ranges(pose):
@@ -607,29 +865,37 @@ CONTROLLED = DOFS + LEG_NODES
 report = {}
 built = []
 for clip, fn in CLIPS:
+    apply_pose({})                                  # explicit reset of EVERY controlled joint to bind/rest
+    bpy.context.view_layer.update()
     frames, loop = fn()
+    apply_pose({})
+    bpy.context.view_layer.update()
     for o in (OBJ[n] for n in CONTROLLED):
         if o.animation_data:
             o.animation_data.action = None            # keep earlier clips' NLA tracks
     worst = (0, 0.0, '')
     floor_worst = 0.0
     range_issues = []
+    # Pass 1, checks: earlier clips' NLA tracks are muted and no action is active, so the depsgraph
+    # evaluates exactly the pose we set (a stale NLA evaluation leaked a key in v2).
     for i, pose in enumerate(frames):
         apply_pose(pose)
         bpy.context.view_layer.update()
-        if i % 2 == 0 or i == len(frames) - 1:
-            c, d, w = new_penetration()
-            if int(ARGS['debug']) and d > 0.03:
-                print(f'NEUROFLY_DEBUG {clip} frame={i} depth={d:.3f} n={c} mesh={w}')
-            if d > worst[1]:
-                worst = (c, d, w, i)
-            bf = below_floor()
-            if int(ARGS['debug']) and bf > 0.01:
-                print(f'NEUROFLY_DEBUG {clip} frame={i} below_floor={bf:.3f}')
-            floor_worst = max(floor_worst, bf)
+        c, d, w = new_penetration()                 # every frame (W4 found a dip on an odd frame)
+        if int(ARGS['debug']) and d > 0.03:
+            print(f'NEUROFLY_DEBUG {clip} frame={i} depth={d:.3f} n={c} mesh={w}')
+        if d > worst[1]:
+            worst = (c, d, w, i)
+        bf = below_floor()
+        if int(ARGS['debug']) and bf > 0.01:
+            print(f'NEUROFLY_DEBUG {clip} frame={i} below_floor={bf:.3f}')
+        floor_worst = max(floor_worst, bf)
         range_issues += check_ranges(pose)
+    # Pass 2, keys: set each pose and key it directly, with no depsgraph evaluation in between.
+    for i, pose in enumerate(frames):
+        apply_pose(pose)
         for n in CONTROLLED:
-            OBJ[n].keyframe_insert('rotation_quaternion', frame=i)
+            OBJ[n].keyframe_insert('rotation_quaternion', frame=i + 1)   # clips start at frame 1
     for n in CONTROLLED:
         o = OBJ[n]
         act = o.animation_data.action
@@ -637,8 +903,9 @@ for clip, fn in CLIPS:
         act.use_fake_user = True
         track = o.animation_data.nla_tracks.new()
         track.name = clip
-        strip = track.strips.new(clip, 0, act)
+        strip = track.strips.new(clip, 1, act)
         strip.extrapolation = 'NOTHING'
+        track.mute = True                            # muted while later clips are authored and checked
         o.animation_data.action = None
     report[clip] = {'frames': len(frames), 'fps': FPS, 'seconds': round(len(frames) / FPS, 3), 'loop': loop,
                     'max_new_penetration_viewport_mm': round(worst[1], 4),
@@ -660,9 +927,40 @@ out_stem = os.path.join(ARGS['out'], stem + '_clips')
 bpy.ops.object.select_all(action='DESELECT')
 kwargs = dict(filepath=out_stem + '.glb', export_format='GLB', export_yup=True, export_apply=True,
               export_extras=True, export_cameras=False, export_lights=False, export_animations=True,
-              export_animation_mode='NLA_TRACKS', export_force_sampling=True, export_frame_step=1,
+              export_animation_mode='NLA_TRACKS', export_force_sampling=False, export_frame_step=1,
               export_optimize_animation_size=False)
 bpy.ops.export_scene.gltf(**kwargs)
+
+
+def patch_rest_pose(clip_glb, rig_glb):
+    """The NLA export writes animated nodes' rest TRS from the evaluated NLA state, not the bind pose.
+    Copy every node's rest translation/rotation/scale from the source rig GLB (same node names), so a
+    joint a clip does not key stays exactly at the rig's bind/display pose.  JSON chunk only."""
+    import struct as st
+
+    def load(path):
+        data = open(path, 'rb').read()
+        clen = st.unpack_from('<I', data, 12)[0]
+        return data, json.loads(data[20:20 + clen]), clen
+    data, doc, clen = load(clip_glb)
+    _, rig, _ = load(rig_glb)
+    rn = {n.get('name'): n for n in rig['nodes']}
+    for n in doc['nodes']:
+        r = rn[n['name']]
+        for key in ('translation', 'rotation', 'scale'):
+            if key in r:
+                n[key] = r[key]
+            else:
+                n.pop(key, None)
+    js = json.dumps(doc, separators=(',', ':')).encode('utf-8')
+    js += b' ' * ((4 - len(js) % 4) % 4)
+    rest = data[20 + clen:]
+    total = 12 + 8 + len(js) + len(rest)
+    with open(clip_glb, 'wb') as fh:
+        fh.write(st.pack('<III', 0x46546C67, 2, total) + st.pack('<II', len(js), 0x4E4F534A) + js + rest)
+
+
+patch_rest_pose(out_stem + '.glb', ARGS['glb'])
 for o in (OBJ[n] for n in CONTROLLED):
     for t in o.animation_data.nla_tracks:
         t.mute = True                                  # .blend opens at rest; unmute a track to preview
@@ -671,7 +969,7 @@ bpy.ops.wm.save_as_mainfile(filepath=out_stem + '.blend')
 meta = {
     'rig': CONTRACT.get('rig'), 'source_glb': os.path.basename(ARGS['glb']), 'fps': FPS,
     'controlled_nodes': CONTROLLED,
-    'ik_configs_chosen': {k: {'coxa_angle_rad': v[0], 'knee_side': v[1]} for k, v in CHOSEN.items()},
+    'ik_configs_chosen': {k: {'coxa_angle_rad': v[0], 'knee_side': v[1], 'coxa_roll_rad': v[2], 'outward_shift_viewport_mm': v[3]} for k, v in CHOSEN.items()},
     'label': 'Illustrative animation, not simulated behaviour.',
     'clips': report,
 }
@@ -724,7 +1022,9 @@ if int(ARGS['render']):
     nf = int(ARGS['frames'])
     best_view = {'wing_open_fold': ['top', 'hero'], 'wingbeat_loop': ['top', 'front'],
                  'antenna_sweep': ['top', 'front'], 'groom_head_forelegs': ['side', 'front'],
-                 'groom_abdomen_wings_hindlegs': ['side', 'top'], 'groom_full_cycle': ['side']}
+                 'groom_abdomen_wings_hindlegs': ['side', 'top'], 'groom_full_cycle': ['side'],
+                 'walk_tripod_loop': ['side', 'under'], 'takeoff_prep': ['side', 'front'],
+                 'idle_antenna_twitch': ['front', 'top']}
     for clip, frames in built:
         n = len(frames)
         picks = [round(k * (n - 1) / (nf - 1)) for k in range(nf)] if not report[clip]['loop'] else \

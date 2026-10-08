@@ -55,6 +55,25 @@ REFERENCES = [
      'values': '"The priority order for cleaning the different body parts is: eyes > antennae > abdomen > wings > '
                'thorax." "Front leg cleaning movements are directed to the head whereas the hind legs clean the '
                'abdomen, wings, and thoraces." Cleaning alternates sweeps of the targeted region with leg rubbing.'},
+    {'id': 'mendes2013', 'used_for': 'walk_tripod_loop: alternating tripods, swing roughly constant, stance shortens with speed',
+     'citation': 'Mendes CS, Bartos I, Akay T, Marka S, Mann RS (2013) Quantification of gait parameters in freely '
+                 'walking wild type and sensory deprived Drosophila melanogaster. eLife 2:e00231.',
+     'doi': '10.7554/eLife.00231',
+     'values': 'speeds 7.2-44.7 mm/s; step period reaches about 60 ms (16 Hz) at high speed; "three legs in stance '
+               'phase and three legs in swing phase at any one time"; contralateral legs of a segment at phase 0.5'},
+    {'id': 'deangelis2019', 'used_for': 'walk_tripod_loop caveat: flies use a continuum of coordination, not a fixed tripod',
+     'citation': 'DeAngelis BD, Zavatone-Veth JA, Clark DA (2019) The manifold structure of limb coordination in '
+                 'walking Drosophila. eLife 8:e46409.', 'doi': '10.7554/eLife.46409'},
+    {'id': 'card2008', 'used_for': 'takeoff_prep order: T1/T3 adjust, T2 reposition, wing elevation, pause, T2 extension',
+     'citation': 'Card G, Dickinson MH (2008) Visually mediated motor planning in the escape response of '
+                 'Drosophila. Curr Biol 18:1300-1307.', 'doi': '10.1016/j.cub.2008.07.094',
+     'values': '"the first manifestation ... is the positional changes of their T1 and T3 legs ... Approximately 200 '
+               'ms later, the flies begin to reposition their T2 legs. Just after the T2 legs start to move, flies '
+               'start to raise their wings ... there is a distinct pause in the motion of the T2 legs, which is '
+               'followed by their rapid extension to power the jump."'},
+    {'id': 'vonreyn2014', 'used_for': 'takeoff_prep: long-mode takeoff includes wing elevation before the jump',
+     'citation': 'von Reyn CR, Breads P, Peek MY, Zheng GZ, Williamson WR, Yee AL, Leonardo A, Card GM (2014) A '
+                 'spike-timing mechanism for action selection. Nat Neurosci 17:962-970.', 'doi': '10.1038/nn.3741'},
     {'id': 'hampel2015', 'used_for': 'antennal grooming as a distinct leg movement program',
      'citation': 'Hampel S, Franconville R, Simpson JH, Seeds AM (2015) A neural command circuit for grooming '
                  'movement control. eLife 4:e08758.', 'doi': '10.7554/eLife.08758'},
@@ -80,6 +99,21 @@ STYLISED = [
     'reach the notum without piercing the body. Abdominal strokes run along the side of the abdomen and wing '
     'strokes under the lifted wing edge.',
     'Body, root, thorax frame and the standing legs never move; real flies shift their body while grooming.',
+    'Legs are posed by inverse kinematics in a plane through each coxa, tilted by a coxa roll, with the femur-tibia '
+    'joint always flexing the anatomical way. Each stroke uses one (coxa angle, roll) and, where needed, an outward '
+    'shift of its path (recorded per stroke as outward_shift_viewport_mm) so the femur clears the body: the tarsus '
+    'then brushes up to that distance outside the surface. Transitions between strokes pick the first clear path '
+    '(target-space, joint-space, via the tucked pose or via a hover above the foot).',
+    'walk_tripod_loop walks in place (treadmill style): the body does not translate, so the stance feet slide '
+    'backwards along the foot plane. Duty factor 0.5, stride 1.1 viewport-mm, one cycle in 48 frames at 30 fps '
+    '(0.625 Hz, about 25x slower than the 16 Hz cited). Real gait is a continuum (DeAngelis 2019); a strict '
+    'tripod is shown.',
+    'takeoff_prep follows the cited order but cannot show the jump: the root never moves, so the final middle-leg '
+    'femur-tibia extension is drawn with the middle feet sliding outward on the foot plane. Wings rise to sweep '
+    '0.4 / elevate 0.78 (inside the envelope); the real wing elevation is larger. Timing is slowed about 10x.',
+    'idle_antenna_twitch is an invented idle loop of small antennal twitches; it implies no sensory event.',
+    'A proboscis extension clip is NOT provided: the rig has no proboscis joint (c_proboscis is a static mesh in '
+    'the W2 contract), and adding one is W2\'s rig change, not an animation.',
     'Coxa bases (within 0.45 viewport-mm of their joint) and wing bases (within 0.40) sit in their sockets and '
     'are excluded from the penetration test, as in the W2 measurements. Leg-to-leg contact (rubbing) is not '
     'tested.',
@@ -102,7 +136,8 @@ def main():
         joints = os.path.join(a.rig, stem + '_joints.json')
         env_json = os.path.join(a.out, stem + '_envelope.json')
         rc = subprocess.run([sys.executable, os.path.join(HERE, 'verify_clip_envelope.py'), glb, joints,
-                             '--json', env_json], capture_output=True, text=True).returncode
+                             '--rig', os.path.join(a.rig, stem + '.glb'), '--json', env_json],
+                            capture_output=True, text=True).returncode
         env = json.load(open(env_json))
         meta = json.load(open(os.path.join(a.out, stem + '_clips.json')))
         m = glb_metrics(glb)
@@ -115,19 +150,24 @@ def main():
                 if f.endswith('.png'):
                     files[f]['width'], files[f]['height'] = png_size(p)
         clips = {}
+        rest_check = env.pop('_rest_pose_vs_rig', {'mismatches': ['not checked']})
+        if rest_check['mismatches']:
+            problems.append(f'{stem}: rest pose differs from rig')
         for clip, r in meta['clips'].items():
             e = env.get(clip, {})
             clips[clip] = {k: r[k] for k in ('frames', 'fps', 'seconds', 'loop', 'max_new_penetration_viewport_mm',
                                              'worst_mesh', 'max_below_foot_plane_viewport_mm')}
             clips[clip]['envelope_check_exported_glb'] = e
             if not e or e.get('violations', 1) != 0 or e.get('max_off_axis_quaternion_component', 1) > 2e-3:
-                problems.append(f'{stem}/{clip}: envelope')
+                problems.append(f'{stem}/{clip}: envelope / foot plane / continuity / knee direction')
+            if r['max_new_penetration_viewport_mm'] > 0.05 or r['max_below_foot_plane_viewport_mm'] > 0.0:
+                problems.append(f'{stem}/{clip}: penetration or foot plane (Blender per-frame check)')
         if rc != 0:
             problems.append(f'{stem}: verifier exit {rc}')
         if m['triangles'] > budget or os.path.getsize(glb) > BUDGET['glb_bytes_max'] or m['images']:
             problems.append(f'{stem}: budget')
         variants[stem] = {'source_rig_glb': stem + '.glb', 'source_rig_glb_sha256': sha256(os.path.join(a.rig, stem + '.glb')),
-                          'joints_json_sha256': sha256(joints), 'triangles': m['triangles'], 'triangle_budget': budget,
+                          'joints_json_sha256': sha256(joints), 'rest_pose_matches_rig': not rest_check['mismatches'], 'triangles': m['triangles'], 'triangle_budget': budget,
                           'textures': m['textures'], 'glb_animations': sorted(clips), 'clips': clips,
                           'ik_configs_chosen': meta.get('ik_configs_chosen'), 'sprite_sheets': meta.get('sprite_sheets'),
                           'files': files}
@@ -137,17 +177,21 @@ def main():
         'label': 'Illustrative animation, not simulated behaviour.',
         'rig': 'neurofly-viewport-fly-v2 (W2 joint contract, tools/assets/JOINT_CONTRACT.md on claude/ui-assets-20261008)',
         'envelope': {
-            'rule': 'W2 contract range AND display-safe envelope for every DOF over the WHOLE duration of every clip; '
-                    'checked on the exported GLB (decoded quaternions, LINEAR interpolation, 20 sub-samples per frame, '
-                    'loop wrap included); zero violations required; no runtime clamping',
+            'rule': 'W2 contract range AND display-safe envelope for every DOF over the WHOLE duration of every clip, '
+                    'checked on the exported GLB as a browser plays it: decoded quaternions, LINEAR interpolation, '
+                    'sampled at 240 Hz, loop seam (last key -> first key) included; plus forward kinematics of every '
+                    'leg mesh against the foot plane at every sample, femur-tibia flexion direction, key-to-key and '
+                    'seam continuity (< 0.5 rad per frame), and the GLB rest pose equal to the rig GLB. Zero '
+                    'violations required; no runtime clamping and no body lift.',
             'limits': {'wing_sweep': [0.0, 3.0], 'wing_elevate': '>= contract minimum for the current sweep, <= 0.8',
                        'wing_pitch': '0 while sweep < 0.5, else [-0.07, 0.13] (intersection of all measured '
                                      'contract intervals)',
                        'antenna_abduct': [-0.4, 0.6], 'antenna_extend': '[-0.2, 0.2] and <= measured max for abduct',
                        'antenna_twist': [-0.1, 0.09], 'funiculus_rotate': [-0.1, 0.1], 'haltere_beat': [-0.2, 0.2]},
             'legs': 'leg empties (<leg>_coxa_joint, _femur_joint, _tibia_joint) are rotated only; their origins are '
-                    'unchanged; no leg range is defined by the contract, so legs are checked by penetration and the '
-                    'foot plane instead',
+                    'unchanged. The contract defines no leg range, so legs are checked by body penetration (Blender, '
+                    'every frame, <= 0.05 viewport-mm contact grazing), the foot plane (GLB FK at 240 Hz, zero), '
+                    'and anatomical femur-tibia flexion (same direction as the display pose).',
             'player_note': 'joints a clip leaves at rest are not keyed; a player resets to rest when it stops a clip '
                            '(three.js AnimationAction.stop does)',
         },
@@ -165,8 +209,9 @@ def main():
         from PIL import Image, ImageDraw
         rows = []
         for stem in sorted(variants):
-            for f in (f'{stem}_groom_full_cycle_checks.png', f'{stem}_wing_open_fold_sprites.png',
-                      f'{stem}_wingbeat_loop_sprites.png', f'{stem}_antenna_sweep_sprites.png'):
+            for f in (f'{stem}_groom_full_cycle_checks.png', f'{stem}_walk_tripod_loop_sprites.png',
+                      f'{stem}_takeoff_prep_sprites.png', f'{stem}_wingbeat_loop_sprites.png',
+                      f'{stem}_antenna_sweep_sprites.png', f'{stem}_idle_antenna_twitch_sprites.png'):
                 p = os.path.join(a.out, f)
                 if os.path.exists(p):
                     rows.append((f, Image.open(p).convert('RGBA')))
