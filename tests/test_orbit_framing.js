@@ -136,6 +136,7 @@ test('returning from chase restores the last orbit offset around the current fly
     assert.deepEqual([value.camera.position.x, value.camera.position.y, value.camera.position.z], [-10, 23, 55]);
 });
 
+// Fly root y = illustrative lift 0.5 + geometric stand 3.33 (floor -0.02, rig lowest leg point -3.85).
 test('view re-entry waits through a held pose and frames the first fresh pose', () => {
     const value = viewportWithHeldTelemetry();
     value.requestOrbitFrame();
@@ -147,7 +148,7 @@ test('view re-entry waits through a held pose and frames the first fresh pose', 
     value.arena.fly = {x: 38, y: 57, heading: 0};
     value.updatePose();
     assert.equal(value.pendingOrbitFrame, false);
-    assert.deepEqual([value.controls.target.x, value.controls.target.y, value.controls.target.z], [-12, 1.7, -7]);
+    assert.deepEqual([value.controls.target.x, value.controls.target.y, value.controls.target.z], [-12, 3.83, -7]);
 });
 
 test('Chase return keeps its saved offset pending until a fresh pose', () => {
@@ -165,6 +166,6 @@ test('Chase return keeps its saved offset pending until a fresh pose', () => {
     value.arena.fly = {x: 30, y: 40, heading: 0};
     value.updatePose();
     assert.equal(value.pendingOrbitFrame, false);
-    assert.deepEqual([value.controls.target.x, value.controls.target.y, value.controls.target.z], [-20, 1.7, 10]);
-    assert.deepEqual([value.camera.position.x, value.camera.position.y, value.camera.position.z], [-10, 21.7, 50]);
+    assert.deepEqual([value.controls.target.x, value.controls.target.y, value.controls.target.z], [-20, 3.83, 10]);
+    assert.deepEqual([value.camera.position.x, value.camera.position.y, value.camera.position.z], [-10, 23.83, 50]);
 });
