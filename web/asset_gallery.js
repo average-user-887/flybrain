@@ -27,6 +27,18 @@
     // Tolerance for "the lowest foot touches the floor": far below one LOD1 facet.
     const FLOOR_TOLERANCE = 1e-3;
 
+    function loadGalleryGlb(url, loader, onLoaded) {
+        return fetch(url, {method: 'HEAD'}).then((r) => {
+            // Installed servers may implement GET only; let the existing loader
+            // perform GET when HEAD is unsupported. Other HTTP failures stay errors.
+            if (!r.ok && r.status !== 405 && r.status !== 501)
+                throw new Error('HTTP ' + r.status + ' for ' + url + ' (not built or not staged: tools/assets/build_all.sh OUT --stage)');
+        }).then(() => new Promise((resolve, reject) => loader.load(url, (g) => {
+            onLoaded(g);
+            resolve(g);
+        }, undefined, (err) => reject(new Error('could not parse ' + url + ': ' + ((err && err.message) || err))))));
+    }
+
     // ------------------------------------------------------------------ manifest
     function validateManifest(m) {
         const errors = [];
@@ -433,12 +445,9 @@
         function loadGlb(url) {
             if (!loader) return Promise.reject(new Error('no WebGL / loader'));
             if (!cache[url]) {
-                cache[url] = fetch(url, {method: 'HEAD'}).then((r) => {
-                    if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url + ' (not built or not staged: tools/assets/build_all.sh OUT --stage)');
-                }).then(() => new Promise((resolve, reject) => loader.load(url, (g) => {
+                cache[url] = loadGalleryGlb(url, loader, (g) => {
                     env.lib.matchRendererEncoding(T, g.scene, renderer);
-                    resolve(g);
-                }, undefined, (err) => reject(new Error('could not parse ' + url + ': ' + ((err && err.message) || err))))));
+                });
             }
             return cache[url];
         }
@@ -1317,7 +1326,7 @@
 
     return {
         MANIFEST_SCHEMA, DEFAULT_MANIFEST_URL, OVERLAYS, FLOOR_TOLERANCE, LEG_PREFIXES,
-        validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
+        loadGalleryGlb, validateManifest, compileLayers, classifyName, layerOf, vertexBounds, isLegMesh, triangles,
         floorStatus, plinthStatus, standLift, tarsusSide, handednessAt, handednessScope, useReviewLighting, clipFloorBounds, reviewFloorLayout, clipKind, windVaneState, readoutDue, READOUT_MS, dofAngle, envelopeViolations, ANIMATION_LABEL, SPEEDS, trackNodes, clipSummary, jointReadout, rootExtras, displayScaleOf, gridStep, parseQuery, viewDirection, start
     };
 }));
