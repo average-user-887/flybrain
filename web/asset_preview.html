@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeuroFly asset preview</title>
+<style>
+  :root { --bg: #060913; --panel: #0f172a; --line: #334155; --text: #e2e8f0; --muted: #94a3b8; --warn: #fbbf24; --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  .banner { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #f59e0b; border-radius: 6px; color: var(--warn); font: 12px monospace; }
+  main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; padding: 12px 16px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  #view { position: relative; height: 62vh; min-height: 320px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #view canvas { display: block; width: 100%; height: 100%; }
+  .panel { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .panel h2 { margin: 0 0 8px; font-size: 14px; }
+  label { display: block; margin: 4px 0; color: var(--muted); }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0 0; font: 12px monospace; }
+  dt { color: var(--muted); }
+  #status { font: 12px monospace; color: var(--muted); margin-top: 8px; white-space: pre-wrap; }
+  #status.bad { color: var(--warn); }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; padding: 0 16px 16px; }
+  figure { margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px;
+           background: repeating-conic-gradient(#111827 0% 25%, #1f2937 0% 50%) 50% / 16px 16px; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { margin-top: 6px; font: 11px monospace; color: var(--muted); background: var(--panel); padding: 2px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NeuroFly presentation assets &middot; preview</h1>
+  <div class="banner">Presentation-only preview. Not wired into the dashboard (opt-in <code>?assets=hq</code> only, off by default).
+    No simulation runs on this page. Stylised surface, not an anatomical reconstruction: wings, halteres, antennae and
+    bristles are static decoration and are not simulated. Leg pose here is a display pose; the dashboard keeps its own pose
+    stream. The arena shell is a plinth below the floor: it is not a wall, cue or scale.</div>
+</header>
+<main>
+  <div id="view"></div>
+  <div class="panel">
+    <h2>Model</h2>
+    <label>Fly <select id="lod"><option value="0">LOD0 (desktop)</option><option value="1">LOD1 (phone)</option><option value="">none</option></select></label>
+    <label>Arena shell <select id="shell"><option value="shell_rect">rectangle (example 60 x 40 mm)</option><option value="shell_round">round (example 60 mm)</option><option value="">none</option></select></label>
+    <label><input type="checkbox" id="spin"> Turntable</label>
+    <dl>
+      <dt>fly triangles</dt><dd id="flyTris">&ndash;</dd>
+      <dt>fly nodes</dt><dd id="flyNodes">&ndash;</dd>
+      <dt>shell triangles</dt><dd id="shellTris">&ndash;</dd>
+      <dt>textures</dt><dd id="textures">&ndash;</dd>
+      <dt>lowest foot (GLB)</dt><dd id="footY">&ndash;</dd>
+      <dt>stand height</dt><dd id="standY">&ndash;</dd>
+      <dt>loader check</dt><dd id="valid">&ndash;</dd>
+    </dl>
+    <div id="status">Loading&hellip;</div>
+  </div>
+</main>
+<section class="gallery" id="gallery"></section>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="vendor/GLTFLoader.js"></script>
+<script src="hq_assets.js"></script>
+<script>
+(function () {
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const lib = window.NeuroflyHQAssetsLib;
+    const view = $('view');
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Linear output, exactly like the dashboard renderers; hq_assets.js converts the colours.
+    view.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060913);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 2000);
+    camera.position.set(9, 7, 11);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.5, -0.5);
+    controls.enableDamping = true;
+    // The dashboard viewport's own lights (ArticulatedFly3DViewport.init), so the preview matches it.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const key = new THREE.DirectionalLight(0x38bdf8, 1.2); key.position.set(20, 40, 20); scene.add(key);
+    const back = new THREE.DirectionalLight(0xf59e0b, 0.6); back.position.set(-20, 20, -20); scene.add(back);
+    // Same floor height and opacity as the dashboard's assay floor, for context only.
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.MeshStandardMaterial(
+        {color: 0x0b1220, roughness: 0.95, transparent: true, opacity: 0.72, side: THREE.DoubleSide}));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.02; scene.add(floor);
+
+    const loader = new THREE.GLTFLoader();
+    const cache = {};
+    function load(url) {
+        if (!cache[url]) cache[url] = new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject));
+        return cache[url];
+    }
+    function stats(root) {
+        let tris = 0, nodes = 0;
+        const textures = new Set();
+        root.traverse((o) => {
+            nodes += 1;
+            if (!o.isMesh) return;
+            const g = o.geometry;
+            tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+            for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'])
+                if (m && m[k] && m[k].image) textures.add(m[k].image.width + 'x' + m[k].image.height);
+        });
+        return {tris, nodes, textures: [...textures]};
+    }
+    let fly = null, shell = null;
+    const messages = [];
+    function status(text, bad) { messages.push(text); $('status').textContent = messages.join('\n'); if (bad) $('status').classList.add('bad'); }
+
+    function showFly() {
+        if (fly) { scene.remove(fly); fly = null; }
+        const lod = $('lod').value;
+        if (lod === '') { $('flyTris').textContent = $('flyNodes').textContent = '–'; return; }
+        const url = 'assets/hq/fly_hq_lod' + lod + '.glb';
+        load(url).then((gltf) => {
+            fly = gltf.scene; if (!fly.userData.nfEncoded) { lib.matchRendererEncoding(THREE, fly, renderer); fly.userData.nfEncoded = true; } scene.add(fly);
+            standFly();
+            const s = stats(fly);
+            $('flyTris').textContent = s.tris.toLocaleString();
+            $('flyNodes').textContent = String(s.nodes);
+            $('textures').textContent = s.textures.length ? s.textures.join(', ') : 'none';
+            const problem = lib ? lib.validateFly(THREE, lib.nodeIndex(fly)) : 'hq_assets.js missing';
+            $('valid').textContent = problem ? 'FAIL: ' + problem : 'pass (all ' + lib.requiredFlyNodes().length + ' hook nodes present)';
+            status('loaded ' + url);
+        }).catch((err) => status('could not load ' + url + ' (' + (err.message || err) + '). Build and stage it: tools/assets/README.md', true));
+    }
+    // Static preview placement only (no physics here): lift the GLB root so its lowest
+    // foot vertex (lowestFootY, claws included, measured from the loaded geometry) rests
+    // on the top of the visible surface: the dashboard floor (y = -0.02) when it is
+    // shown, else the shell top (y = -0.06).  The GLB root frame itself is unchanged.
+    const FLOOR_TOP = -0.02, SHELL_TOP = -0.06;
+    function standFly() {
+        if (!fly) return;
+        const lowest = lib.lowestFootY(THREE, fly);
+        if (lowest === null) { $('footY').textContent = 'no tarsus nodes'; return; }
+        const surface = floor.visible ? FLOOR_TOP : (shell ? SHELL_TOP : FLOOR_TOP);
+        fly.position.y = surface - lowest;
+        $('footY').textContent = lowest.toFixed(4);
+        $('standY').textContent = fly.position.y.toFixed(4) + ' (surface ' + surface + ')';
+    }
+    function showShell() {
+        if (shell) { scene.remove(shell); shell = null; }
+        const which = $('shell').value;
+        if (!which) { $('shellTris').textContent = '–'; floor.visible = true; standFly(); return; }
+        load('assets/hq/arena_shell.glb').then((gltf) => {
+            if (!gltf.scene.userData.nfEncoded) { lib.matchRendererEncoding(THREE, gltf.scene, renderer); gltf.scene.userData.nfEncoded = true; }
+            const src = gltf.scene.getObjectByName(which);
+            if (!src) throw new Error('node ' + which + ' missing');
+            const node = src.clone(); node.position.set(0, 0, 0);
+            shell = new THREE.Group(); shell.add(node);
+            // Same placement rule as hq_assets.js: arena size + margin, top at y = -0.06.
+            const w = 60, d = which === 'shell_round' ? 60 : 40;
+            const margin = 2 + 0.06 * Math.max(w, d);
+            shell.position.y = -0.06; shell.scale.set(w + 2 * margin, 0.6, d + 2 * margin);
+            floor.visible = which === 'shell_rect';
+            standFly();
+            scene.add(shell);
+            $('shellTris').textContent = stats(node).tris.toLocaleString();
+        }).catch((err) => status('could not load arena shell (' + (err.message || err) + ')', true));
+    }
+    $('lod').addEventListener('change', showFly);
+    $('shell').addEventListener('change', showShell);
+
+    const images = [
+        ['fly_hq_lod0_top.png', 'Fly top (2D sprite, head up)'], ['fly_hq_lod0_side.png', 'Fly side (ortho)'],
+        ['fly_hq_lod0_front.png', 'Fly front (ortho)'], ['fly_hq_lod0_hero.png', 'Fly 3/4 (perspective)'],
+        ['arena_shell_rect_top.png', 'Shell rect top (2D)'], ['arena_shell_round_top.png', 'Shell round top (2D)'],
+        ['arena_shell_preview.png', 'Shell + fly (perspective)'],
+        ['arena_shell_below.png', 'From below the floor (after foot fix)'],
+        ['arena_shell_below_BEFORE_fix.png', 'From below the floor (before foot fix)']];
+    for (const [file, caption] of images) {
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.alt = caption; img.loading = 'lazy'; img.src = 'assets/hq/' + file;
+        img.onerror = () => { fig.querySelector('figcaption').textContent = caption + ' · not built'; img.remove(); };
+        const cap = document.createElement('figcaption'); cap.textContent = caption + ' · ' + file;
+        fig.append(img, cap); $('gallery').append(fig);
+    }
+
+    function resize() {
+        const w = view.clientWidth || 1, h = view.clientHeight || 1;
+        renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize(); showFly(); showShell();
+    (function tick() {
+        if ($('spin').checked && fly) fly.rotation.y += 0.005;
+        controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick);
+    }());
+}());
+</script>
+</body>
+</html>

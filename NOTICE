@@ -11,8 +11,10 @@ Code bundled in this repository
 * three.js r128 (https://github.com/mrdoob/three.js), MIT, copyright
   2010-2021 three.js authors. Bundled as web/vendor/three.min.js (licence
   header retained in the file) and web/vendor/OrbitControls.js (from the
-  three.js examples, same licence). Full text:
-  licenses/upstream/three.js-MIT.txt.
+  three.js examples, same licence). web/vendor/GLTFLoader.js is the
+  unmodified r128 examples/js/loaders/GLTFLoader.js (same licence), loaded
+  only by the opt-in presentation assets (?assets=hq) and
+  web/asset_preview.html. Full text: licenses/upstream/three.js-MIT.txt.
 
 Optional embodied-runtime dependencies
 --------------------------------------

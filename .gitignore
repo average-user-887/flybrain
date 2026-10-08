@@ -32,3 +32,6 @@ experiment_data/battery/
 /.claude/
 /build/
 /neurofly-site/
+
+# Presentation assets are built locally (tools/assets/README.md) and staged here for previews.
+/web/assets/hq/

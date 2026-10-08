@@ -1,0 +1,431 @@
+{
+  "schema": "neurofly.presentation-assets.v1",
+  "generated_utc": "2026-10-08T14:28:11Z",
+  "purpose": "Presentation only. Stylised surface; not anatomical validation, not simulated biology.",
+  "tools": {
+    "blender": "Blender 4.5.3 LTS",
+    "python": "3.12.3",
+    "three_js": "r128 (web/vendor/three.min.js)",
+    "gltf_loader": "three.js r128 examples/js/loaders/GLTFLoader.js (web/vendor/GLTFLoader.js)"
+  },
+  "sources": {
+    "tools/assets/nf_geom.py": "5fb434e73e26d999709d0b43c4dff66bf0b1de51705302d2976354163af96ea3",
+    "tools/assets/build_fly.py": "7a335292e2fcf34be998e270b2c7b3615a007f4505bc924ae1bd52f99345ec83",
+    "tools/assets/build_arena.py": "1c9eb107de8d840558ea6b7844812ddfb32abf9fdffbe74ce5d0722abd36ce82",
+    "tools/assets/measure_assets.py": "d134814affe833b7bc99171f373204e5a9fd677d61021032d9863f0362623e9a",
+    "tools/assets/build_all.sh": "c99fb9a37bc3db4caf9f70ef6293652cd18665d1e3d5699b353a2c87abd13398",
+    "tools/assets/build_sex_variants.sh": "7f8f5c560d9e4c116ecfadc4bc1418f026cc3233735e1efb3af3ee2ce0bbcf2e",
+    "tools/assets/contact_sheet.py": "496736563c4caeae23fe5e321407ce2350d944c8e8242d0ce1cb5472fa3e7554",
+    "tools/assets/render_closeup.py": "9ce149fdfc426c6f7e0b9bd8dc86672b9290eac0fe2dbc16fe098eb4169db691",
+    "web/hq_assets.js": "f2a15a7d6da613b034fa2deb2e81650b6b38fc86661d91e37ef7ee3226c0413d",
+    "web/asset_preview.html": "6b28498376a5088492c1b1234bcc589507ae70d96079a9d7ada265c0cfcd4372",
+    "web/vendor/GLTFLoader.js": "5c15967ba830918a9caea6338712c994c354bccd4edc4569bde411c3ec06a3e6"
+  },
+  "outputs": {
+    "arena_preview.blend": {
+      "sha256": "bc13876dfef4397b8a36857126a372b657d7edd0037ee539638f472ddd798f0a",
+      "bytes": 1983973,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "arena_shell.blend": {
+      "sha256": "922595146d89315ff9cc3e89a507bf3df21bb7275f8e9e3109521db5b94156c6",
+      "bytes": 477642,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "arena_shell.glb": {
+      "sha256": "397129b3a9732da79b5c3edef36fe827953a69dd97f1cfaa3de4f288dd16a051",
+      "bytes": 20272,
+      "triangles": 596,
+      "nodes": 3,
+      "meshes": 2,
+      "materials": [
+        "nf_shell_edge",
+        "nf_shell_side",
+        "nf_shell_top"
+      ],
+      "alpha_blend_materials": [],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "root_extras": {},
+      "node_names": [
+        "arena_shell",
+        "shell_rect",
+        "shell_round"
+      ],
+      "triangle_budget": 20000,
+      "within_budget": true
+    },
+    "arena_shell_below.png": {
+      "sha256": "ca337297d9c6bc2fa7b8442d3ec0ffef8af1f26ede7508c583aefcff2b9542e8",
+      "bytes": 167502,
+      "width": 768,
+      "height": 480
+    },
+    "arena_shell_below_BEFORE_fix.png": {
+      "sha256": "9464febf5e24141416750be57248db8c3f76318c5c2a4095bde143deeba7db83",
+      "bytes": 186025,
+      "width": 768,
+      "height": 480
+    },
+    "arena_shell_preview.png": {
+      "sha256": "79303447eb291733d0de80d1494d9fd0b1559a87dad344e3f39d465007936ed6",
+      "bytes": 174056,
+      "width": 768,
+      "height": 480
+    },
+    "arena_shell_rect_top.png": {
+      "sha256": "b05aca2e27374c39bf1783e63355a6b88e6413f0e1f8af8fc2cbbcfe4bcfa11c",
+      "bytes": 370865,
+      "width": 768,
+      "height": 768
+    },
+    "arena_shell_round_top.png": {
+      "sha256": "aac941634e631baebba9ff6bf2104112cc5e00e18fd8e49cb0754f33318fe6db",
+      "bytes": 332135,
+      "width": 768,
+      "height": 768
+    },
+    "below_floor_before_vs_after.png": {
+      "sha256": "b2135965bd907f73286b4bbbbb046833d0891f10a71621fb8ba307792969227a",
+      "bytes": 322999,
+      "width": 1546,
+      "height": 480
+    },
+    "browser_preview_below_AFTER.png": {
+      "sha256": "4dfbb6cf90647b60fd900bb8f5c41bd26b74b4f2b0cd95d3a7826840e92f1915",
+      "bytes": 48792,
+      "width": 840,
+      "height": 880
+    },
+    "browser_preview_below_BEFORE.png": {
+      "sha256": "f96cce6586b6b85e04f2a4209dcaa5b5c551041a32f42113e7f9dfcffa4446c6",
+      "bytes": 53703,
+      "width": 840,
+      "height": 880
+    },
+    "fly_hq_lod0.blend": {
+      "sha256": "aeed5a82fb5860d6eb08468a8a2cdef1d176f1d67dc4a441de92391b4120b645",
+      "bytes": 1428408,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "fly_hq_lod0.glb": {
+      "sha256": "3f9a719ef003e6cd050cb3ab4d0e5b2efe594008847fe52a400c50ced716ca58",
+      "bytes": 298764,
+      "triangles": 13292,
+      "nodes": 69,
+      "meshes": 49,
+      "materials": [
+        "nf_abdomen_band",
+        "nf_abdomen_tan",
+        "nf_bristle",
+        "nf_cuticle_tan",
+        "nf_eye_red",
+        "nf_haltere",
+        "nf_head_tan",
+        "nf_leg_joint",
+        "nf_leg_tan",
+        "nf_scutum_brown",
+        "nf_wing_membrane",
+        "nf_wing_vein"
+      ],
+      "alpha_blend_materials": [
+        "nf_wing_membrane"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "root_extras": {},
+      "node_names": [
+        "c_abdomen12",
+        "c_abdomen3",
+        "c_abdomen4",
+        "c_abdomen5",
+        "c_abdomen6",
+        "c_head",
+        "c_head_bristles",
+        "c_proboscis",
+        "c_scutum",
+        "c_thorax",
+        "c_thorax_bristles",
+        "l_arista",
+        "l_eye",
+        "l_funiculus",
+        "l_haltere",
+        "l_pedicel",
+        "l_wing",
+        "l_wing_veins",
+        "lf_coxa",
+        "lf_coxa_joint",
+        "lf_femur_joint",
+        "lf_tarsus",
+        "lf_tibia",
+        "lf_tibia_joint",
+        "lf_trochanterfemur",
+        "lh_coxa",
+        "lh_coxa_joint",
+        "lh_femur_joint",
+        "lh_tarsus",
+        "lh_tibia",
+        "lh_tibia_joint",
+        "lh_trochanterfemur",
+        "lm_coxa",
+        "lm_coxa_joint",
+        "lm_femur_joint",
+        "lm_tarsus",
+        "lm_tibia",
+        "lm_tibia_joint",
+        "lm_trochanterfemur",
+        "neurofly_fly",
+        "r_arista",
+        "r_eye",
+        "r_funiculus",
+        "r_haltere",
+        "r_pedicel",
+        "r_wing",
+        "r_wing_veins",
+        "rf_coxa",
+        "rf_coxa_joint",
+        "rf_femur_joint",
+        "rf_tarsus",
+        "rf_tibia",
+        "rf_tibia_joint",
+        "rf_trochanterfemur",
+        "rh_coxa",
+        "rh_coxa_joint",
+        "rh_femur_joint",
+        "rh_tarsus",
+        "rh_tibia",
+        "rh_tibia_joint",
+        "rh_trochanterfemur",
+        "rm_coxa",
+        "rm_coxa_joint",
+        "rm_femur_joint",
+        "rm_tarsus",
+        "rm_tibia",
+        "rm_tibia_joint",
+        "rm_trochanterfemur",
+        "thorax_frame"
+      ],
+      "preview_placement": {
+        "tarsus_lowest_y": {
+          "lf": -2.1315,
+          "lh": -2.1054,
+          "lm": -1.8798,
+          "rf": -2.1315,
+          "rh": -2.1054,
+          "rm": -1.8798
+        },
+        "mesh_lowest_y": -2.1315,
+        "floor_top_y": -0.02,
+        "mesh_bounds_min_xyz": [
+          -3.6387,
+          -2.1315,
+          -4.45
+        ],
+        "mesh_bounds_max_xyz": [
+          3.6387,
+          3.5119,
+          2.9842
+        ],
+        "preview_stand_height": 2.1115,
+        "derivation": "stand height = floor_top_y - min(tarsus_lowest_y); exact vertex scan in the GLB root frame (display pose); static preview placement only, never applied to poses"
+      },
+      "triangle_budget": 30000,
+      "within_budget": true
+    },
+    "fly_hq_lod0_front.png": {
+      "sha256": "1516b440ee5aca84ec0f5051ffdd17e4a24c887cf056fae772d7d52f23d78445",
+      "bytes": 172423,
+      "width": 768,
+      "height": 768
+    },
+    "fly_hq_lod0_hero.png": {
+      "sha256": "338075ee211d9c7ec22032001eb62481279f35ba83884839473250fd0321c3f8",
+      "bytes": 270585,
+      "width": 768,
+      "height": 768
+    },
+    "fly_hq_lod0_side.png": {
+      "sha256": "c14fd647622e0dd80b3ad5134b639f848d8d6aa310e7e182165dafb17ec83c5e",
+      "bytes": 177260,
+      "width": 768,
+      "height": 768
+    },
+    "fly_hq_lod0_top.png": {
+      "sha256": "792c3574b3cbf732aa2314ea5af53b264f8cab462a570ebf8a294906a65bfddd",
+      "bytes": 236524,
+      "width": 768,
+      "height": 768
+    },
+    "fly_hq_lod1.blend": {
+      "sha256": "1f88c95aee67dbec8132e10f7d2305354c0da90a3e3263e7eab8310020c22dcc",
+      "bytes": 1076510,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "fly_hq_lod1.glb": {
+      "sha256": "861bf94fddbc4b69ba870a7a46cb8e66f71b19ba7974025046a473650110bfed",
+      "bytes": 123724,
+      "triangles": 4560,
+      "nodes": 67,
+      "meshes": 47,
+      "materials": [
+        "nf_abdomen_band",
+        "nf_abdomen_tan",
+        "nf_bristle",
+        "nf_cuticle_tan",
+        "nf_eye_red",
+        "nf_haltere",
+        "nf_head_tan",
+        "nf_leg_joint",
+        "nf_leg_tan",
+        "nf_scutum_brown",
+        "nf_wing_membrane",
+        "nf_wing_vein"
+      ],
+      "alpha_blend_materials": [
+        "nf_wing_membrane"
+      ],
+      "textures": 0,
+      "images": 0,
+      "generator": "Khronos glTF Blender I/O v4.5.48",
+      "root_extras": {},
+      "node_names": [
+        "c_abdomen12",
+        "c_abdomen3",
+        "c_abdomen4",
+        "c_abdomen5",
+        "c_abdomen6",
+        "c_head",
+        "c_proboscis",
+        "c_scutum",
+        "c_thorax",
+        "l_arista",
+        "l_eye",
+        "l_funiculus",
+        "l_haltere",
+        "l_pedicel",
+        "l_wing",
+        "l_wing_veins",
+        "lf_coxa",
+        "lf_coxa_joint",
+        "lf_femur_joint",
+        "lf_tarsus",
+        "lf_tibia",
+        "lf_tibia_joint",
+        "lf_trochanterfemur",
+        "lh_coxa",
+        "lh_coxa_joint",
+        "lh_femur_joint",
+        "lh_tarsus",
+        "lh_tibia",
+        "lh_tibia_joint",
+        "lh_trochanterfemur",
+        "lm_coxa",
+        "lm_coxa_joint",
+        "lm_femur_joint",
+        "lm_tarsus",
+        "lm_tibia",
+        "lm_tibia_joint",
+        "lm_trochanterfemur",
+        "neurofly_fly",
+        "r_arista",
+        "r_eye",
+        "r_funiculus",
+        "r_haltere",
+        "r_pedicel",
+        "r_wing",
+        "r_wing_veins",
+        "rf_coxa",
+        "rf_coxa_joint",
+        "rf_femur_joint",
+        "rf_tarsus",
+        "rf_tibia",
+        "rf_tibia_joint",
+        "rf_trochanterfemur",
+        "rh_coxa",
+        "rh_coxa_joint",
+        "rh_femur_joint",
+        "rh_tarsus",
+        "rh_tibia",
+        "rh_tibia_joint",
+        "rh_trochanterfemur",
+        "rm_coxa",
+        "rm_coxa_joint",
+        "rm_femur_joint",
+        "rm_tarsus",
+        "rm_tibia",
+        "rm_tibia_joint",
+        "rm_trochanterfemur",
+        "thorax_frame"
+      ],
+      "preview_placement": {
+        "tarsus_lowest_y": {
+          "lf": -2.1315,
+          "lh": -2.1054,
+          "lm": -1.8798,
+          "rf": -2.1315,
+          "rh": -2.1054,
+          "rm": -1.8798
+        },
+        "mesh_lowest_y": -2.1315,
+        "floor_top_y": -0.02,
+        "mesh_bounds_min_xyz": [
+          -3.6232,
+          -2.1315,
+          -4.45
+        ],
+        "mesh_bounds_max_xyz": [
+          3.6232,
+          3.47,
+          2.9842
+        ],
+        "preview_stand_height": 2.1115,
+        "derivation": "stand height = floor_top_y - min(tarsus_lowest_y); exact vertex scan in the GLB root frame (display pose); static preview placement only, never applied to poses"
+      },
+      "triangle_budget": 8000,
+      "within_budget": true
+    },
+    "gui-backup-before-feetfix-20261008T161458.blend": {
+      "sha256": "2fc7074fd3e313cfb0b25dc5756356c225b8a5fb2d78038e067ab9bc67995abe",
+      "bytes": 1476152,
+      "note": "editable source scene; Blender .blend files are not byte-reproducible"
+    },
+    "gui_screenshot_feetfix_camera.png": {
+      "sha256": "630608544061477cf3e2f03c130ad042c9065ea087815be6d98deb84cfec8aa9",
+      "bytes": 578584,
+      "width": 768,
+      "height": 768
+    },
+    "gui_screenshot_feetfix_front_and_below.png": {
+      "sha256": "d2dc970844416442871ed8e05410c4947e9f12793f29926209e9c17ee3d87764",
+      "bytes": 305342,
+      "width": 772,
+      "height": 384
+    }
+  },
+  "budgets": {
+    "fly_hq_lod0.glb": 30000,
+    "fly_hq_lod1.glb": 8000,
+    "arena_shell.glb": 20000,
+    "texture_max_px": 2048,
+    "fly_female_lod0.glb": 30000,
+    "fly_female_lod1.glb": 8000,
+    "fly_male_lod0.glb": 30000,
+    "fly_male_lod1.glb": 8000,
+    "textures_used": 0,
+    "max_texture_px_used": 0,
+    "status": "within budget"
+  },
+  "render": {
+    "engine": "Cycles, CPU only, 2 threads",
+    "ortho_scale_viewport_mm": 12.0,
+    "note": "fly ortho PNGs: px per viewport-mm = width / 12; head toward image top in *_top.png"
+  },
+  "licences": {
+    "scripts": "MIT (repository LICENSE)",
+    "generated_assets": "MIT (repository LICENSE); every vertex generated by the scripts, no third-party mesh",
+    "three.js r128 + GLTFLoader.js": "MIT, copyright 2010-2021 three.js authors (licenses/upstream/three.js-MIT.txt)",
+    "Blender 4.5.3": "GPL-2.0-or-later tool; its licence does not apply to generated output"
+  }
+}

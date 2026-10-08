@@ -218,8 +218,10 @@
             ['Decoder', (p.decoder && p.decoder.name) || '–'],
             ['Mode', p.command_mode || cfg.mode || '–'],
             ['Seed', cfg.seed],
-            ['Duration', cfg.duration_s + ' s'],
-            ['Drum', cfg.world_angular_velocity_rad_s + ' rad/s'],
+            ['Duration', Number.isFinite(cfg.duration_s) ? cfg.duration_s + ' s' : undefined],
+            // Never print a made-up value: reference runs have no drum.
+            ['Drum', Number.isFinite(cfg.world_angular_velocity_rad_s) ? cfg.world_angular_velocity_rad_s + ' rad/s'
+                : reference ? 'not applicable (reference fly)' : 'n/a (not recorded)'],
             ['Graph', nb.graph_sha256 ? nb.graph_sha256.slice(0, 12) : 'none'],
             ['Brain', nb.brain_backend || '–'],
             ['Frames', header.fps + ' fps'],
@@ -293,6 +295,8 @@
         if (e.code === 'Space' && state.rec && e.target === document.body) { e.preventDefault(); setPlaying(!state.playing); }
     });
 
+    // Opt-in presentation assets (hq_assets.js, ?assets=hq); a no-op without the flag.
+    if (window.NeuroflyHQAssets) window.NeuroflyHQAssets.attachReplay({ THREE, scene, state });
     resize();
     requestAnimationFrame(tick);
     const src = new URLSearchParams(location.search).get('src');
