@@ -1,6 +1,6 @@
 {
  "schema": "neurofly.pathA.escape_transmission_proposal/1",
- "status": "PROPOSAL ONLY; NOT LAUNCH-READY; NO DYNAMICS RUN",
+ "status": "ROOT ACCEPTED DESIGN FOR IMPLEMENTATION/AUDIT PREPARATION ONLY; NO DYNAMICS LAUNCH",
  "question": "At fixed direct 200 Hz Poisson activation of GF body 10001, GF body 10010, or both, what per-cell GF, TTMn and GFC2 counts occur, and how do they change when the ten frozen GFC2 cells are clamped?",
  "rationale": "Existing GF->TTMn contacts are 70 versus 20; GF->GFC2->TTMn spans 144 and 481 contacts, with feedback and 54 two-hop intermediates. Single-GF arms avoid hiding asymmetry in the population mean. Clamp effects are consequences in the full recurrent model.",
  "label": "EXPLORATORY OFFLINE MODEL DIAGNOSTIC, not retinal looming, physiological stimulation, behavioural validation, a pathway-share estimate or A2 regrade.",
@@ -310,12 +310,11 @@
   "pulse_drive": 10000.0,
   "silence_drive": -10000.0,
   "silencing": "constant silence_drive for the whole run: membrane held at the E_inh floor (-70 mV), no spikes; no weight changed",
-  "shuffled_input": "LABELLED OFFLINE COUNTERFACTUAL ONLY, not NeuroFly wiring: targets of every out-edge of the activated cells replaced by uniform random neuron indices (numpy default_rng(10000 + seed)); weights and all other edges unchanged",
   "readout_window_ms": [
    0.0,
    1000.0
   ],
-  "metric": "firing rate = spike count in the window / 1.0 s per cell, averaged over the cells of the readout set; summarised as mean and SD over seeds",
+  "metric": "Per-cell spike count divided by duration_s, then arithmetic population mean over those cell rates; descriptive mean and sample SD over seeds.",
   "seeds": [
    0,
    1,
@@ -328,11 +327,11 @@
   ],
   "seed_scope": "seeds set the Poisson event trains only; the network is deterministic",
   "poisson_rng": "numpy default_rng([seed, round(10*rate_hz), n_activated_cells]); silencing conditions therefore receive exactly the same input trains as their unsilenced pair",
-  "timing_probe_set": "TIMING-JOAB",
   "compute": {
-   "device": "CPU (numba v3 reference kernel); no GPU job",
-   "budget_wall_hours": 4.0,
-   "stop_rule": "stop when the budget is exhausted; report completed conditions only, never extrapolate"
+   "device": "CPU only, one process, threads=1, CUDA_VISIBLE_DEVICES empty",
+   "budget_wall_hours": 1.0,
+   "timeout_s": 3500,
+   "stop_rule": "Stop on timeout or integrity failure; preserve partial evidence; no retries or expansion."
   }
  },
  "conditions": [
@@ -592,7 +591,7 @@
   }
  ],
  "expected_rows": 75,
- "input_definition": "numpy default_rng([seed,2000,n_activated]), independent Bernoulli event per cell per 0.1 ms tick, p=0.02, exactly the accepted pulse_drive=10000 for one tick; no threshold, gain or weight changes. Input hash includes ordered int64 activation nodes and packbits(events). No-input has empty nodes/rate=0 and hash of empty int64 bytes followed by b\"none\".",
+ "input_definition": "Driven rows: numpy default_rng([seed,2000,n_activated]), Bernoulli p=0.02 per cell per 0.1 ms tick, pulse_drive=10000 for one tick. No-input rows: numpy default_rng([seed,0,0]), rate_hz=0 and no events; input digest hashes empty int64 activation bytes followed by b\"none\". Ordered int64 activation indices and exact packed event bytes are retained and independently regenerated.",
  "controls": {
   "no_input": "8 seeds each, intact and GFC2 clamp; all network counts must be zero as in accepted frozen reset/graph.",
   "direct_ttmn": "8 seeds, both TTMn directly activated; checks the drive/readout route only, never counted as synaptic transmission evidence.",
