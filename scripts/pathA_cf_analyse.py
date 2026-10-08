@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Path A: apply the PVLP151 counterfactual prereg's gates and decision rule.  Committed with it.
+"""Path A: gates and DESCRIPTIVE paired report for the PVLP151 counterfactual prereg.
 
-LABELLED OFFLINE COUNTERFACTUAL.  Pairs every CF row with the frozen intact A2 row
-of the same base condition and seed, reads all readouts from the stored per-run
-all-neuron count files of both, and never re-grades A2.
+LABELLED OFFLINE COUNTERFACTUAL.  No pass threshold, no verdict on biology, no
+re-grade of A2.  Pairs each clamp row with the intact replay row of the same base
+condition and seed; reads every readout from the stored per-run all-neuron count
+files.  Differences are total network consequences, not pathway fractions.
 """
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pathA_provenance as prov  # noqa: E402
+
+FIELDS = ('contract_sha256', 'graph_npz_sha256', 'dynamics', 'backend', 'engine_sha256', 'seed')
 
 
 def sha(p) -> str:
@@ -46,17 +49,22 @@ def set_rate(sp, idx, duration_s=1.0):
     return float(cnt[np.isin(node, idx)].sum() / len(idx) / duration_s)
 
 
-def decide(m100, m200, lower_all_100, lower_all_200):
-    """Prereg decision rule (pure function, unit tested)."""
-    if None in (m100, m200):
-        return 'NOT EVALUATED'
-    if m100 <= 0.5 and m200 <= 0.5 and lower_all_100 and lower_all_200:
-        return 'SUPPORTED'
-    if m100 >= 0.8 and m200 >= 0.8:
-        return 'REJECTED'
-    if lower_all_100 and lower_all_200:
-        return 'PARTIAL'
-    return 'INCONCLUSIVE'
+def without(sp, idx):
+    node, cnt = sp
+    keep = ~np.isin(node, idx)
+    return node[keep], cnt[keep]
+
+
+def paired(intact, cf):
+    """Descriptive paired summary (unit tested).  Percent only with a nonzero intact mean."""
+    i, c = np.asarray(intact, float), np.asarray(cf, float)
+    d = c - i
+    im = float(i.mean())
+    sd = lambda x: float(x.std(ddof=1)) if len(x) > 1 else 0.0  # noqa: E731
+    return dict(intact_hz=i.tolist(), cf_hz=c.tolist(), diff_hz=d.tolist(), intact_mean=im, intact_sd=sd(i),
+                cf_mean=float(c.mean()), cf_sd=sd(c), diff_mean=float(d.mean()), diff_sd=sd(d),
+                seeds_lower=int((d < 0).sum()), seeds_higher=int((d > 0).sum()), seeds_equal=int((d == 0).sum()),
+                percent_change=(100.0 * float(d.mean()) / im) if im != 0 else None)
 
 
 def main():
@@ -65,6 +73,7 @@ def main():
     ap.add_argument('--prereg', required=True)
     ap.add_argument('--cf-runs', required=True, nargs='+')
     ap.add_argument('--frozen-runs', required=True, nargs='+', help='frozen A2 run directories (runs.jsonl + counts/)')
+    ap.add_argument('--graph', required=True, help='graph.npz, re-hashed against the contract')
     ap.add_argument('--out', required=True)
     args = ap.parse_args()
     contract = json.loads(Path(args.contract).read_text())
@@ -79,67 +88,77 @@ def main():
     if len(engine) != 1:
         raise SystemExit(f'frozen rows carry {len(engine)} engine identities')
     engine = engine.pop()
-    fields = ('contract_sha256', 'graph_npz_sha256', 'dynamics', 'backend', 'engine_sha256', 'seed')
-    for r, _ in frozen.values():
-        prov.check_row(r, dict(base, engine_sha256=engine), fields=fields)
+    for r, _ in list(frozen.values()) + list(cf.values()):
+        prov.check_row(r, dict(base, engine_sha256=engine), fields=FIELDS)
+    code = {r['provenance']['code_sha'] for r, _ in cf.values()}
     for r, _ in cf.values():
-        prov.check_row(r, dict(base, engine_sha256=engine), fields=fields)
         if r['provenance'].get('cf_prereg_sha256') != psha:
             raise SystemExit(f"refusing to analyse: row {r['condition']} not bound to prereg {psha}")
     sets = {k: np.array(v['node_index']) for k, v in dict(contract['sets'], **prereg['sets']).items()}
+    pv = sets['PVLP151']
     dur = contract['protocol']['duration_ms'] / 1000.0
-
-    gates = {}
-    want = [(c['id'], s) for c in prereg['conditions'] if c['counterfactual'] for s in c['seeds']]
-    gates['V3_complete'] = all(k in cf for k in want) and len(want) == 96
-    clamp_ok, repro_ok = True, True
-    rates = {}
+    want = [(c['id'], s) for c in prereg['conditions'] for s in c['seeds']]
+    by = {}
     for c in prereg['conditions']:
-        for s in c['seeds']:
-            if (c['id'], s) not in cf or (c['base_condition'], s) not in frozen:
+        by.setdefault(c['base_condition'], {})[c['counterfactual'] or 'replay'] = c
+
+    gates = dict(G1_clamp_zero=True, G2_clean_initial_state=True, G3_identical_inputs=True,
+                 G4_zero_outgoing_semantics=True, G5_replay_reproduces_frozen=True,
+                 G6_complete_and_bound=all(k in cf for k in want) and len(code) == 1
+                 and sha(args.graph) == contract['data']['graph_npz_sha256'])
+    for r, _ in cf.values():
+        gates['G2_clean_initial_state'] &= (r.get('audit') or {}).get('initial_state_clean') is True
+    report = {}
+    for b, roles in by.items():
+        rep, cl, zo = roles.get('replay'), roles.get('silence_PVLP151'), roles.get('zero_outgoing_PVLP151')
+        series = {k: ([], []) for k in prereg['readouts']}
+        for s in cl['seeds']:
+            if (rep['id'], s) not in cf or (cl['id'], s) not in cf:
                 continue
-            a = sparse(cf[(c['id'], s)][1])
-            b = sparse(frozen[(c['base_condition'], s)][1])
-            if c['counterfactual']:
-                clamp_ok &= set_rate(a, sets['PVLP151']) == 0.0
-                for k in prereg['readouts']:
-                    rates.setdefault(c['id'], {}).setdefault(k, {})[s] = (set_rate(b, sets[k], dur), set_rate(a, sets[k], dur))
+            (rr, rp), (cr, cp) = cf[(rep['id'], s)], cf[(cl['id'], s)]
+            a, c = sparse(rp), sparse(cp)
+            gates['G1_clamp_zero'] &= set_rate(c, pv) == 0.0
+            ins = {rr['audit']['input_sha256'], cr['audit']['input_sha256']}
+            if (b, s) in frozen:
+                f = sparse(frozen[(b, s)][1])
+                gates['G5_replay_reproduces_frozen'] &= all(np.array_equal(x, y) for x, y in zip(a, f))
             else:
-                repro_ok &= all(np.array_equal(x, y) for x, y in zip(a, b))
-    gates['V1_clamp_holds'] = bool(clamp_ok)
-    gates['V2_reproduction'] = bool(repro_ok) and all((c['id'], 0) in cf for c in prereg['conditions'] if not c['counterfactual'])
-    valid = all(gates.values())
-
-    def summary(cid, k):
-        v = rates.get(cid, {}).get(k, {})
-        if len(v) < 8:
-            return None
-        i = np.array([v[s][0] for s in sorted(v)]); f = np.array([v[s][1] for s in sorted(v)])
-        return dict(intact_mean=float(i.mean()), intact_sd=float(i.std(ddof=1)), cf_mean=float(f.mean()),
-                    cf_sd=float(f.std(ddof=1)), ratio=(float(f.mean() / i.mean()) if i.mean() else None),
-                    lower_in_all_seeds=bool((f < i).all()))
-
-    table = {c['id']: {k: summary(c['id'], k) for k in prereg['readouts']} for c in prereg['conditions'] if c['counterfactual']}
-    g = {r: table.get(f'A2_IRR_LC15_{r}_CF_silence_PVLP151', {}).get('GF') for r in (100, 200)}
-    verdict = 'INVALID' if not valid else decide(*(g[r] and g[r]['ratio'] for r in (100, 200)),
-                                                 *(bool(g[r] and g[r]['lower_in_all_seeds']) for r in (100, 200)))
-    ctrl = {}
-    for r in (100, 200):
-        for k in ('GF', 'TTMn'):
-            x, y = table.get(f'A2_IRR_LC15_{r}_CF_silence_PVLP151', {}).get(k), table.get(f'A2_LC4_{r}_CF_silence_PVLP151', {}).get(k)
-            ctrl[f'{k}@{r}'] = (x['cf_mean'] / y['cf_mean']) if x and y and y['cf_mean'] else None
-    res = dict(label=prereg['label'], prereg_sha256=psha, contract_sha256=csha, gates=gates, verdict=verdict,
-               a2_unchanged='A2 FAIL unchanged; this is not a re-grade', control_ratio_under_clamp=ctrl,
-               control_limit_reused=0.1, table=table)
-    out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
+                gates['G5_replay_reproduces_frozen'] = False
+            if zo and (zo['id'], s) in cf:
+                zr, zp = cf[(zo['id'], s)]
+                ins.add(zr['audit']['input_sha256'])
+                gates['G4_zero_outgoing_semantics'] &= all(
+                    np.array_equal(x, y) for x, y in zip(without(sparse(zp), pv), without(c, pv)))
+            gates['G3_identical_inputs'] &= len(ins) == 1
+            for k in prereg['readouts']:
+                series[k][0].append(set_rate(a, sets[k], dur))
+                series[k][1].append(set_rate(c, sets[k], dur))
+        if zo and (zo['id'], 0) not in cf:
+            gates['G4_zero_outgoing_semantics'] = False
+        report[b] = {k: paired(*v) if v[0] else None for k, v in series.items()}
+    hard = all(gates[g] for g in gates if g != 'G5_replay_reproduces_frozen')
+    status = 'INVALID' if not hard else ('VALID' if gates['G5_replay_reproduces_frozen']
+                                         else 'VALID vs same-code replay only; frozen rows NOT reproduced')
+    res = dict(label=prereg['label'], prereg_sha256=psha, contract_sha256=csha, code_sha=sorted(code),
+               engine_sha256=engine, gates=gates, status=status, kind='DESCRIPTIVE; no threshold, no verdict',
+               interpretation_limit=prereg['report']['interpretation_limit'],
+               a2_unchanged='A2 FAIL unchanged; not a re-grade', paired=report)
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
     (out / 'cf_results.json').write_text(json.dumps(res, indent=1) + '\n')
-    md = [f"# PVLP151 counterfactual ({prereg['label']})", f'prereg {psha}', f'gates {gates}',
-          f'**verdict: {verdict}** (A2 FAIL unchanged)', f'control ratio under clamp (limit 0.1, reported only): {ctrl}', '']
-    for cid, t in table.items():
-        md.append(f'- {cid}: ' + '; '.join(f"{k} {v['intact_mean']:.2f}+-{v['intact_sd']:.2f} -> {v['cf_mean']:.2f}+-{v['cf_sd']:.2f}"
-                                          if v else f'{k} n/a' for k, v in t.items()))
+    md = [f"# PVLP151 counterfactual ({prereg['label']})", f'prereg {psha}; code {sorted(code)}',
+          f'gates {gates}', f'**status: {status}** (descriptive only; A2 FAIL unchanged)',
+          prereg['report']['interpretation_limit'], '']
+    for b, t in report.items():
+        md.append(f'## {b}: intact replay -> PVLP151 clamped (Hz, mean+-SD over seeds; paired diff; seeds lower/higher/equal)')
+        for k, v in t.items():
+            if v:
+                pc = f"{v['percent_change']:+.1f} %" if v['percent_change'] is not None else 'n/a (intact 0)'
+                md.append(f"- {k}: {v['intact_mean']:.2f}+-{v['intact_sd']:.2f} -> {v['cf_mean']:.2f}+-{v['cf_sd']:.2f}; "
+                          f"diff {v['diff_mean']:+.2f}+-{v['diff_sd']:.2f} ({pc}); "
+                          f"{v['seeds_lower']}/{v['seeds_higher']}/{v['seeds_equal']}; per seed {v['diff_hz']}")
     (out / 'cf_results.md').write_text('\n'.join(md) + '\n')
-    print(verdict, gates)
+    print(status, gates)
 
 
 if __name__ == '__main__':
