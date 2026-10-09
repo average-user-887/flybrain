@@ -66,7 +66,7 @@ matched values.
     (stored as hashes);
   - `agent-session`: Claude Code session, Claude chat/share, ChatGPT/Codex task and chat,
     and Gemini chat links, and bare `session_<id>` identifiers;
-  - `session-trailer`: trailers such as `Claude-Session:` or `Codex-Task:`;
+  - `session-trailer`: agent session or task trailers (`<agent>-Session:`, `<agent>-Task:`);
   - `identity-email`: only `*@users.noreply.github.com`, `noreply@anthropic.com` and
     `noreply@github.com` are accepted, both as identities and inside messages;
   - `hostname`: LAN-style names (`.local`, `.lan`, `.home`, `.internal`, ...).

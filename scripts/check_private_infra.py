@@ -36,12 +36,18 @@ the allow-list, see scripts/private_infra_allowlist.txt):
   home-path      /home/<user>/, /Users/<user>/, C:\\Users\\<user> (placeholders such as
                  /home/<user>/ are fine)
   share-path     /mnt/<share>, /media/<user>/, UNC //<host>/Storage, <drive>:\\neurofly
-  agent-scratch  Claude/Codex/Gemini job, session and worktree paths, /tmp/claude-N
+  agent-scratch  Claude/Codex/Gemini job, session, project and worktree paths, the
+                 agent home directories (.claude and .codex under ~), /tmp/claude-N scratch
+                 directories and Codex rollout transcript names
   email          any e-mail address except the noreply allow-list below
   host-field     a JSON "host"/"hostname" field holding a real machine name
   agent-session  links to private agent sessions or tasks (Claude Code sessions,
-                 Claude chats/shares, ChatGPT/Codex tasks and chats, Gemini chats)
-  session-trailer  a commit trailer such as "Claude-Session:" or "Codex-Task:"
+                 Claude chats/shares/projects/artifacts, ChatGPT/Codex tasks and chats,
+                 Gemini chats) and bare session_<id> identifiers
+  agent-uuid     a canonical UUID, the form of Claude session and Codex thread
+                 identifiers (allow-list a genuine non-agent UUID by path and value)
+  session-trailer  an agent session or task trailer line ("<agent>-Session: ..."), as
+                 added by agent tooling to commit messages
   denied-token   known private usernames, hostnames and internal host names. They
                  are stored as SHA-256 hashes so that the guard does not republish
                  them. Add your own at run time with NEUROFLY_PRIVATE_TOKENS=a,b,c.
@@ -105,16 +111,23 @@ PATTERNS = [
     ('share-path', re.compile(r'/mnt/[A-Za-z0-9][A-Za-z0-9._-]*|/media/[A-Za-z0-9._-]+/'
                               r'|//[A-Za-z0-9_-]+/Storage\b|\\\\[A-Za-z0-9_-]+\\[A-Za-z]'
                               r'|\b[A-Z]:[/\\]neurofly')),
-    ('agent-scratch', re.compile(r'\.(?:claude|codex|gemini)/(?:jobs|projects|sessions|tmp|todos|'
-                                 r'shell-snapshots|worktrees)/[^\s/\'"<>()\[\]]*|/tmp/claude-\d+')),
+    ('agent-scratch', re.compile(r'\.(?:claude|codex|gemini)/(?:jobs|projects|sessions|archived_sessions|tmp|'
+                                 r'todos|shell-snapshots|worktrees|plans|file-history)/[^\s/\'"<>()\[\]]*'
+                                 r'|(?:~|\$HOME|\$\{HOME\})/\.(?:claude|codex)\b'
+                                 r'|/tmp/claude(?:-\d+)?/[^\s\'"<>()\[\]]*|/tmp/claude-\d+'
+                                 r'|\brollout-\d{4}-\d\d-\d\dT[0-9-]+-[0-9a-f-]{36}\.jsonl')),
     ('email', re.compile(r'(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')),
     ('host-field', re.compile(r'"(?:host|hostname)"\s*:\s*"([^"]*)"')),
     # The whole link is matched, including the identifier after the prefix (up to the end
     # of that path segment), so redaction never leaves the payload behind.
     ('agent-session', re.compile(
-        r'(?i)(?:claude\.ai/(?:code/)?(?:sessions?|chat|share)[/_]|chatgpt\.com/(?:codex/tasks|c|share|g)/'
+        r'(?i)(?:claude\.ai/(?:code/)?(?:sessions?|chats?|share|projects?|artifacts?|conversations?)[/_]|chatgpt\.com/(?:codex/tasks|c|share|g)/'
         r'|chat\.openai\.com/(?:c|share)/|gemini\.google\.com/(?:app|share)/)[^\s/\'"<>()\[\]]*'
-        r'|\bsession_[A-Za-z0-9]{16,}')),
+        r'|\bsession_[A-Za-z0-9]{16,}'
+        r'|claude\.ai/[^\s\'"<>()\[\]]*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')),
+    # Claude session ids and Codex thread ids are canonical UUIDs (v4 and v7).
+    ('agent-uuid', re.compile(r'(?i)(?<![0-9a-z-])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+                              r'(?![0-9a-z-])')),
     # A session trailer is matched with its whole value (rest of the line).
     ('session-trailer', re.compile(
         r'(?i)^\s*(?:claude|codex|chatgpt|openai|gemini|agent)[-_ ]?(?:session|task|chat|conversation)'
