@@ -299,7 +299,7 @@ def test_repository_manifest_is_sanitised_and_well_formed(guard):
     data = path.read_bytes()
     assert hashlib.sha256(data).hexdigest() == guard.COMMIT_EXCEPTIONS_SHA256
     entries = guard.load_commit_exceptions(path, guard.COMMIT_EXCEPTIONS_SHA256)
-    assert len(entries) > 0
+    assert len(entries) == 0                    # rewritten history (2026-10-09) needs none
     body = [ln for ln in data.decode().splitlines() if ln and not ln.startswith('#')]
     assert all(re.fullmatch(r'[0-9a-f]{40} [a-z-]+(,[a-z-]+)*', ln) for ln in body)
     assert '@' not in data.decode() and '://' not in data.decode()
@@ -463,7 +463,7 @@ def test_publication_boundary_is_pinned_and_well_formed(guard, tmp_path, capsys)
     exceptions = guard.load_commit_exceptions(REPO / guard.COMMIT_EXCEPTIONS_FILE, guard.COMMIT_EXCEPTIONS_SHA256)
     commit_exceptions = {s for s, c in exceptions.items()}
     assert len(published) == 274
-    assert len(commit_exceptions - published) == 1                  # only the v0.3.0 tag object
+    assert commit_exceptions == set()                               # emptied by the 2026-10-09 rewrite
     repo = _init(tmp_path / 'r')
     _add(repo, 'a.md', 'clean\n')
     for text in ('abc\n', 'a' * 40 + ' extra\n', 'a' * 40 + '\n' + 'a' * 40 + '\n'):

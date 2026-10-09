@@ -53,8 +53,8 @@ jobs:
 
       - name: Commit metadata guard on the tip's whole ancestry
         # Messages, author, committer (and annotated tag metadata): agent session links and
-        # trailers, non-noreply e-mail, hostnames, private tokens. Commits published before
-        # this guard (owner ruling 2026-10-05, "no rewrite") are recognised only through
-        # the frozen, digest-pinned manifest scripts/private_infra_commit_exceptions.txt.
+        # trailers, non-noreply e-mail, hostnames, private tokens. Exceptions exist only in
+        # the frozen, digest-pinned manifest scripts/private_infra_commit_exceptions.txt,
+        # which is empty since the 2026-10-09 history rewrite.
         # Locally: scripts/check_private_infra.sh --commits HEAD
         run: bash scripts/check_private_infra.sh --commits "${{ steps.tip.outputs.tip }}"

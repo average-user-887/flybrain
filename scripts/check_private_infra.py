@@ -22,11 +22,11 @@ author and committer (and tagger), plus other non-signature headers. RANGE is ha
 `git rev-list` after shell-style splitting; a single revision means its whole ancestry.
 
 Commits that were already published when this guard was introduced are covered only by
-the frozen historical exception manifest scripts/private_infra_commit_exceptions.txt
-(owner ruling docs/OWNER_DECISIONS.md, 2026-10-05, "no rewrite"): an exact list of SHAs,
-each with the rule classes it fails, pinned by COMMIT_EXCEPTIONS_SHA256 below. It is an
-acknowledgement of immutable existing exposure, not an approval, and it never applies to
-a tree. The allow-list file never applies to commit metadata. Anything the guard cannot
+the frozen historical exception manifest scripts/private_infra_commit_exceptions.txt: an
+exact list of SHAs, each with the rule classes it fails, pinned by COMMIT_EXCEPTIONS_SHA256
+below. It is an acknowledgement of existing exposure, not an approval, and it never
+applies to a tree. Since the owner-approved history rewrite of 2026-10-09 cleaned the
+published metadata, the manifest is empty. The allow-list file never applies to commit metadata. Anything the guard cannot
 read or parse (bad range, missing object, malformed manifest) exits 2: fail closed.
 
 Classes of finding (each can be silenced for a specific path and match through
@@ -368,12 +368,12 @@ def scan_metadata(sha: str, fields: dict, extra):
 
 # Frozen historical exception manifest. It names, by full SHA, the commits that were
 # already published when this guard was introduced and that fail a metadata rule, with
-# the rule classes each one fails. Owner ruling 2026-10-05 ("no rewrite"): this is
-# acknowledged, immutable existing exposure, NOT approval. It exempts only the listed
+# the rule classes each one fails: acknowledged existing exposure, NOT approval. Empty
+# since the 2026-10-09 history rewrite cleaned the published metadata. It exempts only the listed
 # classes of the listed commits' metadata; it never exempts any tree. The file is pinned
 # by this digest, so changing it means changing this line too, in review.
 COMMIT_EXCEPTIONS_FILE = 'scripts/private_infra_commit_exceptions.txt'
-COMMIT_EXCEPTIONS_SHA256 = '668fffd0c16e6c32ac20a259402f1d80ad3469f62c82709a3230b8b0f13d47d2'
+COMMIT_EXCEPTIONS_SHA256 = 'da71a972ac7802995291ad942f4f05dc02b8b6baac208a5769723266ac268ce2'
 _SHA_RX = re.compile(r'^[0-9a-f]{40}(?:[0-9a-f]{24})?$')
 _CLASSES = {c for c, _ in METADATA_PATTERNS} | {'identity-email', 'denied-token'}
 
@@ -505,7 +505,7 @@ def main_commits(root: Path, spec: str, extra, exceptions, emit_exceptions=False
 # Frozen publication boundary: every commit already published at the cutoff. Their trees
 # are not rescanned when they occur in a pushed history; every other commit's tree is.
 PUBLICATION_BOUNDARY_FILE = 'scripts/private_infra_published_boundary.txt'
-PUBLICATION_BOUNDARY_SHA256 = '27ef1b6f41088314ae3d32ba2418a3d05dc5a8804f77683a248394b77a65ca19'
+PUBLICATION_BOUNDARY_SHA256 = '9c58e44d9f6ccaeeac801512630b99a6fe456c7a9d9bb599df42d566a212f19c'
 
 
 def load_publication_boundary(path: Path, expected_sha256: str | None):
