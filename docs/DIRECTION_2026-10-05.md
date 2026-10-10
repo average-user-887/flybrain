@@ -1,5 +1,7 @@
 # NeuroFly direction and acceptance gates — 5 October 2026
 
+> **Superseded, 10 October 2026.** The v0.4 HOLD and the role assignments below describe 5 and 6 October 2026. `v0.4.0` and `v0.5.0` have since been published (see [`CHANGELOG.md`](../CHANGELOG.md)), and the direction of 7 October 2026 replaced the milestones; see the status note in [`ROADMAP.md`](ROADMAP.md) and the latest entry in [`OWNER_DECISIONS.md`](OWNER_DECISIONS.md). Text kept as written.
+
 Status: v0.4 release HOLD. Direction set by Codex under the owner's delegation on
 5 October; operating assignments updated by the owner on 6 October. GPT/Codex owns
 orchestration and implementation, with SOL workers for bounded tasks and independent
@@ -62,9 +64,9 @@ historical; current assignments appear under "Work order and ownership" below.
 
 ## Audit snapshot and limitations
 
-At intake the live checkout was `b0abd8f`, while fetched integration master was
-`69e52db`. During the audit E_inh restoration landed at `3e9bc5d`, and the A–F audit
-bundle and summary at `f5c8814`. These moving heads are not one tested candidate.
+At intake the live checkout was `49dbb4d`, while fetched integration master was
+`9c58db4`. During the audit E_inh restoration landed at `1bbf52a`, and the A–F audit
+bundle and summary at `3285f22`. These moving heads are not one tested candidate.
 
 - Audits B/C report modular: 1 fully working assay of 14; connectome: 0 fully
   working, 2 partial, 5 no behaviour, 7 misleading. Consult the per-assay receipts.
@@ -80,8 +82,8 @@ bundle and summary at `f5c8814`. These moving heads are not one tested candidate
   changed. This was a targeted reproduction, not a full browser sign-off.
 - Worker browser receipts on isolated/headless services are diagnostic evidence.
   Final acceptance still requires the owner's running UI under AGENTS.md.
-- Freeze work was at `d21d7ca` with an uncommitted browser-check edit; body port at
-  `ad4d2d7` with final numbers pending when inspected. Require new exact candidates.
+- Freeze work was at a pre-rewrite WIP commit with an uncommitted browser-check edit; body port at
+  a pre-rewrite WIP commit with final numbers pending when inspected. Require new exact candidates.
   Neither those branch labels nor old test totals establish an integrated pass.
 - No full suite, large-graph hash comparison or new biological simulation was run
   by Codex for this direction audit. Reported worker results retain their original

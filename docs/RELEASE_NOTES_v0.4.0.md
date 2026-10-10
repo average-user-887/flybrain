@@ -1,6 +1,6 @@
 # NeuroFly v0.4.0 release notes
 
-*Text for the GitHub Release, 7 October 2026, built from commit `cbaa876`. Links are
+*Text for the GitHub Release, 7 October 2026, built from commit `0a490b3`. Links are
 relative to this file (`docs/`); turn them into absolute URLs at the release tag when
 pasting into the Release.*
 

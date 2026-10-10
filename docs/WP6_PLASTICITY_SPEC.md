@@ -1,6 +1,6 @@
 # WP6 — plasticity model specification (specification and research only)
 
-Written 20 September 2026 against the worktree `neurofly-openready` at `abea3d6`,
+Written 20 September 2026 against the worktree `neurofly-openready` at a pre-rewrite commit (not in the published master history),
 on the pinned MaleCNS v1.0 graph (`graph_sha256 4b2f87cc…`, 166,700 neurons,
 25,582,938 directed edges). Machine-readable companion:
 [`wp6_plastic_subset.json`](wp6_plastic_subset.json).

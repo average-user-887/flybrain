@@ -3,7 +3,7 @@
 > **Superseded as a plan** by [`ROADMAP.md`](ROADMAP.md) v2.0 (2026-09-24); kept as audit evidence.
 > See [`SUPERSEDED_PLANS.md`](SUPERSEDED_PLANS.md).
 
-19 September 2026 · implementation audited at `355f50e`.
+19 September 2026 · implementation audited at `70f2dc0`.
 
 This is the audit evidence report. Following the interview, the user accepted the
 recommendations summarized in the decision record below and requested a remediation

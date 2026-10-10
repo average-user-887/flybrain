@@ -7,6 +7,38 @@ never edited.
 
 ---
 
+## 2026-10-10 — Catch-up: what changed after 6 October, and the history rewrite
+
+This entry brings the log up to date with facts that the repository itself shows. It
+adds no new ruling and edits no earlier entry; entries below are as written on their
+dates, including the commit IDs they cite (see the map at the end of this entry).
+
+- **The 5 October "no rewrite" ruling was superseded in fact.** The public `master`
+  history was rewritten once on 9 October 2026; commit `6fdff749` records it as an
+  "owner-approved history rewrite". The owner's own wording of that approval is not
+  transcribed in this repository.
+- **Direction of 7 October 2026 (requested by the owner).** Milestones, in order: ship
+  `v0.4.0` as an experimental instrument; split the brain and web processes; a batched
+  sparse GPU engine; only then biology, starting with graded potentials in the early
+  visual layers. The connectome is the featured backend. A separate, always-labelled
+  reference-behaviour adapter is allowed for presentation only, and a FlyWire female
+  brain is allowed as a separate graph that is never spliced into the MaleCNS graph.
+  GPU position: CPU supported, AMD experimental and unqualified.
+- **Shipped since 6 October** (see `CHANGELOG.md`): `v0.4.0` (7 October, ending the
+  v0.4 HOLD recorded below), `v0.5.0` (8 October: split processes and the connectome
+  as defaults, a labelled reference-fly walking demo, a separate FlyWire 783 female
+  graph imported by CLI), and the pre-releases `v0.5.0rc1`, `v0.5.0rc2`, `v0.5.1rc1`
+  and `v0.5.1rc2`.
+- **Operating assignments.** The "GPT/Codex orchestration and implementation"
+  assignment of 6 October below is not current. Later assignments are not recorded in
+  this repository.
+
+**Commit IDs cited in the entries below** (old to current; same subject and author
+date): `713ba82` is now `0f144cab`, `5c54b03` is now `c2b641d7`, `69e52db` is now
+`9c58db42`.
+
+---
+
 ## 2026-10-06 (later) — GPT/Codex operating assignments
 
 The owner's current assignment is **GPT/Codex orchestration and implementation**,

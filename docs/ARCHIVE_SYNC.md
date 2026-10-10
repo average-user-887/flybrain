@@ -1,6 +1,6 @@
 # Archive-share synchronization receipt
 
-Source revision: `75f6d3aa264bd64ebcc4759658d54f290e8608be` (accepted remediation plan).
+Source revision: `41a08339bc29a47e0ed226683e8c7a28fd6a3b11` (accepted remediation plan).
 Destination: `snapshots/75f6d3a/` on the project's archive share.
 (The archive share is a private SMB share; its host and mount point are not published.)
 

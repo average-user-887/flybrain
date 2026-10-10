@@ -73,9 +73,9 @@ Declared extension (100,000 ticks = 10 s, seeds 1-4, per tick, emulation): see S
 
 Run on the GTX 1660 Ti only (selected by device UUID, `CUDA_DEVICE_ORDER=PCI_BUS_ID`,
 `CUPY_GPU_MEMORY_LIMIT=4500000000`), the other GPU invisible. Kernel under test: the rc1 kernel,
-`brainlab/cohort/gpu.py` at the branch base `a4368a2` (git blob 1b9231c042d877d39d8659b62ed27f401fc93969,
+`brainlab/cohort/gpu.py` at the branch base `38ec828` (git blob 1b9231c042d877d39d8659b62ed27f401fc93969,
 file SHA-256 8949ca2a9354ea0f12c81b2c1670d2d5c6d85fba7610ffc721157a31fa9b698c). Lane 2's later kernel
-(ec3aa11) was reported byte-identical to it and was not run here. Same real graph, same 8 flies (seeds 1-8),
+(9da81f6) was reported byte-identical to it and was not run here. Same real graph, same 8 flies (seeds 1-8),
 same closed-loop stimulus replayed to both engines, 20,000 ticks, 448 s wall.
 
 **Observation resolution: 200-tick chunks (one 20 ms arena step).** Spike counts are compared per call and
@@ -135,7 +135,7 @@ about 4,400, before any spike divergence.
   ended at tick 4,400. All 773 g entries over the bound in that chunk had a subnormal reference value
   (at most 1.13e-38) and a GPU value of exactly 0.
 * max |dV| stayed at 7.63e-6 mV. The flush had no effect on V or spikes.
-* The same result was obtained with the rc2 delivery kernel (`ec3aa11`). Its kernel source differs from
+* The same result was obtained with the rc2 delivery kernel (`9da81f6`). Its kernel source differs from
   rc1, but its outputs are byte-identical to rc1's.
 
 **The correction.** `compare_state` in `scripts/cohort_horizon.py` now treats reference values below the

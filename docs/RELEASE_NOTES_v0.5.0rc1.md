@@ -1,9 +1,9 @@
 # NeuroFly v0.5.0rc1 release notes (PRERELEASE)
 
-*Release candidate, 7 October 2026. Base: tag `v0.4.0` (`5bd16d6`).*
+*Release candidate, 7 October 2026. Base: tag `v0.4.0` (`5c78041`).*
 
 > **Experimental prerelease; not biological validation.** The first GPU cohort engine
-> (fixed-point arrivals, frozen at `af87006`) **failed** its preregistered CPU-reference
+> (fixed-point arrivals, frozen at `b354b4a`) **failed** its preregistered CPU-reference
 > gate. This candidate replaces its arrival arithmetic and **passes** the unchanged gate,
 > at about one eighth of the earlier GPU speed (below).
 
@@ -104,7 +104,7 @@ Measured on one host with a GTX 1660 Ti (6 GB), the only device visible to the r
 - The two are **not bit-identical**. On the contract workload they agree to a g relative
   error of at most 5.35e-7.
 - Equations, constants, weights, delay, refractory period and phase order are unchanged.
-- **Superseded:** the first GPU cohort kernel (`af87006`) accumulated arrivals as
+- **Superseded:** the first GPU cohort kernel (`b354b4a`) accumulated arrivals as
   deterministic quantized 64-bit fixed-point values, rounded on folding once per tick.
 - The cohort dynamics signature now records the arrival arithmetic. A cohort written
   under the fixed-point kernel is refused on resume, before anything is restored or
@@ -115,7 +115,7 @@ Measured on one host with a GTX 1660 Ti (6 GB), the only device visible to the r
 The gate (`tests/cohort_contract.json`) was preregistered before any run. The reference,
 stimulus, seeds, window, tolerances and predicates are unchanged.
 
-- **Original run, fixed-point kernel (`af87006`): FAIL.** The first breach was at tick
+- **Original run, fixed-point kernel (`b354b4a`): FAIL.** The first breach was at tick
   172, fly 4: g relative error 1.006e-6 against a bound of 1e-6. Descriptively over 200
   ticks: 7 g points above 1e-6 (worst 1.047e-6), 0 spike or refractory mismatches, max
   |ΔV| 1.14e-5 mV. That result stands.
@@ -168,9 +168,9 @@ timed.
 | GPU, batched | 32 | 606 | 3.0 | 0.0019 |
 
 - **Where the numbers come from:**
-  - GPU rows: this candidate (`d7ce108`).
+  - GPU rows: this candidate (`8f4e970`).
   - CPU rows: reused, because the CPU code is unchanged. B1/B8 were measured at
-    `35859da` and B32 at `af87006`.
+    `4460a9f` and B32 at `b354b4a`.
 - **This GPU engine is only about 1.1–1.4× faster than the CPU.** The new delivery
   pass walks every incoming edge of each receiving neuron in a single thread.
 - **Historical, not this engine's speed:** the fixed-point kernel measured about 4,150

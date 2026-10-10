@@ -99,7 +99,7 @@ task-specific sensory representations.
 Scalar means and path statistics now update incrementally while retaining only
 2,048 display samples. Cumulative counts, mean values, distance and the original
 path origin survive eviction; long runs do not repeatedly scan the entire path.
-Heat-maze `path_length` is measured in mm. In revision `2553a9e` and older, that
+Heat-maze `path_length` is measured in mm. In revision `d6762e4` and older, that
 particular raw metric counted samples; use the phase summary's `distance_mm`
 when analyzing those historical cohorts. Each cohort identifies its code revision.
 

@@ -15,7 +15,7 @@ fails 4 of those 5 tests.
   forward direction is the horizontal part of (head − thorax); FlyGym 2 puts both
   eye bodies on the head joint. Anatomical left is up × forward. Each frame is also
   turned rigidly about z to nine headings, which keeps its handedness.
-* **The viewport before the repair** (`ArticulatedFly3DViewport.updatePose` at 0f2d86f). Arena
+* **The viewport before the repair** (`ArticulatedFly3DViewport.updatePose` at d614118). Arena
   (x, y) is drawn at world (x, ·, −y). The root is rotated about Y by
   −heading + π/2, and the L coxae sit at local x = −1.
 

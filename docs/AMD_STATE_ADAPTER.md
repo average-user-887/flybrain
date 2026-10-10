@@ -9,7 +9,7 @@ It supports the fixed baseline v3 constants only; it makes no runtime,
 performance, learning or biological qualification claim.
 
 The underlying files are byte-identical to source revision
-`1e93391ef79f68729c63ba450d13489c15123783`:
+pre-rewrite revision `1e93391ef79f68729c63ba450d13489c15123783` (not in the published master history; no commit with an identical tree exists there):
 
 | File | SHA256 |
 | --- | --- |

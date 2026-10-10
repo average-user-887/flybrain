@@ -12,16 +12,16 @@ It is research software. **The simulated fly does not yet behave because of its 
 
 The connectome data are not ours. They come from the MaleCNS project (FlyEM at HHMI Janelia, University of Cambridge, MRC LMB and Google Research) under CC BY 4.0. See [Data and attribution](#data-and-attribution).
 
-## Current status (release v0.4.0, 7 October 2026; science checked against receipts on 5 October)
+## Current status (latest release v0.5.0, 8 October 2026; pre-releases v0.5.1rc1 and v0.5.1rc2 followed on 8 October; science checked against receipts on 5 October)
 
-**What v0.4.0 is.** A downloadable, **experimental research instrument**: you can run it, watch it and check our results, but it is not a finished product. It does not simulate a whole fly, and it does not show that the model brain learns. In this release:
+**What the current releases are.** (v0.4.0 was the first; v0.5.0 is the latest stable release.) A downloadable, **experimental research instrument**: you can run it, watch it and check our results, but it is not a finished product. It does not simulate a whole fly, and it does not show that the model brain learns. In this release:
 
 - **Supported:** the CPU path on Linux (tested on two x86-64 machines; see [What runs where](#what-runs-where)).
-- **Optional:** NVIDIA GPU acceleration (tested on one card).
-- **Present but experimental and unqualified:** the AMD GPU engine. No run on a real AMD GPU with the real graph has been accepted.
-- **Broken:** the Docker image does not build.
+- **Optional:** NVIDIA GPU acceleration (tested on one card; the GPU engine is CUDA/CuPy only).
+- **Present but experimental and unqualified:** the AMD GPU engine. No run on a real AMD GPU with the real graph has been accepted. An installed CPU smoke test passed on AMD hardware; that is not an AMD device qualification ([v0.5.0 notes](docs/RELEASE_NOTES_v0.5.0.md)).
+- **Docker: unsupported.** The v0.4.0 release recorded that the image did not build. The `Dockerfile` now copies `validation/`, but this repository records no later successful image build; see [Docker](#docker).
 - **Not supported yet:** several controls and experiments the dashboard shows, such as learning controls, lesion tools, memory and courtship experiments. Each has an ID (NEXT-01 to NEXT-12) in the [post-v0.4 backlog](docs/POST_V04_FEATURES.md).
-- **Deferred:** the final check on the Steam Deck host and a real AMD GPU run, the browser check of every one of the 110 dashboard controls, Docker, splitting the daemon into separate processes, and a new GPU engine. See the [release notes](docs/RELEASE_NOTES_v0.4.0.md) for the full list of limits.
+- **Deferred:** a real AMD GPU run, the browser check of every one of the 110 dashboard controls (the v0.4.0 count), and a working Docker image. Since v0.4.0 the daemon runs as separate simulation and web processes by default (v0.5.0), and an optional batched GPU cohort engine (`neurofly cohort`, CUDA/CuPy) exists (v0.5.0rc1). See the [v0.5.0 notes](docs/RELEASE_NOTES_v0.5.0.md) and [CHANGELOG](CHANGELOG.md) for what each release changed and its limits, and the [v0.4.0 notes](docs/RELEASE_NOTES_v0.4.0.md) for the original list.
 
 Short version: the connectome model runs, and a signal can be routed through it to a turning command, but only when the experimenter supplies the motion detection that the fly's own visual system would compute. When the model has to compute that itself from photoreceptor input, it does not. Every point below links to the file that supports it.
 
@@ -86,7 +86,7 @@ Simulated seconds per wall-clock second (1.0 = real time). The CPU kernel is the
 - **The GPU is used automatically when one is usable.** "Usable" means that a small test kernel compiles and runs (`brainlab/gpu_probe.py`), not just that a device is visible. v3 can run through CuPy (the `gpu` extra) or numba's CUDA support; v4 and v5 need CuPy. `NEUROFLY_BRAIN_BACKEND=cpu|cuda|auto` overrides it. v1 and v2 always run on the CPU.
 - **GPU vs CPU accuracy** (v3, MaleCNS, 2 s, `scripts/gpu_parity.py`): per-neuron rate correlation 0.9986 and 0.47 % spike difference ([`gpu-parity-malecns-1f4a58a.json`](docs/receipts/ryzen/gpu-parity-malecns-1f4a58a.json)). A 1e-5 mV nudge makes the CPU diverge from itself by a similar amount (r 0.9993) at the same moment (34 ms). So CPU and GPU agree statistically, not spike for spike, on the full graph.
 - **Same result on two different machines (CPU backend).** At the same commit, seed, data and library versions, three embodied runs (modular 0.2 s, connectome 0.2 s and 1.0 s) gave bit-identical telemetry on the reference host (Ryzen 5 5600X, Python 3.12) and the AMD test host (Steam Deck, Zen 2, Python 3.14), with identical spike totals (0 / 17,812 / 89,827). Not tested: Intel or ARM CPUs, different numpy/numba/MuJoCo versions, and the CUDA backend ([`determinism-ryzen-vs-amd-20261005.md`](docs/receipts/determinism-ryzen-vs-amd-20261005.md)).
-- **Note:** the reference-host rows come from the PR #11 receipts at commit `1f4a58a`, after PR #4, so the daemon ran true v3 (transmitter policy applied); a re-measurement at `5c54b03` for gate G10 gave the same CPU figures (0.0418 brain, 0.0433 daemon; receipt not yet in the repository). Older daemon figures from PR #2 ran v3 equations on v1 weights and are retired.
+- **Note:** the reference-host rows come from the PR #11 receipts at commit `dca8c23`, after PR #4, so the daemon ran true v3 (transmitter policy applied); a re-measurement at `c2b641d` for gate G10 gave the same CPU figures (0.0418 brain, 0.0433 daemon; receipt not yet in the repository). Older daemon figures from PR #2 ran v3 equations on v1 weights and are retired.
 
 ---
 
@@ -95,7 +95,7 @@ Simulated seconds per wall-clock second (1.0 = real time). The CPU kernel is the
 ### What runs where
 
 - **The CPU backend is the reference implementation, and it is what you get unless a usable CUDA GPU is found.** It has been tested on two Linux hosts: the reference NVIDIA host (AMD Ryzen 5 5600X, x86-64, Python 3.12) and the AMD test host (Steam Deck, Zen 2, x86-64, Python 3.14). Those two hosts do not prove that it runs on every PC. Intel and ARM CPUs, macOS and Windows have not been tested. It is slow on the full graph (see Performance). *(Corrected 5 October 2026: this line previously said the CPU backend "works on any machine", which went beyond the evidence.)*
-- **GPU acceleration needs an NVIDIA GPU and an NVIDIA driver for CUDA 12 or newer, plus the `gpu` extra**: `pip install -e ".[body,test,gpu]"`. The extra installs `cupy-cuda12x[ctk]` (CuPy with the CUDA 12 runtime wheels it needs: NVRTC for the v3 kernel, cuSPARSE for v4/v5) and `scipy`, about 3 GB. No CUDA toolkit is needed. A plain install without the extra runs everything on the CPU ([clean-room receipt](docs/receipts/cleanroom-install-nvidia-20261005.md), M1). Evidence for the extra so far: one fresh environment on a GTX 1660 Ti, where the v3/v4/v5 GPU tests passed (41), as recorded in the packaging commit `5b80b23`; there is no separate install receipt yet, and no other card has been tested. Do **not** install `numba-cuda`: its 0.30.x releases do not work with numpy 2.5. If a GPU library is present but its test kernel fails, the engine logs a warning and runs on the CPU (`brainlab/gpu_probe.py`). *(Corrected 5 October 2026 to match the `gpu` extra in `pyproject.toml`.)*
+- **GPU acceleration needs an NVIDIA GPU and an NVIDIA driver for CUDA 12 or newer, plus the `gpu` extra**: `pip install -e ".[body,test,gpu]"`. The extra installs `cupy-cuda12x[ctk]` (CuPy with the CUDA 12 runtime wheels it needs: NVRTC for the v3 kernel, cuSPARSE for v4/v5) and `scipy`, about 3 GB. No CUDA toolkit is needed. A plain install without the extra runs everything on the CPU ([clean-room receipt](docs/receipts/cleanroom-install-nvidia-20261005.md), M1). Evidence for the extra so far: one fresh environment on a GTX 1660 Ti, where the v3/v4/v5 GPU tests passed (41), as recorded in the packaging commit `6d051a4`; there is no separate install receipt yet, and no other card has been tested. Do **not** install `numba-cuda`: its 0.30.x releases do not work with numpy 2.5. If a GPU library is present but its test kernel fails, the engine logs a warning and runs on the CPU (`brainlab/gpu_probe.py`). *(Corrected 5 October 2026 to match the `gpu` extra in `pyproject.toml`.)*
 - **AMD GPUs: an optional engine is included, but it is experimental and unqualified in v0.4.** It runs only the default v3 model with fixed weights, through Vulkan: `pip install -e ".[amd]"`, then `neurofly run --backend connectome-fixed --dynamics v3 --brain-backend wgpu-amd`. It is never chosen automatically and refuses learning and other model versions. It has been tested with small fixtures only; no run on a real AMD GPU with the real graph has been accepted, so do not rely on its results ([`AMD_STATE_ADAPTER.md`](docs/AMD_STATE_ADAPTER.md)). There is no ROCm/HIP path. Intel GPUs and Apple Silicon run on the CPU.
 - **Machines with more than one NVIDIA GPU:** CUDA numbers devices fastest-first by default, which can differ from the order `nvidia-smi` shows. Set `CUDA_DEVICE_ORDER=PCI_BUS_ID` to make the numbering match `nvidia-smi`, then choose a card with `CUDA_VISIBLE_DEVICES`.
 - The project is developed and tested on Linux. macOS and Windows (via WSL2) have not been tested by the project.
@@ -132,7 +132,7 @@ Step 3 fails with `FileNotFoundError` if step 2 has not been run. Steps 2 and 3 
 
 ### Docker
 
-**The Docker image does not build in this release.** The `Dockerfile` does not copy the `validation/` package that `pyproject.toml` requires, and the image has no data step. Use the editable install above.
+**Docker is unsupported.** The v0.4.0 release recorded that the image did not build because the `Dockerfile` did not copy the `validation/` package that `pyproject.toml` requires. The current `Dockerfile` copies `validation/`, but this repository records no later successful image build, and the image has no data step. Use the editable install above.
 
 ---
 
@@ -200,7 +200,7 @@ pytest -v tests/test_wp6_plasticity.py
 ./scripts/check_private_infra.sh --tree-rev HEAD
 ```
 
-**Expect 0 failures.** The number of skips depends on your hardware and setup, because tests that need a GPU, the real graph, the physics stack or a browser skip themselves. At the v0.4.0 release candidate (`cbaa876`), on the reference host with the GPU hidden, the Python suite gave 2126 passed and 21 skipped, and the JavaScript tests (`node --test tests/*.js`) 431 passed. The skips are tests that need CUDA/CuPy, the FlyGym physics stack, selenium, the prepared real graph or retained saved brains. Earlier, at commit `5c54b03` (726 tests), the AMD test host (Steam Deck, CPU only) gave 707 passed and 19 skipped.
+**Expect 0 failures.** The number of skips depends on your hardware and setup, because tests that need a GPU, the real graph, the physics stack or a browser skip themselves. At the v0.4.0 release candidate (`0a490b3`), on the reference host with the GPU hidden, the Python suite gave 2126 passed and 21 skipped, and the JavaScript tests (`node --test tests/*.js`) 431 passed. The skips are tests that need CUDA/CuPy, the FlyGym physics stack, selenium, the prepared real graph or retained saved brains. Earlier, at commit `c2b641d` (726 tests), the AMD test host (Steam Deck, CPU only) gave 707 passed and 19 skipped.
 
 **Real-browser check of the dashboard.** `scripts/live_ui_signoff.py` drives real Firefox against a running daemon and checks 7 scenarios (initial load, all 14 assays, rapid selection, two-tab sync, speed, pause/resume, restore). It needs `selenium` (`pip install selenium`, ideally in a separate environment) and Firefox with `geckodriver` installed as system packages. Example, against a daemon you started on port 8769:
 
@@ -219,7 +219,7 @@ python scripts/live_ui_signoff.py --web "http://127.0.0.1:8769/?daemon=http://12
 
 - [`docs/CAPABILITY_MATRIX.md`](docs/CAPABILITY_MATRIX.md): what each of the 14 paradigms can do today, with receipts.
 - [`docs/receipts/README.md`](docs/receipts/README.md): every receipt, which engine produced it, and the re-run queue.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md): the phased roadmap (P0 to P7), with an owner sign-off at each gate.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): the phased roadmap (P0 to P7, the 24 September 2026 plan), with a status note on the milestones that replaced it.
 - [`docs/WP5_OPTOMOTOR.md`](docs/WP5_OPTOMOTOR.md): the optomotor experiment, from v1 to the v4/v5 photoreceptor-driven tests.
 - [`docs/EINH_SENSITIVITY.md`](docs/EINH_SENSITIVITY.md): how the optomotor result depends on the assumed chloride reversal potential.
 - [`docs/LITERATURE_BENCHMARKS.md`](docs/LITERATURE_BENCHMARKS.md) and [`docs/LITERATURE_SCAN_2026-10-05.md`](docs/LITERATURE_SCAN_2026-10-05.md): published comparisons, each item marked by how far it was verified.
