@@ -1,0 +1,352 @@
+{
+ "meaning": "F1_representation: all 4 starts completed, none reaches TRAIN_PASS. Per the prereg the arm STOPS: no params_v7.json is frozen, the held-out consistency check and the full-network filter diagnostic (both defined on the frozen selected file) are NOT run, and there is no S3.",
+ "outcome": "F1",
+ "record": "v7 fit OUTCOME under prereg v2 (06d77d91...) + addendum 1 (982ff428...). Fit run 10 Oct 2026, CPU only, 4 parallel processes, taskset 0-3, CUDA_VISIBLE_DEVICES empty.",
+ "source_commit": "69ada227928e985caa1f2fd641961ec9b677284b",
+ "starts": {
+  "0": {
+   "A1": {
+    "Mi1": false,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": false
+   },
+   "A2": {
+    "Mi1": true,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": true
+   },
+   "A3": {
+    "OFF": false,
+    "ON": true
+   },
+   "A4": {
+    "Mi1": true,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": true
+   },
+   "A5": {
+    "Mi1": false,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": false
+   },
+   "A5_label": "set after seeing one start's s.d. (non-confirmatory)",
+   "TRAIN_PASS": false,
+   "cost": 36.30689917791808,
+   "evals": 2207,
+   "fitted": {
+    "L1": {
+     "release_gain": 0.8053447291923731,
+     "tau_m_ms": 31.649582156087806
+    },
+    "L2": {
+     "release_gain": 2.6381636140526306,
+     "tau_m_ms": 199.9014255497361
+    },
+    "Mi1": {
+     "e_leak_mV": -40.00042453476327,
+     "tau_m_ms": 199.90728454371492
+    },
+    "Tm1": {
+     "e_leak_mV": -69.99957581496797,
+     "tau_m_ms": 154.06610335028185
+    },
+    "Tm2": {
+     "e_leak_mV": -69.99942265482623,
+     "tau_m_ms": 129.53211511928245
+    },
+    "Tm3": {
+     "e_leak_mV": -40.000424185032024,
+     "tau_m_ms": 3.4772825575851156
+    }
+   },
+   "model_sd_mV": {
+    "Mi1": 1.9495062525670586,
+    "Tm1": 4.53553960429957,
+    "Tm2": 4.609326550081142,
+    "Tm3": 1.6950984339322195
+   },
+   "nrmse": {
+    "Mi1": 0.8716456968763319,
+    "Tm1": 0.7564280373777061,
+    "Tm2": 0.7895008013150073,
+    "Tm3": 0.9324088478360665
+   },
+   "peak_data_ms": {
+    "Mi1": 70.0,
+    "Tm1": 54.0,
+    "Tm2": 44.0,
+    "Tm3": 56.0
+   },
+   "peak_model_ms": {
+    "Mi1": 74.0,
+    "Tm1": 92.0,
+    "Tm2": 92.0,
+    "Tm3": 50.0
+   },
+   "report_sha256": "a5a44a3d6a65cea307db9ada1f873dea8c646d0edcaabc4272ba4f2954e8992c",
+   "wall_s": 2170.4
+  },
+  "1": {
+   "A1": {
+    "Mi1": false,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": false
+   },
+   "A2": {
+    "Mi1": true,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": true
+   },
+   "A3": {
+    "OFF": false,
+    "ON": true
+   },
+   "A4": {
+    "Mi1": true,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": true
+   },
+   "A5": {
+    "Mi1": false,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": false
+   },
+   "A5_label": "set after seeing one start's s.d. (non-confirmatory)",
+   "TRAIN_PASS": false,
+   "cost": 36.30714898751053,
+   "evals": 874,
+   "fitted": {
+    "L1": {
+     "release_gain": 0.8061339019922737,
+     "tau_m_ms": 31.96019071744189
+    },
+    "L2": {
+     "release_gain": 2.6837169629804207,
+     "tau_m_ms": 199.90712624310055
+    },
+    "Mi1": {
+     "e_leak_mV": -40.00055372913137,
+     "tau_m_ms": 199.90728455374793
+    },
+    "Tm1": {
+     "e_leak_mV": -69.99957581496889,
+     "tau_m_ms": 155.9592517715968
+    },
+    "Tm2": {
+     "e_leak_mV": -69.99924221759359,
+     "tau_m_ms": 130.5718182298186
+    },
+    "Tm3": {
+     "e_leak_mV": -40.000424185030035,
+     "tau_m_ms": 3.378279162687369
+    }
+   },
+   "model_sd_mV": {
+    "Mi1": 1.9516607452145995,
+    "Tm1": 4.532997387951385,
+    "Tm2": 4.606528083666386,
+    "Tm3": 1.6935252598230293
+   },
+   "nrmse": {
+    "Mi1": 0.8715119618491689,
+    "Tm1": 0.7565309577096403,
+    "Tm2": 0.7893157104777757,
+    "Tm3": 0.9322817403741583
+   },
+   "peak_data_ms": {
+    "Mi1": 70.0,
+    "Tm1": 54.0,
+    "Tm2": 44.0,
+    "Tm3": 56.0
+   },
+   "peak_model_ms": {
+    "Mi1": 74.0,
+    "Tm1": 92.0,
+    "Tm2": 92.0,
+    "Tm3": 50.0
+   },
+   "report_sha256": "dfc9d62d9ac38a7560c1fd4834f2e8458dc3d36de381f6832abf466812ddb43e",
+   "wall_s": 876.3
+  },
+  "2": {
+   "A1": {
+    "Mi1": false,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": false
+   },
+   "A2": {
+    "Mi1": true,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": true
+   },
+   "A3": {
+    "OFF": false,
+    "ON": true
+   },
+   "A4": {
+    "Mi1": true,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": true
+   },
+   "A5": {
+    "Mi1": false,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": false
+   },
+   "A5_label": "set after seeing one start's s.d. (non-confirmatory)",
+   "TRAIN_PASS": false,
+   "cost": 36.36387688514804,
+   "evals": 2968,
+   "fitted": {
+    "L1": {
+     "release_gain": 0.8031823449850527,
+     "tau_m_ms": 31.01173192432942
+    },
+    "L2": {
+     "release_gain": 2.473673877052062,
+     "tau_m_ms": 199.9817061489512
+    },
+    "Mi1": {
+     "e_leak_mV": -40.0003471574015,
+     "tau_m_ms": 199.9072845532524
+    },
+    "Tm1": {
+     "e_leak_mV": -69.9995767025792,
+     "tau_m_ms": 147.26933969096132
+    },
+    "Tm2": {
+     "e_leak_mV": -69.99924244824678,
+     "tau_m_ms": 139.3180365070194
+    },
+    "Tm3": {
+     "e_leak_mV": -40.000424185032024,
+     "tau_m_ms": 3.762722070209027
+    }
+   },
+   "model_sd_mV": {
+    "Mi1": 1.9443402918893797,
+    "Tm1": 4.536860193855736,
+    "Tm2": 4.485902119983479,
+    "Tm3": 1.6990764856888396
+   },
+   "nrmse": {
+    "Mi1": 0.8717567746580004,
+    "Tm1": 0.7564171182547931,
+    "Tm2": 0.8017257185917168,
+    "Tm3": 0.9323038323889249
+   },
+   "peak_data_ms": {
+    "Mi1": 70.0,
+    "Tm1": 54.0,
+    "Tm2": 44.0,
+    "Tm3": 56.0
+   },
+   "peak_model_ms": {
+    "Mi1": 74.0,
+    "Tm1": 92.0,
+    "Tm2": 92.0,
+    "Tm3": 50.0
+   },
+   "report_sha256": "00d4f47c0d40b3a03bbf3622a71f828853009981d7a65e6f190ce8a5cc2bc010",
+   "wall_s": 2881.5
+  },
+  "3": {
+   "A1": {
+    "Mi1": false,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": false
+   },
+   "A2": {
+    "Mi1": true,
+    "Tm1": false,
+    "Tm2": false,
+    "Tm3": true
+   },
+   "A3": {
+    "OFF": false,
+    "ON": true
+   },
+   "A4": {
+    "Mi1": true,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": true
+   },
+   "A5": {
+    "Mi1": false,
+    "Tm1": true,
+    "Tm2": true,
+    "Tm3": false
+   },
+   "A5_label": "set after seeing one start's s.d. (non-confirmatory)",
+   "TRAIN_PASS": false,
+   "cost": 36.42748499695347,
+   "evals": 1254,
+   "fitted": {
+    "L1": {
+     "release_gain": 0.8042966276325306,
+     "tau_m_ms": 31.477775553005017
+    },
+    "L2": {
+     "release_gain": 3.0608362397511435,
+     "tau_m_ms": 199.9658180772051
+    },
+    "Mi1": {
+     "e_leak_mV": -40.000360006291416,
+     "tau_m_ms": 199.90909205418214
+    },
+    "Tm1": {
+     "e_leak_mV": -69.99969959910909,
+     "tau_m_ms": 188.9870868812926
+    },
+    "Tm2": {
+     "e_leak_mV": -69.99924780097167,
+     "tau_m_ms": 134.29510581046634
+    },
+    "Tm3": {
+     "e_leak_mV": -40.00040571833829,
+     "tau_m_ms": 3.8882573213066913
+    }
+   },
+   "model_sd_mV": {
+    "Mi1": 1.9540793065048359,
+    "Tm1": 4.363804526283585,
+    "Tm2": 4.606295063667454,
+    "Tm3": 1.6898538759398032
+   },
+   "nrmse": {
+    "Mi1": 0.8721712339174916,
+    "Tm1": 0.768944847292244,
+    "Tm2": 0.784905476068646,
+    "Tm3": 0.9329755862157606
+   },
+   "peak_data_ms": {
+    "Mi1": 70.0,
+    "Tm1": 54.0,
+    "Tm2": 44.0,
+    "Tm3": 56.0
+   },
+   "peak_model_ms": {
+    "Mi1": 74.0,
+    "Tm1": 92.0,
+    "Tm2": 92.0,
+    "Tm3": 50.0
+   },
+   "report_sha256": "22217522158c6184246cd27e135d561d371d0c21859ab61a4b3a1c2133c8ff30",
+   "wall_s": 1242.2
+  }
+ }
+}
