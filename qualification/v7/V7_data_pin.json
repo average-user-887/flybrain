@@ -1,0 +1,42 @@
+{
+  "contract": "v7 medulla timing DATA PIN: the non-motion mV recordings used to fit (training) and test (held-out) the v7 arm. Frozen before any v7 fit or simulation.",
+  "date": "2026-10-10",
+  "owner_rules": "Per-type parameters only; fitted only to NON-MOTION recordings of input or medulla cells upstream of T4/T5; never gratings, direction selectivity or behaviour; no invented or changed edges; held-out data separate; calcium is not an mV target without an observation model.",
+  "data_root": "<data-root>/flybrain-v7-medulla-data-20261010 (local only; nothing under it is redistributed)",
+  "primary": {
+    "citation": "Behnia R, Clark DA, Carter AG, Clandinin TR, Desplan C (2014) Processing properties of ON and OFF pathways for Drosophila motion detection. Nature 512:427-430. doi 10.1038/nature13427; PMID 25043016; PMCID PMC4243710 (NIH author manuscript nihms642361)",
+    "released_numbers": "No raw traces, filters or source data were released (PMC 'has-supplement no'; Europe PMC hasSuppl N; Nature 2014 Letter has no Source Data). Released scalars, from the text: filter peak times Mi1 71 ms (s.e.m. 3.8, N=7), Tm3 53 ms (5.2, N=11), Tm1 56 ms (3.8, N=15), Tm2 43 ms (2.7, N=14); weak/strong polarity ratios (Extended Data Fig. 1c) Mi1 OFF/ON 11 % (3.5, n=7), Tm3 36.6 % (7.1, n=10), Tm1 ON/OFF 26.1 % (3.8, n=10), Tm2 17.7 % (2.3, n=11).",
+    "recording": "in vivo whole-cell current clamp of medulla somata (Multiclamp 700B), awake immobilised flies (sex not stated) 1-2 d after eclosion, room temperature, GAL4>GFP-guided; 0-5 pA hyperpolarising holding current to bring V near -60 mV (responses unchanged between -50 and -60 mV). One cell per fly. 'Tonic' Mi1 (65 %) and Tm3 (18 %) excluded by the authors as non-physiological.",
+    "training": {
+      "what": "Fig. 3b (Mi1, Tm3) and Fig. 3e (Tm1, Tm2): average linear temporal filters +/- s.e.m., units mV contrast^-1 ms^-1",
+      "stimulus": "10 s full-field Gaussian flicker q(t)=m(1+s(t)), s.d. 50 % contrast, exponential correlation time 10 ms, 240 Hz DLP, q bounded to [0, 2m]; mean radiance 1.1 W sr^-1 m^-2 (~250 cd m^-2); screen 55x55 mm at 40 mm. NON-MOTION (spatially uniform).",
+      "processing": "60 Hz notch; 0.008 Hz high-pass; K(w)=<R S*>/(<S S*>+eps), 5 s zero-padded snippets every 0.1 s, eps = 1 % of mean <S S*> (Baccus & Meister 2002); filter = inverse FFT.",
+      "image": {"source": "https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fnature13427/MediaObjects/41586_2014_Article_BFnature13427_Fig3_HTML.jpg", "sha256": "55258e332c3bb7cb405505164fce9aa5b78672a1923bd13d132bd1e0dd86f2e1", "pixels": "1052x1221"},
+      "digitised": {
+        "Mi1": {"file": "behnia2014_fig3_filter_Mi1.csv", "sha256": "14f73ec082e2ed245abefb91a5d7e1ea7d81d8c7fb293eaef368c9e5285ab36f", "peak_ms": 70, "interpolated_ms": 8},
+        "Tm3": {"file": "behnia2014_fig3_filter_Tm3.csv", "sha256": "c4d37fa6bf5b63fdfb27a1293a9e06e47d3e0805a0834e1d9ba194c4ef970b42", "peak_ms": 56, "interpolated_ms": 4},
+        "Tm1": {"file": "behnia2014_fig3_filter_Tm1.csv", "sha256": "df689183268bebc00a742acf8fe64b73acc7c79655967fe34701c19be5c17cf1", "peak_ms": 54, "interpolated_ms": 11},
+        "Tm2": {"file": "behnia2014_fig3_filter_Tm2.csv", "sha256": "7f460fe9ff7cd1b9ea6329ab1cedbc7daac56614f8ee772a5e8514e5078f3e98", "peak_ms": 44, "interpolated_ms": 10}
+      },
+      "validation_of_digitisation": "digitised mean-filter peak times 70/56/54/44 ms vs the text's mean peak times 71+/-3.8, 53+/-5.2, 56+/-3.8, 43+/-2.7 ms (all within 1 s.e.m.)"
+    },
+    "heldout": {
+      "what": "Fig. 2 (1 s full-field flash from dark): onset and offset peak deflections (mV) per type; plus the Extended Data Fig. 1c ratios released in the text",
+      "stimulus": "dark -> light (intensity 1 on the 0-1 scale of the flicker, i.e. 2m) for 1 s -> dark; NON-MOTION. Different stimulus class from training (flashes from darkness vs flicker about a mean).",
+      "image": {"source": "https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fnature13427/MediaObjects/41586_2014_Article_BFnature13427_Fig2_HTML.jpg", "sha256": "cce050e2d706163b4c37c48aa883c66fc7fd363372354b4952a40dd3ed715b16", "pixels": "1051x1407"},
+      "digitised": {"file": "behnia2014_fig2_flash1s.json", "sha256": "5c66d41b0caf73c0733a873a1995fba96573012e30bf0926b9245201e84dde9d"},
+      "validation_of_digitisation": "digitised weak/strong ratios 11/34/27/18 % vs the text's 11/36.6/26.1/17.7 %",
+      "independence": "same lab, preparation and probably overlapping animals; independent of the training data in stimulus, not in animal"
+    },
+    "digitiser": "scripts/v7/digitise_behnia2014.py (method, calibration constants and uncertainty in its docstring): curve = mean row of trace-colour pixels per column; s.e.m. band = contiguous tint run; lag 0 = the y-axis line; 50 ms = 39+/-1 px; y 0.5 = 119 px. Uncertainty: y 1 px = 0.0042 mV contrast^-1 ms^-1, time +/-2 ms, scale +/-2.6 %; Fig. 2 amplitudes +/-0.2 mV +/-2.3 %.",
+    "licence": "Article (c) Macmillan/Springer Nature 2014; the PMC author manuscript is 'available for text mining' and usable 'consistent with fair use'. Figure images and digitised numbers are kept local under <data-root>, pinned by sha256, and are NOT committed or redistributed; the repository holds only the digitiser and the hashes. Scalar numbers quoted from the text are cited facts.",
+    "refuted_use": "The Mi1/Tm3 and Tm1/Tm2 filter pairs are NOT used as delay-and-correlate constants (refuted 1-2 in the 8 Oct deep research). v7 fits per-type membrane/release parameters so that each recorded cell's OWN filter, measured inside the unchanged network, matches."
+  },
+  "checked_not_used": {
+    "Arenz_2017": "Arenz A et al. Curr Biol 27(7), 2017, doi 10.1016/j.cub.2017.01.051. Two-photon CALCIUM imaging (GCaMP6f) of the columnar T4/T5 inputs. Calcium, no v7 observation model -> not an mV target; no released data located.",
+    "Serbe_2016": "Serbe E et al. Neuron 89(4), 2016, doi 10.1016/j.neuron.2016.01.006. Two-photon CALCIUM imaging of Tm1, Tm2, Tm4, Tm9 (white-noise filters, RFs). Calcium -> not an mV target.",
+    "Drews_2020": "Drews MS et al. Curr Biol 30(2), 2020, doi 10.1016/j.cub.2019.10.035. CALCIUM imaging of motion-circuit neurons, contrast compression by surround; adaptation, not a timing target. Not used.",
+    "Ramos-Traslosheros_2021": "Ramos-Traslosheros G, Silies M. Nat Commun 12, 2021, doi 10.1038/s41467-021-24986-w; data G-Node GIN doi 10.12751/g-node.qeeyfz (GRamosT/off-motion-receptive-fields), data CC BY-NC 4.0, code BSD-3. CALCIUM (GCaMP6f/jRGECO1a) dF/F of Tm1, Tm2, Tm4, Tm9, CT1, T5; contains MOVING sinewave epochs (motion: must be excluded if ever used). Not downloaded; LOCAL USE ONLY, never redistributed. Not an mV target."
+  },
+  "unpinned_gaps": "No non-motion mV recording pinned for Mi4, Mi9, Tm4, Tm9, C3, CT1 or the lamina in this arm; their v6 parameters are inherited unchanged."
+}
