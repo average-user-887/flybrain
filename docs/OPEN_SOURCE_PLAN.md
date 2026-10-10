@@ -8,7 +8,7 @@
 Branch: `worktree-neurofly-openready` (Ryzen worktree). Started 2026-09-19.
 
 ## Phase 0 — Baseline (done)
-- Snapshot of the live Ryzen tree committed (`6c48a98`); the tree had ~4.6k lines of
+- Snapshot of the live development tree committed (`6c48a98`); the tree had ~4.6k lines of
   uncommitted work synced from the Windows development root.
 - Baseline: 180/180 tests pass (`PYTHONPATH=. .venv/bin/python -m pytest -q tests/`).
 - Dashboard served from `web/` on port 8770; daemon on port 8769.
