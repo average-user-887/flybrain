@@ -1,0 +1,33 @@
+{
+  "addendum": "v7 prereg v2 ADDENDUM 1 (re-audits approved v2 for the fit subject to these items; no re-freeze). Committed before the fit runs. V7_medulla_prereg_v2.json is unchanged and still governs.",
+  "prereg_v2_sha256": "06d77d913c385d7020263f06dc0d97e571ff9d2a171f76951a70a67b13d7e4de",
+  "smoke_disclosure": {
+    "what": "one start-0 evaluation on the real 7-column cutout (scripts/v7/fit_v7.smoke via tests/test_v7_medulla.py::test_real_cutout_single_evaluation_is_finite_and_timed) was run against an UNCOMMITTED draft of v2 and printed the start-0 response s.d. (Mi1 1.70, Tm3 1.04, Tm1 3.66, Tm2 3.76 mV), cost 47.8 and NRMSE 0.90/0.91/0.84/0.74, before v2 was frozen by commit.",
+    "draft": {
+      "sha256": "8ae15df84ac5004c8ac5f9044672f2475f9c091a902c09e33523a3dc3764f860",
+      "file": "qualification/v7/V7_medulla_prereg_v2_draft_8ae15df8.json",
+      "recovery": "the draft was never in git; it was RECOVERED byte-exactly by reversing the only post-smoke edit (the compute placeholders) on v2: the recovered file hashes to 8ae15df8..., the hash the smoke run logged"
+    },
+    "diff_draft_to_v2": "exactly two strings in compute_budget: 'fit' (__EVAL_S__/__FIT_COREH__/__FIT_WALLH__ -> 1.00 s, ~3.3 core-h, 0.9 h) and 'total' (__TOTAL_COREH__ -> 14). Gate A5 (factor 1.5, the four Fig. 3a s.d. values), every other gate, bound, start and the code were identical in the draft.",
+    "consequence": "A5 is nevertheless labelled 'SET AFTER SEEING ONE START'S S.D.' because the draft containing it was not committed before the smoke: an A5 pass is NON-CONFIRMATORY. A5 still counts toward TRAIN_PASS as preregistered; reports state this label."
+  },
+  "corrections": {
+    "data.training.source": "Behnia et al. 2014 Fig. 3b/3e, digitised (V7_data_pin_v2.json, sha256 61ee0c83cb29816abd24398cd9a1841e253b07ae1c81d1c1849752261c8d9d84; the training CSVs are byte-identical to v1)",
+    "downstream_s3": "S3 changes --params (to the frozen params_v7.json) AND uses the PATCHED scripts/v6/s3_guard.py (--params-sha256, --split; sha in v2 unchanged_sha256) for the v7 arms; disclosed in v2 downstream_s3.guard_patch. The runner, gates, merge and analysis are byte-identical to rerun1.",
+    "network_filter_diagnostic_cost": "v2 estimated ~1.3 h from '~300 s per simulated s'; the correct rerun1 rate is ~570 s per simulated s per process (8312 s for 14.5 s), so the 13 s diagnostic is ~2.1 h wall on one core. Descriptive step; no cap change for the fit."
+  },
+  "new_scripts": {
+    "scripts/v7/select_v7.py": {
+      "sha256": "402036c18893aa733408c32fec0ee918f6604a45c07bbf4c543cfc2d6f316317",
+      "role": "applies fit_v7.outcome to the start reports; on TRAIN_PASS copies the selected start's params to qualification/v7/params_v7.json"
+    },
+    "scripts/v7/network_filters_v7.py": {
+      "sha256": "04ea0206cd9535406ac3461965878f09bfec273747742b02ebc6dfe884b8acf1",
+      "role": "the preregistered descriptive full-network filter diagnostic (frozen here before it runs); central cells Mi1 30342, Tm3 134483, Tm1 33140, Tm2 41356"
+    }
+  },
+  "run_plan": {
+    "fit": "4 processes (starts 0-3) in parallel: CUDA_VISIBLE_DEVICES= NUMBA_NUM_THREADS=1 nice taskset -c 0-3 timeout 3h <python> scripts/v7/fit_v7.py --prereg qualification/v7/V7_medulla_prereg_v2.json --prereg-sha256 <v2> --base-params qualification/v6/params_v6_S2A_leak40.json --base-sha256 135220ca... --training-dir <data-root>/.../digitised/training --phase1 <pathB>/phase1 --start k --out <evidence-root>/flybrain-v7-evidence-20261010/fit",
+    "then": "select_v7.py -> commit params_v7.json -> heldout_v7.py once -> network_filters_v7.py -> report -> STOP before S3"
+  }
+}

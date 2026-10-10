@@ -1,0 +1,341 @@
+{
+  "contract": "v7 MEDULLA TIMING arm: PREREGISTRATION v2, frozen and committed before any v7 fit, held-out evaluation or S3 simulation (the only simulation so far is the one timed start-0 smoke evaluation required by the audits; no optimisation). Science card A (motion vision), 10 Oct 2026.",
+  "hypothesis": "The v6 S3 null (T4/T5 0.33 mV, no direction selectivity) is caused by uncalibrated temporal properties of the T4/T5 input stage. If Mi1, Tm3 (ON) and Tm1, Tm2 (OFF), measured INSIDE the unchanged network, reproduce their published in vivo voltage filters, the frozen S3 motion test should pass.",
+  "label": "EXPLORATORY. Inherits the S1-A3 photoreceptor stage (FIT REJECTED, held-out 2/4, TRANSFER FAIL) and the S2-A-leak40 lamina/medulla parameters (hypothetical). v7 adds the first held-out-testable medulla calibration; it never upgrades S1/S2. The hypothesis and the choice of types are POST HOC to the S3 null.",
+  "data_pin": {
+    "file": "qualification/v7/V7_data_pin_v2.json",
+    "sha256": "61ee0c83cb29816abd24398cd9a1841e253b07ae1c81d1c1849752261c8d9d84"
+  },
+  "data": {
+    "training": {
+      "source": "Behnia et al. 2014 Fig. 3b/3e, digitised (V7_data_pin.json)",
+      "dir": "<data-root>/flybrain-v7-medulla-data-20261010/digitised/training",
+      "files": {
+        "Mi1": {
+          "file": "behnia2014_fig3_filter_Mi1.csv",
+          "sha256": "14f73ec082e2ed245abefb91a5d7e1ea7d81d8c7fb293eaef368c9e5285ab36f"
+        },
+        "Tm3": {
+          "file": "behnia2014_fig3_filter_Tm3.csv",
+          "sha256": "c4d37fa6bf5b63fdfb27a1293a9e06e47d3e0805a0834e1d9ba194c4ef970b42"
+        },
+        "Tm1": {
+          "file": "behnia2014_fig3_filter_Tm1.csv",
+          "sha256": "df689183268bebc00a742acf8fe64b73acc7c79655967fe34701c19be5c17cf1"
+        },
+        "Tm2": {
+          "file": "behnia2014_fig3_filter_Tm2.csv",
+          "sha256": "7f460fe9ff7cd1b9ea6329ab1cedbc7daac56614f8ee772a5e8514e5078f3e98"
+        }
+      }
+    },
+    "heldout": {
+      "source": "Behnia et al. 2014 Fig. 2 1 s flash column (digitised) + Extended Data Fig. 1c ratios from the text",
+      "dir": "<data-root>/flybrain-v7-medulla-data-20261010/digitised/heldout",
+      "fig2_file": {
+        "file": "behnia2014_fig2_flash1s.json",
+        "sha256": "5c66d41b0caf73c0733a873a1995fba96573012e30bf0926b9245201e84dde9d"
+      },
+      "isolation": "read only by scripts/v7/heldout_v7.py, once, after the fitted parameter file is frozen and committed; fit_v7.py and v7_data.py never import or open it (tests/test_v7_medulla.py). WEAK and NON-INDEPENDENT: probably the same cells as training, values seen by the author; a held-out pass is a consistency check and is never claimed as validation."
+    },
+    "split_rationale": "training = flicker about a mean (adapted, linear-filter regime); held-out = flashes from darkness (step, rectification and amplitude regime). Same lab, not guaranteed different animals: the hold-out tests generalisation across stimulus class, not across preparations."
+  },
+  "base_params": {
+    "file": "qualification/v6/params_v6_S2A_leak40.json",
+    "sha256": "135220ca7e9bc01c5d88f4fee321dea7e2c5fe57c0c1db24de76187f5ee4962f",
+    "why": "the exact parameter set the frozen S3 rerun1 tested, so v7 differs from the v6 comparator ONLY in the fitted entries below"
+  },
+  "free_parameters": {
+    "list": [
+      {
+        "type": "Mi1",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "Tm3",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "Tm1",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "Tm2",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "Mi1",
+        "key": "e_leak_mV",
+        "lo": -70,
+        "hi": -40,
+        "scale": "lin"
+      },
+      {
+        "type": "Tm3",
+        "key": "e_leak_mV",
+        "lo": -70,
+        "hi": -40,
+        "scale": "lin"
+      },
+      {
+        "type": "Tm1",
+        "key": "e_leak_mV",
+        "lo": -70,
+        "hi": -40,
+        "scale": "lin"
+      },
+      {
+        "type": "Tm2",
+        "key": "e_leak_mV",
+        "lo": -70,
+        "hi": -40,
+        "scale": "lin"
+      },
+      {
+        "type": "L1",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "L2",
+        "key": "tau_m_ms",
+        "lo": 2,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "L1",
+        "key": "release_gain",
+        "lo": 0.1,
+        "hi": 30,
+        "scale": "log"
+      },
+      {
+        "type": "L2",
+        "key": "release_gain",
+        "lo": 0.1,
+        "hi": 30,
+        "scale": "log"
+      }
+    ],
+    "tau": "membrane time constant per type (graded single compartment); bounds = the S2 bounds",
+    "leak_rest": "leak reversal per recorded type, bounds = the pooled resting range -70..-40 mV used in S2 (Behnia held cells near -60 mV); rest, leak reversal and E_inh (-70 mV, global) stay distinct",
+    "gain": "EFFECTIVE linear release gain of L1 and L2 (the main presynaptic types of Mi1/Tm3 and Tm1/Tm2), a per-type presynaptic quantity; never a weight. Sets the absolute mV scale the S2 calcium fit could not see. Its amplitude target uses the resolved scale convention (observation_model.filter_stim_scale) and is cross-checked by gate A5 against a directly measured mV response; there is no free scale parameter.",
+    "graded_release": "release FUNCTION stays as in v6: linear for L1/L2 and for Mi1/Tm3/Tm1/Tm2 (gain 1). The recorded cells' own output release is NOT identifiable from somatic voltage and is not fitted; a sigmoid for L1/L2 is not identifiable from linear filters (rectification is held-out territory). Both are disclosed non-identifiable and fixed.",
+    "fixed": "graph and every edge/base weight (graph 4b2f87cc...091d01); R1-R6 phototransduction and release (S1-A3); L1/L2 Ih and e_leak (-40, leak40); L3, L4, L5, Mi4, Mi9, Tm4, Tm9 and all other types as in the base file",
+    "side_effects": "L1/L2 tau and gain also change the drive of Mi4, Mi9, Tm4, Tm9, C3 and other L1/L2 targets onto T4/T5, beyond the four recorded types."
+  },
+  "stimulus": {
+    "fit_cutout": "the frozen S2 7-column cutout (scripts/v6/fit_s2.build_cutout: central right-eye column (17,27) + 6 neighbours; 13 lamina/medulla types + R1-R6; no T4/T5; external inputs absent, disclosed)",
+    "noise": "full-field (all cutout R1-R6 equal): encoder = 10 (1 + s(t)), s from v7_data.behnia_noise",
+    "noise_sigma": 0.5,
+    "noise_tau_ms": 10.0,
+    "frame_hz": 240.0,
+    "duration_ms": 10000,
+    "settle_ms": 3000,
+    "training_seed": 1,
+    "mean_luminance_mapping": "Behnia's 250 cd m^-2 mean is mapped to BG-1 (encoder 10, the S2 and S3 gray). ASSUMPTION, not a measurement; disclosed risk (adaptation sets filter speed).",
+    "heldout_flash": "dark (encoder 0) 3000 ms settle, 1000 ms pre, 1000 ms at encoder 20 (= 2m), 1500 ms post; offset window 727 ms (heldout_v7.py)"
+  },
+  "observation_model": {
+    "readout": "somatic V (mV) of the central-column Mi1, Tm3, Tm1, Tm2 (v6 is single-compartment: soma = cell); 1 ms samples",
+    "transform": "0.008 Hz first-order high-pass, then the data's own estimator against u = 0.5 c (the paper's plotted intensity deviation; data pin v2 scale_convention): K(w)=<R U*>/(<U U*>+eps), 5 s zero-padded snippets every 100 ms, eps = 1 % of mean <U U*>, lags 0-219 ms (v7_data.observe_filter). No calcium, no normalisation.",
+    "objective": "mean over the 4 types of mean over lags 0-219 ms of ((K_model - K_data)/sigma_t)^2, sigma_t = max(sqrt(sem_t^2 + sigma_dig^2), sigma_floor)",
+    "objective_sigma_dig": 0.01,
+    "objective_sigma_floor": 0.02,
+    "filter_stim_scale": 0.5,
+    "scale_convention": "resolved, not fitted: digitised filter (x) Fig. 3a stimulus as u reproduces the paper's predicted trace with slope 1.03/1.09/1.00 (Mi1/Tm1/Tm2). Not a nuisance parameter; nothing is tuned to it.",
+    "response_sd": "v7_data.response_sd: s.d. of the high-passed somatic V over the 10 s noise after 250 ms (gate A5 only)"
+  },
+  "optimiser": {
+    "method": "scipy Powell, bounded, transformed parameters (log for log-scale)",
+    "n_starts": 4,
+    "start_0": "base values (tau from the base file, e_leak -52 where unset, gain 1)",
+    "starts_1_3": "Latin hypercube in the transformed box",
+    "lhs_seed": 7010,
+    "maxfev_per_start": 3000,
+    "xtol": 0.001,
+    "ftol": 0.0001,
+    "selection": "among COMPLETED starts whose own gates give TRAIN_PASS, the lowest training objective; tie -> lowest start index (fit_v7.outcome). Gates are evaluated per start, on that start's own parameters.",
+    "resources": "CPU only, no GPU; one process per start, 4 processes, NUMBA_NUM_THREADS=1, nice, taskset -c 0-3",
+    "min_completed_starts": 2,
+    "completion": "a start is completed when Powell returns and its report is written; a start killed at the 3 h wall cap or crashed is NOT EVALUABLE and never counts as a failed start"
+  },
+  "compute_budget": {
+    "fit": "MEASURED (smoke, start 0, real 97-cell cutout, one process): __EVAL_S__ s per evaluation; 3000 evaluations x 4 starts in 4 parallel processes = __FIT_COREH__ core-h, ~__FIT_WALLH__ h wall; hard cap 3 h wall per start",
+    "heldout": "one 6.5 s cutout simulation, seconds",
+    "s3": "4 CPU processes x ~2.3 h (rerun1: 8312-8416 s each) = ~9.3 core-h, ~2.3 h wall on 4 cores",
+    "total": "~__TOTAL_COREH__ core-h (fit + S3 9.3 + full-network filter diagnostic ~1.1), at <= 4 cores",
+    "network_filter_diagnostic": "one full-brain 16 s CPU simulation (~300 s wall per simulated s from rerun1) ~1.3 h, single process"
+  },
+  "acceptance": {
+    "training": {
+      "nrmse_max": 0.35,
+      "peak_slack_ms": 5.0,
+      "order_min_ms": 5.0,
+      "A1": "per-type NRMSE(K_model, K_data) <= 0.35 for all four types",
+      "A2": "|model peak - digitised peak| <= 2 x text s.e.m. + 5 ms, all four",
+      "A3": "peak(Mi1) - peak(Tm3) >= 5 ms AND peak(Tm1) - peak(Tm2) >= 5 ms",
+      "A4": "main-lobe polarity: the model filter's largest-|value| lag has the correct sign AND the model sign at the data peak lag is correct, all four",
+      "TRAIN_PASS": "A1 and A2 and A3 and A4 and A5, evaluated on each start's own parameters (v7_data.train_gates)",
+      "sd_factor": 1.5,
+      "fig3a_response_sd_mV": {
+        "Mi1": 4.436,
+        "Tm3": 3.853,
+        "Tm1": 4.651,
+        "Tm2": 4.241
+      },
+      "A5": "convention-free amplitude: model response s.d. (mV) within a factor 1.5 of the Fig. 3a measured s.d., all four (a gate, never an objective term)"
+    },
+    "heldout": {
+      "amp_factor": 1.5,
+      "ratio_sem": 3.0,
+      "ratio_ranges_pct": {
+        "Mi1": [
+          0.5,
+          21.5
+        ],
+        "Tm3": [
+          15.3,
+          57.9
+        ],
+        "Tm1": [
+          14.7,
+          37.5
+        ],
+        "Tm2": [
+          10.8,
+          24.6
+        ]
+      },
+      "H1": "polarity: Mi1/Tm3 depolarise at onset and hyperpolarise at offset; Tm1/Tm2 the reverse; all four",
+      "H2": "weak/strong ratio within text mean +/- 3 s.e.m. (ranges above); >= 3 of 4",
+      "H3": "strong-polarity flash peak (mV, convention-free) within a factor 1.5 of the digitised Fig. 2 value; >= 3 of 4",
+      "HELDOUT_CONSISTENT": "H1 and H2 and H3 (heldout_v7.heldout_gates)",
+      "label": "WEAK, NON-INDEPENDENT consistency check (probably the same cells; values seen by the author). Never reported as validation.",
+      "v1_change": "v1 used +/- 2 population s.d. (Tm3 0-81.6 %) and x2; tightened"
+    },
+    "set_before_fitting": true
+  },
+  "sequence": [
+    "0 smoke: one timed start-0 evaluation on the real cutout (done before freezing v2; cost measured, no optimisation)",
+    "1 fit: 4 starts in parallel -> fit_v7.outcome -> if TRAIN_PASS commit params_v7.json and its sha256 (frozen)",
+    "2 held-out consistency once on the frozen file -> report",
+    "3 full-network filter diagnostic on the frozen file (no fitting, no gate) -> report",
+    "4 stop for owner go",
+    "5 v7 S3 addendum committed (params sha, evidence dir) -> S3 (run_s3_v7.py) -> guard parts -> merge -> guard merged -> analyse -> gates; reported whatever they show"
+  ],
+  "downstream_s3": {
+    "protocol": "UNCHANGED frozen S3 prereg qualification/v6/S3_prereg.json (9658283e...) and addendum 1 (ac445682...): same runner, encoder, lattices (axial-v1 and malecns-hex-v2, both reported), conditions dir0-dir315 + yaw_ccw/yaw_cw, windows, analysis and gates G1-G3/EXPLORATORY_PASS. The only change is --params params_v7.json --params-sha256 <frozen sha>, recorded in a v7 S3 addendum committed before launch.",
+    "command": "for arm in axial-v1 malecns-hex-v2; for part in A B: NUMBA_NUM_THREADS=1 CUDA_VISIBLE_DEVICES= nice taskset -c 0-3 <python> scripts/v7/run_s3_v7.py --prereg-v2 qualification/v7/V7_medulla_prereg_v2.json --prereg-v2-sha256 <this file> --params qualification/v7/params_v7.json --params-sha256 <frozen> --lattice $arm --part $part --outdir <evidence-root>/flybrain-v7-evidence-<date>/S3_v7  (4 processes in parallel; it runs measure_tuning_v6.py with tag v7_<arm>_<part>, conditions A: dir0,dir45,dir90,dir135,yaw_ccw | B: dir180,dir225,dir270,dir315,yaw_cw)",
+    "unchanged_sha256": {
+      "qualification/v6/S3_prereg.json": "9658283e34b1c846b07c7631fc7853b4f06f7ddfbe0e38d329f9c243f99f946e",
+      "qualification/v6/S3_prereg_addendum_1.json": "ac4456823fdd7ca6dcf0510eb97756fec6882dda3fb3ae5882c7670914abe3b5",
+      "scripts/v6/measure_tuning_v6.py": "d17230283ad6626a8ed29ae57d65eacfbe964f83ec29ed8cccfab13b941567a5",
+      "scripts/v6/s3_gates.py": "de9d054c1acefa4d2a7de2da5664ce0e48f4f29c1f84ad5018042bd31ad6c66c",
+      "scripts/v6/s3_guard.py": "c00d008f4d397ba4ef5578418f3ebae76630ac73831cb8953436a6aabed40931",
+      "scripts/v6/merge_parts.py": "7b88253aefc37375e3321684798dda356fa0224d250a6d309fbed430d0eabe42",
+      "scripts/v5_measurement/analyse_tuning.py": "f7c31cb8bed3b7a210acfb1842b60cde20892682ae9cca9490386b04b30c02f4",
+      "brainlab/v6_calibrated.py": "ea5be7a9489b0095faa8d6cb5c1fb5773b28bfff4dd6d57d32245e544178b6ad",
+      "brainlab/engine.py": "a9647682fec43f0483572662c42f36f20338300da3f0ee3968826fe6485a886a"
+    },
+    "comparators_cpu": {
+      "v6_leak40_rerun1": {
+        "axial-v1": "d754af5e8f049ca04c022ff179cb1a32387753068ccadd49429481177dc71e38",
+        "malecns-hex-v2": "fca894cbee4479fcec18da9d0c82fe3aa480fc86216faa4a9f9579c2c5ac2117",
+        "note": "merged S3 rerun1 NPZs, reused, not rerun; read FIRST (same backend, differs from v7 only in the fitted entries)"
+      },
+      "v5_primary_cpu": {
+        "axial-v1": "d519af9e48ecb090abd83a22392af5615a4d60d76d2ef5793cf90c3c8e147d23",
+        "malecns-hex-v2": "8caf4fa08b1acc70ddf9a511eee5a430e585f00ab7db577e817e671ff896a9b5",
+        "note": "reused, not rerun"
+      },
+      "v5_gpu": "reused descriptively only (66e23cd4..., 6581312a...); no new GPU job"
+    },
+    "environment": {
+      "cwd": "<v7-checkout> = root of the clean branch checkout at the commit that freezes params_v7.json",
+      "python": "<main-repo>/.venv/bin/python",
+      "python_packages": {
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "numba": "0.67.0"
+      },
+      "graph": "<v7-checkout>/outputs/brainlab/malecns_v1 -> <main-repo>/outputs/brainlab/malecns_v1 (graph.npz)",
+      "graph_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+      "connectome_data": "<v7-checkout>/connectome_data -> <data-root>/neurofly-readonly-data-20261008/connectome_data_ro (as rerun1)",
+      "threads": "NUMBA_NUM_THREADS=1, CUDA_VISIBLE_DEVICES empty, nice, taskset -c 0-3",
+      "preflight": "scripts/v7/run_s3_v7.py verifies cwd, graph sha (resolved), connectome_data, package versions, params sha and every unchanged_sha256 before launching the unchanged runner; exit 3 and nothing launched on any mismatch"
+    },
+    "post_run": [
+      "copy parts to <outdir>/analysis; sha256sum raw",
+      "guard PARTS: <python> scripts/v6/s3_guard.py <A> --params-sha256 <frozen> --split v7_axial-v1,v7_malecns-hex-v2   (params sha on every part + part consistency + gray identity + all 10 conditions)",
+      "merge: scripts/v6/merge_parts.py <A> v7_<arm> v7_<arm>_A v7_<arm>_B (each arm)",
+      "guard MERGED: <python> scripts/v6/s3_guard.py <A> --params-sha256 <frozen> --arms v7_axial-v1,v7_malecns-hex-v2",
+      "merged == parts array check as rerun1",
+      "scripts/v5_measurement/analyse_tuning.py v7_<arm> --dir <A>; scripts/v6/s3_gates.py <A>/v7_<arm>.analysis.json"
+    ],
+    "guard_patch": "s3_guard.py gains --params-sha256 and --split (v7 arms) and applies the params check to v6 AND v7 arms; default invocation (rerun1) unchanged; tests/test_s3_guard_v7.py fail on the pre-patch guard (4/4) and pass after",
+    "engine_diff_vs_rerun1": {
+      "files": "brainlab/brain.py, brainlab/graph_identity.py (plus new brainlab/flywire.py, cosim_server.py, datasets.json, FlyWire pin files) from origin/master 6fdff74",
+      "effect_on_malecns": "none on the S3 path: brain.py adds a raise only when n == 139,255 (FlyWire 783) inside _v3_policy_weight (v3 only; S3 uses v4/v6 dynamics, n = 166,700); graph_identity adds a refusal only when the graph manifest declares a dataset_id other than malecns_v1, and the MaleCNS manifest declares none. brainlab/v6_calibrated.py, engine.py and the runner are byte-identical to rerun1.",
+      "receipt": "audit pack base_delta_engine.diff"
+    }
+  },
+  "rules": "No parameter, bound, start, objective, gate, window, data file or analysis change after any fit output is seen; a crash rerun is recorded with its reason; all starts, both lattice arms and all comparators are reported whatever they show. No GPU. <= 4 CPU cores.",
+  "code_sha256": {
+    "scripts/v7/v7_data.py": "c53f95bc558368133b3a629381a0d22761cff6bcdd9bcfe5aeabac226c43aa00",
+    "scripts/v7/fit_v7.py": "4792d641e287952b24f864119e89729c50b1a5762e4b4cf3199baccf513541d6",
+    "scripts/v7/heldout_v7.py": "c5f1d3c2f781550d15a417b2f6625a1f9f7eac1e7cf30b48724e73c01c74d5b5",
+    "scripts/v7/digitise_behnia2014.py": "efe960df71a045a6b6bb3e0b7ec9dc8dd1ca1838eb0eeb06478c13b781dc3b89",
+    "scripts/v7/run_s3_v7.py": "5df76af442e49bd20ddc030fd6ee4fef8b6d81fa300dd31458ae0e52d1ec0a24",
+    "scripts/v6/fit_s2.py": "108ba38395174004d8a731988ae45b5686bef4d98a8e7ecdc5d3c040141a0eb5"
+  },
+  "supersedes": {
+    "file": "qualification/v7/V7_medulla_prereg.json",
+    "sha256": "b432005c7fc44b126144a49a9ae2bc780cd6807625238e0ee3e47cfe93d4d69a",
+    "status": "SUPERSEDED before any fit; kept byte-identical",
+    "reason": "audit 1 REJECT-as-frozen (F-a..F-e) and audit 2 conditions (C1-C3): ~2x filter-scale convention, ambiguous start selection vs TRAIN_PASS, NOT-EVALUABLE vs F1, weak held-out gates, S3 guard/environment not preregistered, missing risks, extrapolated compute"
+  },
+  "outcomes": {
+    "NOT_EVALUABLE": "fewer than 2 of 4 starts completed (cap or crash): no claim, no S3; report and stop",
+    "F1_representation": "at least 2 starts completed and none reaches TRAIN_PASS: the network as modelled cannot reproduce the measured Mi1/Tm3/Tm1/Tm2 timing and amplitude with per-type tau/leak/L-gain alone. Arm stops; no S3.",
+    "TRAIN_PASS": "the selected start (fit_v7.outcome) is frozen; held-out consistency and the full-network filter diagnostic are reported; S3 only with owner go",
+    "F2_consistency": "TRAIN_PASS but HELDOUT_CONSISTENT false: reported as 'held-out consistency FAIL'; S3 may still run with owner go, labelled so",
+    "F3_main": "TRAIN_PASS (and whatever HELDOUT_CONSISTENT shows, reported alongside), yet EXPLORATORY_PASS false on BOTH lattice arms: calibrated input-stage timing is not sufficient for direction selectivity in this model; 'uncalibrated medulla timing caused the S3 null' is FALSIFIED.",
+    "support_not_proof": "EXPLORATORY_PASS on >= 1 arm after TRAIN_PASS: an exploratory observation needing independent replication (a second, independent mV source); held-out consistency is not validation."
+  },
+  "network_filter_diagnostic": {
+    "what": "non-motion re-measurement of the four filters in the FULL network (the S3 BrainV6 on graph 4b2f87cc with params_v7, both eyes' R1-R6 driven by the same full-field Behnia noise, seed 1, 3 s gray settle + 10 s), readout = the right-eye central-column (17,27) Mi1/Tm3/Tm1/Tm2 per the Path B column map (b61741d2...), same observation model",
+    "use": "DESCRIPTIVE ONLY: NRMSE/peaks vs the data and vs the cutout fit are reported before S3; no gate, no fitting, cannot change the parameters",
+    "implementation": "script frozen in the v7 S3 addendum before it runs"
+  },
+  "risks": [
+    "scale convention: resolved from Fig. 3a (slope ~1 against u = c/2); residual risk that the true stimulus s.d. was 0.25 (A5/H3 would show it)",
+    "luminance mapping: Behnia's ~250 cd m^-2 mean -> BG-1 (encoder 10) is assumed, not measured; adaptation sets filter speed",
+    "flash mapping: 'intensity 1 = 2x mean' (encoder 20) and darkness = encoder 0 are assumptions; 3 s dark settle vs an unknown inter-flash interval",
+    "single model cell fitted to a POPULATION-AVERAGED filter (Mi1 cell peaks 56-85 ms): averaging broadens the target and biases fitted tau slower",
+    "fit in the 7-column cutout (external inputs absent) but deployed in the full network: only the descriptive full-network filter diagnostic checks the fitted timing in the S3 context; no network-level gate",
+    "display/acquisition latency (DLP, fibre optic) is unmodelled: absolute peak times (A2) include it",
+    "held-out data are probably the same cells and were seen by the author: weak, non-independent",
+    "inputs inherit the REJECTED S1-A3 photoreceptor stage; leak40 is hypothetical",
+    "L1/L2 tau/gain trade off against the medulla tau (correlated, possibly non-identifiable); L1/L2 changes reach other T4/T5 inputs",
+    "fitted values may sit on bounds (as in S2)",
+    "the hypothesis and type choice are post hoc to the S3 null (EXPLORATORY)",
+    "the clean base differs from rerun1 by FlyWire-only guards (disclosed above)",
+    "10 'Co-Authored-By: Claude <noreply@anthropic.com>' trailers remain in the clean history (allowed by the checker; owner to confirm)"
+  ]
+}
