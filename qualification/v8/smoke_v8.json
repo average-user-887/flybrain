@@ -1,0 +1,48 @@
+{
+ "arm": "EVALUABLE",
+ "background_evaluable": {
+  "BG-4": true,
+  "BG0": true
+ },
+ "build_s": 2.89,
+ "eval_s": 1.887,
+ "evaluable_backgrounds": [
+  "BG-4",
+  "BG0"
+ ],
+ "flash_finite": true,
+ "measurements": {
+  "BG-4": {
+   "R": {
+    "kernel_peak": 0.008377687000346568,
+    "kernel_tp_ms": 29.0,
+    "response_sd_mV": 0.02219468763642693
+   }
+  },
+  "BG0": {
+   "R": {
+    "kernel_peak": 0.4656417829735996,
+    "kernel_tp_ms": 18.0,
+    "response_sd_mV": 0.9127785706123079
+   }
+  },
+  "flash": {
+   "L1": {
+    "onset_ms": 15.0,
+    "peak_mV": -31.37265396118164,
+    "tp_ms": 65.0
+   },
+   "L2": {
+    "onset_ms": 15.0,
+    "peak_mV": -25.755008697509766,
+    "tp_ms": 66.0
+   },
+   "R": {
+    "onset_ms": 9.0,
+    "peak_mV": 49.25168824195862,
+    "tp_ms": 18.0
+   }
+  }
+ },
+ "run0_dead_time_ms": 7
+}

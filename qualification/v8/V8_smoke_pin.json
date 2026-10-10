@@ -1,0 +1,6 @@
+{
+ "prereg_sha256": "13d4790a8a3c7ff25be3d349dc4c3480c1af37d4600551fac2962d5c12a556c3",
+ "smoke_v8_sha256": "1bb6b77c2580e88ecbfee8b3904324248c98fc3122bfb27c126f4a6102c20b85",
+ "smoke_v8_copy": "qualification/v8/smoke_v8.json",
+ "note": "step 0 per prereg v3; committed before any fit"
+}
