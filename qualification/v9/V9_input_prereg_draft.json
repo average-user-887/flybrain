@@ -1,0 +1,86 @@
+{
+ "contract": "v9 INPUT-STAGE PREREG, DRAFT (NOT FROZEN). Option (a): re-test the v8 R1-R6/LMC timing fit with the flash intensity pinned from the source instead of v8's assumed encoder 330. Freezing is done by the orchestrator after audit; until then nothing here may be run as a fit.",
+ "status": "DRAFT - not frozen; no fit may run against this file",
+ "label": "EXPLORATORY; post hoc to v8 F1_R. Inherits S1-A3 photoreceptor gain/adaptation (G, Ka, tau_a: FIT REJECTED in S1), fixed n_stages = 4, the dead-time ring structure and leak40 (hypothetical). NO science-rule changes: the adaptation model and the dead-time structure are untouched (those are options b/c, not this arm).",
+ "hypothesis": "v8 failed at the R stage (F1_R) under an ASSUMED flash level (encoder 330). If the only defect were the flash level, then with the flash pinned to the source-consistent saturation threshold E_sat (the level most lenient to a slow R peak), fitting R1-R6 tau_p0/Kt and L1/L2 membrane/Ih timing reproduces Drosophila R and LMC flash timing (G1-G5), and the UNCHANGED v6 leak40 medulla then predicts the Behnia 2014 medulla filter timing.",
+ "prediction_stated_before_freeze": {
+  "expected_outcome": "F1_R",
+  "basis": "qualification/v9/V9_probe.json section C: at E_sat no point of a 72-point grid over the free photoreceptor box passes the R stage; G3_R (R onset <= 10 ms) holds only for tau_p0 <= 2 ms (flash R tp 11-17 ms) and G1 (tp 23-30 ms) only at tau_p0 = 8 ms (onset 13-14 ms); n(G1 and G3_R) = 0. G4 at BG-4 IS reachable (16/72), unlike the open question raised before the probe; G4 at both backgrounds at 2/72.",
+  "information_value": "v9 tests one sub-question: is v8's F1_R explained by the flash-level assumption? A FAIL at E_sat holds over the whole source-consistent range (time to peak is non-increasing with level at base and at all four box corners, V9_probe.json A). If F1_R recurs, the remaining candidates are the fixed n=4 cascade, fixed D/ring structure and S1-A3 adaptation, i.e. options (b)/(c), which need their own owner go.",
+  "caveat": "the probe grid is coarse; Powell may find interior points the grid misses. The prediction is not a gate and does not change any rule."
+ },
+ "flash_intensity_pin": {
+  "file": "qualification/v9/V9_flash_pin.json (committed e3151840, BEFORE the probe)",
+  "citation": "Mansour et al. 2026 Nat Commun (PMC13144400), Supplementary Note I.1, Supplementary Information PDF p.3 para 2 ('a saturating 10-ms bright light flash, recorded in vivo at 25 C'); Supp. Fig. 1 legend, PDF p.4 ('10-ms white light flash following brief (5-15 s) dark adaptation')",
+  "verdict": "NOT STATED UNAMBIGUOUSLY: no photon flux, irradiance, ND or LED drive level is given. Bounded range: lower = saturating (E_sat); upper = uncalibrated rig maximum (logI 0), nominal engine stand-in encoder 10,000.",
+  "conversion": "engine I in JH2001 BG0 units, encoder_to_intensity 0.01 (fixed). E_sat = lowest level of {10^(k/2), k=0..8} whose R flash peak >= 0.90 x peak at 10,000, evaluated once at base S1-A3 with D = 7.",
+  "E_sat": 100.0,
+  "E_sat_meaning": "encoder 100 = 1 x JH2001 BG0 (~3e6 effective photons/s) for 10 ms; base R peak 47.5 mV vs 50.9 mV at 10,000 (0.93)",
+  "E_sat_box_dependence_disclosed": "E_sat at box corners: 31.6 (tau_p0 0.5), 316 (tau_p0 20, Kt 0.001), 1000 (tau_p0 20, Kt 100). It is NOT refitted; G0 guards it.",
+  "flash_level_used_in_fit": 100.0,
+  "not_tuned": "E_sat was fixed by the pre-stated rule; it was not chosen by matching the 25.5 ms target."
+ },
+ "data_pin": "qualification/v8/V8_data_pin_v2.json (unchanged)",
+ "base_params": {
+  "file": "qualification/v6/params_v6_S2A_leak40.json",
+  "sha256": "135220ca7e9bc01c5d88f4fee321dea7e2c5fe57c0c1db24de76187f5ee4962f"
+ },
+ "targets": "identical to qualification/v8/V8_input_prereg_v3.json 'targets' (flash R 25.5 ms, LMC 12.2 ms, latency 6.5 +- 1.5 ms, kernel tp 40/20 ms at BG-4/BG0, D 10 ms at BG0; sources Mansour 2026 Supp. Fig. 1b and Juusola & Hardie 2001)",
+ "free_parameters": {
+  "continuous": "identical to v8 v3 (R1-R6 tau_p0_ms 0.5-20 log, Kt 0.001-100 log; L1/L2 tau_m_ms 1-200 log, ih_g 0-3, ih_tau_ms 5-1000 log, ih_vh_mV -80..-30)",
+  "dead_time_grid_ms": [
+   7,
+   8
+  ],
+  "dead_time_note": "kept from v8 v3 (no change to the dead-time structure). Probe bounds (V9_probe.json B, engine substep 0.1 ms, graded-release delay 1.8 ms, +1 ms read offset): R onset = D+1; L onset = D+2 at w = -50 and D+3 at w = -9.6 and -5. The frozen cutout's R->L weights sum to -9.63 (L1) and -9.08 (L2) (V8 addendum 1), so G3_L is feasible only at D = 7; D = 8 is retained for comparability with v8 and can pass the R stage only. G5 (D 7-13) excludes D <= 6."
+ },
+ "fixed": "G, Ka, tau_a, n_stages, encoder_to_intensity, the release synapses and the medulla (as v8)",
+ "protocols": "v8 protocols (scripts/v8/v8_input.py) unchanged EXCEPT the flash level: v8_input.FLASH_LEVEL = E_sat = 100 (was 330). 10 s dark, 10 ms flash, 100 ms record; noise at BG-4 and BG0 as v8.",
+ "objective": "identical to v8 v3 (v8_input.objective)",
+ "optimiser": "identical to v8 v3: Powell, 6 starts per D (start 0 = base clipped, 5 LHS draws, seed 8010), 12 runs, maxfev 2000, 2 h wall cap per run, >= 6 of 12 completed; CPU only, NUMBA 1 thread, <= 4 processes, nice, taskset -c 0-3",
+ "compute_budget": "as v8 v3: ~13 core-h, ~3.5 h wall at <= 4 cores",
+ "acceptance": {
+  "training": {
+   "G0_saturation_validity": "NEW in v9 (consequence of the pin, not a timing gate): at the run's final parameters and D, the R flash peak at E_sat is >= 0.90 x the peak at encoder 10,000. A run failing G0 is reported as 'flash not saturating at its own parameters' and cannot be TRAIN_PASS.",
+   "G1": "flash R1-R6 time to peak 23-30 ms (printed range +-1 ms)",
+   "G2": "flash L1 AND L2 time to peak 10-16 ms AND earlier than R",
+   "G3_R": "flash R onset 4-10 ms",
+   "G3_L": "L1 and L2 onsets 4-10 ms AND |L - R| <= 3 ms",
+   "G4": "R kernel time to peak within 25 % of 40 ms (BG-4) and 20 ms (BG0) at each evaluable background, AND faster at BG0 when both are evaluable",
+   "G5": "D 7-13 ms (non-binding over the grid {7, 8})",
+   "R_STAGE": "G0 and G1 and G3_R and G4 and G5",
+   "LMC_STAGE": "G2 and G3_L",
+   "TRAIN_PASS": "R_STAGE and LMC_STAGE on the run's own parameters",
+   "gate_values": "G1-G5 numeric windows are UNCHANGED from v8 v3; they come from the data, not from the probe. The probe informs only the feasibility statement, the D-grid note and the stated prediction."
+  },
+  "heldout": {
+   "evaluated": "Behnia 2014 (Mi1, Tm3, Tm1, Tm2 filters) is evaluated ONLY if TRAIN_PASS, once, on the frozen params_v9.json; otherwise it is NOT run and nothing is claimed about the medulla",
+   "gates": "H1, H2, HELDOUT_PASS identical to v8 v3 acceptance.heldout",
+   "label": "independent data (other lab, cells, method) but NOT analyst-blind (the analyst has seen Behnia in v7/v8)"
+  }
+ },
+ "outcomes": {
+  "NOT_EVALUABLE": "step 0 declares the arm not evaluable, or fewer than 6 of 12 runs completed: no claim; stop",
+  "F1_R": "no completed run passes the R stage (G0, G1, G3_R, G4, G5): with the flash at the source-consistent saturation threshold, the photoreceptor model (fixed n=4, fixed D ring, S1-A3 adaptation) does not reproduce Drosophila R timing; because time to peak falls with level, this holds for every source-consistent flash level. The flash-level explanation of v8 F1_R is rejected. R->LMC is NOT tested.",
+  "F1_LMC": "some run passes the R stage but none passes both: as v8 F1_LMC, conditional on E_sat, fixed release synapse and 1.8 ms release delay",
+  "F2_propagation": "TRAIN_PASS but HELDOUT_PASS false: remaining error is in the medulla/synapse model",
+  "PASS": "TRAIN_PASS and HELDOUT_PASS: exploratory and CONDITIONAL on the real flash being near saturation threshold (a brighter real flash would make R peak earlier); any S3 needs a separate owner go",
+  "always_reported": "all runs, both stage verdicts and G0 per run, all gates, step-0 smoke"
+ },
+ "sequence": [
+  "0 write scripts/v9/fit_v9.py (= v8 fit with FLASH_LEVEL = 100 and G0 added; no other change), pin its sha256 in this file, audit, orchestrator freezes",
+  "1 step-0 smoke, commit and sha-pin before any fit",
+  "2 fit: 12 runs, <= 4 at a time, only if step 0 says EVALUABLE",
+  "3 held-out once on the frozen file, only if TRAIN_PASS",
+  "4 report; STOP (no options b/c and no S3 without a separate owner go)"
+ ],
+ "code_sha256": "TO BE PINNED AT FREEZE (scripts/v9/fit_v9.py, scripts/v8/v8_input.py, scripts/v9/probe_v9.py)",
+ "v8_history_disclosure": {
+  "prereg_freezes": "v8 was preregistered three times before any run (v1, v2 superseded after audit FAILs; v3 frozen, sha256 13d4790a8a3c7ff25be3d349dc4c3480c1af37d4600551fac2962d5c12a556c3) plus disclosure-only addendum 1 (R->L weights, 1.8 ms delay)",
+  "outcome": "F1_R: 12/12 runs completed, none passed the R stage; held-out not run (V8_fit_outcome.json sha256 eaa52395269afd293071a47c914f63acc065c807ca5d4a6a239d9ab201126c4a, commit 13fb5552)",
+  "acceptance_wording_correction": "after the v8 outcome audits (both PASS), the orchestrator corrected the v8 result report's wording: 'the photoreceptor is too fast' overreaches; G1's 14 ms peak is light-conductance saturation at the ASSUMED flash level (encoder 330). That correction motivates this arm. No v8 gate, rule or result changed; the original report is kept unedited.",
+  "analyst_knowledge": "the analyst has seen v8's run-0 descriptive level -> time-to-peak curve (330 -> 14 ms, 33 -> 20, 3.3 -> 25) and the v9 probe grid. The E_sat rule was committed (e3151840) before the probe and does not reference 25.5 ms; the probe was run before this draft and its results are used only for feasibility and prediction statements, not for choosing gates, bounds or the flash level.",
+  "encoder_330": "v8's flash level (encoder 330 = 3.3 x BG0) was an assumption and is retired"
+ },
+ "supersedes": "none (new arm). v8 v3 remains the frozen record of v8."
+}

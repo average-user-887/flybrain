@@ -1,0 +1,140 @@
+{
+ "contract": "v9 engine probe SUMMARY (prereg input, not a fit). Full output and sha256 kept in the off-repo evidence bundle flybrain-v9-evidence-20261010 (probe_v9.json sha256 77469b53b2b9fc174e51be2f7a01de4397e6b88f28f2db2b605d146e1089f158). Source commit e3151840 (flash pin committed before the probe ran).",
+ "script": "scripts/v9/probe_v9.py",
+ "run": "CPU only (CUDA_VISIBLE_DEVICES empty), 4 cores, nice; wall 99.5 s",
+ "engine": {
+  "step_ms": 1,
+  "substep_ms": 0.1,
+  "graded_release_delay_ms": 1.8,
+  "encoder_to_intensity": 0.01,
+  "read_offset_ms": 1
+ },
+ "A_saturation": {
+  "rule": "V9_flash_pin.json conversion_rule_prestated (lowest half-log level with R peak >= 0.90 x peak at 10,000)",
+  "base_D7_rows": [
+   {
+    "encoder": 1.0,
+    "onset_ms": 15.0,
+    "tp_ms": 34.0,
+    "peak_mV": 7.67
+   },
+   {
+    "encoder": 3.16,
+    "onset_ms": 15.0,
+    "tp_ms": 33.0,
+    "peak_mV": 18.7
+   },
+   {
+    "encoder": 10.0,
+    "onset_ms": 13.0,
+    "tp_ms": 30.0,
+    "peak_mV": 33.44
+   },
+   {
+    "encoder": 31.62,
+    "onset_ms": 12.0,
+    "tp_ms": 26.0,
+    "peak_mV": 43.31
+   },
+   {
+    "encoder": 100.0,
+    "onset_ms": 11.0,
+    "tp_ms": 21.0,
+    "peak_mV": 47.49
+   },
+   {
+    "encoder": 316.23,
+    "onset_ms": 10.0,
+    "tp_ms": 18.0,
+    "peak_mV": 49.21
+   },
+   {
+    "encoder": 1000.0,
+    "onset_ms": 9.0,
+    "tp_ms": 15.0,
+    "peak_mV": 50.04
+   },
+   {
+    "encoder": 3162.28,
+    "onset_ms": 8.0,
+    "tp_ms": 13.0,
+    "peak_mV": 50.55
+   },
+   {
+    "encoder": 10000.0,
+    "onset_ms": 8.0,
+    "tp_ms": 12.0,
+    "peak_mV": 50.85
+   }
+  ],
+  "E_sat_fixed": 100.0,
+  "E_sat_at_box_corners": {
+   "base_D7": 100.0,
+   "corner_tau0.5_Kt0.001_D7": 31.622776601683793,
+   "corner_tau0.5_Kt100.0_D7": 31.622776601683793,
+   "corner_tau20.0_Kt0.001_D7": 316.22776601683796,
+   "corner_tau20.0_Kt100.0_D7": 1000.0
+  },
+  "tp_nonincreasing_with_level": {
+   "base_D7": true,
+   "corner_tau0.5_Kt0.001_D7": true,
+   "corner_tau0.5_Kt100.0_D7": true,
+   "corner_tau20.0_Kt0.001_D7": true,
+   "corner_tau20.0_Kt100.0_D7": true
+  },
+  "disclosure": "E_sat VARIES across the free box (31.6 at tau_p0 0.5 ms; 316-1000 at tau_p0 20 ms). Per the pin it stays FIXED at 100 (base, D7); G0 checks saturation at the run's final parameters. Time to peak is non-increasing with level at base and all four corners, so the pin's FAIL-holds-over-the-range argument applies."
+ },
+ "B_onset_bounds": {
+  "setup": "fastest free values: tau_p0 0.5 ms, L tau_m 1 ms, no Ih; D 5..11; weights -50, -9.6, -5; flash at E_sat (100) and 10,000 (identical results)",
+  "R_onset": "D + 1 ms (all weights, both levels)",
+  "L_onset": {
+   "w=-50": "D + 2 ms",
+   "w=-9.6": "D + 3 ms",
+   "w=-5": "D + 3 ms"
+  },
+  "consequence": "G3_L (L onset <= 10 ms) at the realistic weight (~-9.6) needs D <= 7; with w=-50, D <= 8. G3_R (R onset <= 10) needs D <= 9 at the fastest tau_p0."
+ },
+ "C_R_stage_feasibility": {
+  "grid": "D {7,8} x tau_p0 {0.5,1,2,4.33,8,20} ms x Kt {0.001,...,100} (72 points), flash at E_sat = 100, v8 measure() and train_gates() unchanged",
+  "summary": {
+   "n": 72,
+   "n_evaluable_BG4": 72,
+   "kernel_tp_BG4_range": [
+    10.0,
+    88.0
+   ],
+   "kernel_tp_BG0_range": [
+    8.0,
+    71.0
+   ],
+   "flash_R_tp_range_at_E_sat": [
+    11.0,
+    56.0
+   ],
+   "n_G1": 9,
+   "n_G4_BG4": 16,
+   "n_G4_all": 2,
+   "n_R_STAGE": 0
+  },
+  "n_G1_and_G3_R": 0,
+  "G3_R_true_only_for_tau_p0_ms": "<= 2 (R onset 8-10 ms; flash R tp 11-17 ms: G1 fails)",
+  "G1_true_only_for_tau_p0_ms": "8 (flash R tp 23-30 ms; R onset 13-14 ms: G3_R fails)",
+  "G4_all_true_at": [
+   {
+    "D": 7,
+    "tau_p0_ms": 8.0,
+    "Kt": 1.0,
+    "flash_R_tp": 29.0,
+    "flash_R_onset": 13.0
+   },
+   {
+    "D": 8,
+    "tau_p0_ms": 4.33,
+    "Kt": 1.0,
+    "flash_R_tp": 22.0,
+    "flash_R_onset": 12.0
+   }
+  ],
+  "reading": "Descriptive, coarse grid. At E_sat no grid point passes the R stage: the onset gate (<= 10 ms) and the time-to-peak gate (>= 23 ms) pull tau_p0 in opposite directions under the fixed n=4 cascade and fixed D. The fit may find interior points the grid misses; the prereg PREDICTS F1_R."
+ }
+}
