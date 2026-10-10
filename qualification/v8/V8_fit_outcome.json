@@ -1,0 +1,798 @@
+{
+ "fit_source_commit": "8cadca3df88d715a24de082b111c73d168e8a882",
+ "meaning": "F1_R: all 12 runs completed and none passes the R stage (G1, G3_R, G4, G5). Per the prereg the arm stops: no params_v8.json is frozen; the held-out Behnia prediction (defined on a frozen TRAIN_PASS file) is NOT run. The R->LMC transfer is NOT tested.",
+ "outcome": "F1_R",
+ "record": "v8 fit OUTCOME under prereg v3 (13d4790a...) + addendum 1; step 0 pinned (smoke 1bb6b77c...). CPU only, 12 runs, <= 4 at a time, nice, taskset 0-3.",
+ "runs": {
+  "0": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": true,
+    "L2": true,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 53.046470895363235,
+   "dead_time_ms": 7,
+   "evals": 912,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.280043632900167,
+     "ih_tau_ms": 8.069400698203275,
+     "ih_vh_mV": -60.90117459524795,
+     "tau_m_ms": 7.5699874101982125
+    },
+    "L2": {
+     "ih_g": 2.400270855605438,
+     "ih_tau_ms": 9.558686673161219,
+     "ih_vh_mV": -60.901305443713376,
+     "tau_m_ms": 7.327282534142571
+    },
+    "R1-R6": {
+     "Kt": 7.680405773504754,
+     "tau_p0_ms": 2.360940974754666
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 10.0,
+     "peak_mV": -29.673797607421875,
+     "tp_ms": 17.0
+    },
+    "L2": {
+     "onset_ms": 10.0,
+     "peak_mV": -23.949413299560547,
+     "tp_ms": 16.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.936903953552246,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 20.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "a6006eabd4ce8db4a6572752ca2830a868539f5318bce1234639b147715c8a0e"
+  },
+  "1": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": true,
+    "L2": true,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 55.557857185585135,
+   "dead_time_ms": 7,
+   "evals": 727,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2933632138528637,
+     "ih_tau_ms": 8.656539485292138,
+     "ih_vh_mV": -60.88042816274241,
+     "tau_m_ms": 3.4849061806500083
+    },
+    "L2": {
+     "ih_g": 2.293845886071042,
+     "ih_tau_ms": 6.855355121805775,
+     "ih_vh_mV": -60.921379904971374,
+     "tau_m_ms": 6.279150989922034
+    },
+    "R1-R6": {
+     "Kt": 14.938643559220269,
+     "tau_p0_ms": 2.412248450692326
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 10.0,
+     "peak_mV": -29.623394012451172,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 10.0,
+     "peak_mV": -23.60797882080078,
+     "tp_ms": 16.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.92213296890259,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 21.0,
+    "BG0": 19.0
+   },
+   "report_sha256": "829116557a633fb6ba251678544f7b4f5caef90aad5aa79c2c0de2d479773505"
+  },
+  "2": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": true,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 59.30091274114069,
+   "dead_time_ms": 7,
+   "evals": 529,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2921423899430304,
+     "ih_tau_ms": 8.694691512379176,
+     "ih_vh_mV": -60.90117724005668,
+     "tau_m_ms": 2.1671709333072307
+    },
+    "L2": {
+     "ih_g": 2.292142389944164,
+     "ih_tau_ms": 7.0446233550893815,
+     "ih_vh_mV": -60.90120643381401,
+     "tau_m_ms": 6.386403502530797
+    },
+    "R1-R6": {
+     "Kt": 6.603985754740613,
+     "tau_p0_ms": 2.5076625183590204
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 10.0,
+     "peak_mV": -29.592056274414062,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -23.640926361083984,
+     "tp_ms": 16.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.88697266578674,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 21.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "a324141c7f511281dd76fa4f5e8736a1a3a6cd83dd91e2a724ba105b87691c0b"
+  },
+  "3": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 58.27139885225181,
+   "dead_time_ms": 7,
+   "evals": 727,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.309268432813506,
+     "ih_tau_ms": 8.653455147167973,
+     "ih_vh_mV": -60.90117724005668,
+     "tau_m_ms": 3.560371488492073
+    },
+    "L2": {
+     "ih_g": 2.2437751988814827,
+     "ih_tau_ms": 6.943850930573475,
+     "ih_vh_mV": -60.98926678671117,
+     "tau_m_ms": 7.239655764112754
+    },
+    "R1-R6": {
+     "Kt": 7.116575822221385,
+     "tau_p0_ms": 2.653840886538498
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -29.614810943603516,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -23.681255340576172,
+     "tp_ms": 16.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.81347584724426,
+     "tp_ms": 15.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 22.0,
+    "BG0": 19.0
+   },
+   "report_sha256": "27e3293e1f25f1c8bf9f2450ab2abd6015cd52c1e70ab230efb4a7fd615a3bde"
+  },
+  "4": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": true,
+    "L2": true,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 58.241918232368945,
+   "dead_time_ms": 7,
+   "evals": 519,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2921423899430304,
+     "ih_tau_ms": 10.83585470070035,
+     "ih_vh_mV": -60.90106817218616,
+     "tau_m_ms": 3.494911569259496
+    },
+    "L2": {
+     "ih_g": 2.290624756212234,
+     "ih_tau_ms": 7.045335350593666,
+     "ih_vh_mV": -60.901040750533475,
+     "tau_m_ms": 4.611981964027761
+    },
+    "R1-R6": {
+     "Kt": 14.878974479938641,
+     "tau_p0_ms": 2.4668871106595587
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 10.0,
+     "peak_mV": -29.840957641601562,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 10.0,
+     "peak_mV": -23.582435607910156,
+     "tp_ms": 17.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.90200924873352,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 21.0,
+    "BG0": 19.0
+   },
+   "report_sha256": "902e482909b6eef23d79c6b47a401034ac988228e1d6f46d78df68f84f348a65"
+  },
+  "5": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": true,
+    "L2": true,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 58.241918232368945,
+   "dead_time_ms": 7,
+   "evals": 535,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2921423899430304,
+     "ih_tau_ms": 8.69469151237918,
+     "ih_vh_mV": -60.90117724005668,
+     "tau_m_ms": 2.1671709472165777
+    },
+    "L2": {
+     "ih_g": 2.2924054664336486,
+     "ih_tau_ms": 9.965256305526172,
+     "ih_vh_mV": -60.90120643381612,
+     "tau_m_ms": 3.494989453359572
+    },
+    "R1-R6": {
+     "Kt": 14.878974479938641,
+     "tau_p0_ms": 2.425409719131117
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 10.0,
+     "peak_mV": -29.594802856445312,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 10.0,
+     "peak_mV": -23.91281509399414,
+     "tp_ms": 17.0
+    },
+    "R": {
+     "onset_ms": 8.0,
+     "peak_mV": 49.91851854324341,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 21.0,
+    "BG0": 19.0
+   },
+   "report_sha256": "6fb21c258ee72e746a088bd6670303cd173999fb693c0a8724cc5e240db1ca00"
+  },
+  "6": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 71.23594341147975,
+   "dead_time_ms": 8,
+   "evals": 543,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2921423899430304,
+     "ih_tau_ms": 8.065497589178626,
+     "ih_vh_mV": -60.90117734825685,
+     "tau_m_ms": 6.691170138795331
+    },
+    "L2": {
+     "ih_g": 2.292187526010312,
+     "ih_tau_ms": 8.065497624007811,
+     "ih_vh_mV": -60.90120643381612,
+     "tau_m_ms": 3.494434587050096
+    },
+    "R1-R6": {
+     "Kt": 6.605831943568614,
+     "tau_p0_ms": 2.089605083833677
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -29.644947052001953,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -23.69449234008789,
+     "tp_ms": 18.0
+    },
+    "R": {
+     "onset_ms": 9.0,
+     "peak_mV": 50.04456949234009,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 20.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "53e5cadde328c86dc2bf37ec2d96675ffba9bc98eabb0d6bb597b03cf91aa913"
+  },
+  "7": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 75.16840494513974,
+   "dead_time_ms": 8,
+   "evals": 347,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.2921423899430304,
+     "ih_tau_ms": 8.065497618103201,
+     "ih_vh_mV": -60.901177273482276,
+     "tau_m_ms": 6.691170072458287
+    },
+    "L2": {
+     "ih_g": 1.854448278197611,
+     "ih_tau_ms": 11.358254626802553,
+     "ih_vh_mV": -60.90118104035455,
+     "tau_m_ms": 3.494434587050095
+    },
+    "R1-R6": {
+     "Kt": 21.108216125963757,
+     "tau_p0_ms": 2.0255414438729096
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -29.641693115234375,
+     "tp_ms": 18.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -24.23596954345703,
+     "tp_ms": 19.0
+    },
+    "R": {
+     "onset_ms": 9.0,
+     "peak_mV": 50.07272791862488,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 20.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "73aa9d1aeca6dfcddc3b83261788c3407394defd61cf80e91aacd3b31a6af5c3"
+  },
+  "8": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": false,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 89.61550489563719,
+   "dead_time_ms": 8,
+   "evals": 1201,
+   "fitted": {
+    "L1": {
+     "ih_g": 1.5712390908837517,
+     "ih_tau_ms": 13.244885667805098,
+     "ih_vh_mV": -63.36696819726516,
+     "tau_m_ms": 4.117541162460304
+    },
+    "L2": {
+     "ih_g": 2.4901148072873345,
+     "ih_tau_ms": 7.338749289667123,
+     "ih_vh_mV": -60.461801542057614,
+     "tau_m_ms": 8.0286755591583
+    },
+    "R1-R6": {
+     "Kt": 0.3883850018361998,
+     "tau_p0_ms": 4.147042268652628
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 12.0,
+     "peak_mV": -30.538951873779297,
+     "tp_ms": 22.0
+    },
+    "L2": {
+     "onset_ms": 13.0,
+     "peak_mV": -23.65390396118164,
+     "tp_ms": 18.0
+    },
+    "R": {
+     "onset_ms": 10.0,
+     "peak_mV": 49.343244791030884,
+     "tp_ms": 19.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 29.0,
+    "BG0": 14.0
+   },
+   "report_sha256": "8d3a20f7093db5023928aedcdd8e38dac1d91750b6a626534400fb6259bd1f4e"
+  },
+  "9": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 71.86014365491783,
+   "dead_time_ms": 8,
+   "evals": 555,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.227873868485013,
+     "ih_tau_ms": 8.366860053654413,
+     "ih_vh_mV": -57.78843341509157,
+     "tau_m_ms": 4.945888237559054
+    },
+    "L2": {
+     "ih_g": 2.257708613726503,
+     "ih_tau_ms": 7.457413407306283,
+     "ih_vh_mV": -61.02516134669961,
+     "tau_m_ms": 6.245883865717585
+    },
+    "R1-R6": {
+     "Kt": 6.601611001415817,
+     "tau_p0_ms": 2.1642149383369604
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -29.46430206298828,
+     "tp_ms": 19.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -23.71636199951172,
+     "tp_ms": 17.0
+    },
+    "R": {
+     "onset_ms": 9.0,
+     "peak_mV": 50.006019115448,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 20.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "1b6c0917c6761608569f70bff98a1f66637eb0e8535863dab84e75f042f745c0"
+  },
+  "10": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 70.5520855006953,
+   "dead_time_ms": 8,
+   "evals": 742,
+   "fitted": {
+    "L1": {
+     "ih_g": 2.043355315357809,
+     "ih_tau_ms": 14.751764315775713,
+     "ih_vh_mV": -59.125757827589275,
+     "tau_m_ms": 3.0000323010910686
+    },
+    "L2": {
+     "ih_g": 2.1814247600713204,
+     "ih_tau_ms": 11.721384988359969,
+     "ih_vh_mV": -62.43125265836189,
+     "tau_m_ms": 5.3651433081644715
+    },
+    "R1-R6": {
+     "Kt": 16.69499780359074,
+     "tau_p0_ms": 2.228108746646528
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -30.134605407714844,
+     "tp_ms": 19.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -24.171630859375,
+     "tp_ms": 18.0
+    },
+    "R": {
+     "onset_ms": 9.0,
+     "peak_mV": 49.97259473800659,
+     "tp_ms": 15.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 21.0,
+    "BG0": 19.0
+   },
+   "report_sha256": "0da28f20d5b4560fc89f5ae5e08851f114ba96c9feabef9fd327765f5b9713e9"
+  },
+  "11": {
+   "G1": false,
+   "G2": {
+    "L1": false,
+    "L2": false
+   },
+   "G3_L": {
+    "L1": false,
+    "L2": false,
+    "no_synaptic_delay": true
+   },
+   "G3_R": true,
+   "G4": {
+    "BG-4": false,
+    "BG0": true,
+    "adapts": true
+   },
+   "G5": true,
+   "LMC_STAGE": false,
+   "R_STAGE": false,
+   "cost": 75.16840494513974,
+   "dead_time_ms": 8,
+   "evals": 520,
+   "fitted": {
+    "L1": {
+     "ih_g": 1.8544482886920841,
+     "ih_tau_ms": 11.815331837147953,
+     "ih_vh_mV": -54.99870213930007,
+     "tau_m_ms": 3.4944345870500952
+    },
+    "L2": {
+     "ih_g": 2.290624760220641,
+     "ih_tau_ms": 12.08948655164599,
+     "ih_vh_mV": -60.90120643381367,
+     "tau_m_ms": 6.296405510358678
+    },
+    "R1-R6": {
+     "Kt": 21.108215822034463,
+     "tau_p0_ms": 1.9943746394207187
+    }
+   },
+   "flash": {
+    "L1": {
+     "onset_ms": 11.0,
+     "peak_mV": -29.952613830566406,
+     "tp_ms": 19.0
+    },
+    "L2": {
+     "onset_ms": 11.0,
+     "peak_mV": -24.181610107421875,
+     "tp_ms": 18.0
+    },
+    "R": {
+     "onset_ms": 9.0,
+     "peak_mV": 50.0855108499527,
+     "tp_ms": 14.0
+    }
+   },
+   "kernel_tp_ms": {
+    "BG-4": 20.0,
+    "BG0": 18.0
+   },
+   "report_sha256": "80948dd49f0c820f6e0496d9ca276486e8a5ff49fdbe60f975adde483f76cf80"
+  }
+ },
+ "synapse_transfer_test_v6_leak40": {
+  "disinhibition_ceiling_mV": {
+   "L1": 6.459684371948242,
+   "Mi1": 21.759117126464844,
+   "Tm3": 27.216339111328125
+  },
+  "flash_onset_peak_mV": {
+   "L1": -31.433467864990234,
+   "Mi1": 10.300533294677734,
+   "Tm3": 5.104270935058594
+  },
+  "reading": {
+   "Mi1": "BELOW: suggestive that L1 disinhibition alone cannot reach the measured Mi1 ON amplitude",
+   "Tm3": "REACHABLE: the measured Tm3 ON amplitude is within the disinhibition ceiling"
+  },
+  "report_sha256": "b4db1de188128a45f1b01028b80f5c317623a3bc67f81010153a50aff86c99af",
+  "steady_state_note": "steady states after 3 s are identical within 0.1 mV at every light level (full adaptation), so the preregistered slopes dMi1/dL1 are ratios of sub-0.1 mV differences and are NOT interpretable",
+  "thresholds_mV": {
+   "Mi1": 28.36,
+   "Tm3": 23.119999999999997
+  }
+ }
+}
