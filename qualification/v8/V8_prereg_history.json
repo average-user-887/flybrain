@@ -1,0 +1,19 @@
+{
+  "v1": {
+    "file": "qualification/v8/V8_input_prereg.json",
+    "sha256": "6fa584331422598ba694424406cf2fd9ee2499c1f96c8d80588d76ec87471bee",
+    "status": "SUPERSEDED",
+    "when": "2026-10-10, before any run",
+    "reason": "audit 1 FAIL (dispersion, JH2001 definitions, F1 attribution, +1 ms offset, G3/G5 conflict, synapse threshold, graded-cell CANNOT-TELL) and audit 2 FAIL (D1 G2 window, D2 BG-4 decidability, D3 conditional F1)",
+    "data_pin": {
+      "file": "qualification/v8/V8_data_pin.json",
+      "sha256": "7c393065b76af576ad376b517f7e6143b9b73aa3531d1265dd86d9446bf21524",
+      "status": "SUPERSEDED by V8_data_pin_v2.json"
+    }
+  },
+  "v2": {
+    "file": "qualification/v8/V8_input_prereg_v2.json",
+    "status": "CURRENT (frozen)",
+    "changes": "see changes_from_v1 in the v2 file"
+  }
+}

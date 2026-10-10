@@ -10,15 +10,25 @@ import math
 
 import numpy as np
 
-# --- targets (V8_data_pin.json) -------------------------------------------------------------
+# --- targets (V8_data_pin.json; prereg v2) ---------------------------------------------------
 # Mansour et al. 2026 Supp. Fig. 1b: 10-ms bright flash after brief dark adaptation, 25 C.
-T_FLASH_R_TP = (25.5, 2.4)          # mean, dispersion (n=4)
-T_FLASH_LMC_TP = (12.2, 1.1)        # (n=5), LMC subtype pooled -> applied to L1 and L2
+# R1-R6: 25.5 +- 2.4 ms, n=4, printed range 24.0-29.0 -> the +-2.4 is consistent with a sample s.d.
+# (feasible s.d. given n, mean and range: 2.35-2.38 ms; feasible_sd()).
+# LMC: 12.2 +- 1.1 ms, n=5, range 11.0-15.0 -> +-1.1 is neither s.d. (feasible 1.59-1.79) nor
+# s.e.m. (0.71-0.80): it is NOT used.  v2 (audit 1 item 2/5a, audit 2 D1): windows are built from
+# the PRINTED RANGE widened by 1 ms (model sampling resolution), so every recorded cell, including
+# the 15.0 ms LMC, is inside; objective sigmas are the largest feasible sample s.d.
+T_FLASH_R = dict(mean=25.5, n=4, lo=24.0, hi=29.0, sigma=2.4)
+T_FLASH_LMC = dict(mean=12.2, n=5, lo=11.0, hi=15.0, sigma=1.79)
+WINDOW_PAD_MS = 1.0
 T_FLASH_LATENCY = (6.5, 1.5)        # '~6-7 ms', both cell types; sigma = declared reading tolerance
-# Juusola & Hardie 2001: impulse time to peak and dead time at the background endpoints.
-T_IMPULSE_TP = {'BG-4': 40.0, 'BG0': 20.0}
-T_DEAD = {'BG-4': 20.0, 'BG0': 10.0}
-SIG_TP_FRAC, SIG_DEAD_FRAC = 0.20, 0.25
+# Juusola & Hardie 2001 (v2, audit 1 item 2b): the 'impulse response' k_V(t) is the LINEAR KERNEL
+# estimated from Gaussian contrast noise (s.d. ~0.32, white to 150 Hz); the dead time D is a PURE
+# DELAY derived from the measured minus the minimum phase (10-90 Hz).  v2 compares like with like:
+# the model's noise kernel time to peak (G4) and the model's pure-delay PARAMETER dead_time_ms (G5).
+T_KERNEL_TP = {'BG-4': 40.0, 'BG0': 20.0}
+T_DEAD_BG0 = 10.0
+SIG_TP_FRAC = 0.20
 
 # --- protocols ------------------------------------------------------------------------------
 DARK_ADAPT_MS = 10_000              # Mansour: 5-15 s dark adaptation
@@ -26,19 +36,64 @@ FLASH_MS, FLASH_LEVEL = 10, 330.0   # encoder 330 = 3.3 x BG0 (JH2001's brightes
 FLASH_RECORD_MS = 100
 BACKGROUND = {'BG-4': 0.01, 'BG0': 100.0}   # encoder level (x 0.01 = BG0 units)
 BG_SETTLE_MS = 3000
-IMPULSE_MS, IMPULSE_FACTOR = 1, 3.0  # 1-ms pulse to 3 x background (contrast +2); ASSUMPTION
-IMPULSE_RECORD_MS = 150
-ONSET_FRAC = 0.10                   # onset/latency = first |dV| >= 10 % of the peak deflection
+NOISE_MS, NOISE_SD, NOISE_CUTOFF_HZ, NOISE_SEED = 4000, 0.32, 150.0, 8002
+KERNEL_SNIPPET_MS, KERNEL_HOP_MS, KERNEL_LAGS = 1000, 100, 150
+ONSET_FRAC = 0.10                   # flash onset/latency = first |dV| >= 10 % of the peak deflection
+SAMPLE_OFFSET_MS = 1.0              # v2 (audit 1 item 5c): V is read at the END of each 1 ms step
+# BG-4 decidability (v2, audit 2 D2): the deterministic model resolves any finite deflection, but a
+# kernel smaller than this is treated as unmeasurable (pre-written NOT EVALUABLE rule in the prereg)
+K_MIN_MV_PER_CONTRAST_MS = 1e-3
+SD_MIN_MV = 0.01
 
 LMC_TYPES = ('L1', 'L2')
 
 
+def feasible_sd(n, mean, lo, hi, step=0.01):
+    """(min, max) sample s.d. of n values in [lo, hi] with the given mean whose min is lo and max is
+    hi (the printed range): brute force over the n-2 free values on a grid."""
+    import itertools
+    rest = n * mean - lo - hi
+    grid = np.arange(lo, hi + 1e-9, step)
+    best = [np.inf, -np.inf]
+    if n - 2 == 1:
+        cands = [(rest,)] if lo <= rest <= hi else []
+    else:
+        cands = []
+        for c in itertools.combinations_with_replacement(grid, n - 3):
+            last = rest - sum(c)
+            if lo <= last <= hi:
+                cands.append(c + (last,))
+    for c in cands:
+        sd = float(np.std(np.r_[lo, hi, c], ddof=1))
+        best = [min(best[0], sd), max(best[1], sd)]
+    return tuple(best)
+
+
+def window(t):
+    return t['lo'] - WINDOW_PAD_MS, t['hi'] + WINDOW_PAD_MS
+
+
+def jh_noise(seed=NOISE_SEED, n=NOISE_MS):
+    """Gaussian contrast noise at 1 ms: white noise through a first-order 150 Hz low-pass, rescaled
+    to s.d. 0.32 and clipped to [-1, 1] (JH2001: Gaussian, white to 150 Hz, s.d. ~0.32)."""
+    rng = np.random.default_rng(seed)
+    w = rng.standard_normal(n + 200)
+    a = math.exp(-2 * math.pi * NOISE_CUTOFF_HZ * 1e-3)
+    y = np.empty_like(w); y[0] = w[0]
+    for i in range(1, len(w)):
+        y[i] = a * y[i - 1] + (1 - a) * w[i]
+    y = y[200:]
+    return np.clip(y / y.std() * NOISE_SD, -1.0, 1.0)
+
+
 def onset_tp(x, frac=ONSET_FRAC):
-    """(onset_ms, time_to_peak_ms, peak) of a deflection trace sampled at 1 ms from stimulus onset."""
+    """(onset_ms, time_to_peak_ms, peak) of a deflection trace whose sample k was read at the end of
+    the 1 ms step that starts at k ms after stimulus onset (v2: times include the +1 ms offset)."""
     x = np.asarray(x, float)
     k = int(np.argmax(np.abs(x)))
     above = np.flatnonzero(np.abs(x[:k + 1]) >= frac * abs(x[k]))
-    return (float(above[0]) if len(above) else math.nan), float(k), float(x[k])
+    on = float(above[0]) + SAMPLE_OFFSET_MS if len(above) else math.nan
+    return on, float(k) + SAMPLE_OFFSET_MS, float(x[k])
 
 
 def apply_input_params(b, idx, light, pt_base, fitted):
@@ -53,7 +108,7 @@ def apply_input_params(b, idx, light, pt_base, fitted):
     b.v6_params = dict(b.v6_params, phototransduction=pt)
     b.pt = Phototransduction(pt, len(light))
     for t in LMC_TYPES:
-        i = idx[t]
+        i = idx[t][b.graded[idx[t]] != 0]          # v2 (audit 1 item 3): the cells BrainV6 loads
         for k, v in fitted.get(t, {}).items():
             if k == 'tau_m_ms':
                 b.tau_m[i] = v
@@ -80,8 +135,22 @@ def run_levels(b, light, cols, levels):
     return out
 
 
+def kernel(s, v):
+    """Linear kernel of v (mV) on contrast s (per unit contrast per ms), the same FFT estimator as
+    v7 (1 s zero-padded snippets every 100 ms, eps 1 %), after removing the means."""
+    s = np.asarray(s, float) - np.mean(s); r = np.asarray(v, float) - np.mean(v)
+    nfft = 2 * KERNEL_SNIPPET_MS
+    crs = np.zeros(nfft // 2 + 1, complex); css = np.zeros(nfft // 2 + 1); n = 0
+    for k in range(0, len(s) - KERNEL_SNIPPET_MS + 1, KERNEL_HOP_MS):
+        S = np.fft.rfft(s[k:k + KERNEL_SNIPPET_MS], nfft); R = np.fft.rfft(r[k:k + KERNEL_SNIPPET_MS], nfft)
+        crs += R * np.conj(S); css += (S * np.conj(S)).real; n += 1
+    K = (crs / n) / (css / n + 0.01 * (css / n).mean())
+    return np.fft.irfft(K, nfft)[:KERNEL_LAGS]
+
+
 def measure(b, light, cols):
-    """cols: dict name -> node index for 'R', 'L1', 'L2'.  Returns all protocol measurements."""
+    """cols: dict name -> node index for 'R', 'L1', 'L2'.  Returns all protocol measurements.
+    Every time is in ms from stimulus onset including SAMPLE_OFFSET_MS."""
     names = list(cols)
     c = [cols[n] for n in names]
     res = {}
@@ -90,64 +159,90 @@ def measure(b, light, cols):
     V = run_levels(b, light, c, np.r_[np.full(FLASH_MS, FLASH_LEVEL), np.zeros(FLASH_RECORD_MS - FLASH_MS)])
     res['flash'] = {n: dict(zip(('onset_ms', 'tp_ms', 'peak_mV'), onset_tp(V[:, j] - pre[-1, j])))
                     for j, n in enumerate(names)}
+    s = jh_noise()
+    jr = names.index('R')
     for bg, lv in BACKGROUND.items():
         b.reset_state()
-        pre = run_levels(b, light, c, np.full(BG_SETTLE_MS, lv))
-        V = run_levels(b, light, c, np.r_[np.full(IMPULSE_MS, lv * IMPULSE_FACTOR),
-                                           np.full(IMPULSE_RECORD_MS - IMPULSE_MS, lv)])
-        res[bg] = {n: dict(zip(('onset_ms', 'tp_ms', 'peak_mV'), onset_tp(V[:, j] - pre[-1, j])))
-                   for j, n in enumerate(names)}
+        run_levels(b, light, c, np.full(BG_SETTLE_MS, lv))
+        V = run_levels(b, light, c, lv * (1.0 + s))
+        K = kernel(s, V[:, jr])
+        k = int(np.argmax(np.abs(K)))
+        res[bg] = {'R': dict(kernel_tp_ms=float(k) + SAMPLE_OFFSET_MS, kernel_peak=float(K[k]),
+                             response_sd_mV=float(np.std(V[:, jr])))}
     return res
+
+
+def bg_evaluable(m, bg):
+    r = m[bg]['R']
+    return bool(np.isfinite(r['kernel_peak']) and r['kernel_peak'] >= K_MIN_MV_PER_CONTRAST_MS
+                and r['response_sd_mV'] >= SD_MIN_MV)
 
 
 def _sq(x, mu, sd):
     return ((x - mu) / sd) ** 2 if np.isfinite(x) else 1e6
 
 
-def objective(m):
-    """Sum of squared standardised errors over the training targets (finite-safe)."""
-    c = _sq(m['flash']['R']['tp_ms'], *T_FLASH_R_TP) + _sq(m['flash']['R']['onset_ms'], *T_FLASH_LATENCY)
+def objective(m, backgrounds=tuple(BACKGROUND)):
+    """Sum of squared standardised errors over the training targets (finite-safe).  The dead time
+    is a grid-fixed parameter (gate G5 only).  backgrounds: those declared evaluable at step 0."""
+    c = _sq(m['flash']['R']['tp_ms'], T_FLASH_R['mean'], T_FLASH_R['sigma'])
+    c += _sq(m['flash']['R']['onset_ms'], *T_FLASH_LATENCY)
     for t in LMC_TYPES:
-        c += _sq(m['flash'][t]['tp_ms'], *T_FLASH_LMC_TP) + _sq(m['flash'][t]['onset_ms'], *T_FLASH_LATENCY)
-    for bg in BACKGROUND:
-        c += _sq(m[bg]['R']['tp_ms'], T_IMPULSE_TP[bg], SIG_TP_FRAC * T_IMPULSE_TP[bg])
-        c += _sq(m[bg]['R']['onset_ms'], T_DEAD[bg], SIG_DEAD_FRAC * T_DEAD[bg])
+        c += _sq(m['flash'][t]['tp_ms'], T_FLASH_LMC['mean'], T_FLASH_LMC['sigma'])
+        c += _sq(m['flash'][t]['onset_ms'], *T_FLASH_LATENCY)
+    for bg in backgrounds:
+        c += _sq(m[bg]['R']['kernel_tp_ms'], T_KERNEL_TP[bg], SIG_TP_FRAC * T_KERNEL_TP[bg])
+        if not bg_evaluable(m, bg):
+            c += 1e6
     return float(c)
 
 
-# --- training gates (frozen in V8_input_prereg.json) -------------------------------------------
-G_FLASH_SD = 2.0
+# --- training gates (frozen in V8_input_prereg_v2.json) ----------------------------------------
 G_LATENCY = (4.0, 10.0)
 G_LATENCY_DIFF = 3.0
 G_TP_FRAC, G_DEAD_FRAC = 0.25, 0.30
 
 
-def train_gates(m):
+def train_gates(m, dead_time_ms, backgrounds=tuple(BACKGROUND)):
+    """G1-G5 on one run.  R-stage gates: G1, G4, G5.  LMC-stage gates: G2, G3.
+    G3/G5 reconciliation: the model onset is >= its pure delay D, so G3 (onset 4-10 ms) and G5
+    (D within 30 % of JH2001's BG0 D = 10 ms, i.e. 7-13 ms) can hold together only for D in 7-10 ms
+    and onset in [D, 10] ms; the sources differ (saturating dark flash onset ~6.5 ms vs small-signal
+    phase-derived D ~10 ms at BG0) and only the tolerances overlap (disclosed)."""
     f = m['flash']
-    rlo, rhi = T_FLASH_R_TP[0] - G_FLASH_SD * T_FLASH_R_TP[1], T_FLASH_R_TP[0] + G_FLASH_SD * T_FLASH_R_TP[1]
-    llo, lhi = T_FLASH_LMC_TP[0] - G_FLASH_SD * T_FLASH_LMC_TP[1], T_FLASH_LMC_TP[0] + G_FLASH_SD * T_FLASH_LMC_TP[1]
-    g1 = rlo <= f['R']['tp_ms'] <= rhi
-    g2 = {t: (llo <= f[t]['tp_ms'] <= lhi) and f[t]['tp_ms'] < f['R']['tp_ms'] for t in LMC_TYPES}
-    g3 = {n: G_LATENCY[0] <= f[n]['onset_ms'] <= G_LATENCY[1] for n in ('R',) + LMC_TYPES}
-    g3['no_synaptic_delay'] = all(abs(f[t]['onset_ms'] - f['R']['onset_ms']) <= G_LATENCY_DIFF for t in LMC_TYPES)
-    g4 = {bg: abs(m[bg]['R']['tp_ms'] - T_IMPULSE_TP[bg]) <= G_TP_FRAC * T_IMPULSE_TP[bg] for bg in BACKGROUND}
-    g4['adapts'] = m['BG0']['R']['tp_ms'] < m['BG-4']['R']['tp_ms']
-    g5 = {bg: abs(m[bg]['R']['onset_ms'] - T_DEAD[bg]) <= G_DEAD_FRAC * T_DEAD[bg] for bg in BACKGROUND}
-    ok = g1 and all(g2.values()) and all(g3.values()) and all(g4.values()) and all(g5.values())
-    return dict(G1_flash_R_tp=g1, G2_flash_LMC_tp=g2, G3_latency=g3, G4_impulse_tp=g4, G5_dead_time=g5,
-                TRAIN_PASS=bool(ok))
+    r_lo, r_hi = window(T_FLASH_R); l_lo, l_hi = window(T_FLASH_LMC)
+    g1 = bool(r_lo <= f['R']['tp_ms'] <= r_hi)
+    g2 = {t: bool((l_lo <= f[t]['tp_ms'] <= l_hi) and f[t]['tp_ms'] < f['R']['tp_ms']) for t in LMC_TYPES}
+    g3 = {n: bool(G_LATENCY[0] <= f[n]['onset_ms'] <= G_LATENCY[1]) for n in ('R',) + LMC_TYPES}
+    g3['no_synaptic_delay'] = bool(all(abs(f[t]['onset_ms'] - f['R']['onset_ms']) <= G_LATENCY_DIFF for t in LMC_TYPES))
+    g4 = {bg: bool(bg_evaluable(m, bg) and abs(m[bg]['R']['kernel_tp_ms'] - T_KERNEL_TP[bg]) <= G_TP_FRAC * T_KERNEL_TP[bg])
+          for bg in backgrounds}
+    if len(backgrounds) == 2:
+        g4['adapts'] = bool(m['BG0']['R']['kernel_tp_ms'] < m['BG-4']['R']['kernel_tp_ms'])
+    g5 = bool(abs(dead_time_ms - T_DEAD_BG0) <= G_DEAD_FRAC * T_DEAD_BG0)
+    r_ok = g1 and all(g4.values()) and g5
+    l_ok = all(g2.values()) and all(g3.values())
+    return dict(G1_flash_R_tp=g1, G2_flash_LMC_tp=g2, G3_latency=g3, G4_kernel_tp=g4, G5_dead_time=g5,
+                R_STAGE_PASS=bool(r_ok), LMC_STAGE_PASS=bool(l_ok), TRAIN_PASS=bool(r_ok and l_ok))
 
 
 MIN_COMPLETED_FRACTION = 0.5
 
 
 def outcome(reports, n_runs):
-    """As v7 v2: fewer than half of the runs completed -> NOT_EVALUABLE (never F1); else the
-    lowest-cost run among those whose OWN gates pass (tie -> lowest run id); none -> F1."""
+    """v2 (audit 1 item 5b / audit 2 D3):
+      fewer than half of the runs completed            -> NOT_EVALUABLE (never F1)
+      some completed run has TRAIN_PASS                 -> TRAIN_PASS, lowest cost among them (tie: run id)
+      no completed run passes the R-stage gates         -> F1_R   (photoreceptor stage not reproduced)
+      else (R stage passes somewhere, LMC never jointly) -> F1_LMC (R->LMC transfer fails on timing)
+    Both F1 readings are CONDITIONAL on the flash level, noise contrast, single fixed dead time and
+    the rejected S1-A3 gain."""
     done = [r for r in reports if r.get('status') == 'completed']
     if len(done) < MIN_COMPLETED_FRACTION * n_runs:
         return 'NOT_EVALUABLE', None
     passing = [r for r in done if r['gates']['TRAIN_PASS']]
-    if not passing:
-        return 'F1', None
-    return 'TRAIN_PASS', min(passing, key=lambda r: (r['cost'], r['run']))
+    if passing:
+        return 'TRAIN_PASS', min(passing, key=lambda r: (r['cost'], r['run']))
+    if not any(r['gates']['R_STAGE_PASS'] for r in done):
+        return 'F1_R', None
+    return 'F1_LMC', None

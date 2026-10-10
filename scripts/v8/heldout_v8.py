@@ -22,6 +22,7 @@ for p in (REPO, HERE, REPO / 'scripts' / 'v7', REPO / 'scripts' / 'v6'):
 GATE_PEAK_SLACK_MS = 5.0
 GATE_ORDER_MS = 5.0
 MIN_PEAKS_OK = 3
+SAMPLE_OFFSET_MS = 1.0
 
 
 def heldout_gates(peak_model, peak_data, text_sem):
@@ -54,7 +55,7 @@ def main():
     b, ct, light, _cl, cc, info = fit_s2.build_cutout(params, psha)
     m = fit_v7.NoiseModel(b, ct, light, cc, int(pre7['stimulus']['training_seed']))
     K, sd = m.filters_and_sd({})
-    pk_m = {c: D.peak_ms(K[c], c) for c in D.RECORDED}
+    pk_m = {c: D.peak_ms(K[c], c) + SAMPLE_OFFSET_MS for c in D.RECORDED}   # v2: V read at the end of each step
     pk_d = {c: D.peak_ms(data[c]['mean'], c) for c in D.RECORDED}
     sem = {c: D.TEXT_PEAK_MS[c][1] for c in D.RECORDED}
     cost, per, nrmse = D.objective(K, data)

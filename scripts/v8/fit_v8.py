@@ -1,10 +1,12 @@
 """v8 input timing: fit of R1-R6 phototransduction timing and L1/L2 membrane timing to Drosophila
 R/LMC voltage timing (Mansour 2026, Juusola & Hardie 2001).  Implements
-qualification/v8/V8_input_prereg.json (refuses another sha256).  Medulla, synapses (release) and
+qualification/v8/V8_input_prereg_v2.json (refuses another sha256; v1 is superseded).  Medulla, synapses (release) and
 every edge stay at v6 leak40.  The held-out medulla data are never read here.
 
   python scripts/v8/fit_v8.py --prereg P --prereg-sha256 SHA --base-params B --base-sha256 SHA \\
-      --phase1 DIR --run K --out DIR          (run K = (dead-time grid value, start) per the prereg)
+      --phase1 DIR --run K --smoke-report FILE --out DIR   (run K = (dead-time grid value, start))
+  python scripts/v8/fit_v8.py ... --smoke --out DIR       (step 0: one timed evaluation at run 0, no fit;
+                                                           writes smoke_v8.json with the BG decidability)
 """
 from __future__ import annotations
 
@@ -110,12 +112,34 @@ class InputModel:
         return V.measure(self.b, self.light, self.cols)
 
 
+def smoke(pre, base, bsha, phase1):
+    """Step 0 (prereg v2): one timed measurement at run 0's start values; decides, BEFORE any fit,
+    which backgrounds are evaluable (pre-written rule: a background whose kernel peak or response
+    s.d. is below the floor is NOT EVALUABLE and is dropped from G4 and the objective for every run;
+    if BG0 is not evaluable, or the flash response is non-finite, the whole arm is NOT EVALUABLE)."""
+    spec = free_spec(pre)
+    rid, dead, x0 = runs(pre, base, spec)[0]
+    t0 = time.time()
+    m = InputModel(base, bsha, phase1)
+    t1 = time.time()
+    meas = m.measure(from_x(x0, spec), dead)
+    t2 = time.time()
+    flash_ok = all(np.isfinite([meas['flash'][n][k] for n in meas['flash'] for k in ('onset_ms', 'tp_ms')]))
+    ev = {bg: V.bg_evaluable(meas, bg) for bg in V.BACKGROUND}
+    arm = 'EVALUABLE' if flash_ok and ev['BG0'] else 'NOT_EVALUABLE'
+    return dict(build_s=round(t1 - t0, 2), eval_s=round(t2 - t1, 3), run0_dead_time_ms=dead, measurements=meas,
+                background_evaluable=ev, evaluable_backgrounds=[bg for bg in V.BACKGROUND if ev[bg]],
+                flash_finite=bool(flash_ok), arm=arm)
+
+
 def main():
     ap = argparse.ArgumentParser()
     for k in ('--prereg', '--base-params', '--phase1', '--out'):
         ap.add_argument(k, type=Path, required=True)
     ap.add_argument('--prereg-sha256', required=True); ap.add_argument('--base-sha256', required=True)
-    ap.add_argument('--run', type=int, required=True)
+    ap.add_argument('--run', type=int)
+    ap.add_argument('--smoke-report', type=Path)
+    ap.add_argument('--smoke', action='store_true')
     a = ap.parse_args()
     pre = load_prereg(a.prereg, a.prereg_sha256)
     from scipy.optimize import minimize
@@ -123,6 +147,16 @@ def main():
     if pre['base_params']['sha256'] != a.base_sha256:
         raise SystemExit('base params sha differs from the prereg')
     base, bsha = load_params(a.base_params, a.base_sha256)
+    if a.smoke:
+        rep = smoke(pre, base, bsha, a.phase1)
+        a.out.mkdir(parents=True, exist_ok=True)
+        (a.out / 'smoke_v8.json').write_text(json.dumps(rep, indent=1, sort_keys=True))
+        print(json.dumps({k: rep[k] for k in ('eval_s', 'background_evaluable', 'arm')}, indent=1))
+        return
+    sm = json.loads(a.smoke_report.read_text())
+    if sm['arm'] != 'EVALUABLE':
+        raise SystemExit('step 0 declared the arm NOT EVALUABLE; no fit')
+    bgs = tuple(sm['evaluable_backgrounds'])
     spec = free_spec(pre)
     rid, dead, x0 = runs(pre, base, spec)[a.run]
     m = InputModel(base, bsha, a.phase1)
@@ -131,7 +165,7 @@ def main():
     hist, t0 = [], time.time()
 
     def f(x):
-        c = V.objective(m.measure(from_x(x, spec), dead)); hist.append(c)
+        c = V.objective(m.measure(from_x(x, spec), dead), bgs); hist.append(c)
         if len(hist) % 50 == 0:
             print(len(hist), round(min(hist), 3), round(time.time() - t0), 's', flush=True)
         return c
@@ -141,8 +175,8 @@ def main():
     fitted = from_x(r.x, spec)
     meas = m.measure(fitted, dead)
     rep = dict(status='completed', run=rid, dead_time_ms=dead, prereg_sha256=a.prereg_sha256, base_params_sha256=bsha,
-               cutout=m.info, evals=len(hist), wall_s=round(time.time() - t0, 1), cost=V.objective(meas),
-               measurements=meas, gates=V.train_gates(meas), fitted=fitted,
+               cutout=m.info, evals=len(hist), wall_s=round(time.time() - t0, 1), cost=V.objective(meas, bgs),
+               measurements=meas, gates=V.train_gates(meas, dead, bgs), backgrounds=list(bgs), fitted=fitted,
                heldout='NOT READ by the fit (heldout_v8.py after freezing)')
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / f'fit_run{rid}.json').write_text(json.dumps(rep, indent=1, sort_keys=True))

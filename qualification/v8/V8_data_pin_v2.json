@@ -1,0 +1,76 @@
+{
+  "contract": "v8 input-timing DATA PIN v2 (supersedes V8_data_pin.json 7c393065b76af576..., kept unchanged): corrects the dispersion reading of Mansour's LMC value and the JH2001 definitions (audits 1 and 2).",
+  "date": "2026-10-10 (v2)",
+  "owner_rules": "Per-type parameters only; fitted only to NON-MOTION recordings of input or medulla cells upstream of T4/T5; no grating, DS or behaviour; no edge changes; held-out separate; calcium is not an mV target.",
+  "data_root": "<data-root>/flybrain-v8-input-data-20261010/raw (local; nothing redistributed)",
+  "answer_to_question_1": "YES, a Drosophila LMC timing source exists: Mansour et al. 2026 (Supplementary Fig. 1b, printed values). The blowfly proxy (Juusola 1995) is no longer needed and is not used.",
+  "training": {
+    "MANSOUR2026": {
+      "citation": "Mansour N, Takalo J, Kemppainen J, ... Juusola M (2026) Synaptic high-frequency jumping synchronises vision to high-speed behaviour. Nat Commun (published 5 May 2026). doi 10.1038/s41467-026-72509-2; PMCID PMC13144400",
+      "licence": "CC BY 4.0 (article and supplementary information); values are cited with attribution; the PDF is not redistributed",
+      "files": {
+        "PMC13144400.xml": "b244aea8d9d2a2aef8214c2f3c44d67bd03e4937a945e6d0469a16f7c180a050",
+        "Mansour2026_MOESM1_ESM.pdf (Supplementary Information)": "d8d6b99725f5dd9c11b6ce541bb4de286a8de8e079c5781c1347e61ec0d0a85c",
+        "Mansour2026_SuppFig1b_crop_300dpi.png (verification render of page 4)": "16babdb876dd559d51719ca84447cc9974384cfc9ad12250e8c9c08e867dcb28"
+      },
+      "recording": "Drosophila melanogaster, 25 C, in vivo sharp-electrode intracellular voltage of R1-R6 photoreceptors (n=4) and LMCs (n=5; subtype not identified, i.e. L1/L2/L3 pooled), 10-ms bright white light flash after brief (5-15 s) dark adaptation. NON-MOTION.",
+      "values": {
+        "R1-R6_time_to_peak_ms": {
+          "value": 25.5,
+          "dispersion": 2.4,
+          "n": 4,
+          "min": 24.0,
+          "max": 29.0,
+          "where": "Supp. Fig. 1b, printed in the figure ('25.5 +- 2.4 ms', 't_peak min 24.0 ms, max 29.0 ms')",
+          "dispersion_type": "consistent with a sample s.d.: given n=4, mean 25.5 and range 24.0-29.0 the feasible sample s.d. is 2.35-2.38 ms"
+        },
+        "LMC_time_to_peak_ms": {
+          "value": 12.2,
+          "dispersion": 1.1,
+          "n": 5,
+          "min": 11.0,
+          "max": 15.0,
+          "where": "Supp. Fig. 1b, printed in the figure ('12.2 +-1.1 ms', 't_peak min 11.0 ms, max 15.0 ms')",
+          "dispersion_type": "NEITHER s.d. NOR s.e.m.: given n=5, mean 12.2 and range 11.0-15.0 the feasible sample s.d. is 1.59-1.79 ms and s.e.m. 0.71-0.80 ms; the printed +-1.1 is NOT used. Windows use the printed range; sigma uses the largest feasible s.d. (1.79)."
+        },
+        "latency_ms": {
+          "value": "~6-7 (Supp. Fig. 1b legend); ~6.5 (main text)",
+          "where": "both cell types; 'no measurable synaptic delay'"
+        },
+        "LMC_peaks_before_R_ms": {
+          "value": "~13",
+          "where": "main text and Supp. Note I.1"
+        }
+      },
+      "verification": "values read from the figure's printed numerals (raster), checked on a 300 dpi render; legend and main-text statements extracted as text. Dispersion types: see values.*.dispersion_type (v2).",
+      "caveats": "single condition (dark-adapted saturating flash); LMC subtype pooled; the absolute flash intensity is not given in photons (mapped by assumption, see prereg); n small"
+    },
+    "JH2001": {
+      "citation": "Juusola M, Hardie RC (2001) J Gen Physiol 117(1):3-25, doi 10.1085/jgp.117.1.3, PMC2232468 (already pinned in v6 S0, sha256 42f51f59...2593)",
+      "licence": "CC BY-NC-SA; only numbers stated in the text are used, with location",
+      "recording": "Drosophila R1-R6 intracellular, 25 C, Gaussian pseudorandom light contrast (s.d. ~0.32, white to 150 Hz) on backgrounds BG-4..BG0 (BG0 ~3e6 photons/s); current injection for the membrane. NON-MOTION.",
+      "values": {
+        "impulse_time_to_peak_ms": {
+          "BG-4": "~40",
+          "BG0": "~20",
+          "what": "time to peak of the LINEAR impulse response k_V(t) (first-order Wiener kernel) computed as the inverse FFT of the frequency response to Gaussian pseudorandom contrast (s.d. ~0.32, white to 150 Hz); Fig. 6G/H text"
+        },
+        "dead_time_ms": {
+          "BG-4": "close to 20",
+          "BG0": "~10",
+          "what": "PURE TIME DELAY D, from the difference between the measured phase P_V(f) and the minimum phase (Hilbert transform of ln gain), estimated over the flat 10-90 Hz range of phi(f)/(2 pi f); Fig. 6D text"
+        }
+      },
+      "caveats": "endpoints only, no interpolation. v1's description ('first quantum bumps'; 'response to impulses') was WRONG and is corrected here (audit 1 item 2)."
+    }
+  },
+  "context_not_used_as_targets": {
+    "ZHENG2006": "doi 10.1085/jgp.200509470 (pinned in v6 S0): one example, R begins to depolarise 9 ms after light onset, followed by the LMC hyperpolarisation; condition-specific single trace, superseded by MANSOUR2026 population values",
+    "ZHENG2009_I": "Zheng L et al. (2009) PLoS ONE 4:e4307, doi 10.1371/journal.pone.0004307, PMC2628724, CC BY (sha256 9c8479db...017e): LMC minimum integration time 5-50 ms depending on mean luminance; qualitative range, not a target",
+    "JUUSOLA1995": "blowfly; cross-species proxy, NOT used now that a Drosophila source is pinned",
+    "searched_without_timing_values": "Nikolaev 2009 PLoS ONE II (PMC2628722), Dau 2016 Front Neural Circuits (PMC4801898): no LMC onset/time-to-peak values in text; Behnia 2014 Extended Data has no LMC recordings"
+  },
+  "heldout": {
+    "BEHNIA2014_FIG3": "Mi1/Tm3/Tm1/Tm2 voltage-filter peak times from the v7 pin (qualification/v7/V7_data_pin_v2.json, sha256 61ee0c83...9d84; digitised CSVs 14f73ec0/c4d37fa6/df689183/7f460fe9; text means 71+-3.8, 53+-5.2, 56+-3.8, 43+-2.7 ms) and the filter shapes. Different lab, cells and method from the training data. NOT blind: the analyst has seen these values and the v7 F1."
+  }
+}
