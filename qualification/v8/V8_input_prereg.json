@@ -1,0 +1,237 @@
+{
+  "contract": "v8 INPUT-TIMING arm: PREREGISTRATION, frozen and committed before any v8 fit, smoke or held-out run. Science card A (motion vision), 10 Oct 2026.",
+  "hypothesis": "The v7 F1 and the upstream diagnostic show excess latency at the R1-R6 -> LMC stage (model LMCs peak 14-22 ms AFTER R; Drosophila LMCs peak ~13 ms BEFORE R). If R1-R6 phototransduction timing and L1/L2 membrane timing are fitted to Drosophila R/LMC voltage timing, the UNCHANGED v6 leak40 medulla should predict the Behnia 2014 medulla filter timing.",
+  "label": "EXPLORATORY; post hoc to v7 F1 and the upstream diagnostic. Inherits S1-A3 photoreceptor gain/adaptation (G, Ka, tau_a: FIT REJECTED in S1) and leak40 (hypothetical).",
+  "data_pin": {
+    "file": "qualification/v8/V8_data_pin.json",
+    "sha256": "7c393065b76af576ad376b517f7e6143b9b73aa3531d1265dd86d9446bf21524"
+  },
+  "base_params": {
+    "file": "qualification/v6/params_v6_S2A_leak40.json",
+    "sha256": "135220ca7e9bc01c5d88f4fee321dea7e2c5fe57c0c1db24de76187f5ee4962f"
+  },
+  "free_parameters": {
+    "continuous": [
+      {
+        "type": "R1-R6",
+        "key": "tau_p0_ms",
+        "lo": 0.5,
+        "hi": 20,
+        "scale": "log"
+      },
+      {
+        "type": "R1-R6",
+        "key": "Kt",
+        "lo": 0.001,
+        "hi": 100,
+        "scale": "log"
+      },
+      {
+        "type": "L1",
+        "key": "tau_m_ms",
+        "lo": 1,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "L2",
+        "key": "tau_m_ms",
+        "lo": 1,
+        "hi": 200,
+        "scale": "log"
+      },
+      {
+        "type": "L1",
+        "key": "ih_g",
+        "lo": 0,
+        "hi": 3,
+        "scale": "lin"
+      },
+      {
+        "type": "L2",
+        "key": "ih_g",
+        "lo": 0,
+        "hi": 3,
+        "scale": "lin"
+      },
+      {
+        "type": "L1",
+        "key": "ih_tau_ms",
+        "lo": 5,
+        "hi": 1000,
+        "scale": "log"
+      },
+      {
+        "type": "L2",
+        "key": "ih_tau_ms",
+        "lo": 5,
+        "hi": 1000,
+        "scale": "log"
+      },
+      {
+        "type": "L1",
+        "key": "ih_vh_mV",
+        "lo": -80,
+        "hi": -30,
+        "scale": "lin"
+      },
+      {
+        "type": "L2",
+        "key": "ih_vh_mV",
+        "lo": -80,
+        "hi": -30,
+        "scale": "lin"
+      }
+    ],
+    "dead_time_grid_ms": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "dead_time_note": "the phototransduction dead time is an integer ring length; it is profiled over this fixed grid (one set of runs per value), not optimised continuously",
+    "fixed": "R1-R6: G, Ka, tau_a_ms, n_stages=4, encoder_to_intensity (S1-A3) and the R1-R6 RELEASE (a synapse); L1/L2: e_leak (-40), Ih slope k (5 mV) and reversal (-30 mV); L3 entirely (no subtype data: Mansour's LMCs are unidentified, dominated by L1/L2; disclosed); every medulla type; every edge and base weight (graph 4b2f87cc...091d01)",
+    "identifiability": "LMC targets (pooled subtype) are applied to BOTH L1 and L2; tau_m and Ih trade off; R gain/adaptation stays at the rejected S1-A3 values"
+  },
+  "targets": {
+    "flash_R_tp": [
+      25.5,
+      2.4
+    ],
+    "flash_LMC_tp": [
+      12.2,
+      1.1
+    ],
+    "flash_latency": [
+      6.5,
+      1.5
+    ],
+    "impulse_tp": {
+      "BG-4": 40.0,
+      "BG0": 20.0
+    },
+    "dead_time": {
+      "BG-4": 20.0,
+      "BG0": 10.0
+    },
+    "sigma_fractions": {
+      "impulse_tp": 0.2,
+      "dead_time": 0.25
+    },
+    "sources": "flash_*: Mansour et al. 2026 Supp. Fig. 1b (Drosophila, printed values); impulse/dead time: Juusola & Hardie 2001 text endpoints (V8_data_pin.json)"
+  },
+  "protocols": {
+    "cutout": "the frozen S2 7-column cutout (scripts/v6/fit_s2.build_cutout); readout = a central-column R1-R6 node, the central L1 and L2",
+    "dark_adapt_ms": 10000,
+    "flash_ms": 10,
+    "flash_level": 330.0,
+    "flash_record_ms": 100,
+    "flash_level_assumption": "encoder 330 = 3.3 x BG0 = JH2001's brightest impulse (~10,000 effective photons per ms); Mansour's 'bright' flash intensity is not given in photons; ASSUMPTION",
+    "background": {
+      "BG-4": 0.01,
+      "BG0": 100.0
+    },
+    "bg_settle_ms": 3000,
+    "impulse": "1 ms to 3 x background (contrast +2), record 150 ms; ASSUMPTION about JH2001's impulse contrast",
+    "measurement": "deflection from the pre-stimulus value; onset = first |dV| >= 10 % of peak; time to peak = argmax |dV| (scripts/v8/v8_input.measure)",
+    "definition_mismatch": "JH2001 dead time = first quantum bumps; Mansour latency = visible response onset; the model uses one 10 %-of-peak onset for both (disclosed)"
+  },
+  "objective": "sum of squared standardised errors over: flash R tp and latency, flash L1 and L2 tp and latency, R impulse tp and onset at BG-4 and BG0 (v8_input.objective; non-finite -> 1e6)",
+  "optimiser": {
+    "method": "scipy Powell, bounded, transformed parameters",
+    "starts_per_dead_time": 2,
+    "n_runs": 12,
+    "start_0": "base values clipped to the bounds",
+    "start_1": "Latin hypercube in the transformed box",
+    "lhs_seed": 8010,
+    "maxfev_per_run": 2000,
+    "xtol": 0.001,
+    "ftol": 0.0001,
+    "selection": "among COMPLETED runs whose own gates give TRAIN_PASS, the lowest objective; tie -> lowest run id (v8_input.outcome)",
+    "min_completed_fraction": 0.5,
+    "completion": "a run killed at the 2 h wall cap or crashed is not completed; fewer than 6 of 12 completed -> NOT EVALUABLE (never F1)",
+    "resources": "CPU only, CUDA_VISIBLE_DEVICES empty, NUMBA_NUM_THREADS=1, <= 4 processes at a time, nice, taskset -c 0-3"
+  },
+  "compute_budget": {
+    "per_eval": "~1.3 s (16.4 s simulated on the 97-cell cutout at the v7-measured ~0.077 s per simulated s; EXTRAPOLATED, step 0 measures it)",
+    "fit": "12 runs x 2000 evaluations x ~1.3 s = ~8.7 core-h; 3 waves of 4 = ~2.2 h wall; hard cap 2 h wall per run",
+    "heldout": "one 13 s cutout simulation (~1 s)",
+    "synapse_test": "~25 s simulated per parameter file (seconds)",
+    "total": "~9 core-h, ~2.5 h wall"
+  },
+  "acceptance": {
+    "training": {
+      "flash_sd": 2.0,
+      "latency_window_ms": [
+        4.0,
+        10.0
+      ],
+      "latency_diff_ms": 3.0,
+      "tp_frac": 0.25,
+      "dead_frac": 0.3,
+      "G1": "flash R1-R6 time to peak within 25.5 +- 2 x 2.4 ms",
+      "G2": "flash L1 AND L2 time to peak within 12.2 +- 2 x 1.1 ms AND earlier than R",
+      "G3": "flash onset of R, L1, L2 each within 4-10 ms AND |L - R| <= 3 ms (no synaptic delay)",
+      "G4": "impulse R time to peak within 25 % of 40 ms (BG-4) and 20 ms (BG0) AND faster at BG0",
+      "G5": "impulse R onset within 30 % of 20 ms (BG-4) and 10 ms (BG0)",
+      "TRAIN_PASS": "G1-G5 on the run's own parameters (v8_input.train_gates)"
+    },
+    "heldout": {
+      "peak_slack_ms": 5.0,
+      "order_ms": 5.0,
+      "min_peaks_ok": 3,
+      "protocol": "frozen params_v8.json, medulla at v6 leak40 (NO medulla fitting), v7 v2 noise protocol and observation model (filter against u = c/2), Behnia digitised filters from the v7 pin",
+      "H1": "model filter peak within 2 x text s.e.m. + 5 ms of the digitised peak for >= 3 of Mi1, Tm3, Tm1, Tm2",
+      "H2": "Mi1 later than Tm3 AND Tm1 later than Tm2, each by >= 5 ms",
+      "HELDOUT_PASS": "H1 and H2 (heldout_v8.heldout_gates)",
+      "descriptive_only": "filter NRMSE and response s.d. vs Fig. 3a (the v7 amplitude gap is not expected to close: see synapse test)",
+      "label": "independent data (other lab, cells, method) but NOT analyst-blind"
+    },
+    "set_before_fitting": true
+  },
+  "outcomes": {
+    "NOT_EVALUABLE": "fewer than 6 of 12 runs completed: no claim; stop",
+    "F1_input": "no completed run reaches TRAIN_PASS: R1-R6 phototransduction timing plus L1/L2 tau/Ih cannot reproduce Drosophila R/LMC timing (in particular LMC peaking before R with no synaptic delay) with the v6 release synapse fixed: the R->LMC transfer model itself is falsified for timing. Stop.",
+    "F2_propagation": "TRAIN_PASS but HELDOUT_PASS false: correct input timing does NOT make the unchanged medulla reproduce Behnia's timing; the remaining error is in the medulla/synapse model, not the inputs",
+    "PASS": "TRAIN_PASS and HELDOUT_PASS: input timing alone accounts for the medulla timing (exploratory). Any S3 needs a separate owner go and its own addendum (S3 protocol as v7 v2, --params changed).",
+    "always_reported": "all runs, all gates, the synapse test"
+  },
+  "synapse_transfer_test": {
+    "status": "PREREGISTERED, DESCRIPTIVE (no gate on any arm, no fit); no non-motion paired L1-Mi1/Tm3 voltage measurement was found to fit to",
+    "script": "scripts/v8/synapse_ceiling_v8.py",
+    "run_on": "params_v6_S2A_leak40.json now-or-later, and the frozen params_v8.json if TRAIN_PASS",
+    "measures": "(a) steady-state L1/Mi1/Tm3 voltage at encoder 0-1000 and slope dMi1/dL1; (b) Behnia Fig. 2 protocol flash onset peaks; (c) disinhibition CEILING: L1 release gain set to 0 in memory (= L1 clamped at E_inh) from dark rest",
+    "reading": "ceiling(Mi1) < 15 mV (half of Behnia's 30.2 mV Fig. 2 onset) -> the ON amplitude shortfall cannot be closed by L1 gain or input timing in this synapse/conductance model (structural); otherwise it is an operating-point/gain issue"
+  },
+  "sequence": [
+    "0 smoke: one timed objective evaluation at run 0 (no optimisation) to measure cost",
+    "1 fit: 12 runs (dead-time grid x 2 starts), <= 4 at a time -> select_v8.py -> if TRAIN_PASS commit params_v8.json (frozen)",
+    "2 held-out once on the frozen file (heldout_v8.py)",
+    "3 synapse transfer test on v6 leak40 and the frozen file",
+    "4 report; STOP (no S3 without a separate go)"
+  ],
+  "risks": [
+    "flash intensity mapping (encoder 330) and impulse contrast are assumptions",
+    "Mansour LMC subtype is pooled; applied to both L1 and L2; L3 left fixed",
+    "R gain/adaptation inherit the REJECTED S1-A3 fit",
+    "dead-time definitions differ between sources and model",
+    "JH2001 values are approximate text endpoints (~40/~20, ~20/~10); no intermediate backgrounds",
+    "Mansour n=4/5, single condition, recently published (May 2026)",
+    "the 7-column cutout lacks external inputs; the held-out is fitted nowhere but the analyst has seen it",
+    "post hoc arm after v7 F1",
+    "the R->LMC release is fixed: if LMC-before-R needs a synaptic high-pass (Mansour's feedback/predictive synapse), F1 is the expected outcome and is informative"
+  ],
+  "code_sha256": {
+    "scripts/v8/v8_input.py": "12e7537fa17e837d17b1b7eab462c8627534f525b6ab549da54ce6e73e2c2d5a",
+    "scripts/v8/fit_v8.py": "14d75942480da8a095928d17c508572858198e2c678063e10556b55d638710c7",
+    "scripts/v8/heldout_v8.py": "79c9f5bf7a2320b44822ffd04baab41c97c899d9aaa590a87b5c06b082a12311",
+    "scripts/v8/select_v8.py": "07bb6782247ef0caa1c74dfd3d2fbb04e1c17474ae4d10681c0b44a0142ebb1c",
+    "scripts/v8/synapse_ceiling_v8.py": "21486a63653b497023b8b3f9d3fc861c60afd66d006d36f7010291208efdeb89",
+    "scripts/v6/fit_s2.py": "108ba38395174004d8a731988ae45b5686bef4d98a8e7ecdc5d3c040141a0eb5",
+    "scripts/v7/fit_v7.py": "4792d641e287952b24f864119e89729c50b1a5762e4b4cf3199baccf513541d6",
+    "scripts/v7/v7_data.py": "c53f95bc558368133b3a629381a0d22761cff6bcdd9bcfe5aeabac226c43aa00",
+    "brainlab/v6_calibrated.py": "ea5be7a9489b0095faa8d6cb5c1fb5773b28bfff4dd6d57d32245e544178b6ad"
+  }
+}
