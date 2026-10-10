@@ -17,7 +17,7 @@ The connectome data are not ours. They come from the MaleCNS project (FlyEM at H
 **What the current releases are.** (v0.4.0 was the first; v0.5.0 is the latest stable release.) A downloadable, **experimental research instrument**: you can run it, watch it and check our results, but it is not a finished product. It does not simulate a whole fly, and it does not show that the model brain learns. In this release:
 
 - **Supported:** the CPU path on Linux (tested on two x86-64 machines; see [What runs where](#what-runs-where)).
-- **Optional:** NVIDIA GPU acceleration (tested on one card; the GPU engine is CUDA/CuPy only).
+- **Optional:** NVIDIA GPU acceleration (tested on one card; the CUDA engines are NVIDIA-only: CuPy, or numba for v3; AMD is experimental, see below).
 - **Present but experimental and unqualified:** the AMD GPU engine. No run on a real AMD GPU with the real graph has been accepted. An installed CPU smoke test passed on AMD hardware; that is not an AMD device qualification ([v0.5.0 notes](docs/RELEASE_NOTES_v0.5.0.md)).
 - **Docker: unsupported.** The v0.4.0 release recorded that the image did not build. The `Dockerfile` now copies `validation/`, but this repository records no later successful image build; see [Docker](#docker).
 - **Not supported yet:** several controls and experiments the dashboard shows, such as learning controls, lesion tools, memory and courtship experiments. Each has an ID (NEXT-01 to NEXT-12) in the [post-v0.4 backlog](docs/POST_V04_FEATURES.md).

@@ -26,8 +26,7 @@ The public `master` history was rewritten once on 9 October 2026 to remove agent
 session links and personal data, and every commit ID changed. Commit IDs cited in
 documents written before that date are pre-rewrite IDs. Where a commit with the same
 subject and author date exists in the current history, the documents now cite its new
-ID; where none exists, they say so. Tags `v0.4.0`, `v0.5.0`, `v0.5.1rc1` and
-`v0.5.1rc2` resolve to the rewritten commits.
+ID; where none exists, they say so. All release tags resolve to the rewritten commits.
 
 
 ## [0.5.1rc2] - 2026-10-08 (PRERELEASE)

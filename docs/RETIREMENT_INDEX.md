@@ -8,7 +8,7 @@ version, check out a commit, for example:
 
 ```bash
 git show 0f144ca:experiments/full_connectome_simulation.py
-git worktree add ../neurofly-713ba82 0f144ca
+git worktree add ../neurofly-0f144ca 0f144ca
 ```
 
 Shared implementations were **not** removed. `connectome_bridge.py`,

@@ -1,7 +1,7 @@
 # Archive-share synchronization receipt
 
 Source revision: `41a08339bc29a47e0ed226683e8c7a28fd6a3b11` (accepted remediation plan).
-Destination: `snapshots/75f6d3a/` on the project's archive share.
+Destination: `snapshots/75f6d3a/` on the project's archive share. The directory name keeps the pre-rewrite abbreviation of the source revision (a frozen historical label).
 (The archive share is a private SMB share; its host and mount point are not published.)
 
 Gemini's existing root snapshot and `CLAUDE_HANDOFF.md` are preserved. Comparison
