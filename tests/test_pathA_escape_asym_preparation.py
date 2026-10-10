@@ -2,6 +2,8 @@
 import copy
 import hashlib
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,10 +14,37 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts'))
 import pathA_escape_asym_analyse as audit
 import pathA_escape_asym_common as common
+import pathA_escape_common as base
 import pathA_escape_asym_run as prepared_runner
 
 CODE='a'*40
 PSHA='b'*64
+# Frozen engine identity: both escape preregs pin engine_sha256 to the engine at the
+# published commit below (7847aab4, ancestor of HEAD; d42985cd carries the same engine).
+# Master db62e700 later added the FlyWire-783 guard to brainlab/brain.py, so the current
+# engine hashes to CURRENT_ENGINE_SHA256 and must never pass the frozen pin.
+PINNED_ENGINE_COMMIT='7847aab46e8a1025ea87b296c3acdf7efdcf6605'
+FROZEN_ENGINE_SHA256='473946a0b5206b6991d183e2bbac0b199b76bd44ee1321075b43b45fb561803e'
+CURRENT_ENGINE_SHA256='ce64bddd073bafa750f4443844ac9034418d22bca20c590720482dfa3ec2faa4'
+ENGINE_FILES=('brainlab/engine.py','brainlab/brain.py','brainlab/transmitter_policy.py')
+
+
+def engine_source_root(dest,rev):
+    """Fixture source root: engine files exactly as committed at `rev`, plus pathA_run.py."""
+    for name in ENGINE_FILES:
+        data=subprocess.run(['git','-C',str(ROOT),'show',rev+':'+name],check=True,capture_output=True).stdout
+        (dest/name).parent.mkdir(parents=True,exist_ok=True)
+        (dest/name).write_bytes(data)
+    (dest/'scripts').mkdir(parents=True,exist_ok=True)
+    shutil.copyfile(ROOT/'scripts/pathA_run.py',dest/'scripts/pathA_run.py')
+    return dest
+
+
+def engine_digest(root):
+    h=hashlib.sha256()
+    for name in ENGINE_FILES:
+        h.update(name.encode()+b'\0'+(root/name).read_bytes()+b'\0')
+    return h.hexdigest()
 
 
 def write(path,value):
@@ -205,14 +234,22 @@ def test_duplicate_json_keys_refused(tmp_path):
     with pytest.raises(ValueError):audit.parse(p.read_text())
 
 
-def test_external_source_and_document_pin_failure_before_launch(evidence,monkeypatch):
+def test_external_source_and_document_pin_failure_before_launch(evidence,monkeypatch,tmp_path):
     c,p,out,*_=evidence
     with pytest.raises(ValueError,match='clean externally pinned'):
         common.verify_sources(p,CODE)
+    # The frozen pin is checked against the historical engine it was accepted on.
+    pinned=engine_source_root(tmp_path/'pinned_engine_src',PINNED_ENGINE_COMMIT)
+    assert engine_digest(pinned)==FROZEN_ENGINE_SHA256==p['pins']['engine_sha256']
+    monkeypatch.setattr(base,'ROOT',pinned)
     monkeypatch.setattr('subprocess.check_output',lambda cmd,**kwargs: CODE+'\n' if 'rev-parse' in cmd else '')
     pp=copy.deepcopy(p)
-    pp['pins']['source_files_sha256']={'scripts/pathA_run.py':common.sha(ROOT/'scripts/pathA_run.py')}
+    pp['pins']['source_files_sha256']={'scripts/pathA_run.py':common.sha(pinned/'scripts/pathA_run.py')}
     common.verify_sources(pp,CODE)
+    wrong_engine=copy.deepcopy(pp)
+    wrong_engine['pins']['engine_sha256']='0'*64
+    with pytest.raises(ValueError,match='canonical engine identity differs'):
+        common.verify_sources(wrong_engine,CODE)
     pp['pins']['source_files_sha256']['scripts/pathA_run.py']='0'*64
     with pytest.raises(ValueError,match='source file differs'):
         common.verify_sources(pp,CODE)
@@ -220,6 +257,19 @@ def test_external_source_and_document_pin_failure_before_launch(evidence,monkeyp
     with pytest.raises(ValueError,match='external contract/prereg'):
         common.load_plan(out/'contract.json','0'*64,out/'prereg.json',common.sha(out/'prereg.json'),CODE)
 
+
+
+def test_current_head_engine_fails_closed_against_frozen_pin(evidence,monkeypatch,tmp_path):
+    """Any escape run must use the pinned engine commit; today's HEAD engine is refused."""
+    c,p,out,*_=evidence
+    head=engine_source_root(tmp_path/'head_engine_src','HEAD')
+    assert engine_digest(head)==CURRENT_ENGINE_SHA256!=FROZEN_ENGINE_SHA256==p['pins']['engine_sha256']
+    monkeypatch.setattr(base,'ROOT',head)
+    monkeypatch.setattr('subprocess.check_output',lambda cmd,**kwargs: CODE+'\n' if 'rev-parse' in cmd else '')
+    pp=copy.deepcopy(p)
+    pp['pins']['source_files_sha256']={'scripts/pathA_run.py':common.sha(head/'scripts/pathA_run.py')}
+    with pytest.raises(ValueError,match='canonical engine identity differs'):
+        common.verify_sources(pp,CODE)
 
 def test_input_manifest_integer_types_are_independently_checked(evidence):
     c,p,*_=evidence
