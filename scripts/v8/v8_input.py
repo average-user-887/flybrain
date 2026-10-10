@@ -204,26 +204,54 @@ G_TP_FRAC, G_DEAD_FRAC = 0.25, 0.30
 
 
 def train_gates(m, dead_time_ms, backgrounds=tuple(BACKGROUND)):
-    """G1-G5 on one run.  R-stage gates: G1, G4, G5.  LMC-stage gates: G2, G3.
-    G3/G5 reconciliation: the model onset is >= its pure delay D, so G3 (onset 4-10 ms) and G5
-    (D within 30 % of JH2001's BG0 D = 10 ms, i.e. 7-13 ms) can hold together only for D in 7-10 ms
-    and onset in [D, 10] ms; the sources differ (saturating dark flash onset ~6.5 ms vs small-signal
-    phase-derived D ~10 ms at BG0) and only the tolerances overlap (disclosed)."""
+    """G1-G5 on one run (prereg v3).
+    R stage:   G1 (flash R tp), G3_R (flash R onset 4-10 ms), G4 (kernel tp), G5 (pure delay D).
+    LMC stage: G2 (flash L1/L2 tp, earlier than R), G3_L (L1/L2 onsets 4-10 ms, |L - R| <= 3 ms).
+    v3 (audits of v2): the R onset is an R-stage gate, so an R-only failure can never be read as
+    F1_LMC.  Engine bounds (best_case_onsets): R onset >= D + 1 ms (ring delay D + end-of-step read),
+    L onset >= D + 2 ms (1.8 ms graded-release delay); G3's 10 ms ceiling therefore admits only
+    D <= 8, and G5 (7-13 ms) only D >= 7: grid {7, 8}.  Over that grid G5 is NON-BINDING (it acts
+    only by excluding D <= 6 from the grid)."""
     f = m['flash']
     r_lo, r_hi = window(T_FLASH_R); l_lo, l_hi = window(T_FLASH_LMC)
     g1 = bool(r_lo <= f['R']['tp_ms'] <= r_hi)
     g2 = {t: bool((l_lo <= f[t]['tp_ms'] <= l_hi) and f[t]['tp_ms'] < f['R']['tp_ms']) for t in LMC_TYPES}
-    g3 = {n: bool(G_LATENCY[0] <= f[n]['onset_ms'] <= G_LATENCY[1]) for n in ('R',) + LMC_TYPES}
-    g3['no_synaptic_delay'] = bool(all(abs(f[t]['onset_ms'] - f['R']['onset_ms']) <= G_LATENCY_DIFF for t in LMC_TYPES))
+    g3_r = bool(G_LATENCY[0] <= f['R']['onset_ms'] <= G_LATENCY[1])
+    g3_l = {t: bool(G_LATENCY[0] <= f[t]['onset_ms'] <= G_LATENCY[1]) for t in LMC_TYPES}
+    g3_l['no_synaptic_delay'] = bool(all(abs(f[t]['onset_ms'] - f['R']['onset_ms']) <= G_LATENCY_DIFF for t in LMC_TYPES))
     g4 = {bg: bool(bg_evaluable(m, bg) and abs(m[bg]['R']['kernel_tp_ms'] - T_KERNEL_TP[bg]) <= G_TP_FRAC * T_KERNEL_TP[bg])
           for bg in backgrounds}
     if len(backgrounds) == 2:
         g4['adapts'] = bool(m['BG0']['R']['kernel_tp_ms'] < m['BG-4']['R']['kernel_tp_ms'])
     g5 = bool(abs(dead_time_ms - T_DEAD_BG0) <= G_DEAD_FRAC * T_DEAD_BG0)
-    r_ok = g1 and all(g4.values()) and g5
-    l_ok = all(g2.values()) and all(g3.values())
-    return dict(G1_flash_R_tp=g1, G2_flash_LMC_tp=g2, G3_latency=g3, G4_kernel_tp=g4, G5_dead_time=g5,
-                R_STAGE_PASS=bool(r_ok), LMC_STAGE_PASS=bool(l_ok), TRAIN_PASS=bool(r_ok and l_ok))
+    r_ok = g1 and g3_r and all(g4.values()) and g5
+    l_ok = all(g2.values()) and all(g3_l.values())
+    return dict(G1_flash_R_tp=g1, G2_flash_LMC_tp=g2, G3_R_onset=g3_r, G3_L_onset=g3_l, G4_kernel_tp=g4,
+                G5_dead_time=g5, R_STAGE_PASS=bool(r_ok), LMC_STAGE_PASS=bool(l_ok), TRAIN_PASS=bool(r_ok and l_ok))
+
+
+def best_case_onsets(D, base_params, dark_ms=2000, weight=-50.0):
+    """Engine lower bounds on the flash onsets for pure delay D (prereg v3 grid derivation): a
+    minimal BrainV6 (one R1-R6 node driving one L1 and one L2 node through an extreme weight) with
+    the fastest free values (tau_p0 0.5 ms, L tau_m 1 ms, no Ih) and the base R release; returns
+    {'R': onset, 'L1': onset, 'L2': onset} in ms with the end-of-step offset."""
+    from brainlab.v6_calibrated import BrainV6
+    pt = dict(base_params['phototransduction'], dead_time_ms=int(D), tau_p0_ms=0.5)
+    types = {'R1-R6': base_params['types']['R1-R6'], 'L1': {'tau_m_ms': 1.0, 'e_leak_mV': -40.0},
+             'L2': {'tau_m_ms': 1.0, 'e_leak_mV': -40.0}}
+    arrays = dict(ptr=np.array([0, 2, 2, 2], np.int64), post=np.array([1, 2], np.int32),
+                  weight=np.array([weight, weight], np.float32), ids=np.arange(1, 4, dtype=np.int64))
+    b = BrainV6(None, dict(phototransduction=pt, types=types), 'e' * 64, light_nodes=np.array([0]),
+                cell_type=np.array(['R1-R6', 'L1', 'L2']), arrays=arrays, graded_policy=np.ones(3, np.uint8))
+    b.reset_state()
+    pre = run_levels(b, np.array([0]), [0, 1, 2], np.zeros(dark_ms))
+    X = run_levels(b, np.array([0]), [0, 1, 2], np.r_[np.full(FLASH_MS, FLASH_LEVEL), np.zeros(FLASH_RECORD_MS - FLASH_MS)])
+    return {n: onset_tp(X[:, j] - pre[-1, j])[0] for j, n in enumerate(('R', 'L1', 'L2'))}
+
+
+def g3_feasible(onsets):
+    return bool(all(G_LATENCY[0] <= onsets[n] <= G_LATENCY[1] for n in ('R',) + LMC_TYPES)
+                and all(abs(onsets[t] - onsets['R']) <= G_LATENCY_DIFF for t in LMC_TYPES))
 
 
 MIN_COMPLETED_FRACTION = 0.5
@@ -233,7 +261,7 @@ def outcome(reports, n_runs):
     """v2 (audit 1 item 5b / audit 2 D3):
       fewer than half of the runs completed            -> NOT_EVALUABLE (never F1)
       some completed run has TRAIN_PASS                 -> TRAIN_PASS, lowest cost among them (tie: run id)
-      no completed run passes the R-stage gates         -> F1_R   (photoreceptor stage not reproduced)
+      no completed run passes the R-stage gates (G1, G3_R, G4, G5) -> F1_R (photoreceptor stage not reproduced)
       else (R stage passes somewhere, LMC never jointly) -> F1_LMC (R->LMC transfer fails on timing)
     Both F1 readings are CONDITIONAL on the flash level, noise contrast, single fixed dead time and
     the rejected S1-A3 gain."""

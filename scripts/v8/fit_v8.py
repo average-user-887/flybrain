@@ -1,6 +1,6 @@
 """v8 input timing: fit of R1-R6 phototransduction timing and L1/L2 membrane timing to Drosophila
 R/LMC voltage timing (Mansour 2026, Juusola & Hardie 2001).  Implements
-qualification/v8/V8_input_prereg_v2.json (refuses another sha256; v1 is superseded).  Medulla, synapses (release) and
+qualification/v8/V8_input_prereg_v3.json (refuses another sha256; v1 and v2 are superseded).  Medulla, synapses (release) and
 every edge stay at v6 leak40.  The held-out medulla data are never read here.
 
   python scripts/v8/fit_v8.py --prereg P --prereg-sha256 SHA --base-params B --base-sha256 SHA \\
@@ -132,6 +132,21 @@ def smoke(pre, base, bsha, phase1):
                 flash_finite=bool(flash_ok), arm=arm)
 
 
+def check_smoke_pin(pre, prereg_sha, report_path, repo=REPO):
+    """Prereg v3: the step-0 report must match the sha256 committed in the smoke pin file, which
+    must name this prereg.  Returns the parsed report; raises SystemExit otherwise."""
+    pin = Path(repo) / pre['smoke_pin']['file']
+    if not pin.exists():
+        raise SystemExit('step 0 smoke pin not committed; no fit')
+    pinned = json.loads(pin.read_text())
+    raw = Path(report_path).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != pinned.get('smoke_v8_sha256'):
+        raise SystemExit('smoke report sha256 differs from the committed pin; refusing')
+    if pinned.get('prereg_sha256') != prereg_sha:
+        raise SystemExit('smoke pin belongs to another prereg; refusing')
+    return json.loads(raw)
+
+
 def main():
     ap = argparse.ArgumentParser()
     for k in ('--prereg', '--base-params', '--phase1', '--out'):
@@ -153,7 +168,7 @@ def main():
         (a.out / 'smoke_v8.json').write_text(json.dumps(rep, indent=1, sort_keys=True))
         print(json.dumps({k: rep[k] for k in ('eval_s', 'background_evaluable', 'arm')}, indent=1))
         return
-    sm = json.loads(a.smoke_report.read_text())
+    sm = check_smoke_pin(pre, a.prereg_sha256, a.smoke_report)
     if sm['arm'] != 'EVALUABLE':
         raise SystemExit('step 0 declared the arm NOT EVALUABLE; no fit')
     bgs = tuple(sm['evaluable_backgrounds'])

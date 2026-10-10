@@ -17,7 +17,8 @@ import v8_input as V  # noqa: E402
 import fit_v8 as F  # noqa: E402
 import heldout_v8 as H  # noqa: E402
 
-PREREG = ROOT / 'qualification' / 'v8' / 'V8_input_prereg_v2.json'
+PREREG = ROOT / 'qualification' / 'v8' / 'V8_input_prereg_v3.json'
+PREREG_V2 = ROOT / 'qualification' / 'v8' / 'V8_input_prereg_v2.json'
 PREREG_V1 = ROOT / 'qualification' / 'v8' / 'V8_input_prereg.json'
 import synapse_ceiling_v8 as S  # noqa: E402
 BASE = ROOT / 'qualification' / 'v6' / 'params_v6_S2A_leak40.json'
@@ -49,7 +50,8 @@ def test_objective_and_gates_at_the_targets():
 
 @pytest.mark.parametrize('kw,dead,gate', [
     (dict(l_tp=30.0), 9, 'G2_flash_LMC_tp'),          # LMC slower than R: the v7 diagnostic's failure
-    (dict(l_lat=14.0), 9, 'G3_latency'),              # synaptic delay
+    (dict(l_lat=14.0), 8, 'G3_L_onset'),              # synaptic delay
+    (dict(lat=11.0, l_lat=11.0), 8, 'G3_R_onset'),    # late R onset is an R-stage failure (v3)
     (dict(k0=45.0), 9, 'G4_kernel_tp'),               # no light adaptation of the kernel
     (dict(), 4, 'G5_dead_time'),                      # pure delay far from JH2001's BG0 D
     (dict(r_tp=40.0), 9, 'G1_flash_R_tp'),
@@ -130,7 +132,7 @@ def test_runs_grid_and_starts_are_fixed():
     spec = F.free_spec(pre)
     r1, r2 = F.runs(pre, base, spec), F.runs(pre, base, spec)
     assert len(r1) == pre['optimiser']['n_runs'] == len(pre['free_parameters']['dead_time_grid_ms']) * pre['optimiser']['starts_per_dead_time']
-    assert {r[1] for r in r1} == {7, 8, 9, 10}
+    assert {r[1] for r in r1} == {7, 8}
     assert all(a[0] == b[0] and a[1] == b[1] and np.array_equal(a[2], b[2]) for a, b in zip(r1, r2))
     x0 = F.from_x(r1[0][2], spec)
     for (t, k, *_), v in zip(spec, F.base_values(base, spec)):
@@ -162,7 +164,9 @@ def test_prereg_consistency():
         assert _sha(ROOT / rel) == s_, rel
     assert _sha(ROOT / pre['base_params']['file']) == pre['base_params']['sha256']
     assert _sha(ROOT / pre['data_pin']['file']) == pre['data_pin']['sha256']
-    assert _sha(PREREG_V1) == pre['supersedes']['sha256'] == '6fa584331422598ba694424406cf2fd9ee2499c1f96c8d80588d76ec87471bee'
+    assert _sha(PREREG_V1) == pre['supersedes']['v1']['sha256'] == '6fa584331422598ba694424406cf2fd9ee2499c1f96c8d80588d76ec87471bee'
+    assert _sha(PREREG_V2) == pre['supersedes']['v2']['sha256'] == 'b10c9fddd9258daff8bcc11b8de824c06719942617627527d4d4cca17dfe8e44'
+    assert pre['smoke_pin']['file'] == 'qualification/v8/V8_smoke_pin.json' and len(pre['changes_from_v2']) == 5
     for f in pre['free_parameters']['continuous']:
         assert f['type'] in ('R1-R6', 'L1', 'L2')
     t = pre['targets']
@@ -232,11 +236,46 @@ def test_bg_decidability_rule():
     assert 'BG-4' not in g['G4_kernel_tp'] and g['R_STAGE_PASS']   # dropped background is not scored
 
 
-def test_g3_g5_reconcile_only_for_d_7_to_10():
-    for d in (7, 8, 9, 10):
-        assert V.train_gates(_meas(lat=float(d), l_lat=float(d)), d)['TRAIN_PASS']
-    assert V.train_gates(_meas(), 12)['G5_dead_time'] and V.train_gates(_meas(), 6)['G5_dead_time'] is False
-    assert not V.train_gates(_meas(lat=12.0, l_lat=12.0), 12)['TRAIN_PASS']    # D 12 forces onset > 10
+def test_dead_time_grid_is_feasible_on_the_real_engine():
+    """v3 fix 4: onsets MEASURED from the real BrainV6 kernel (minimal graph, fastest free values),
+    not a synthetic onset of D.  Every v3 grid value can pass G3; the v2 grid could not (D 9, 10)."""
+    base = json.loads(BASE.read_text())
+    ons = {D: V.best_case_onsets(D, base) for D in (7, 8, 9, 10)}
+    for D, o in ons.items():
+        assert o['R'] == D + 1 and o['L1'] >= D + 2                       # the code's onset relations
+    v3 = json.loads(PREREG.read_text())['free_parameters']['dead_time_grid_ms']
+    v2 = json.loads(PREREG_V2.read_text())['free_parameters']['dead_time_grid_ms']
+    assert all(V.g3_feasible(ons[D]) for D in v3)                         # pass-new
+    assert not all(V.g3_feasible(ons[D]) for D in v2)                     # fail-old
+
+
+def test_r_onset_failure_is_f1_r_not_f1_lmc():
+    """v3 fix 3: in v2 a late R onset sat in the LMC stage and could produce F1_LMC by construction."""
+    g = V.train_gates(_meas(lat=11.0, l_lat=11.0), 8)
+    assert not g['R_STAGE_PASS']
+    reps = [dict(run=k, cost=1.0, status='completed', gates=g) for k in range(2)]
+    assert V.outcome(reps, 2) == ('F1_R', None)
+
+
+def test_g5_is_non_binding_over_the_grid():
+    grid = json.loads(PREREG.read_text())['free_parameters']['dead_time_grid_ms']
+    assert all(V.train_gates(_meas(lat=d + 1.0, l_lat=d + 2.0), d)['G5_dead_time'] for d in grid)
+
+
+def test_fit_refuses_an_unpinned_or_altered_smoke_report(tmp_path):
+    """v3 fix 5."""
+    pre = json.loads(PREREG.read_text())
+    rep = tmp_path / 'smoke_v8.json'; rep.write_text(json.dumps(dict(arm='EVALUABLE', evaluable_backgrounds=['BG0'])))
+    with pytest.raises(SystemExit):                                       # no pin committed
+        F.check_smoke_pin(pre, 'p' * 64, rep, repo=tmp_path)
+    pin = tmp_path / pre['smoke_pin']['file']; pin.parent.mkdir(parents=True)
+    pin.write_text(json.dumps(dict(prereg_sha256='p' * 64, smoke_v8_sha256=_sha(rep))))
+    assert F.check_smoke_pin(pre, 'p' * 64, rep, repo=tmp_path)['arm'] == 'EVALUABLE'
+    with pytest.raises(SystemExit):
+        F.check_smoke_pin(pre, 'q' * 64, rep, repo=tmp_path)              # another prereg
+    rep.write_text(json.dumps(dict(arm='EVALUABLE', evaluable_backgrounds=['BG0', 'BG-4'])))
+    with pytest.raises(SystemExit):
+        F.check_smoke_pin(pre, 'p' * 64, rep, repo=tmp_path)              # altered report
 
 
 def test_jh2001_kernel_is_estimated_from_noise():

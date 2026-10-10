@@ -13,7 +13,14 @@
   },
   "v2": {
     "file": "qualification/v8/V8_input_prereg_v2.json",
+    "sha256": "b10c9fddd9258daff8bcc11b8de824c06719942617627527d4d4cca17dfe8e44",
+    "status": "SUPERSEDED",
+    "when": "2026-10-10, before any run",
+    "reason": "G3/G5 reconciliation ignored the engine's +1 ms read offset and 1.8 ms release delay (G3 infeasible at D 9-10, G5 vacuous, R onset inside the LMC stage); smoke report unpinned (audits 1 and 2 of v2)"
+  },
+  "v3": {
+    "file": "qualification/v8/V8_input_prereg_v3.json",
     "status": "CURRENT (frozen)",
-    "changes": "see changes_from_v1 in the v2 file"
+    "changes": "see changes_from_v2 in the v3 file"
   }
 }
