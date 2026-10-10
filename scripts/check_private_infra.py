@@ -9,6 +9,7 @@ the same exclusions). Standard library only.
     scripts/check_private_infra.sh            # same, used by CI
     scripts/check_private_infra.sh --commits HEAD        # commit metadata, whole ancestry
     scripts/check_private_infra.sh --tree-rev <sha>      # committed tree of a revision
+    scripts/check_private_infra.sh --github OWNER/REPO   # PR/issue/release text on GitHub
 
 Tree mode (the default) scans the checkout. Revision mode (--tree-rev REV) scans what a
 push of REV publishes: the tree of REV itself (always, even if REV is old) and the tree of
@@ -27,7 +28,28 @@ exact list of SHAs, each with the rule classes it fails, pinned by COMMIT_EXCEPT
 below. It is an acknowledgement of existing exposure, not an approval, and it never
 applies to a tree. Since the owner-approved history rewrite of 2026-10-09 cleaned the
 published metadata, the manifest is empty. The allow-list file never applies to commit metadata. Anything the guard cannot
-read or parse (bad range, missing object, malformed manifest) exits 2: fail closed.
+read or parse (bad range, missing object, malformed manifest, corrupt or oversized archive
+or image metadata) exits 2: fail closed.
+
+Binary files (a NUL in the first 8 KB) are not skipped. PNG tEXt/zTXt/iTXt chunks, JPEG
+EXIF/XMP/COM segments and the JSON chunk of a GLB are extracted and scanned with every
+rule. Every binary is also reduced to its printable ASCII/UTF-8 runs of six or more
+characters, which are scanned with the path, session, e-mail, secret, chat-id and token
+rules; the IP rules (private-ip, overlay-net) apply to such a run only when the address is
+delimited (the whole run, after ://, @, =, a quote or a colon, or followed by :port),
+because version strings and numeric noise in compiled or compressed data look like
+dotted quads, and agent-uuid does not apply to them at all (UUIDs are ubiquitous in
+binary formats). Zip-family (.zip, .whl, .npz, ...) and tar archives, also inside gzip,
+bzip2 or xz, are opened in memory: member names, tar link targets and owner names, and
+member contents are scanned recursively, at most two archive levels deep, under size and
+member-count caps. Findings inside an archive are reported as <archive>!<member>; line
+numbers in a binary count the extracted metadata lines, then its printable runs.
+
+GitHub mode (--github OWNER/REPO) reads, through the `gh` CLI and strictly read-only, the
+repository description and homepage, pull-request titles and bodies, issue titles and
+bodies, issue, pull-request, review and commit comments, review bodies, release names,
+tags and notes, and release asset names, and applies the same text rules. Findings are
+reported as github <kind> #<n>: [<class>] <redacted>.
 
 Classes of finding (each can be silenced for a specific path and match through
 the allow-list, see scripts/private_infra_allowlist.txt):
@@ -48,6 +70,16 @@ the allow-list, see scripts/private_infra_allowlist.txt):
                  identifiers (allow-list a genuine non-agent UUID by path and value)
   session-trailer  an agent session or task trailer line ("<agent>-Session: ..."), as
                  added by agent tooling to commit messages
+  secret         credentials: GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_, github_pat_),
+                 OpenAI-style sk- keys, AWS AKIA/ASIA access key ids, Slack xox[abprs]-
+                 tokens, PEM private-key blocks, Telegram bot tokens, Google OAuth
+                 client ids
+  overlay-net    overlay-network addresses: Tailscale CGNAT 100.64.0.0/10, *.ts.net
+                 names, ZeroTier network ids next to the word zerotier or zt
+  chat-id        a Telegram chat id after chat_id / chat id / TELEGRAM_CHAT
+  transcript     an agent conversation transcript (JSON lines carrying a user or
+                 assistant role together with a session id or uuid, Claude Code or
+                 Codex rollout records, Human/Assistant turn pairs); once per file
   denied-token   known private usernames, hostnames and internal host names. They
                  are stored as SHA-256 hashes so that the guard does not republish
                  them. Add your own at run time with NEUROFLY_PRIVATE_TOKENS=a,b,c.
@@ -71,13 +103,23 @@ Placeholders used by redacted receipts (<repo>/, <home>/, <scratch>/,
 from __future__ import annotations
 
 import argparse
+import bisect
+import bz2
 import fnmatch
+import gzip
 import hashlib
+import io
+import json
+import lzma
 import os
 import re
 import shlex
+import struct
 import subprocess
 import sys
+import tarfile
+import zipfile
+import zlib
 from pathlib import Path
 
 # Lower-cased SHA-256 of private tokens (username, workstation hostname, internal hosts,
@@ -106,6 +148,13 @@ PATTERNS = [
     ('private-ip', re.compile(
         r'(?<![\d.])(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}'
         r'|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?![\d.]*\d)')),
+    # Tailscale (and other carrier-grade NAT overlays) hand out 100.64.0.0/10; naming the
+    # range itself (base address with /10) is documentation, not a host.
+    ('overlay-net', re.compile(
+        r'(?<![\d.])(?!100\.64\.0\.0/10\b)100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}(?![\d.]*\d)')),
+    ('overlay-net', re.compile(
+        r'(?i)(?<![A-Za-z0-9-])[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.ts\.net\b'
+        r'|\b(?:zerotier(?:-cli)?|zt)\b[^\n]{0,40}?(?<![0-9a-f])[0-9a-f]{16}(?![0-9a-z])')),
     ('home-path', re.compile(r'/home/[A-Za-z0-9._-]*[A-Za-z0-9_-]/|/Users/[A-Za-z0-9._-]+/'
                              r'|\b[A-Za-z]:(?:\\\\?|/)Users(?:\\\\?|/)[A-Za-z0-9._ -]*[A-Za-z0-9]')),
     ('share-path', re.compile(r'/mnt/[A-Za-z0-9][A-Za-z0-9._-]*|/media/[A-Za-z0-9._-]+/'
@@ -132,6 +181,17 @@ PATTERNS = [
     ('session-trailer', re.compile(
         r'(?i)^\s*(?:claude|codex|chatgpt|openai|gemini|agent)[-_ ]?(?:session|task|chat|conversation)'
         r'(?:[-_ ]?(?:id|url|link))?\s*:.*$')),
+    ('secret', re.compile(
+        r'(?<![A-Za-z0-9_])(?:gh[pousr]_[A-Za-z0-9]{30,255}|github_pat_[A-Za-z0-9_]{22,255})'
+        r'|(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}'
+        r'|(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])'
+        r'|(?<![A-Za-z0-9])xox[abprs]-[A-Za-z0-9-]{10,}'
+        r'|-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----'
+        r'|(?<![\d:])\d{8,10}:[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])'
+        r'|(?<![\d-])\d+-[a-z0-9]{32}\.apps\.googleusercontent\.com\b')),
+    # A Telegram chat id: a user id (9-13 digits, optionally negative) or a -100... channel id.
+    ('chat-id', re.compile(
+        r'(?i)(?:telegram_chat(?:_id)?|chat[_ -]?id)["\']?\s*[:=]?\s*["\']?(?:-100\d{7,13}|-?\d{9,13})(?!\d)')),
 ]
 # Output policy: no diagnostic ever prints a matched value. Findings are reported as
 # <safe location>:<line>: [<class>] <redacted> (id <finding id>); a path segment that itself
@@ -163,6 +223,11 @@ SELF_FILES = {'scripts/private_infra_allowlist.txt'}
 
 
 def _denied_spans(word: str, extra: set[str]):
+    if SEP.search(word) is None:       # fast path: a single span
+        low = word.lower()
+        if low in extra or hashlib.sha256(low.encode()).hexdigest() in DENIED_TOKEN_SHA256:
+            yield word
+        return
     parts = SEP.split(word)            # [w, sep, w, sep, w ...]
     words = parts[0::2]
     if len(words) > 12:
@@ -273,6 +338,325 @@ def scan_text(rel, text, rules, extra, patterns=None, email_allow=None):
                     findings.append((rel, lineno, 'denied-token', span))
                 break
     return findings
+
+
+# ---------------------------------------------------------------- transcripts
+
+_TR_ROLE = re.compile(r'"role"\s*:\s*"(?:user|assistant)"')
+_TR_ID = re.compile(r'"(?:session_id|sessionId|uuid)"\s*:')
+_TR_RECORD = re.compile(r'"type"\s*:\s*"session_meta"|"parentUuid"\s*:')
+_TR_HUMAN = re.compile(r'^\s*Human:')
+_TR_ASSISTANT = re.compile(r'^\s*Assistant:')
+
+
+def scan_transcript(rel, text, rules):
+    """At most one 'transcript' finding per text: the first line that shows an agent
+    conversation record, or the first Human: line that a later Assistant: line answers."""
+    human = None
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if (_TR_ROLE.search(line) and _TR_ID.search(line)) or _TR_RECORD.search(line):
+            at = lineno
+        elif human is None and _TR_HUMAN.match(line):
+            human = (lineno, line)
+            continue
+        elif human is not None and _TR_ASSISTANT.match(line):
+            at, line = human
+        else:
+            continue
+        if not allowed(rules, 'transcript', rel, line):
+            return [(rel, at, 'transcript', line)]
+    return []
+
+
+# ---------------------------------------------------------------- binaries and archives
+
+MAX_DECOMPRESSED = 64 << 20          # one decompressed member, chunk or stream
+MAX_ARCHIVE_TOTAL = 256 << 20        # all members of one archive together
+MAX_ARCHIVE_MEMBERS = 20000
+MAX_ARCHIVE_DEPTH = 2                # archive in archive is fine, a third level fails closed
+MAX_COMPRESSION_LAYERS = 4
+
+# Printable ASCII (with tab) and well-formed multi-byte UTF-8 (no C1 controls).
+_PRINTABLE_RUN = re.compile(rb'(?:[\x20-\x7e\t]|\xc2[\xa0-\xbf]|[\xc3-\xdf][\x80-\xbf]'
+                            rb'|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xf4][\x80-\xbf]{3}){6,}')
+_IP_RULES = [(c, rx) for c, rx in PATTERNS                     # the two dotted-quad rules
+             if c in ('private-ip', 'overlay-net') and rx.pattern.startswith(r'(?<![\d.])')]
+# Rules applied to printable runs of raw binary data: everything except the dotted-quad
+# rules (checked only when delimited, see _delimited_ip) and agent-uuid.
+STRINGS_PATTERNS = [(c, rx) for c, rx in PATTERNS if (c, rx) not in _IP_RULES and c != 'agent-uuid']
+_PORT_AFTER = re.compile(r':\d{1,5}(?!\d)')
+
+
+def _delimited_ip(run: str, start: int, end: int) -> bool:
+    """An address in a binary string counts only when it stands as a value of its own."""
+    before, after = run[:start].rstrip(), run[end:]
+    return ((not before and not after.strip()) or before.endswith(('://', '@', '=', '"', "'", ':'))
+            or bool(_PORT_AFTER.match(after)))
+
+
+def _plausible_binary_email(hit: str) -> bool:
+    """Compressed pixel data yields short address-shaped runs (one-character local part and host) by chance (seen
+    in PNG receipts). In raw binary strings an address therefore needs a local part of two
+    or more characters, three or more before the top-level domain, and a single-case TLD."""
+    local, _, domain = hit.partition('@')
+    host, _, tld = domain.rpartition('.')
+    return len(local) >= 2 and len(host) >= 3 and (tld.islower() or tld.isupper())
+
+
+def _cap_read(rel, reader, what):
+    data = reader(MAX_DECOMPRESSED + 1)
+    if len(data) > MAX_DECOMPRESSED:
+        raise GuardError(f'{safe_location(rel)}: {what} exceeds {MAX_DECOMPRESSED >> 20} MiB')
+    return data
+
+
+def _inflate(rel, raw, what):
+    d = zlib.decompressobj()
+    try:
+        out = d.decompress(raw, MAX_DECOMPRESSED)
+    except zlib.error as exc:
+        raise GuardError(f'{safe_location(rel)}: corrupt {what}') from exc
+    if d.unconsumed_tail:
+        raise GuardError(f'{safe_location(rel)}: {what} exceeds {MAX_DECOMPRESSED >> 20} MiB')
+    return out
+
+
+def _png_text(rel, data):
+    texts, pos = [], 8
+    while pos < len(data):
+        if pos + 12 > len(data):
+            raise GuardError(f'{safe_location(rel)}: truncated PNG chunk')
+        n, ctype = struct.unpack('>I4s', data[pos:pos + 8])
+        if pos + 12 + n > len(data):
+            raise GuardError(f'{safe_location(rel)}: truncated PNG chunk')
+        body = data[pos + 8:pos + 8 + n]
+        pos += 12 + n
+        if ctype in (b'tEXt', b'zTXt', b'iTXt'):
+            key, sep, rest = body.partition(b'\0')
+            if not sep:
+                raise GuardError(f'{safe_location(rel)}: malformed PNG text chunk')
+            if ctype == b'tEXt':
+                text = rest.decode('latin-1')
+            elif ctype == b'zTXt':
+                text = _inflate(rel, rest[1:], 'PNG zTXt chunk').decode('latin-1')
+            else:
+                if len(rest) < 2:
+                    raise GuardError(f'{safe_location(rel)}: malformed PNG text chunk')
+                flag, rest = rest[0], rest[2:]
+                parts = rest.split(b'\0', 2)
+                if len(parts) != 3:
+                    raise GuardError(f'{safe_location(rel)}: malformed PNG text chunk')
+                raw = _inflate(rel, parts[2], 'PNG iTXt chunk') if flag else parts[2]
+                text = raw.decode('utf-8', 'replace')
+                tail = [p.decode('utf-8', 'replace') for p in parts[:2] if p]   # language, keyword
+            texts.append(key.decode('latin-1') + ': ' + text)
+            if ctype == b'iTXt':
+                texts += tail
+        elif ctype == b'IEND':
+            break
+    return texts
+
+
+def _jpeg_text(rel, data):
+    """Printable strings of the EXIF/XMP (APPn) and COM segments, up to start of scan."""
+    texts, pos = [], 2
+    while pos + 1 < len(data):
+        if data[pos] != 0xFF:
+            raise GuardError(f'{safe_location(rel)}: malformed JPEG segment')
+        marker = data[pos + 1]
+        if marker == 0xFF:
+            pos += 1
+            continue
+        if marker in (0x01, 0xD8) or 0xD0 <= marker <= 0xD7:
+            pos += 2
+            continue
+        if marker in (0xD9, 0xDA):                         # end of image / entropy-coded data
+            break
+        if pos + 4 > len(data):
+            raise GuardError(f'{safe_location(rel)}: truncated JPEG segment')
+        n = struct.unpack('>H', data[pos + 2:pos + 4])[0]
+        if n < 2 or pos + 2 + n > len(data):
+            raise GuardError(f'{safe_location(rel)}: truncated JPEG segment')
+        if marker == 0xFE or 0xE0 <= marker <= 0xEF:
+            seg = data[pos + 4:pos + 2 + n]
+            texts += [m.group(0).decode('utf-8', 'replace') for m in _PRINTABLE_RUN.finditer(seg)]
+        pos += 2 + n
+    return texts
+
+
+def _glb_text(rel, data):
+    if len(data) < 20:
+        raise GuardError(f'{safe_location(rel)}: truncated GLB header')
+    n, ctype = struct.unpack('<I4s', data[12:20])
+    if ctype != b'JSON' or 20 + n > len(data):
+        raise GuardError(f'{safe_location(rel)}: malformed GLB JSON chunk')
+    return [data[20:20 + n].decode('utf-8', 'replace')]
+
+
+# Rules whose \s or ^ could reach across a line break; in bulk mode they run per run, and
+# only on runs holding a keyword that every match of theirs contains.
+_RUN_LOCAL_RULES = {'host-field': ('"host',), 'chat-id': ('chat',),
+                    'session-trailer': ('session', 'task', 'chat', 'conversation')}
+
+
+def _scan_runs(rel, runs, rules, extra):
+    """scan_text(rel, '\\n'.join(runs), rules, extra, STRINGS_PATTERNS) as (line, class, hit),
+    computed with one regex pass per rule over all runs: noisy binaries have very many runs.
+    The bulk rules cannot match across a line break, so the result is the same."""
+    blob = '\n'.join(runs)
+    starts, pos = [], 0
+    for r in runs:
+        starts.append(pos)
+        pos += len(r) + 1
+    found = []
+
+    def keep(cls, m):
+        hit = m.group(0)
+        if cls == 'email' and any(a.match(hit) for a in EMAIL_ALLOW):
+            return None
+        if cls == 'host-field' and HOST_FIELD_OK.match(m.group(1)):
+            return None
+        return None if allowed(rules, cls, rel, hit) else hit
+
+    for cls, rx in STRINGS_PATTERNS:
+        if cls in _RUN_LOCAL_RULES:
+            keys = _RUN_LOCAL_RULES[cls]
+            for i, run in enumerate(runs, 1):
+                low = run.lower()
+                if any(k in low for k in keys):
+                    found += [(i, cls, h) for h in (keep(cls, m) for m in rx.finditer(run)) if h]
+            continue
+        for m in rx.finditer(blob):
+            hit = keep(cls, m)
+            if hit:
+                found.append((bisect.bisect_right(starts, m.start()), cls, hit))
+    for w in WORD.finditer(blob):
+        for span in _denied_spans(w.group(0), extra):
+            if not allowed(rules, 'denied-token', rel, span):
+                found.append((bisect.bisect_right(starts, w.start()), 'denied-token', span))
+            break
+    return sorted(found, key=lambda f: f[0])
+
+
+def _scan_binary(rel, data, rules, extra, meta):
+    """Full rules over extracted metadata, then the strings rules over printable runs."""
+    lines = [ln for t in meta for ln in (t.splitlines() or [''])]
+    text = '\n'.join(lines)
+    findings = scan_text(rel, text, rules, extra) + scan_transcript(rel, text, rules)
+    seen = {(c, h) for _, _, c, h in findings}
+    runs = [m.group(0).decode('utf-8', 'replace') for m in _PRINTABLE_RUN.finditer(data)]
+    for lineno, cls, hit in _scan_runs(rel, runs, rules, extra):
+        if cls == 'email' and not _plausible_binary_email(hit):
+            continue
+        if (cls, hit) not in seen:
+            seen.add((cls, hit))
+            findings.append((rel, len(lines) + lineno, cls, hit))
+    blob = '\n'.join(runs)
+    for cls, rx in _IP_RULES:                      # cannot match across a line break
+        for m in rx.finditer(blob):
+            a, b = blob.rfind('\n', 0, m.start()) + 1, blob.find('\n', m.end())
+            run = blob[a:b if b >= 0 else len(blob)]
+            if _delimited_ip(run, m.start() - a, m.end() - a) and (cls, m.group(0)) not in seen \
+                    and not allowed(rules, cls, rel, m.group(0)):
+                seen.add((cls, m.group(0)))
+                findings.append((rel, len(lines) + blob.count('\n', 0, a) + 1, cls, m.group(0)))
+    return findings
+
+
+def _member_name(member_rel, text, rules, extra):
+    """Findings in an archive member's name (or other per-member header text), line 0."""
+    return [(member_rel, 0, c, h) for _, _, c, h in scan_text(member_rel, text, rules, extra)]
+
+
+def _scan_zip(rel, data, rules, extra, depth):
+    findings, total = [], 0
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            infos = zf.infolist()
+            if len(infos) > MAX_ARCHIVE_MEMBERS:
+                raise GuardError(f'{safe_location(rel)}: more than {MAX_ARCHIVE_MEMBERS} archive members')
+            for info in infos:
+                mrel = f'{rel}!{info.filename}'
+                findings += _member_name(mrel, '/' + info.filename, rules, extra)
+                findings += _member_name(mrel, info.comment.decode('utf-8', 'replace'), rules, extra)
+                if info.is_dir():
+                    continue
+                if info.flag_bits & 0x1:
+                    raise GuardError(f'{safe_location(mrel)}: encrypted archive member')
+                total += info.file_size
+                if info.file_size > MAX_DECOMPRESSED or total > MAX_ARCHIVE_TOTAL:
+                    raise GuardError(f'{safe_location(mrel)}: archive member or archive too large')
+                with zf.open(info) as fh:
+                    content = _cap_read(mrel, fh.read, 'archive member')
+                findings += scan_blob(mrel, content, rules, extra, depth + 1)
+            findings += _member_name(f'{rel}!', zf.comment.decode('utf-8', 'replace'), rules, extra)
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, NotImplementedError, EOFError, zlib.error,
+            RuntimeError, ValueError) as exc:
+        if isinstance(exc, GuardError):
+            raise
+        raise GuardError(f'{safe_location(rel)}: unreadable zip archive ({type(exc).__name__})') from exc
+    return findings
+
+
+def _scan_tar(rel, data, rules, extra, depth):
+    findings, total, count = [], 0, 0
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode='r:') as tf:
+            for member in tf:
+                count += 1
+                if count > MAX_ARCHIVE_MEMBERS:
+                    raise GuardError(f'{safe_location(rel)}: more than {MAX_ARCHIVE_MEMBERS} archive members')
+                mrel = f'{rel}!{member.name}'
+                header = '\n'.join(['/' + member.name, member.linkname, member.uname, member.gname,
+                                    *member.pax_headers.values()])
+                findings += _member_name(mrel, header, rules, extra)
+                if not member.isfile():
+                    continue
+                total += member.size
+                if member.size > MAX_DECOMPRESSED or total > MAX_ARCHIVE_TOTAL:
+                    raise GuardError(f'{safe_location(mrel)}: archive member or archive too large')
+                fh = tf.extractfile(member)
+                if fh is None:
+                    raise GuardError(f'{safe_location(mrel)}: unreadable archive member')
+                findings += scan_blob(mrel, _cap_read(mrel, fh.read, 'archive member'), rules, extra, depth + 1)
+    except (tarfile.TarError, EOFError, ValueError) as exc:
+        raise GuardError(f'{safe_location(rel)}: unreadable tar archive ({type(exc).__name__})') from exc
+    return findings
+
+
+_DECOMPRESSORS = {b'\x1f\x8b': gzip.GzipFile, b'BZh': bz2.BZ2File, b'\xfd7zXZ\x00': lzma.LZMAFile}
+
+
+def scan_blob(rel, data, rules, extra, depth=0, layers=0):
+    """Every finding in one file's (or archive member's) bytes. Fails closed (GuardError)
+    on anything it recognises but cannot read: corrupt archives, metadata or streams,
+    and archives that are too deep, too large or have too many members."""
+    for magic, opener in _DECOMPRESSORS.items():
+        if data.startswith(magic):
+            if layers >= MAX_COMPRESSION_LAYERS:
+                raise GuardError(f'{safe_location(rel)}: more than {MAX_COMPRESSION_LAYERS} compression layers')
+            try:
+                with opener(fileobj=io.BytesIO(data)) as fh:
+                    inner = _cap_read(rel, fh.read, 'compressed stream')
+            except (OSError, EOFError, zlib.error, lzma.LZMAError, ValueError) as exc:
+                raise GuardError(f'{safe_location(rel)}: corrupt compressed stream') from exc
+            return scan_blob(rel, inner, rules, extra, depth, layers + 1)
+    is_zip = data[:4] in (b'PK\x03\x04', b'PK\x05\x06')
+    is_tar = len(data) >= 512 and data[257:262] == b'ustar'
+    if is_zip or is_tar:
+        if depth >= MAX_ARCHIVE_DEPTH:
+            raise GuardError(f'{safe_location(rel)}: archive nested more than {MAX_ARCHIVE_DEPTH} levels deep')
+        return (_scan_zip if is_zip else _scan_tar)(rel, data, rules, extra, depth)
+    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+        return _scan_binary(rel, data, rules, extra, _png_text(rel, data))
+    if data.startswith(b'\xff\xd8\xff'):
+        return _scan_binary(rel, data, rules, extra, _jpeg_text(rel, data))
+    if data.startswith(b'glTF'):
+        return _scan_binary(rel, data, rules, extra, _glb_text(rel, data))
+    if b'\0' in data[:8192]:
+        return _scan_binary(rel, data, rules, extra, [])
+    text = data.decode('utf-8', 'replace')
+    return scan_text(rel, text, rules, extra) + scan_transcript(rel, text, rules)
 
 
 class GuardError(RuntimeError):
@@ -570,9 +954,7 @@ def scan_revision_tree(root: Path, rev: str, rules_path: str | None, extra, boun
             done.add((path, blob, allow_blob))
             files += 1
             hits = scan_path(path, rules, extra)
-            data = objs[blob][1]
-            if b'\0' not in data[:8192]:
-                hits += scan_text(path, data.decode('utf-8', 'replace'), rules, extra)
+            hits += scan_blob(path, objs[blob][1], rules, extra)
             findings += [(None if commit == tip else commit, *h) for h in hits]
     return tip, len(targets), files, findings
 
@@ -608,6 +990,108 @@ def _report_tree(findings, label):
     return 0
 
 
+# ---------------------------------------------------------------- GitHub (read-only, via gh)
+
+_GITHUB_REPO_RX = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$')
+GH_TIMEOUT = 300
+
+
+def _gh_api(endpoint: str, paginate: bool = True):
+    """GET one endpoint with `gh api` (never any other method). Pages are concatenated
+    JSON documents; list pages are flattened. Any failure fails closed."""
+    cmd = ['gh', 'api', '--method', 'GET', '-H', 'Accept: application/vnd.github+json']
+    if paginate:
+        cmd.append('--paginate')
+    try:
+        r = subprocess.run([*cmd, endpoint], capture_output=True, timeout=GH_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise GuardError(f'cannot run gh: {type(exc).__name__}') from exc
+    kind = endpoint.split('?')[0].rsplit('/', 1)[-1]
+    if r.returncode != 0:
+        msg = r.stderr.decode('utf-8', 'replace').strip().splitlines()
+        raise GuardError(f'gh api failed for {kind}: {msg[-1] if msg else "exit " + str(r.returncode)}')
+    text, dec, pos, docs = r.stdout.decode('utf-8'), json.JSONDecoder(), 0, []
+    while True:
+        while pos < len(text) and text[pos].isspace():
+            pos += 1
+        if pos >= len(text):
+            break
+        doc, pos = dec.raw_decode(text, pos)
+        docs.append(doc)
+    if not docs:
+        raise GuardError(f'gh api returned nothing for {kind}')
+    if all(isinstance(d, list) for d in docs):
+        items = [x for d in docs for x in d]
+        if not all(isinstance(x, dict) for x in items):
+            raise GuardError(f'gh api returned an unexpected shape for {kind}')
+        return items
+    if len(docs) == 1 and isinstance(docs[0], dict):
+        return docs[0]
+    raise GuardError(f'gh api returned an unexpected shape for {kind}')
+
+
+def _tail_number(url) -> int:
+    tail = str(url or '').rstrip('/').rsplit('/', 1)[-1]
+    if not tail.isdigit():
+        raise GuardError('gh api returned a comment without a parent number')
+    return int(tail)
+
+
+def github_texts(repo: str):
+    """Yield (kind, number, text) for every piece of user-written text the repository
+    publishes on GitHub outside git itself."""
+    base = f'repos/{repo}'
+    meta = _gh_api(base, paginate=False)
+    if not isinstance(meta, dict):
+        raise GuardError('gh api returned an unexpected shape for the repository')
+    yield 'repo', 0, '\n'.join(str(meta.get(k) or '') for k in ('description', 'homepage'))
+
+    def t(*vals):
+        return '\n'.join(str(v or '') for v in vals)
+
+    prs = _gh_api(f'{base}/pulls?state=all&per_page=100')
+    pr_numbers = {p.get('number') for p in prs}
+    for p in prs:
+        yield 'pr', p.get('number'), t(p.get('title'), p.get('body'))
+    for i in _gh_api(f'{base}/issues?state=all&per_page=100'):
+        if 'pull_request' not in i:
+            yield 'issue', i.get('number'), t(i.get('title'), i.get('body'))
+    for c in _gh_api(f'{base}/issues/comments?per_page=100'):
+        n = _tail_number(c.get('issue_url'))
+        yield ('pr-comment' if n in pr_numbers else 'issue-comment'), n, t(c.get('body'))
+    for c in _gh_api(f'{base}/pulls/comments?per_page=100'):
+        yield 'review-comment', _tail_number(c.get('pull_request_url')), t(c.get('body'))
+    for n in sorted(x for x in pr_numbers if isinstance(x, int)):
+        for rv in _gh_api(f'{base}/pulls/{n}/reviews?per_page=100'):
+            yield 'review', n, t(rv.get('body'))
+    for c in _gh_api(f'{base}/comments?per_page=100'):
+        yield 'commit-comment', c.get('id'), t(c.get('body'))
+    for rel in _gh_api(f'{base}/releases?per_page=100'):
+        yield 'release', rel.get('id'), t(rel.get('name'), rel.get('tag_name'), rel.get('body'))
+        for a in rel.get('assets') or []:
+            yield 'release-asset', rel.get('id'), t(a.get('name'), a.get('label'))
+
+
+def main_github(repo: str, rules, extra):
+    if not _GITHUB_REPO_RX.match(repo):
+        raise GuardError('--github expects OWNER/REPO')
+    findings, n_items = [], 0
+    for kind, number, text in github_texts(repo):
+        n_items += 1
+        rel = f'github:{kind}:{number}'
+        findings += [(kind, number, cls) for _, _, cls, _ in
+                     scan_text(rel, text, rules, extra) + scan_transcript(rel, text, rules)]
+    print(f'[audit] scanned {n_items} GitHub text item(s) of {redact_text(repo)} (github mode, read-only)')
+    for kind, number, cls in findings:
+        print(f'github {kind} #{number}: [{cls}] <redacted>')
+    if findings:
+        print(f'[audit] FAILED: {len(findings)} private-data finding(s) on GitHub. Edit the text on GitHub; '
+              f'the guard never writes.')
+        return 1
+    print('[audit] PASSED: no personal or private-infrastructure data found on GitHub.')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--root', default=None, help='tree or repository to scan (default: repository root)')
@@ -628,6 +1112,9 @@ def main(argv=None):
                     help='apply no historical exceptions (used to rebuild the manifest for review)')
     ap.add_argument('--emit-exceptions', action='store_true',
                     help='with --commits and --no-commit-exceptions: print manifest lines (sha classes)')
+    ap.add_argument('--github', metavar='OWNER/REPO', default=None,
+                    help='scan the PR, issue, comment, review and release text of a GitHub repository '
+                         'through the gh CLI (read-only) instead of the tree')
     args = ap.parse_args(argv)
     extra = {t.strip().lower() for t in os.environ.get('NEUROFLY_PRIVATE_TOKENS', '').split(',') if t.strip()}
     _RUNTIME_EXTRA.clear()
@@ -637,6 +1124,9 @@ def main(argv=None):
         print(f'[audit] no such directory: {redact_text(str(root))}', file=sys.stderr)
         return 2
     try:
+        if args.github is not None:
+            allow_path = Path(args.allowlist) if args.allowlist else root / 'scripts' / 'private_infra_allowlist.txt'
+            return main_github(args.github, load_allowlist(allow_path), extra)
         if args.commits is not None:
             if args.emit_exceptions and not args.no_commit_exceptions:
                 raise GuardError('--emit-exceptions requires --no-commit-exceptions')
@@ -670,10 +1160,7 @@ def main(argv=None):
             if p.is_symlink() or not p.is_file():
                 continue
             findings += scan_path(rel, rules, extra)
-            data = p.read_bytes()
-            if b'\0' in data[:8192]:
-                continue                               # binary
-            findings += scan_text(rel, data.decode('utf-8', 'replace'), rules, extra)
+            findings += scan_blob(rel, p.read_bytes(), rules, extra)
         return _report_tree(findings, 'the tree')
     except (GuardError, ValueError, OSError, UnicodeDecodeError, re.error) as exc:
         print(f'[audit] ERROR (failing closed): {redact_text(str(exc))}', file=sys.stderr)

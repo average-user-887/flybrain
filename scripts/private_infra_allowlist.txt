@@ -3,8 +3,10 @@
 #
 #   <class> <path-glob> <regex matched against the flagged text>
 #
-# <class> is one of private-ip, home-path, share-path, agent-scratch, email,
-# host-field, denied-token, or * for any. Paths are relative to the repository root.
+# <class> is one of private-ip, overlay-net, home-path, share-path, agent-scratch,
+# email, host-field, agent-session, agent-uuid, session-trailer, secret, chat-id,
+# transcript, denied-token, or * for any. Paths are relative to the repository root;
+# an archive member is <archive>!<member>, and GitHub text is github:<kind>:<number>.
 
 # Third-party copyright notices shipped verbatim with vendored/upstream licences.
 email licenses/upstream/** .
