@@ -1,0 +1,2006 @@
+{
+ "schema": "neurofly.pathA.pvlp151_gf_inventory/1",
+ "note": "READ-ONLY anatomical inventory. Counts and weights are wiring facts, not measured causal contributions.",
+ "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+ "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+ "edges_arrow_sha256": "842b762c9427c794eaedd453178aa034727a5084850a91fdcc4d3fffe09f5b7e",
+ "synaptic_scale_mV_per_contact": 0.275,
+ "pvlp151": {
+  "node_index": [
+   156,
+   1565,
+   1704,
+   2127
+  ],
+  "body_ids": [
+   10173,
+   11677,
+   11826,
+   12275
+  ],
+  "out_edges": 1752,
+  "out_contacts": 17808
+ },
+ "gf": {
+  "node_index": [
+   0,
+   6
+  ],
+  "body_ids": [
+   10001,
+   10010
+  ]
+ },
+ "direct_pvlp151_to_gf": {
+  "edges": 8,
+  "contacts": 603,
+  "v3_weight_sum": 165.82500326633453,
+  "fraction_of_pvlp151_out_contacts": 0.033861185983827494,
+  "rows": [
+   {
+    "edge_index": 308294,
+    "pre_node": 156,
+    "pre_body": 10173,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 0,
+    "post_body": 10001,
+    "post_type": "DNp01",
+    "graph_weight": 31.900001525878906,
+    "contacts": 116,
+    "edges_arrow_synapse_count": 116,
+    "v3_weight": 31.900001525878906,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 308466,
+    "pre_node": 156,
+    "pre_body": 10173,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 6,
+    "post_body": 10010,
+    "post_type": "DNp01",
+    "graph_weight": 1.100000023841858,
+    "contacts": 4,
+    "edges_arrow_synapse_count": 4,
+    "v3_weight": 1.100000023841858,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1594127,
+    "pre_node": 1565,
+    "pre_body": 11677,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 6,
+    "post_body": 10010,
+    "post_type": "DNp01",
+    "graph_weight": 45.10000228881836,
+    "contacts": 164,
+    "edges_arrow_synapse_count": 164,
+    "v3_weight": 45.10000228881836,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1594285,
+    "pre_node": 1565,
+    "pre_body": 11677,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 0,
+    "post_body": 10001,
+    "post_type": "DNp01",
+    "graph_weight": 1.100000023841858,
+    "contacts": 4,
+    "edges_arrow_synapse_count": 4,
+    "v3_weight": 1.100000023841858,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1678879,
+    "pre_node": 1704,
+    "pre_body": 11826,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 6,
+    "post_body": 10010,
+    "post_type": "DNp01",
+    "graph_weight": 44.54999923706055,
+    "contacts": 162,
+    "edges_arrow_synapse_count": 162,
+    "v3_weight": 44.54999923706055,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1678972,
+    "pre_node": 1704,
+    "pre_body": 11826,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 0,
+    "post_body": 10001,
+    "post_type": "DNp01",
+    "graph_weight": 2.4750001430511475,
+    "contacts": 9,
+    "edges_arrow_synapse_count": 9,
+    "v3_weight": 2.4750001430511475,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1925422,
+    "pre_node": 2127,
+    "pre_body": 12275,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 0,
+    "post_body": 10001,
+    "post_type": "DNp01",
+    "graph_weight": 38.5,
+    "contacts": 140,
+    "edges_arrow_synapse_count": 140,
+    "v3_weight": 38.5,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 1925647,
+    "pre_node": 2127,
+    "pre_body": 12275,
+    "pre_type": "PVLP151",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 6,
+    "post_body": 10010,
+    "post_type": "DNp01",
+    "graph_weight": 1.100000023841858,
+    "contacts": 4,
+    "edges_arrow_synapse_count": 4,
+    "v3_weight": 1.100000023841858,
+    "v3_sign": "+"
+   }
+  ]
+ },
+ "feedback_gf_to_pvlp151": {
+  "edges": 5,
+  "contacts": 18,
+  "rows": [
+   {
+    "edge_index": 76,
+    "pre_node": 0,
+    "pre_body": 10001,
+    "pre_type": "DNp01",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 156,
+    "post_body": 10173,
+    "post_type": "PVLP151",
+    "graph_weight": 1.100000023841858,
+    "contacts": 4,
+    "edges_arrow_synapse_count": 4,
+    "v3_weight": 1.100000023841858,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 89,
+    "pre_node": 0,
+    "pre_body": 10001,
+    "pre_type": "DNp01",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 2127,
+    "post_body": 12275,
+    "post_type": "PVLP151",
+    "graph_weight": 0.8250000476837158,
+    "contacts": 3,
+    "edges_arrow_synapse_count": 3,
+    "v3_weight": 0.8250000476837158,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 300,
+    "pre_node": 0,
+    "pre_body": 10001,
+    "pre_type": "DNp01",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 1704,
+    "post_body": 11826,
+    "post_type": "PVLP151",
+    "graph_weight": 0.2750000059604645,
+    "contacts": 1,
+    "edges_arrow_synapse_count": 1,
+    "v3_weight": 0.2750000059604645,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 14588,
+    "pre_node": 6,
+    "pre_body": 10010,
+    "pre_type": "DNp01",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 1565,
+    "post_body": 11677,
+    "post_type": "PVLP151",
+    "graph_weight": 1.6500000953674316,
+    "contacts": 6,
+    "edges_arrow_synapse_count": 6,
+    "v3_weight": 1.6500000953674316,
+    "v3_sign": "+"
+   },
+   {
+    "edge_index": 14620,
+    "pre_node": 6,
+    "pre_body": 10010,
+    "pre_type": "DNp01",
+    "pre_transmitter": "acetylcholine",
+    "post_node": 1704,
+    "post_body": 11826,
+    "post_type": "PVLP151",
+    "graph_weight": 1.100000023841858,
+    "contacts": 4,
+    "edges_arrow_synapse_count": 4,
+    "v3_weight": 1.100000023841858,
+    "v3_sign": "+"
+   }
+  ]
+ },
+ "two_hop_pvlp151_x_gf": {
+  "intermediate_cells": 382,
+  "intermediate_types": 135,
+  "total_min_leg_contacts": 2926,
+  "rule": "X = any neuron except PVLP151/GF receiving a PVLP151 edge and sending a GF edge; min_leg_contacts_sum = sum over X cells of min(PVLP151->X, X->GF) contacts (an anatomical bound, not a flow)",
+  "by_type": [
+   {
+    "type": "LPLC2",
+    "cells": 117,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 678,
+    "pvlp151_to_x_v3_weight": 186.45000582933426,
+    "x_to_gf_contacts": 3237,
+    "x_to_gf_v3_weight": 890.1750177741051,
+    "min_leg_contacts_sum": 652,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP122",
+    "cells": 6,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 315,
+    "pvlp151_to_x_v3_weight": 86.62500169873238,
+    "x_to_gf_contacts": 1216,
+    "x_to_gf_v3_weight": 334.40001779794693,
+    "min_leg_contacts_sum": 315,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNp103",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 406,
+    "pvlp151_to_x_v3_weight": 111.65000250935555,
+    "x_to_gf_contacts": 283,
+    "x_to_gf_v3_weight": 77.82500171661377,
+    "min_leg_contacts_sum": 283,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP396",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 141,
+    "pvlp151_to_x_v3_weight": 38.775000005960464,
+    "x_to_gf_contacts": 259,
+    "x_to_gf_v3_weight": 71.22500228881836,
+    "min_leg_contacts_sum": 141,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP024",
+    "cells": 3,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 118,
+    "pvlp151_to_x_v3_weight": 32.45000112056732,
+    "x_to_gf_contacts": 134,
+    "x_to_gf_v3_weight": -36.850000977516174,
+    "min_leg_contacts_sum": 111,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL367",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 101,
+    "pvlp151_to_x_v3_weight": 27.77500069141388,
+    "x_to_gf_contacts": 537,
+    "x_to_gf_v3_weight": -147.6750030517578,
+    "min_leg_contacts_sum": 101,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNpe042",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 96,
+    "pvlp151_to_x_v3_weight": 26.400001049041748,
+    "x_to_gf_contacts": 494,
+    "x_to_gf_v3_weight": 135.85000228881836,
+    "min_leg_contacts_sum": 96,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL323",
+    "cells": 4,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 83,
+    "pvlp151_to_x_v3_weight": 22.82500073313713,
+    "x_to_gf_contacts": 125,
+    "x_to_gf_v3_weight": 34.37500047683716,
+    "min_leg_contacts_sum": 83,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AMMC-A1",
+    "cells": 6,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 94,
+    "pvlp151_to_x_v3_weight": 25.85000041127205,
+    "x_to_gf_contacts": 156,
+    "x_to_gf_v3_weight": 42.90000116825104,
+    "min_leg_contacts_sum": 82,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP010",
+    "cells": 2,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 66,
+    "pvlp151_to_x_v3_weight": 18.15000009536743,
+    "x_to_gf_contacts": 711,
+    "x_to_gf_v3_weight": -195.52500915527344,
+    "min_leg_contacts_sum": 66,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP017",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 62,
+    "pvlp151_to_x_v3_weight": 17.050000339746475,
+    "x_to_gf_contacts": 82,
+    "x_to_gf_v3_weight": -22.55000114440918,
+    "min_leg_contacts_sum": 62,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB1638",
+    "cells": 6,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 55,
+    "pvlp151_to_x_v3_weight": 15.125000596046448,
+    "x_to_gf_contacts": 301,
+    "x_to_gf_v3_weight": 82.77500247955322,
+    "min_leg_contacts_sum": 55,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "LC4",
+    "cells": 28,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 48,
+    "pvlp151_to_x_v3_weight": 13.200000315904617,
+    "x_to_gf_contacts": 1480,
+    "x_to_gf_v3_weight": 407.00000858306885,
+    "min_leg_contacts_sum": 48,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP022",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 93,
+    "pvlp151_to_x_v3_weight": 25.57500049471855,
+    "x_to_gf_contacts": 46,
+    "x_to_gf_v3_weight": -12.65000057220459,
+    "min_leg_contacts_sum": 46,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "WED116",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 45,
+    "pvlp151_to_x_v3_weight": 12.375000059604645,
+    "x_to_gf_contacts": 130,
+    "x_to_gf_v3_weight": 35.75000134110451,
+    "min_leg_contacts_sum": 45,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL038",
+    "cells": 4,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 43,
+    "pvlp151_to_x_v3_weight": 11.825000405311584,
+    "x_to_gf_contacts": 549,
+    "x_to_gf_v3_weight": -150.975004196167,
+    "min_leg_contacts_sum": 43,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "SAD023",
+    "cells": 6,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 43,
+    "pvlp151_to_x_v3_weight": 11.825000494718552,
+    "x_to_gf_contacts": 227,
+    "x_to_gf_v3_weight": -62.425002574920654,
+    "min_leg_contacts_sum": 43,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNp70",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 42,
+    "pvlp151_to_x_v3_weight": 11.550000369548798,
+    "x_to_gf_contacts": 1416,
+    "x_to_gf_v3_weight": 389.40000915527344,
+    "min_leg_contacts_sum": 42,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP710m",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 44,
+    "pvlp151_to_x_v3_weight": 12.100000381469727,
+    "x_to_gf_contacts": 54,
+    "x_to_gf_v3_weight": -14.850000381469727,
+    "min_leg_contacts_sum": 38,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "LHAD1g1",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 27,
+    "pvlp151_to_x_v3_weight": 7.425000220537186,
+    "x_to_gf_contacts": 349,
+    "x_to_gf_v3_weight": -95.97500228881836,
+    "min_leg_contacts_sum": 27,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNg40",
+    "cells": 2,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 325,
+    "pvlp151_to_x_v3_weight": 89.37500014901161,
+    "x_to_gf_contacts": 23,
+    "x_to_gf_v3_weight": -6.325000166893005,
+    "min_leg_contacts_sum": 23,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PS001",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 23,
+    "pvlp151_to_x_v3_weight": 6.325000286102295,
+    "x_to_gf_contacts": 89,
+    "x_to_gf_v3_weight": -24.475000381469727,
+    "min_leg_contacts_sum": 23,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP123",
+    "cells": 7,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 23,
+    "pvlp151_to_x_v3_weight": 6.325000137090683,
+    "x_to_gf_contacts": 563,
+    "x_to_gf_v3_weight": 154.8250053524971,
+    "min_leg_contacts_sum": 23,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP062",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 20,
+    "pvlp151_to_x_v3_weight": 5.500000178813934,
+    "x_to_gf_contacts": 486,
+    "x_to_gf_v3_weight": 133.6500005722046,
+    "min_leg_contacts_sum": 20,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB4102",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 23,
+    "pvlp151_to_x_v3_weight": 6.325000166893005,
+    "x_to_gf_contacts": 20,
+    "x_to_gf_v3_weight": 5.5,
+    "min_leg_contacts_sum": 20,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNp11",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 21,
+    "pvlp151_to_x_v3_weight": 5.775000184774399,
+    "x_to_gf_contacts": 118,
+    "x_to_gf_v3_weight": 32.45000076293945,
+    "min_leg_contacts_sum": 19,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL286",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 19,
+    "pvlp151_to_x_v3_weight": 5.225000083446503,
+    "x_to_gf_contacts": 30,
+    "x_to_gf_v3_weight": 8.250000238418579,
+    "min_leg_contacts_sum": 19,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB1932",
+    "cells": 7,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 124,
+    "pvlp151_to_x_v3_weight": 34.100000858306885,
+    "x_to_gf_contacts": 17,
+    "x_to_gf_v3_weight": 4.675000101327896,
+    "min_leg_contacts_sum": 17,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "SAD064",
+    "cells": 4,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 17,
+    "pvlp151_to_x_v3_weight": 4.6750001311302185,
+    "x_to_gf_contacts": 792,
+    "x_to_gf_v3_weight": 217.80000686645508,
+    "min_leg_contacts_sum": 17,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PLP060",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 16,
+    "pvlp151_to_x_v3_weight": 4.400000035762787,
+    "x_to_gf_contacts": 24,
+    "x_to_gf_v3_weight": -6.6000001430511475,
+    "min_leg_contacts_sum": 16,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB1498",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 16,
+    "pvlp151_to_x_v3_weight": 4.400000214576721,
+    "x_to_gf_contacts": 25,
+    "x_to_gf_v3_weight": 6.875000238418579,
+    "min_leg_contacts_sum": 16,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB3513",
+    "cells": 4,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 15,
+    "pvlp151_to_x_v3_weight": 4.125000089406967,
+    "x_to_gf_contacts": 190,
+    "x_to_gf_v3_weight": -52.25000086426735,
+    "min_leg_contacts_sum": 15,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP011",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1356,
+    "pvlp151_to_x_v3_weight": 372.9000092744827,
+    "x_to_gf_contacts": 14,
+    "x_to_gf_v3_weight": -3.850000023841858,
+    "min_leg_contacts_sum": 14,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PS208",
+    "cells": 3,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 30,
+    "pvlp151_to_x_v3_weight": 8.250000298023224,
+    "x_to_gf_contacts": 14,
+    "x_to_gf_v3_weight": 3.850000023841858,
+    "min_leg_contacts_sum": 13,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP452",
+    "cells": 3,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 13,
+    "pvlp151_to_x_v3_weight": 3.575000047683716,
+    "x_to_gf_contacts": 245,
+    "x_to_gf_v3_weight": 67.37500190734863,
+    "min_leg_contacts_sum": 13,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP076",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 12,
+    "pvlp151_to_x_v3_weight": 3.300000160932541,
+    "x_to_gf_contacts": 50,
+    "x_to_gf_v3_weight": -13.75,
+    "min_leg_contacts_sum": 12,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP018",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 58,
+    "pvlp151_to_x_v3_weight": 15.950000554323196,
+    "x_to_gf_contacts": 10,
+    "x_to_gf_v3_weight": -2.7500000298023224,
+    "min_leg_contacts_sum": 10,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB3201",
+    "cells": 3,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 24,
+    "pvlp151_to_x_v3_weight": 6.600000321865082,
+    "x_to_gf_contacts": 10,
+    "x_to_gf_v3_weight": 2.7500000596046448,
+    "min_leg_contacts_sum": 10,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNp06",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 643,
+    "pvlp151_to_x_v3_weight": 176.82500100135803,
+    "x_to_gf_contacts": 9,
+    "x_to_gf_v3_weight": 2.4750000536441803,
+    "min_leg_contacts_sum": 9,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP021",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 18,
+    "pvlp151_to_x_v3_weight": 4.950000196695328,
+    "x_to_gf_contacts": 9,
+    "x_to_gf_v3_weight": -2.4750001430511475,
+    "min_leg_contacts_sum": 9,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP429",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 69,
+    "pvlp151_to_x_v3_weight": 18.97500029206276,
+    "x_to_gf_contacts": 8,
+    "x_to_gf_v3_weight": 2.200000077486038,
+    "min_leg_contacts_sum": 8,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL308",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 8,
+    "pvlp151_to_x_v3_weight": 2.2000001072883606,
+    "x_to_gf_contacts": 38,
+    "x_to_gf_v3_weight": 10.449999809265137,
+    "min_leg_contacts_sum": 8,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB2869",
+    "cells": 1,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 8,
+    "pvlp151_to_x_v3_weight": 2.200000047683716,
+    "x_to_gf_contacts": 15,
+    "x_to_gf_v3_weight": -4.125,
+    "min_leg_contacts_sum": 8,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP015",
+    "cells": 2,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 40,
+    "pvlp151_to_x_v3_weight": 11.000000178813934,
+    "x_to_gf_contacts": 7,
+    "x_to_gf_v3_weight": -1.925000011920929,
+    "min_leg_contacts_sum": 7,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB4163",
+    "cells": 3,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 161,
+    "pvlp151_to_x_v3_weight": 44.27500128746033,
+    "x_to_gf_contacts": 7,
+    "x_to_gf_v3_weight": -1.9250000715255737,
+    "min_leg_contacts_sum": 7,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL266_a3",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 7,
+    "pvlp151_to_x_v3_weight": 1.9250000715255737,
+    "x_to_gf_contacts": 7,
+    "x_to_gf_v3_weight": 1.925000011920929,
+    "min_leg_contacts_sum": 7,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "(untyped 57570)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 64,
+    "pvlp151_to_x_v3_weight": 17.600000858306885,
+    "x_to_gf_contacts": 7,
+    "x_to_gf_v3_weight": 1.9250000715255737,
+    "min_leg_contacts_sum": 7,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP124",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 6,
+    "pvlp151_to_x_v3_weight": 1.6500000655651093,
+    "x_to_gf_contacts": 8,
+    "x_to_gf_v3_weight": 2.200000077486038,
+    "min_leg_contacts_sum": 6,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "GNG300",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 5,
+    "pvlp151_to_x_v3_weight": 1.3750000298023224,
+    "x_to_gf_contacts": 474,
+    "x_to_gf_v3_weight": -130.3500053882599,
+    "min_leg_contacts_sum": 5,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "IB114",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 73,
+    "pvlp151_to_x_v3_weight": 20.075000405311584,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": -1.375,
+    "min_leg_contacts_sum": 5,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PLP018",
+    "cells": 3,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 5,
+    "pvlp151_to_x_v3_weight": 1.3750000596046448,
+    "x_to_gf_contacts": 31,
+    "x_to_gf_v3_weight": -8.525000095367432,
+    "min_leg_contacts_sum": 5,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP176_d",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 10,
+    "pvlp151_to_x_v3_weight": 2.750000089406967,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": 1.3750000596046448,
+    "min_leg_contacts_sum": 5,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB3544",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 170,
+    "x_to_gf_v3_weight": -46.75000190734863,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP263",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.1000000536441803,
+    "x_to_gf_contacts": 24,
+    "x_to_gf_v3_weight": 6.600000202655792,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL236",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 6,
+    "pvlp151_to_x_v3_weight": 1.6500000953674316,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": 1.100000023841858,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB4180",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 96,
+    "x_to_gf_v3_weight": -26.40000057220459,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP028",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 5,
+    "pvlp151_to_x_v3_weight": 1.3750000298023224,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": -1.100000023841858,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB2254",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 65,
+    "x_to_gf_v3_weight": -17.875000834465027,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "(untyped 11411)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 33,
+    "x_to_gf_v3_weight": 9.074999809265137,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB2472",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 7,
+    "pvlp151_to_x_v3_weight": 1.9250000715255737,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": 1.1000000536441803,
+    "min_leg_contacts_sum": 4,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP442",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 88,
+    "x_to_gf_v3_weight": 24.200000762939453,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP031",
+    "cells": 3,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 34,
+    "x_to_gf_v3_weight": -9.350000411272049,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL365",
+    "cells": 3,
+    "transmitter": [
+     "unclear"
+    ],
+    "pvlp151_to_x_contacts": 6,
+    "pvlp151_to_x_v3_weight": 1.6500000655651093,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": 1.3750000298023224,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP076",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 20,
+    "pvlp151_to_x_v3_weight": 5.500000298023224,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": 0.8250000178813934,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP130",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.1000000536441803,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": -0.8250000476837158,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL066",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000476837158,
+    "x_to_gf_contacts": 17,
+    "x_to_gf_v3_weight": -4.675000190734863,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PS181",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 8,
+    "pvlp151_to_x_v3_weight": 2.200000077486038,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": 0.8250000178813934,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP100",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 40,
+    "x_to_gf_v3_weight": -11.000000715255737,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP026",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 149,
+    "x_to_gf_v3_weight": -40.97499990463257,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP034",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 19,
+    "x_to_gf_v3_weight": -5.2250001430511475,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL117",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": -0.8250000476837158,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "SAD013",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000476837158,
+    "x_to_gf_contacts": 56,
+    "x_to_gf_v3_weight": -15.40000057220459,
+    "min_leg_contacts_sum": 3,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNp02",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.1000000536441803,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": 0.8250000178813934,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL001",
+    "cells": 2,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 29,
+    "x_to_gf_v3_weight": -7.975000292062759,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNp59",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 60,
+    "x_to_gf_v3_weight": -16.500000298023224,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "ANXXX109",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 12,
+    "x_to_gf_v3_weight": -3.300000101327896,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP502",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL264",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 6,
+    "pvlp151_to_x_v3_weight": 1.6500000357627869,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB1717",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 6,
+    "x_to_gf_v3_weight": 1.6500000953674316,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP266",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 4,
+    "pvlp151_to_x_v3_weight": 1.100000023841858,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP159",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB2940",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": 1.100000023841858,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AN10B019",
+    "cells": 2,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 85,
+    "x_to_gf_v3_weight": 23.37500038743019,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNpe040",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 28,
+    "pvlp151_to_x_v3_weight": 7.700000286102295,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP202",
+    "cells": 2,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 258,
+    "x_to_gf_v3_weight": -70.95000267028809,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AN09A005",
+    "cells": 1,
+    "transmitter": [
+     "unclear"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 17,
+    "x_to_gf_v3_weight": 4.675000190734863,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP094",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 92,
+    "x_to_gf_v3_weight": -25.30000114440918,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "SIP118m",
+    "cells": 2,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 20,
+    "x_to_gf_v3_weight": -5.500000298023224,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB0956",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 7,
+    "x_to_gf_v3_weight": 1.9250000715255737,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "SIP119m",
+    "cells": 1,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": -0.8250000476837158,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP027",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 82,
+    "x_to_gf_v3_weight": -22.550000190734863,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNp04",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 67,
+    "pvlp151_to_x_v3_weight": 18.425000578165054,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 2,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "LoVCLo3",
+    "cells": 1,
+    "transmitter": [
+     "octopamine"
+    ],
+    "pvlp151_to_x_contacts": 13,
+    "pvlp151_to_x_v3_weight": 3.575000077486038,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.0,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "0"
+   },
+   {
+    "type": "MeVCMe1",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP606",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 13,
+    "x_to_gf_v3_weight": -3.575000047683716,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL251",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": 1.100000023841858,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNp05",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP500",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 61,
+    "pvlp151_to_x_v3_weight": 16.77500009536743,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNpe026",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP109",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB4179",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 60,
+    "x_to_gf_v3_weight": -16.500000476837158,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PLP017",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": -0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "LPLC1",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP039",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 8,
+    "x_to_gf_v3_weight": 2.200000047683716,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "(untyped 5148)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 21,
+    "x_to_gf_v3_weight": 5.775000095367432,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP025",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": -0.550000011920929,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "(untyped 6663)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": 1.375,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "(untyped 6907)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": 1.375,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB2458",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "(untyped 7863)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 69,
+    "pvlp151_to_x_v3_weight": 18.975000381469727,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP040",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 5,
+    "x_to_gf_v3_weight": 1.375,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB3879",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 12,
+    "x_to_gf_v3_weight": -3.3000001907348633,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "WED117",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 6,
+    "x_to_gf_v3_weight": 1.6500000953674316,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB3024",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 6,
+    "x_to_gf_v3_weight": -1.6500000953674316,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "(untyped 10552)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 8,
+    "x_to_gf_v3_weight": 2.200000047683716,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP064",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CB1908",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 3,
+    "x_to_gf_v3_weight": 0.8250000476837158,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP093",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 47,
+    "x_to_gf_v3_weight": -12.925000190734863,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP525",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP047",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": -0.550000011920929,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB0115",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 4,
+    "x_to_gf_v3_weight": -1.100000023841858,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PVLP030",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 3,
+    "pvlp151_to_x_v3_weight": 0.8250000178813934,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": -0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CL168",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "CL12X",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 8,
+    "x_to_gf_v3_weight": -2.200000047683716,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "PS005_c",
+    "cells": 1,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 14,
+    "x_to_gf_v3_weight": -3.8500001430511475,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "DNc01",
+    "cells": 1,
+    "transmitter": [
+     "unclear"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.550000011920929,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "DNpe039",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "WED104",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 121,
+    "pvlp151_to_x_v3_weight": 33.275001525878906,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": -0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "ICL003m",
+    "cells": 1,
+    "transmitter": [
+     "glutamate"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 15,
+    "x_to_gf_v3_weight": -4.1250001192092896,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "CB3673a",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "PVLP111",
+    "cells": 1,
+    "transmitter": [
+     "gaba"
+    ],
+    "pvlp151_to_x_contacts": 42,
+    "pvlp151_to_x_v3_weight": 11.550000101327896,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": -0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "-"
+   },
+   {
+    "type": "AVLP451",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 2,
+    "pvlp151_to_x_v3_weight": 0.550000011920929,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "AVLP476",
+    "cells": 1,
+    "transmitter": [
+     "dopamine"
+    ],
+    "pvlp151_to_x_contacts": 1,
+    "pvlp151_to_x_v3_weight": 0.2750000059604645,
+    "x_to_gf_contacts": 2,
+    "x_to_gf_v3_weight": 0.0,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "0"
+   },
+   {
+    "type": "(untyped 135090)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 58,
+    "pvlp151_to_x_v3_weight": 15.950000524520874,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   },
+   {
+    "type": "(untyped 139010)",
+    "cells": 1,
+    "transmitter": [
+     "acetylcholine"
+    ],
+    "pvlp151_to_x_contacts": 14,
+    "pvlp151_to_x_v3_weight": 3.8500001430511475,
+    "x_to_gf_contacts": 1,
+    "x_to_gf_v3_weight": 0.2750000059604645,
+    "min_leg_contacts_sum": 1,
+    "x_to_gf_sign": "+"
+   }
+  ]
+ }
+}

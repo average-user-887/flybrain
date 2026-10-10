@@ -1,0 +1,1721 @@
+{
+ "schema": "neurofly.pathA.escape_asym_prereg/1",
+ "status": "FROZEN PRELAUNCH PREPARATION ONLY; ROOT GO REQUIRED; NO DYNAMICS AUTHORIZED",
+ "question": "At unchanged three GF inputs, how do each TTMn and other frozen readouts change when ONLY chemical edges 0/14539 are zeroed in a v3 weight copy?",
+ "rationale": "Discriminate fixed-model sensitivity to the two measured direct chemical edges. Counts cannot isolate recurrent routes or establish physiological transmission.",
+ "label": "ESCAPE-ASYM-02: EXPLORATORY OFFLINE CHEMICAL-EDGE DELETION DIAGNOSTIC",
+ "pins": {
+  "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+  "annotations_feather_sha256": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+  "edges_arrow_sha256": "842b762c9427c794eaedd453178aa034727a5084850a91fdcc4d3fffe09f5b7e",
+  "contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
+  "accepted_cf_prereg_sha256": "bbd8dbcbf4df8dc1ccdd6741e09e5c4089049a25a25c5a917dd2e7857c3e47d7",
+  "accepted_direct_edge_prereg_sha256": "eb60ac9de13a0abd86e17ad7f1a45347220d074a1d6ab5d193f4add009fdbf8c",
+  "accepted_source_sha": "457d703038d6e7b8b77c71cd3ee933e00979a552",
+  "inventory_helper_sha256": "9ff8030cea56212100371e50a843d1cc8b6a0cb84b2334034274560e1f6a1d3b",
+  "v3_weight_sha256": "40faf59702c7054102017bf1171a7e3088b979f4375a1c668570d2c713e46346",
+  "inventory_sha256": "32f0629db544d15a1db434a8a7aff37c52880c9e4a225c235b7f6960e7de5a8d",
+  "engine_sha256": "473946a0b5206b6991d183e2bbac0b199b76bd44ee1321075b43b45fb561803e",
+  "runner_sha256": "04d9e015a3757d0fda265a90b359d08649870377d65b12b31f0f75183532851e",
+  "reset_fixture_sha256": "fb376710e6be6ff41fa9a332274a052c086e78c7517710372b482be17333dbb9",
+  "reset_state_sha256": "013d9c40387a0d2addcc08923bd3e800b80acd47066cd9a25c611d48cf4672f9",
+  "state_arrays_order": [
+   "v",
+   "g",
+   "refractory",
+   "queue",
+   "queue_count",
+   "counts",
+   "active",
+   "active_flag",
+   "nactive"
+  ],
+  "weights_npy_sha256": "7503865facc0a1753af93bcae4f875b0d51ae8accb36176e88931628403c0888",
+  "reset_fixture_file": "qualification/pathA/fixtures/pvlp151_gf_reset_state_v3.npz",
+  "source_files_sha256": {
+   "brainlab/engine.py": "a9647682fec43f0483572662c42f36f20338300da3f0ee3968826fe6485a886a",
+   "brainlab/brain.py": "a8f516ba8c3a1808fa41af69d24ca4760620daeb2782d858430d838c934a8892",
+   "brainlab/transmitter_policy.py": "615d1b1b0e60c29be8e360570554a0e692c88af21355ef810a99ee9d30dafacc",
+   "brainlab/transmitters.py": "fc9868a935b90a1658192a1717f6a4b425865c8ecea8cd2e6bd1c78ed57bfcf7",
+   "scripts/pathA_run.py": "04d9e015a3757d0fda265a90b359d08649870377d65b12b31f0f75183532851e",
+   "scripts/pathA_provenance.py": "a472817927b35b523ea13475738712d4999c677e3488e7a8fdf594bebac2fd38",
+   "scripts/pathA_gf_edge_analyse.py": "019867d6d4d63aa2525dfd1a1751444b83fdf282321d1eb20d4b6d4ccd1b1684",
+   "scripts/pathA_cf_analyse.py": "15969893baf73b8dbc8ee2ef21f8f19ec2e7dd5601058577c888176a329c0d6d",
+   "scripts/pathA_escape_common.py": "12a365f7e3098f3e8a8269a5973c2495df952ef7f46f433062eedb9887e2e2d4",
+   "scripts/pathA_escape_run.py": "2e98271ccfe9f35879cd802531cfe4a7218900c2bdcc930d32c073fbba40f34e",
+   "scripts/pathA_escape_launch.py": "3d8ef1cdf8402f16425eb75bfffe54031c1e1470bbd95bad05f66d91fe74dbc4",
+   "scripts/pathA_escape_analyse.py": "90affa4083b060440ddf1752d82e0d97efd6d732be88bbf0223fb420d7409fe0",
+   "scripts/pathA_make_escape_prereg.py": "82d1e3cce82a0ded4874b047cb8ef299359e72e1a4a21d0bfb0b620480a9f6db",
+   "scripts/pathA_escape_inventory.py": "9ff8030cea56212100371e50a843d1cc8b6a0cb84b2334034274560e1f6a1d3b",
+   "qualification/pathA/contract.json": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
+   "qualification/pathA/pvlp151_cf_prereg.json": "bbd8dbcbf4df8dc1ccdd6741e09e5c4089049a25a25c5a917dd2e7857c3e47d7",
+   "qualification/pathA/pvlp151_gf_edge_prereg.json": "eb60ac9de13a0abd86e17ad7f1a45347220d074a1d6ab5d193f4add009fdbf8c",
+   "qualification/pathA/escape_transmission_inventory.json": "32f0629db544d15a1db434a8a7aff37c52880c9e4a225c235b7f6960e7de5a8d",
+   "qualification/pathA/escape_transmission_proposal.json": "7379051bb9351aa1402c7959b561c4ab5a007dd7c1b1d557990ff4cd06c2127f",
+   "scripts/pathA_escape_asym_common.py": "bb52d8bc024db64197f245962adb0e89942dc02298383561f6638a2f937c3ea2",
+   "scripts/pathA_escape_asym_run.py": "7e5bb9c4f36cf8534ae01c732808361f1bd3e3a94faaa520887f71970ca20bc1",
+   "scripts/pathA_escape_asym_launch.py": "3bb1204a3bc72cb6f1e550c029bde125be090eb1b10ac920ac85eb1ccdc9d197",
+   "scripts/pathA_escape_asym_analyse.py": "e788305120b258c221ef921bc1ce5b33dc316e12b047d2cbe09a1b0a9393804b",
+   "scripts/pathA_make_escape_asym_prereg.py": "96ac39056e992ffc40fb9fe60480feaed92d2da473ea4bb785de750dfba3cfa7",
+   "tests/test_pathA_escape_asym_preparation.py": "682990b515d13c15e2cb91d00907246ddccb354b61a7dcc32e768ed2adf6f206",
+   "qualification/pathA/escape_transmission_contract.json": "4a7f354c6d28291e2fb7f3458ff80decd799c3ba06fb8e316f2e701f925474ef",
+   "qualification/pathA/escape_transmission_prereg.json": "0aa3b98144416fb26e67391e273e5628a053c7780ae473635f7f954dc607b9f2"
+  },
+  "derived_contract_sha256": "3afe4d5762309d0f8c34e528ff491250703c365eb644a1b0485535a6c1d4561b",
+  "n_neurons": 166700,
+  "deleted_weight_sha256": "f9e0bd776c43203be1853d04fc571d323353b7cfbc77ac6a4c0246537908d4fc",
+  "deleted_weights_npy_sha256": "310923647f88b3d4239e4f31d9455edd7602a7834f781b3b26ded0ad180eaf16"
+ },
+ "identity": {
+  "GF": [
+   {
+    "node_index": 0,
+    "body_id": 10001,
+    "cell_type": "DNp01",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Roughly traced",
+    "root_side": null,
+    "annotation_type": "DNp01"
+   },
+   {
+    "node_index": 6,
+    "body_id": 10010,
+    "cell_type": "DNp01",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Roughly traced",
+    "root_side": null,
+    "annotation_type": "DNp01"
+   }
+  ],
+  "TTMn": [
+   {
+    "node_index": 144432,
+    "body_id": 800146,
+    "cell_type": "TTMn",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "TTMn"
+   },
+   {
+    "node_index": 147865,
+    "body_id": 804642,
+    "cell_type": "TTMn",
+    "neurotransmitter": "glutamate",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "TTMn"
+   }
+  ],
+  "GFC2": [
+   {
+    "node_index": 146054,
+    "body_id": 802335,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146165,
+    "body_id": 802478,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146218,
+    "body_id": 802551,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146252,
+    "body_id": 802595,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146256,
+    "body_id": 802599,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146403,
+    "body_id": 802799,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 146577,
+    "body_id": 803025,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 147026,
+    "body_id": 803601,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 160892,
+    "body_id": 903232,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   },
+   {
+    "node_index": 162264,
+    "body_id": 907675,
+    "cell_type": "GFC2",
+    "neurotransmitter": "acetylcholine",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "GFC2"
+   }
+  ],
+  "PSI": [
+   {
+    "node_index": 146104,
+    "body_id": 802401,
+    "cell_type": "PSI",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "PSI"
+   },
+   {
+    "node_index": 160923,
+    "body_id": 903327,
+    "cell_type": "PSI",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "PSI"
+   }
+  ],
+  "DLMn": [
+   {
+    "node_index": 144854,
+    "body_id": 800718,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 144977,
+    "body_id": 800890,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 145286,
+    "body_id": 801295,
+    "cell_type": "DLMn a, b",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn a, b"
+   },
+   {
+    "node_index": 145741,
+    "body_id": 801895,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 145797,
+    "body_id": 801970,
+    "cell_type": "DLMn a, b",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn a, b"
+   },
+   {
+    "node_index": 145817,
+    "body_id": 801998,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146214,
+    "body_id": 802544,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146566,
+    "body_id": 803013,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 146596,
+    "body_id": 803048,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   },
+   {
+    "node_index": 166189,
+    "body_id": 1050014552,
+    "cell_type": "DLMn c-f",
+    "neurotransmitter": "unclear",
+    "quality": "Reviewed",
+    "root_side": null,
+    "annotation_type": "DLMn c-f"
+   }
+  ],
+  "PVLP151": {
+   "node_index": [
+    156,
+    1565,
+    1704,
+    2127
+   ],
+   "body_ids": [
+    10173,
+    11677,
+    11826,
+    12275
+   ],
+   "rule": {
+    "type": "^PVLP151$"
+   },
+   "note": "shared LC hub; LC15->PVLP151 1689 and PVLP151->GF 603 contacts (A2 trace)",
+   "count": 4
+  }
+ },
+ "protocol": {
+  "dynamics": "v3",
+  "backend": "cpu",
+  "transmitter_policy": "v3-modulatory-only (unclear=excitatory), as the engine default",
+  "synaptic_scale_mV_per_contact": 0.275,
+  "synaptic_scale_provenance": "Shiu et al. 2024 single free parameter, chosen on sugar GRN -> MN9; hence CAL is calibration, not evidence",
+  "dt_ms": 0.1,
+  "duration_ms": 1000.0,
+  "initial_state": "rest (-52 mV), all transients zero, reset before every run",
+  "activation": "independent Bernoulli-per-0.1 ms-tick Poisson events per activated cell at rate_hz; each event = one tick of pulse_drive (forces a spike unless refractory), equivalent in effect to Shiu 2024 Poisson synapse 250 x W_syn",
+  "pulse_drive": 10000.0,
+  "silence_drive": -10000.0,
+  "silencing": "constant silence_drive for the whole run: membrane held at the E_inh floor (-70 mV), no spikes; no weight changed",
+  "readout_window_ms": [
+   0.0,
+   1000.0
+  ],
+  "metric": "Per-cell spike count divided by duration_s, then arithmetic population mean over those cell rates; descriptive mean and sample SD over seeds.",
+  "seeds": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "seed_scope": "seeds set the Poisson event trains only; the network is deterministic",
+  "poisson_rng": "numpy default_rng([seed, round(10*rate_hz), n_activated_cells]); silencing conditions therefore receive exactly the same input trains as their unsilenced pair",
+  "compute": {
+   "device": "CPU only, one process, threads=1, CUDA_VISIBLE_DEVICES empty",
+   "budget_wall_hours": 1.0,
+   "timeout_s": 3500,
+   "stop_rule": "Stop on timeout or integrity failure; preserve partial evidence; no retries or expansion."
+  }
+ },
+ "conditions": [
+  {
+   "id": "GF10001_200_intact",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact",
+   "weight_copy": false
+  },
+  {
+   "id": "GF10001_200_delete_direct",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [
+    0,
+    14539
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "delete_direct",
+   "weight_copy": true
+  },
+  {
+   "id": "GF10001_200_empty_deletion_sham",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_deletion_sham",
+   "zero_edges": [],
+   "weight_copy": true
+  },
+  {
+   "id": "GF10010_200_intact",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact",
+   "weight_copy": false
+  },
+  {
+   "id": "GF10010_200_delete_direct",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [
+    0,
+    14539
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "delete_direct",
+   "weight_copy": true
+  },
+  {
+   "id": "GF10010_200_empty_deletion_sham",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_deletion_sham",
+   "zero_edges": [],
+   "weight_copy": true
+  },
+  {
+   "id": "GF_BOTH_200_intact",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact",
+   "weight_copy": false
+  },
+  {
+   "id": "GF_BOTH_200_delete_direct",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "zero_edges": [
+    0,
+    14539
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "delete_direct",
+   "weight_copy": true
+  },
+  {
+   "id": "GF_BOTH_200_empty_deletion_sham",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_deletion_sham",
+   "zero_edges": [],
+   "weight_copy": true
+  },
+  {
+   "id": "NO_INPUT_intact",
+   "activate_nodes": [],
+   "rate_hz": 0,
+   "clamp_nodes": [],
+   "zero_edges": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact",
+   "weight_copy": false
+  },
+  {
+   "id": "NO_INPUT_delete_direct",
+   "activate_nodes": [],
+   "rate_hz": 0,
+   "clamp_nodes": [],
+   "zero_edges": [
+    0,
+    14539
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "delete_direct",
+   "weight_copy": true
+  },
+  {
+   "id": "TTMn_BOTH_200_direct_control",
+   "activate_nodes": [
+    144432,
+    147865
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "direct_activation_control",
+   "zero_edges": [],
+   "weight_copy": false
+  }
+ ],
+ "expected_rows": 75,
+ "input_definition": "Driven rows: numpy default_rng([seed,2000,n_activated]), Bernoulli p=0.02 per cell per 0.1 ms tick, pulse_drive=10000 for one tick. No-input rows: numpy default_rng([seed,0,0]), rate_hz=0 and no events; input digest hashes empty int64 activation bytes followed by b\"none\". Ordered int64 activation indices and exact packed event bytes are retained and independently regenerated.",
+ "controls": {
+  "no_input": "Eight seeds per intact/deletion arm: full network zero.",
+  "direct_ttmn": "Eight unchanged direct-TTMn control rows reproduce accepted full sparse counts exactly.",
+  "empty_deletion": "Three seed-0 shams exercise deleted_weight(arrays,[]) and a separate weight-copy Brain; full counts equal intact.",
+  "accepted_reproduction": "All 40 intact/no-input/direct-control rows reproduce matching accepted full sparse counts exactly; abort on the first difference.",
+  "matched_inputs": "Same ordered activated nodes, exact packed events/RNG and full canonical reset for each pair; no clamp nodes."
+ },
+ "readouts": [
+  "GF",
+  "TTMn",
+  "GFC2",
+  "PSI",
+  "DLMn",
+  "PVLP151"
+ ],
+ "analysis": {
+  "primary": "Per-cell absolute counts/Hz first, then arithmetic population mean; across eight seeds mean and sample SD; paired deletion-minus-intact per cell/population, lower/equal/higher seed counts.",
+  "asymmetry": "Report TTMn 800146 and 804642 separately. All eight lower/equal, or mixed, are descriptive sensitivity labels only; no fitted threshold.",
+  "network_controls": "Full sparse network: changed-neuron count and sum absolute count difference, including changes outside activated GF/GFC2.",
+  "interpretation": "Deletion sensitivity in the full recurrent chemical-only proxy. No biological success, pathway fraction, necessity or mediation inference; missing electrical wiring stays missing, no new wiring; A2 FAIL unchanged."
+ },
+ "gates": {
+  "G1_external_identity": "External source, contract, prereg, accepted evidence, graph/labels/edges pins; typed edge/body identities and exact full GF->TTMn edge coverage.",
+  "G2_state_weight": "Full reset fixture unchanged. Full base/deleted float32 weight artifacts match external byte and NPY pins; exactly edges 0/14539 differ, both zero; immutable parent retains base hash every row.",
+  "G3_input": "Retain exact input activation indices and packed event bytes per input/seed, runtime hashes and original RNG state digest; independent regeneration must match. Paired arms must be byte-identical. GF firing and actual forced event counts reported separately.",
+  "G4_controls": "All 40 matching accepted full-network count records reproduce exactly; every no-input row zero; three empty-deletion shams equal intact; every activated cell fires.",
+  "G5_complete": "Exactly 75 distinct expected (condition,integer seed) rows; reject missing, extra, duplicate, foreign-source or differently ordered inputs. Counts must be integer nonnegative and readouts agree with raw sparse files.",
+  "G6_exit": "One exclusive CPU wrapper exit receipt, integer exit 0, bound to exact argv, externally pinned source/proposal/derived contract, expected condition order, full log bytes+hash and actual startup process receipt. Timeout inside wrapper child. Runner and audit CPU threads=1, CUDA_VISIBLE_DEVICES empty.",
+  "success": "All gates pass: VALID descriptive diagnostic, including zero or mixed deletion effects. No biological pass threshold.",
+  "failure": "Any identity/input/state/weight/control/count/log/coverage/exit failure: INVALID, retain partial evidence, stop interpretation, no retry/expansion/fitting."
+ },
+ "compute": {
+  "device": "CPU only, one process, OMP/BLAS/NUMBA=1, CUDA_VISIBLE_DEVICES empty",
+  "rows": 75,
+  "driven_rows": 59,
+  "no_input_rows": 16,
+  "estimate": "Previous accepted 75 rows 97.987614 seconds; estimate 2-5 minutes plus audit, one CPU thread/nice10; one hour overall, 3500-second timeout child.",
+  "timeout_s": 3500,
+  "budget_wall_hours": 1.0,
+  "stop_rule": "Fresh CPU/RAM availability check; serialize one thread; leave owner services and GPUs untouched. Stop at any integrity error or timeout; keep partial output; no extrapolation."
+ },
+ "root_launch_decision": {
+  "requested": "Review final clean source, derived contract/prereg/analyzer external pins and focused negative fixtures; authorize exactly one 75-row CPU launch or reject. Preparation does not authorize execution.",
+  "required_before_launch": [
+   "Root independently review candidate and record external source/contract/prereg/analyzer pins.",
+   "Root record fresh CPU/RAM availability and preserve owner services.",
+   "Root issue explicit GO, start the exclusive launcher and capture actual timeout-child/wrapper PIDs.",
+   "Root audit complete output with the fixed independent checker before interpreting."
+  ],
+  "authorized_by_this_card": false
+ },
+ "runtime_versions": {
+  "python": "3.12.3",
+  "numpy": "2.5.3",
+  "numba": "0.67.0"
+ },
+ "launch_receipts": "Exclusive one-process launch; timeout --signal=TERM 3500 is inside child. Analyzer requires externally observed wrapper and timeout-child PIDs, exact argv, startup environment, integer exit0, ordered row-byte hashes and full log hash.",
+ "direct_edges": [
+  {
+   "edge_index": 0,
+   "pre_node": 0,
+   "post_node": 144432,
+   "pre_body": 10001,
+   "post_body": 800146,
+   "contacts": 70,
+   "weight": 19.25
+  },
+  {
+   "edge_index": 14539,
+   "pre_node": 6,
+   "post_node": 147865,
+   "pre_body": 10010,
+   "post_body": 804642,
+   "contacts": 20,
+   "weight": 5.5
+  }
+ ],
+ "direct_edges_from": "GF",
+ "direct_edges_to": "TTMn",
+ "direct_edge_count": 2,
+ "accepted_reference": {
+  "source_sha": "a1456f3383b8ea87bc0c089ef9ef05492a746efb",
+  "contract_sha256": "4a7f354c6d28291e2fb7f3458ff80decd799c3ba06fb8e316f2e701f925474ef",
+  "prereg_sha256": "0aa3b98144416fb26e67391e273e5628a053c7780ae473635f7f954dc607b9f2",
+  "files_sha256": {
+   "analysis.json": "d4e1458f9d9b7c9954ef58c5dfa22c7eaa27c2e63760ddf5ad128e604b24638e",
+   "runs.jsonl": "0ab96c300fd267ef7fea19126d9119992f482240ee9c3c3f8152e23b4f1e59e0",
+   "EVIDENCE_SHA256.json": "273c4d975df5194b2d9ad93c83441761f6b2c2335b8a4bd6b49e7884324e991c"
+  },
+  "counts_sha256": {
+   "GF10001_200_intact_s0": "47fac0d47d9969e8618ed674f42e162973809c3ecaddabb3d58676786340da9a",
+   "GF10001_200_intact_s1": "2bc1b71a724f6302f182a0973283af40b6da5c48d8f02282b90029bdd5773def",
+   "GF10001_200_intact_s2": "d6184ee844b77762e35226a74226268051c11b3b119377e5c4cdd9542e0d054a",
+   "GF10001_200_intact_s3": "be594d33f238dca336e5ff9c4b0d05d05fe0ee497eee803b2939d75b8a935d11",
+   "GF10001_200_intact_s4": "ffe016809343bb5afa9507769cb7390536e0c7876dead5350dd2a5a27509a82d",
+   "GF10001_200_intact_s5": "bb50b6de9428026573c4c66067fe78cb10feb900876ad7c841cb961974aec4e3",
+   "GF10001_200_intact_s6": "60cebc5f89447bddab3e519993d240b07d28793f88ca7d00ec66dbf4e72b7fe4",
+   "GF10001_200_intact_s7": "3da62297b880958727c5c4f95796c9b97c7ef977e53d0fd553cc388e43460cc8",
+   "GF10010_200_intact_s0": "26d914aea3bb1403f2c5f488c64d28525c089e03ece7dcec21451366ecb479cb",
+   "GF10010_200_intact_s1": "761ca265c059e0a4604e8c011832ed79201eceb2f15ee2dcc261fb8f5470dfdd",
+   "GF10010_200_intact_s2": "6e06eca5db367929e0480188af91d7062292916008c853e559eb76f98c252aa5",
+   "GF10010_200_intact_s3": "6d6409c4af227978278a49916e56f77cf467d9438b06f0fe16fbb80b9c5710e2",
+   "GF10010_200_intact_s4": "a082c30c0d597c77c36744c9800258998251735b7ccc96e6d156b84c6e490da1",
+   "GF10010_200_intact_s5": "a1e17e898ae65ed1e99c42646ad00ef436a4322a168010e7b77790b6d2966426",
+   "GF10010_200_intact_s6": "97665e752f77a2521609a306471599439bf835f25f1acd442b19034c2cf381e6",
+   "GF10010_200_intact_s7": "2241df6a3faedddc886228938e12b41ae64fac016fb4ee8ce5d392ba56f2fe38",
+   "GF_BOTH_200_intact_s0": "6bc5edc3b58cb2e85b1e011d73ce2639130d656cf174e823db8b61a69c2ede17",
+   "GF_BOTH_200_intact_s1": "c67cec515e349c9a5deb332843a34b3bf42c0e50fa632cdd4771df228d01a636",
+   "GF_BOTH_200_intact_s2": "7157a6f2d8c785bcedddb98de534dea9291c47d6b817fa1d8452ddbc43eb83ee",
+   "GF_BOTH_200_intact_s3": "a0cb9d072b8cc8f87ab1a70136be804dbfe0966491ccf7ff949b77da7075b0a9",
+   "GF_BOTH_200_intact_s4": "2d5553f83b11b8c8056939ec7a44745f9bade857bf95c6d5d307ab2672a11657",
+   "GF_BOTH_200_intact_s5": "8bd68f15bdefc9af7261824238cb5434e748f3195d8fc030f41b150c1cef054a",
+   "GF_BOTH_200_intact_s6": "6ced2586ebd59d56763aeca7eab076104c51d2404d5aa49dbfc33d7fd3329ecc",
+   "GF_BOTH_200_intact_s7": "f538782468819314c59eddede077530c185ddeb5a0870ec3e817cf1318af1554",
+   "NO_INPUT_intact_s0": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s1": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s2": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s3": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s4": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s5": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s6": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "NO_INPUT_intact_s7": "17b112009ab72daa569bd98b283cedacdd3eafc5426d43187349d2936bc7ba36",
+   "TTMn_BOTH_200_direct_control_s0": "c60651bec5e66cab5f40e6eadd7cfd1e7cf09560f4891973a668941ffce799e5",
+   "TTMn_BOTH_200_direct_control_s1": "c52851ed50cff379bc92c2a58a32317dfbfb5647081c976872e941e2088ae238",
+   "TTMn_BOTH_200_direct_control_s2": "ec103ed58d43fcf85f47eab7184681c134ce694af9cefc937c58e5c2faa042e4",
+   "TTMn_BOTH_200_direct_control_s3": "3d3194578600f5dd0584b4cc1a8385f0cff8bd3e80016e81297625bb62337351",
+   "TTMn_BOTH_200_direct_control_s4": "76effba36c3a60928a9bf1ae62b220ff95a9bc5e161e8412dc2398838b3ca62b",
+   "TTMn_BOTH_200_direct_control_s5": "35d0586c6de62733fbe9dd24e422ae0a57e80e1dce2d25f013820ea2f1556f86",
+   "TTMn_BOTH_200_direct_control_s6": "0fa680202aa062dfb0e74dd3228af9952706b8646a15103c338808c4b4d33b86",
+   "TTMn_BOTH_200_direct_control_s7": "ee08f50c9a5c769184c20c77a71dc4faee1625ac7ce1001dcd5f1a4b07fd0ad1"
+  }
+ },
+ "expected_inputs": {
+  "GF10001_200_intact_s0": {
+   "input_sha256": "15ec5e68e88eab221357d3af6927e781ef82e05da452262799bc397648b988b4",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF10001_200_intact_s1": {
+   "input_sha256": "ec9e501036d4ccc83d97f129f20c39536b86cae3bc64eca7647bcd78a2a8d7a2",
+   "rng_seed_seq": [
+    1,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "34afa9518287a580ce1e4c7b656546402ed438f4c420752ac9ec3143b530286d",
+   "event_ticks": 214,
+   "events_per_cell": [
+    214
+   ]
+  },
+  "GF10001_200_intact_s2": {
+   "input_sha256": "97a2e3cd18646633aa3772c1f3ea5787c5fe0b0f8374299c7ec44c467b41b877",
+   "rng_seed_seq": [
+    2,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "eb8e1475011e61e9a5f81e5d94326f05a394824e73c4a1a1a0950834420fcb7c",
+   "event_ticks": 200,
+   "events_per_cell": [
+    200
+   ]
+  },
+  "GF10001_200_intact_s3": {
+   "input_sha256": "c8a0384cd67b1378a06e8a6da838cb6357b91fd26adee5ac4018412b0751db54",
+   "rng_seed_seq": [
+    3,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "408abf4968bbe22c6537a1f2df955f2ab34a0ce768e4102c925dccd189d1fc39",
+   "event_ticks": 173,
+   "events_per_cell": [
+    173
+   ]
+  },
+  "GF10001_200_intact_s4": {
+   "input_sha256": "9bd1b427193f76c37c5a28579014c4b26035a89bc91f8854e5309e708c7c752a",
+   "rng_seed_seq": [
+    4,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "11dd7e4d4e3679677ec9ce155ec3e640973263db5d7cfd8b1e93ffd0cf0e9a38",
+   "event_ticks": 210,
+   "events_per_cell": [
+    210
+   ]
+  },
+  "GF10001_200_intact_s5": {
+   "input_sha256": "78399fc756d5eb189ab94502ccbd7938170664e5a77cac3fd2dc5ee210b56bda",
+   "rng_seed_seq": [
+    5,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "fa0f97584551c1d23fb75a8474dfb152a91c91cf7b5971a7ae62f01ab99e3e9b",
+   "event_ticks": 194,
+   "events_per_cell": [
+    194
+   ]
+  },
+  "GF10001_200_intact_s6": {
+   "input_sha256": "50e81963e083e1a1575bac6d5b9caf7c527fb8bb9f155ce7d1765908384be4d4",
+   "rng_seed_seq": [
+    6,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "cb62323956b5048bfe03802e094e987ecd13f601297a14974615515cc0de9f84",
+   "event_ticks": 201,
+   "events_per_cell": [
+    201
+   ]
+  },
+  "GF10001_200_intact_s7": {
+   "input_sha256": "6f9d5c9ac8a79c44c81e0e138bcade8ec2ed58f6f91926eee828fcfdbf2f07b2",
+   "rng_seed_seq": [
+    7,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "ed57644dd72f9de36694b7e3f6526fa49723d5b4c1433e0f2a012bc6d5f11518",
+   "event_ticks": 206,
+   "events_per_cell": [
+    206
+   ]
+  },
+  "GF10001_200_delete_direct_s0": {
+   "input_sha256": "15ec5e68e88eab221357d3af6927e781ef82e05da452262799bc397648b988b4",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF10001_200_delete_direct_s1": {
+   "input_sha256": "ec9e501036d4ccc83d97f129f20c39536b86cae3bc64eca7647bcd78a2a8d7a2",
+   "rng_seed_seq": [
+    1,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "34afa9518287a580ce1e4c7b656546402ed438f4c420752ac9ec3143b530286d",
+   "event_ticks": 214,
+   "events_per_cell": [
+    214
+   ]
+  },
+  "GF10001_200_delete_direct_s2": {
+   "input_sha256": "97a2e3cd18646633aa3772c1f3ea5787c5fe0b0f8374299c7ec44c467b41b877",
+   "rng_seed_seq": [
+    2,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "eb8e1475011e61e9a5f81e5d94326f05a394824e73c4a1a1a0950834420fcb7c",
+   "event_ticks": 200,
+   "events_per_cell": [
+    200
+   ]
+  },
+  "GF10001_200_delete_direct_s3": {
+   "input_sha256": "c8a0384cd67b1378a06e8a6da838cb6357b91fd26adee5ac4018412b0751db54",
+   "rng_seed_seq": [
+    3,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "408abf4968bbe22c6537a1f2df955f2ab34a0ce768e4102c925dccd189d1fc39",
+   "event_ticks": 173,
+   "events_per_cell": [
+    173
+   ]
+  },
+  "GF10001_200_delete_direct_s4": {
+   "input_sha256": "9bd1b427193f76c37c5a28579014c4b26035a89bc91f8854e5309e708c7c752a",
+   "rng_seed_seq": [
+    4,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "11dd7e4d4e3679677ec9ce155ec3e640973263db5d7cfd8b1e93ffd0cf0e9a38",
+   "event_ticks": 210,
+   "events_per_cell": [
+    210
+   ]
+  },
+  "GF10001_200_delete_direct_s5": {
+   "input_sha256": "78399fc756d5eb189ab94502ccbd7938170664e5a77cac3fd2dc5ee210b56bda",
+   "rng_seed_seq": [
+    5,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "fa0f97584551c1d23fb75a8474dfb152a91c91cf7b5971a7ae62f01ab99e3e9b",
+   "event_ticks": 194,
+   "events_per_cell": [
+    194
+   ]
+  },
+  "GF10001_200_delete_direct_s6": {
+   "input_sha256": "50e81963e083e1a1575bac6d5b9caf7c527fb8bb9f155ce7d1765908384be4d4",
+   "rng_seed_seq": [
+    6,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "cb62323956b5048bfe03802e094e987ecd13f601297a14974615515cc0de9f84",
+   "event_ticks": 201,
+   "events_per_cell": [
+    201
+   ]
+  },
+  "GF10001_200_delete_direct_s7": {
+   "input_sha256": "6f9d5c9ac8a79c44c81e0e138bcade8ec2ed58f6f91926eee828fcfdbf2f07b2",
+   "rng_seed_seq": [
+    7,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "ed57644dd72f9de36694b7e3f6526fa49723d5b4c1433e0f2a012bc6d5f11518",
+   "event_ticks": 206,
+   "events_per_cell": [
+    206
+   ]
+  },
+  "GF10001_200_empty_deletion_sham_s0": {
+   "input_sha256": "15ec5e68e88eab221357d3af6927e781ef82e05da452262799bc397648b988b4",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF10010_200_intact_s0": {
+   "input_sha256": "0addc36880c8b7349e14676349de04b7a838466313d4bee05ef8752e0cd89874",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF10010_200_intact_s1": {
+   "input_sha256": "16ff6a8d0d6813d1fde870c2c9240fda97756a6e5b25eabe94f7a61130b65315",
+   "rng_seed_seq": [
+    1,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "34afa9518287a580ce1e4c7b656546402ed438f4c420752ac9ec3143b530286d",
+   "event_ticks": 214,
+   "events_per_cell": [
+    214
+   ]
+  },
+  "GF10010_200_intact_s2": {
+   "input_sha256": "f79839b44d1c3ec3081d9e19b42f68f2ce2432a6d26bc3ba6abedae06aa0adba",
+   "rng_seed_seq": [
+    2,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "eb8e1475011e61e9a5f81e5d94326f05a394824e73c4a1a1a0950834420fcb7c",
+   "event_ticks": 200,
+   "events_per_cell": [
+    200
+   ]
+  },
+  "GF10010_200_intact_s3": {
+   "input_sha256": "96e61184367136db7ce432afa75c4864fc7fa0ea417955b897d775d2785576ff",
+   "rng_seed_seq": [
+    3,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "408abf4968bbe22c6537a1f2df955f2ab34a0ce768e4102c925dccd189d1fc39",
+   "event_ticks": 173,
+   "events_per_cell": [
+    173
+   ]
+  },
+  "GF10010_200_intact_s4": {
+   "input_sha256": "40fb888a42a80fd075cae49c357551be2111390ca347f7e9c256cfdddfacec53",
+   "rng_seed_seq": [
+    4,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "11dd7e4d4e3679677ec9ce155ec3e640973263db5d7cfd8b1e93ffd0cf0e9a38",
+   "event_ticks": 210,
+   "events_per_cell": [
+    210
+   ]
+  },
+  "GF10010_200_intact_s5": {
+   "input_sha256": "99e0e42a3444f400ba01ba4ee68627c0d257f42a5bfe8b19d1aebc3c1bc74ad8",
+   "rng_seed_seq": [
+    5,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "fa0f97584551c1d23fb75a8474dfb152a91c91cf7b5971a7ae62f01ab99e3e9b",
+   "event_ticks": 194,
+   "events_per_cell": [
+    194
+   ]
+  },
+  "GF10010_200_intact_s6": {
+   "input_sha256": "451292ed394332cfe56c8fe35b250eb57f857f67beaa59064f5cbe5d05297799",
+   "rng_seed_seq": [
+    6,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "cb62323956b5048bfe03802e094e987ecd13f601297a14974615515cc0de9f84",
+   "event_ticks": 201,
+   "events_per_cell": [
+    201
+   ]
+  },
+  "GF10010_200_intact_s7": {
+   "input_sha256": "c8ff5add231250f6bda1c4daa427afdb9b0c330104c1f13132bb0939720871c4",
+   "rng_seed_seq": [
+    7,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "ed57644dd72f9de36694b7e3f6526fa49723d5b4c1433e0f2a012bc6d5f11518",
+   "event_ticks": 206,
+   "events_per_cell": [
+    206
+   ]
+  },
+  "GF10010_200_delete_direct_s0": {
+   "input_sha256": "0addc36880c8b7349e14676349de04b7a838466313d4bee05ef8752e0cd89874",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF10010_200_delete_direct_s1": {
+   "input_sha256": "16ff6a8d0d6813d1fde870c2c9240fda97756a6e5b25eabe94f7a61130b65315",
+   "rng_seed_seq": [
+    1,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "34afa9518287a580ce1e4c7b656546402ed438f4c420752ac9ec3143b530286d",
+   "event_ticks": 214,
+   "events_per_cell": [
+    214
+   ]
+  },
+  "GF10010_200_delete_direct_s2": {
+   "input_sha256": "f79839b44d1c3ec3081d9e19b42f68f2ce2432a6d26bc3ba6abedae06aa0adba",
+   "rng_seed_seq": [
+    2,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "eb8e1475011e61e9a5f81e5d94326f05a394824e73c4a1a1a0950834420fcb7c",
+   "event_ticks": 200,
+   "events_per_cell": [
+    200
+   ]
+  },
+  "GF10010_200_delete_direct_s3": {
+   "input_sha256": "96e61184367136db7ce432afa75c4864fc7fa0ea417955b897d775d2785576ff",
+   "rng_seed_seq": [
+    3,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "408abf4968bbe22c6537a1f2df955f2ab34a0ce768e4102c925dccd189d1fc39",
+   "event_ticks": 173,
+   "events_per_cell": [
+    173
+   ]
+  },
+  "GF10010_200_delete_direct_s4": {
+   "input_sha256": "40fb888a42a80fd075cae49c357551be2111390ca347f7e9c256cfdddfacec53",
+   "rng_seed_seq": [
+    4,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "11dd7e4d4e3679677ec9ce155ec3e640973263db5d7cfd8b1e93ffd0cf0e9a38",
+   "event_ticks": 210,
+   "events_per_cell": [
+    210
+   ]
+  },
+  "GF10010_200_delete_direct_s5": {
+   "input_sha256": "99e0e42a3444f400ba01ba4ee68627c0d257f42a5bfe8b19d1aebc3c1bc74ad8",
+   "rng_seed_seq": [
+    5,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "fa0f97584551c1d23fb75a8474dfb152a91c91cf7b5971a7ae62f01ab99e3e9b",
+   "event_ticks": 194,
+   "events_per_cell": [
+    194
+   ]
+  },
+  "GF10010_200_delete_direct_s6": {
+   "input_sha256": "451292ed394332cfe56c8fe35b250eb57f857f67beaa59064f5cbe5d05297799",
+   "rng_seed_seq": [
+    6,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "cb62323956b5048bfe03802e094e987ecd13f601297a14974615515cc0de9f84",
+   "event_ticks": 201,
+   "events_per_cell": [
+    201
+   ]
+  },
+  "GF10010_200_delete_direct_s7": {
+   "input_sha256": "c8ff5add231250f6bda1c4daa427afdb9b0c330104c1f13132bb0939720871c4",
+   "rng_seed_seq": [
+    7,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "ed57644dd72f9de36694b7e3f6526fa49723d5b4c1433e0f2a012bc6d5f11518",
+   "event_ticks": 206,
+   "events_per_cell": [
+    206
+   ]
+  },
+  "GF10010_200_empty_deletion_sham_s0": {
+   "input_sha256": "0addc36880c8b7349e14676349de04b7a838466313d4bee05ef8752e0cd89874",
+   "rng_seed_seq": [
+    0,
+    2000,
+    1
+   ],
+   "rng_state_sha256": "4e7cf970d258e0f8007b89581cfd923b18f9923e09736d58a48f44ac3bbe5f12",
+   "event_ticks": 197,
+   "events_per_cell": [
+    197
+   ]
+  },
+  "GF_BOTH_200_intact_s0": {
+   "input_sha256": "0e6e0a0acc7ea45f2cb26443508fcc1e5e81a660776835f94f7850eccd92f33e",
+   "rng_seed_seq": [
+    0,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "3621973a7a52158fe2160ba98e508672d0be0c458f5ab02c7062530be34f2da1",
+   "event_ticks": 393,
+   "events_per_cell": [
+    195,
+    201
+   ]
+  },
+  "GF_BOTH_200_intact_s1": {
+   "input_sha256": "d5eeeb0baa18c69ba4b170af2421d52f69a7bc124f4889fb35b8f8e9c88ad0bc",
+   "rng_seed_seq": [
+    1,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "db702b9d172a4bf3f513ebecea4189f4320032cb8e1799d27c4e3a10b5ce93af",
+   "event_ticks": 405,
+   "events_per_cell": [
+    197,
+    214
+   ]
+  },
+  "GF_BOTH_200_intact_s2": {
+   "input_sha256": "28b351e5063b10fd897eda9a5428ac01ee84cd3e84f49e6b1e88759822cf2354",
+   "rng_seed_seq": [
+    2,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "864eda4fe90e3d65f51b26dfcbd55735e84daf76b1d8178bee109c56c469cf07",
+   "event_ticks": 374,
+   "events_per_cell": [
+    194,
+    181
+   ]
+  },
+  "GF_BOTH_200_intact_s3": {
+   "input_sha256": "46013c6284a94b393838bae0cade7ee97f39bdec9340f6bead09a0d5754851aa",
+   "rng_seed_seq": [
+    3,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "b1c0dea9b822e84af9b35bf7832f2d495f1bbdb8f30b338ca0a392d9423b87b4",
+   "event_ticks": 415,
+   "events_per_cell": [
+    229,
+    188
+   ]
+  },
+  "GF_BOTH_200_intact_s4": {
+   "input_sha256": "5e52c9c19f170e500ad43e56c57770af7784ebca1f96ea69b50fccc1419eac3d",
+   "rng_seed_seq": [
+    4,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "2431d4c3ac0465e17e98c08b689c15884a22ad8ed5b1b90c362eb4eb1299ec54",
+   "event_ticks": 412,
+   "events_per_cell": [
+    194,
+    220
+   ]
+  },
+  "GF_BOTH_200_intact_s5": {
+   "input_sha256": "1ff4a3afe2af3215b96159a96b225dc6b7ae67ce46d32a2bfde9f977de2636b7",
+   "rng_seed_seq": [
+    5,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "797437d34e22ca4c76cb4d17eaea6b69211bc3defa6ca240c5fe89bbcbe4c27a",
+   "event_ticks": 419,
+   "events_per_cell": [
+    206,
+    216
+   ]
+  },
+  "GF_BOTH_200_intact_s6": {
+   "input_sha256": "43416ba2c41ea4f72e774f5ee8f88857c9b62cc29d2252a5b6a6e3f86799963c",
+   "rng_seed_seq": [
+    6,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "63c855e60bedd8c51d29102ec0e988f8e70d1c924924afef113b4512a55f3697",
+   "event_ticks": 421,
+   "events_per_cell": [
+    225,
+    201
+   ]
+  },
+  "GF_BOTH_200_intact_s7": {
+   "input_sha256": "5cf1e9aff152be080bea59a4f9c7535efa4a1e0b73b910808e001c3bd0fb2a71",
+   "rng_seed_seq": [
+    7,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "a9838f8775240ffa4d93669bdeb6d27298caea3c1d0d14aec7d011ac09b3d17a",
+   "event_ticks": 378,
+   "events_per_cell": [
+    199,
+    182
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s0": {
+   "input_sha256": "0e6e0a0acc7ea45f2cb26443508fcc1e5e81a660776835f94f7850eccd92f33e",
+   "rng_seed_seq": [
+    0,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "3621973a7a52158fe2160ba98e508672d0be0c458f5ab02c7062530be34f2da1",
+   "event_ticks": 393,
+   "events_per_cell": [
+    195,
+    201
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s1": {
+   "input_sha256": "d5eeeb0baa18c69ba4b170af2421d52f69a7bc124f4889fb35b8f8e9c88ad0bc",
+   "rng_seed_seq": [
+    1,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "db702b9d172a4bf3f513ebecea4189f4320032cb8e1799d27c4e3a10b5ce93af",
+   "event_ticks": 405,
+   "events_per_cell": [
+    197,
+    214
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s2": {
+   "input_sha256": "28b351e5063b10fd897eda9a5428ac01ee84cd3e84f49e6b1e88759822cf2354",
+   "rng_seed_seq": [
+    2,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "864eda4fe90e3d65f51b26dfcbd55735e84daf76b1d8178bee109c56c469cf07",
+   "event_ticks": 374,
+   "events_per_cell": [
+    194,
+    181
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s3": {
+   "input_sha256": "46013c6284a94b393838bae0cade7ee97f39bdec9340f6bead09a0d5754851aa",
+   "rng_seed_seq": [
+    3,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "b1c0dea9b822e84af9b35bf7832f2d495f1bbdb8f30b338ca0a392d9423b87b4",
+   "event_ticks": 415,
+   "events_per_cell": [
+    229,
+    188
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s4": {
+   "input_sha256": "5e52c9c19f170e500ad43e56c57770af7784ebca1f96ea69b50fccc1419eac3d",
+   "rng_seed_seq": [
+    4,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "2431d4c3ac0465e17e98c08b689c15884a22ad8ed5b1b90c362eb4eb1299ec54",
+   "event_ticks": 412,
+   "events_per_cell": [
+    194,
+    220
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s5": {
+   "input_sha256": "1ff4a3afe2af3215b96159a96b225dc6b7ae67ce46d32a2bfde9f977de2636b7",
+   "rng_seed_seq": [
+    5,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "797437d34e22ca4c76cb4d17eaea6b69211bc3defa6ca240c5fe89bbcbe4c27a",
+   "event_ticks": 419,
+   "events_per_cell": [
+    206,
+    216
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s6": {
+   "input_sha256": "43416ba2c41ea4f72e774f5ee8f88857c9b62cc29d2252a5b6a6e3f86799963c",
+   "rng_seed_seq": [
+    6,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "63c855e60bedd8c51d29102ec0e988f8e70d1c924924afef113b4512a55f3697",
+   "event_ticks": 421,
+   "events_per_cell": [
+    225,
+    201
+   ]
+  },
+  "GF_BOTH_200_delete_direct_s7": {
+   "input_sha256": "5cf1e9aff152be080bea59a4f9c7535efa4a1e0b73b910808e001c3bd0fb2a71",
+   "rng_seed_seq": [
+    7,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "a9838f8775240ffa4d93669bdeb6d27298caea3c1d0d14aec7d011ac09b3d17a",
+   "event_ticks": 378,
+   "events_per_cell": [
+    199,
+    182
+   ]
+  },
+  "GF_BOTH_200_empty_deletion_sham_s0": {
+   "input_sha256": "0e6e0a0acc7ea45f2cb26443508fcc1e5e81a660776835f94f7850eccd92f33e",
+   "rng_seed_seq": [
+    0,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "3621973a7a52158fe2160ba98e508672d0be0c458f5ab02c7062530be34f2da1",
+   "event_ticks": 393,
+   "events_per_cell": [
+    195,
+    201
+   ]
+  },
+  "NO_INPUT_intact_s0": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    0,
+    0,
+    0
+   ],
+   "rng_state_sha256": "96302b4281adc7b1408b3586585707fa7137008bc5d53b0e57a31043ef710231",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s1": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    1,
+    0,
+    0
+   ],
+   "rng_state_sha256": "7e62aff6a05eb04c8cbd213db85fb005c1d313afd3b962c07a8fcd11084b42cf",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s2": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    2,
+    0,
+    0
+   ],
+   "rng_state_sha256": "aa2c413289b8f794b01e61067a6870e33574b7d897c3ace9b81ad0163c379a21",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s3": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    3,
+    0,
+    0
+   ],
+   "rng_state_sha256": "372b1e70436699a7068016e03913efc95c66f7a1a743a9534a63761c3933d1b5",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s4": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    4,
+    0,
+    0
+   ],
+   "rng_state_sha256": "9033e41ba3c67da9b7e7bc5a20a944d7c986313c39c7cc27df1ae79f9e7c1b06",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s5": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    5,
+    0,
+    0
+   ],
+   "rng_state_sha256": "567a40f361e0140043e23d7c5d64942334a580f93354e08d1fca6d5a2ec28ae8",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s6": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    6,
+    0,
+    0
+   ],
+   "rng_state_sha256": "651e4756411f5c300fbaec8ad520d8ca8a63650023062808c20b055aaeb6c86e",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_intact_s7": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    7,
+    0,
+    0
+   ],
+   "rng_state_sha256": "2632de069beb937be44825f571c33ed1dc469a7195b52f73220d22c3ee663941",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s0": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    0,
+    0,
+    0
+   ],
+   "rng_state_sha256": "96302b4281adc7b1408b3586585707fa7137008bc5d53b0e57a31043ef710231",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s1": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    1,
+    0,
+    0
+   ],
+   "rng_state_sha256": "7e62aff6a05eb04c8cbd213db85fb005c1d313afd3b962c07a8fcd11084b42cf",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s2": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    2,
+    0,
+    0
+   ],
+   "rng_state_sha256": "aa2c413289b8f794b01e61067a6870e33574b7d897c3ace9b81ad0163c379a21",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s3": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    3,
+    0,
+    0
+   ],
+   "rng_state_sha256": "372b1e70436699a7068016e03913efc95c66f7a1a743a9534a63761c3933d1b5",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s4": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    4,
+    0,
+    0
+   ],
+   "rng_state_sha256": "9033e41ba3c67da9b7e7bc5a20a944d7c986313c39c7cc27df1ae79f9e7c1b06",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s5": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    5,
+    0,
+    0
+   ],
+   "rng_state_sha256": "567a40f361e0140043e23d7c5d64942334a580f93354e08d1fca6d5a2ec28ae8",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s6": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    6,
+    0,
+    0
+   ],
+   "rng_state_sha256": "651e4756411f5c300fbaec8ad520d8ca8a63650023062808c20b055aaeb6c86e",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "NO_INPUT_delete_direct_s7": {
+   "input_sha256": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+   "rng_seed_seq": [
+    7,
+    0,
+    0
+   ],
+   "rng_state_sha256": "2632de069beb937be44825f571c33ed1dc469a7195b52f73220d22c3ee663941",
+   "event_ticks": 0,
+   "events_per_cell": []
+  },
+  "TTMn_BOTH_200_direct_control_s0": {
+   "input_sha256": "7bb055b5e72acc1f13eef95b270fda053fdee06f5a890f56c9d690a18e074dbc",
+   "rng_seed_seq": [
+    0,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "3621973a7a52158fe2160ba98e508672d0be0c458f5ab02c7062530be34f2da1",
+   "event_ticks": 393,
+   "events_per_cell": [
+    195,
+    201
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s1": {
+   "input_sha256": "28e6653e1cd689ac18e015d29f6848e44a908c15c7c8b198cc7abab4833ece94",
+   "rng_seed_seq": [
+    1,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "db702b9d172a4bf3f513ebecea4189f4320032cb8e1799d27c4e3a10b5ce93af",
+   "event_ticks": 405,
+   "events_per_cell": [
+    197,
+    214
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s2": {
+   "input_sha256": "4838431d27d6034c1b072d7c5e9021fb079f54407ddf9e87554e184f4a206b52",
+   "rng_seed_seq": [
+    2,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "864eda4fe90e3d65f51b26dfcbd55735e84daf76b1d8178bee109c56c469cf07",
+   "event_ticks": 374,
+   "events_per_cell": [
+    194,
+    181
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s3": {
+   "input_sha256": "950626fee6d43a7b72c6635a26be9a1dc11d9b8ac44fa3059ee61ffe592e8a56",
+   "rng_seed_seq": [
+    3,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "b1c0dea9b822e84af9b35bf7832f2d495f1bbdb8f30b338ca0a392d9423b87b4",
+   "event_ticks": 415,
+   "events_per_cell": [
+    229,
+    188
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s4": {
+   "input_sha256": "f47aae1a29ae05e67bb08c51174742b4cb02dbae71c4130de1e832523928b6e3",
+   "rng_seed_seq": [
+    4,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "2431d4c3ac0465e17e98c08b689c15884a22ad8ed5b1b90c362eb4eb1299ec54",
+   "event_ticks": 412,
+   "events_per_cell": [
+    194,
+    220
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s5": {
+   "input_sha256": "2fb51baf5ce6492f4db74f7e27d642937d016430c22c83077cc3b5b8b686064d",
+   "rng_seed_seq": [
+    5,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "797437d34e22ca4c76cb4d17eaea6b69211bc3defa6ca240c5fe89bbcbe4c27a",
+   "event_ticks": 419,
+   "events_per_cell": [
+    206,
+    216
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s6": {
+   "input_sha256": "a0b3393ed2e123207b00acdb824b51716f9a875675ca420cb6864d217ac68729",
+   "rng_seed_seq": [
+    6,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "63c855e60bedd8c51d29102ec0e988f8e70d1c924924afef113b4512a55f3697",
+   "event_ticks": 421,
+   "events_per_cell": [
+    225,
+    201
+   ]
+  },
+  "TTMn_BOTH_200_direct_control_s7": {
+   "input_sha256": "ee0bdb59c483ef1aa498d95b75da98ac3f56fc653b5a4f5b43fb80f0798fe9df",
+   "rng_seed_seq": [
+    7,
+    2000,
+    2
+   ],
+   "rng_state_sha256": "a9838f8775240ffa4d93669bdeb6d27298caea3c1d0d14aec7d011ac09b3d17a",
+   "event_ticks": 378,
+   "events_per_cell": [
+    199,
+    182
+   ]
+  }
+ }
+}

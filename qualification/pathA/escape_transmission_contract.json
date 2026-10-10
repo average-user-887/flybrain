@@ -1,0 +1,442 @@
+{
+ "schema": "neurofly.pathA.escape_contract/1",
+ "label": "EXPLORATORY OFFLINE MODEL DIAGNOSTIC, not retinal looming, physiological stimulation, behavioural validation, a pathway-share estimate or A2 regrade.",
+ "status": "FROZEN PRELAUNCH PREPARATION; ROOT LAUNCH DECISION REQUIRED",
+ "parent_contract_sha256": "cd69cb6db2f2ba825dc804e762ea78c5651f3d61ec962955126c3fec02aa1c97",
+ "data": {
+  "dataset": "MaleCNS v1.0",
+  "graph_npz_sha256": "4b2f87cc5c92fa2aa4a3879ac520d55edffe3e577d8828bfd054e12800091d01",
+  "neurons_feather_sha256": "2103b5203d2ba5502c06fb70a4e0b23edcbcf79ed0c344722101941fc289ba2d",
+  "annotations_feather_sha256": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+  "electrical_synapses": "absent from the data; not modelled"
+ },
+ "protocol": {
+  "dynamics": "v3",
+  "backend": "cpu",
+  "transmitter_policy": "v3-modulatory-only (unclear=excitatory), as the engine default",
+  "synaptic_scale_mV_per_contact": 0.275,
+  "synaptic_scale_provenance": "Shiu et al. 2024 single free parameter, chosen on sugar GRN -> MN9; hence CAL is calibration, not evidence",
+  "dt_ms": 0.1,
+  "duration_ms": 1000.0,
+  "initial_state": "rest (-52 mV), all transients zero, reset before every run",
+  "activation": "independent Bernoulli-per-0.1 ms-tick Poisson events per activated cell at rate_hz; each event = one tick of pulse_drive (forces a spike unless refractory), equivalent in effect to Shiu 2024 Poisson synapse 250 x W_syn",
+  "pulse_drive": 10000.0,
+  "silence_drive": -10000.0,
+  "silencing": "constant silence_drive for the whole run: membrane held at the E_inh floor (-70 mV), no spikes; no weight changed",
+  "readout_window_ms": [
+   0.0,
+   1000.0
+  ],
+  "metric": "Per-cell spike count divided by duration_s, then arithmetic population mean over those cell rates; descriptive mean and sample SD over seeds.",
+  "seeds": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "seed_scope": "seeds set the Poisson event trains only; the network is deterministic",
+  "poisson_rng": "numpy default_rng([seed, round(10*rate_hz), n_activated_cells]); silencing conditions therefore receive exactly the same input trains as their unsilenced pair",
+  "compute": {
+   "device": "CPU only, one process, threads=1, CUDA_VISIBLE_DEVICES empty",
+   "budget_wall_hours": 1.0,
+   "timeout_s": 3500,
+   "stop_rule": "Stop on timeout or integrity failure; preserve partial evidence; no retries or expansion."
+  }
+ },
+ "sets": {
+  "GF": {
+   "node_index": [
+    0,
+    6
+   ],
+   "body_ids": [
+    10001,
+    10010
+   ],
+   "rule": {
+    "type": "^DNp01$"
+   },
+   "note": "giant fibre = DNp01 (MaleCNS synonym \"Kennedy and Broadie 2018: GF\")",
+   "count": 2
+  },
+  "TTMn": {
+   "node_index": [
+    144432,
+    147865
+   ],
+   "body_ids": [
+    800146,
+    804642
+   ],
+   "rule": {
+    "type": "^TTMn$"
+   },
+   "note": "tergotrochanteral motor neuron, exitNerve PDMNp",
+   "count": 2
+  },
+  "GFC2": {
+   "node_index": [
+    146054,
+    146165,
+    146218,
+    146252,
+    146256,
+    146403,
+    146577,
+    147026,
+    160892,
+    162264
+   ],
+   "body_ids": [
+    802335,
+    802478,
+    802551,
+    802595,
+    802599,
+    802799,
+    803025,
+    803601,
+    903232,
+    907675
+   ],
+   "rule": {
+    "type": "^GFC2$"
+   },
+   "note": "giant-fibre-coupled interneuron 2 (GF->GFC2 144, GFC2->TTMn 481 contacts)",
+   "count": 10
+  },
+  "PSI": {
+   "node_index": [
+    146104,
+    160923
+   ],
+   "body_ids": [
+    802401,
+    903327
+   ],
+   "rule": {
+    "type": "^PSI$"
+   },
+   "note": "peripherally synapsing interneuron (GF->PSI 16, PSI->DLMn 449 contacts)",
+   "count": 2
+  },
+  "DLMn": {
+   "node_index": [
+    144854,
+    144977,
+    145286,
+    145741,
+    145797,
+    145817,
+    146214,
+    146566,
+    146596,
+    166189
+   ],
+   "body_ids": [
+    800718,
+    800890,
+    801295,
+    801895,
+    801970,
+    801998,
+    802544,
+    803013,
+    803048,
+    1050014552
+   ],
+   "rule": {
+    "type": "^DLMn"
+   },
+   "note": "dorsal longitudinal flight-muscle motor neurons (types \"DLMn a, b\", \"DLMn c-f\")",
+   "count": 10
+  },
+  "PVLP151": {
+   "node_index": [
+    156,
+    1565,
+    1704,
+    2127
+   ],
+   "body_ids": [
+    10173,
+    11677,
+    11826,
+    12275
+   ],
+   "rule": {
+    "type": "^PVLP151$"
+   },
+   "note": "shared LC hub; LC15->PVLP151 1689 and PVLP151->GF 603 contacts (A2 trace)",
+   "count": 4
+  }
+ },
+ "readouts": [
+  "GF",
+  "TTMn",
+  "GFC2",
+  "PSI",
+  "DLMn",
+  "PVLP151"
+ ],
+ "conditions": [
+  {
+   "id": "GF10001_200_intact",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact"
+  },
+  {
+   "id": "GF10001_200_clamp_GFC2",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [
+    146054,
+    146165,
+    146218,
+    146252,
+    146256,
+    146403,
+    146577,
+    147026,
+    160892,
+    162264
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "clamp_GFC2"
+  },
+  {
+   "id": "GF10001_200_empty_clamp_sham",
+   "activate_nodes": [
+    0
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_clamp_sham",
+   "requires_clamp_path": true
+  },
+  {
+   "id": "GF10010_200_intact",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact"
+  },
+  {
+   "id": "GF10010_200_clamp_GFC2",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [
+    146054,
+    146165,
+    146218,
+    146252,
+    146256,
+    146403,
+    146577,
+    147026,
+    160892,
+    162264
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "clamp_GFC2"
+  },
+  {
+   "id": "GF10010_200_empty_clamp_sham",
+   "activate_nodes": [
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_clamp_sham",
+   "requires_clamp_path": true
+  },
+  {
+   "id": "GF_BOTH_200_intact",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact"
+  },
+  {
+   "id": "GF_BOTH_200_clamp_GFC2",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [
+    146054,
+    146165,
+    146218,
+    146252,
+    146256,
+    146403,
+    146577,
+    147026,
+    160892,
+    162264
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "clamp_GFC2"
+  },
+  {
+   "id": "GF_BOTH_200_empty_clamp_sham",
+   "activate_nodes": [
+    0,
+    6
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0
+   ],
+   "arm": "empty_clamp_sham",
+   "requires_clamp_path": true
+  },
+  {
+   "id": "NO_INPUT_intact",
+   "activate_nodes": [],
+   "rate_hz": 0,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "intact"
+  },
+  {
+   "id": "NO_INPUT_clamp_GFC2",
+   "activate_nodes": [],
+   "rate_hz": 0,
+   "clamp_nodes": [
+    146054,
+    146165,
+    146218,
+    146252,
+    146256,
+    146403,
+    146577,
+    147026,
+    160892,
+    162264
+   ],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "clamp_GFC2"
+  },
+  {
+   "id": "TTMn_BOTH_200_direct_control",
+   "activate_nodes": [
+    144432,
+    147865
+   ],
+   "rate_hz": 200,
+   "clamp_nodes": [],
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "arm": "direct_activation_control"
+  }
+ ]
+}
