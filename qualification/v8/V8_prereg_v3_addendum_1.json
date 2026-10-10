@@ -1,0 +1,30 @@
+{
+  "addendum": "v8 prereg v3 ADDENDUM 1: DISCLOSURE ONLY, committed before step 0. Grid, gates, objective, selection and every rule of V8_input_prereg_v3.json are UNCHANGED.",
+  "prereg_v3_sha256": "13d4790a8a3c7ff25be3d349dc4c3480c1af37d4600551fac2962d5c12a556c3",
+  "fixed_inputs_disclosed": {
+    "R_to_L_weights_in_the_cutout": {
+      "L1": {
+        "n_inputs": 2,
+        "weights": [
+          -4.95,
+          -4.675
+        ],
+        "sum": -9.63
+      },
+      "L2": {
+        "n_inputs": 2,
+        "weights": [
+          -4.4,
+          -4.675
+        ],
+        "sum": -9.08
+      },
+      "how": "read from the frozen S2 cutout's edge arrays (central L1/L2, inputs from R1-R6 nodes); no simulation"
+    },
+    "graded_release_delay_ms": 1.8,
+    "source": "brainlab/engine.py DELAY_MS (delay_ticks 18 at dt 0.1 ms)"
+  },
+  "prediction_before_step_0": "audit 1 (v3, advisory A1): at weights of about -9 to -19 the engine probe gives L onset = D+3 ms, so at D = 8 the L onset is 11 ms and G3_L FAILS BY CONSTRUCTION; the 6 runs at D = 8 are predicted unable to reach TRAIN_PASS. If the R stage passes only at D = 8, an F1_LMC verdict would reflect the fixed 1.8 ms release delay and the fixed R->L weights above, NOT L1/L2 membrane dynamics.",
+  "F1_LMC_conditions_extended": "in addition to v3's conditions (flash level, noise contrast, single fixed D, S1-A3 gain/adaptation, the 1.8 ms graded-release delay), F1_LMC is CONDITIONAL on the fixed R->L1/L2 edge weights (sums -9.63 and -9.08) and the fixed v6 R1-R6 release. An F1_LMC in which no D = 7 run passes the R stage will be reported as 'F1_LMC (D = 8 only; delay/weight-limited)'.",
+  "nothing_else_changes": true
+}
