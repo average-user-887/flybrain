@@ -5,9 +5,10 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
-## [Unreleased] (rc3)
+## [0.5.1rc3] - candidate (not tagged, not published)
 
-Changes on `master` since the `v0.5.1rc2` tag. Nothing here is tagged or published yet.
+Integration branch `claude/rc3-20261012` on top of `master` since the `v0.5.1rc2` tag.
+Nothing here is tagged or published yet.
 
 ### Changed
 
@@ -19,6 +20,23 @@ Changes on `master` since the `v0.5.1rc2` tag. Nothing here is tagged or publish
   the owner-decisions log and the release notes now match the published releases
   (`v0.5.0` stable; `v0.5.1rc1` and `v0.5.1rc2` pre-releases), and the GPU position
   (CPU supported, NVIDIA optional, AMD experimental and unqualified).
+
+### Added (rc3 integration)
+
+- **Privacy guard v2.** The guard now also checks binaries, archives, secrets and
+  GitHub-hosted text, with format tests (`tests/test_private_infra_formats.py`).
+- **Escape-asymmetry Path A stack.** The 19-commit Path A stack (known-circuit
+  contract, provenance binding, frozen battery results A1 PASS / A2 FAIL, PVLP151
+  counterfactual and PVLP151->GF direct-edge preparation, GF diagnostic preparation)
+  is carried over from the old branch after the history rewrite, so its commit IDs
+  are new. See `OLD_TO_NEW_SHA_NOTE.md` for the old-to-new SHA map. Preparations
+  are frozen but several diagnostics were not run; nothing here claims a biological
+  result beyond the recorded A1/A2 outcomes.
+
+### Not in this release
+
+- Renderer polish was dropped from rc3 by the cut line.
+- Science A v9 closed as a documented negative and is not part of the release.
 
 ### History rewrite (9 October 2026)
 
