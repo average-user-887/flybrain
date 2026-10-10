@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Pins** | Released `33242c7` (v0.5.0). Candidate `claude/ui-assets-20261008` at `a6077be`; it differs from the release in the touched files only by one web-asset list line in `neurofly_daemon.py`. |
-| **Branch** | `claude/sensory-delivery-fix-20261008`, from `33242c7`. |
+| **Pins** | Released `8bae810` (v0.5.0). Candidate `claude/ui-assets-20261008` (a pre-rewrite commit, not in the published master history); it differs from the release in the touched files only by one web-asset list line in `neurofly_daemon.py`. |
+| **Branch** | `claude/sensory-delivery-fix-20261008`, from `8bae810`. |
 | **Scope** | Key/schema defects in the wind and the experimental RPC sensory delivery, nothing else. |
 | **Unchanged** | First-N cell selection, laterality, JO subtypes, gains, thresholds, formulas, synapses, dynamics, science jobs and results. The graph-I/O declaration was bumped to v3 in a follow-up (§5). |
 | **Status** | This is an engineering repair. A delivered current is **not** evidence of sensing or behaviour. |
@@ -91,7 +91,7 @@ Edge cases sent directly to the server:
   - Under v3 (§5), these and **every other saved graph instance of every assay** refuse an ordinary resume.
   - Continuing them needs `--continue-io-state`, which creates linked v3 children; the v2 parents stay unchanged.
   - Deploying this candidate therefore needs that flag (or fresh instances) on the owner's daemon. No owner store was touched here.
-  - In the first repair commit (`3ffca7c`, unchanged hash) only the per-step `input_stage[jon_wind].stimulus_key/delivery` fields marked the change. v3 supersedes that.
+  - In the first repair commit (pre-rewrite commit, not in the published master history) only the per-step `input_stage[jon_wind].stimulus_key/delivery` fields marked the change. v3 supersedes that.
 
 **RPC path.** No saved result found.
 - The daemon never builds `connectome_mode='rpc'`. It is reachable only programmatically and in tests.

@@ -8,7 +8,7 @@
 Branch: `worktree-neurofly-openready` (Ryzen worktree). Started 2026-09-19.
 
 ## Phase 0 — Baseline (done)
-- Snapshot of the live Ryzen tree committed (`7fe4eb6`); the tree had ~4.6k lines of
+- Snapshot of the live development tree committed (`6c48a98`); the tree had ~4.6k lines of
   uncommitted work synced from the Windows development root.
 - Baseline: 180/180 tests pass (`PYTHONPATH=. .venv/bin/python -m pytest -q tests/`).
 - Dashboard served from `web/` on port 8770; daemon on port 8769.
@@ -41,7 +41,7 @@ wall. It is clamped against the boundary by the containment failsafe instead of 
 
 ## 2026-09-19 continuation
 
-- Dashboard collision fixes committed as `8cc4412`; all 14 paradigms pass a
+- Dashboard collision fixes committed as `ce11b21`; all 14 paradigms pass a
   12-seed × 3,000-step stress harness (504,000 total steps).
 - Separate persistent experiment brains, controlled teaching/reversal, frozen
   controls, read-only probes, and a live research observatory are implemented.
@@ -57,11 +57,11 @@ touched, and no checkpoint or evidence bundle was deleted.
 
 | WP | Commit | Outcome |
 |----|--------|---------|
-| 1+2 | `85989e7` | The frozen view at 100x was caused by the simulation loop re-taking the lock every step (HTTP waits p95 1.9 s) against a 1.2 s client reconnect probe. Deadline scheduler, lock-free snapshot delivery, command acks, visible error and data-age states. Command p95 19.6 ms; 1x/20x/100x bit-identical. Host ceiling is about 30x, stated honestly in the UI. |
-| 3 | `ca4a086` | The wall-avoidance reflex and contact turn are engineered behavioural assists; now named, logged options, on by default. They were hiding three real solver defects, now fixed. Containment passes 84/84 with assists on and off. |
-| 4 | `f1395b1` | The real graph is pinned and verified (166,700 neurons, 25,582,938 edges). Named backends, no silent surrogate on RPC fault, per-assay instances with atomic checkpoints and isolation tests. |
-| integration | `5c9519e` | Run identity, motor provenance and controller faults flow through arena, daemon and UI; stale packets rejected; assists default off for graph backends. |
-| 5 | `ca7b71b` | DNa02 left/right were swapped, mirroring every graph steering sign; corrected and verified against annotations. Preregistered causal test: intact turning index +0.193 [+0.133, +0.243], DNa02-silenced and sham identically zero, shuffled graph -0.024. |
+| 1+2 | `ca63286` | The frozen view at 100x was caused by the simulation loop re-taking the lock every step (HTTP waits p95 1.9 s) against a 1.2 s client reconnect probe. Deadline scheduler, lock-free snapshot delivery, command acks, visible error and data-age states. Command p95 19.6 ms; 1x/20x/100x bit-identical. Host ceiling is about 30x, stated honestly in the UI. |
+| 3 | `8e4fce7` | The wall-avoidance reflex and contact turn are engineered behavioural assists; now named, logged options, on by default. They were hiding three real solver defects, now fixed. Containment passes 84/84 with assists on and off. |
+| 4 | `83a61ce` | The real graph is pinned and verified (166,700 neurons, 25,582,938 edges). Named backends, no silent surrogate on RPC fault, per-assay instances with atomic checkpoints and isolation tests. |
+| integration | `df8f638` | Run identity, motor provenance and controller faults flow through arena, daemon and UI; stale packets rejected; assists default off for graph backends. |
+| 5 | `e136398` | DNa02 left/right were swapped, mirroring every graph steering sign; corrected and verified against annotations. Preregistered causal test: intact turning index +0.193 [+0.133, +0.243], DNa02-silenced and sham identically zero, shuffled graph -0.024. |
 
 ### Honest status
 
@@ -80,9 +80,9 @@ touched, and no checkpoint or evidence bundle was deleted.
 
 | Item | Commit | Outcome |
 |------|--------|---------|
-| WP6 spec | `bd8f59c` | Recommends ER4d+ER2 -> EPG heading-map learning (3,081 edges, 0.012 % of the graph, all inhibitory, depression-only) over optomotor gain or olfactory conditioning, because it is the only candidate whose plastic site, modulator and motor readout are all identifiable here. Feasible in 6-7 wall hours; the 47-hour design is excluded. Specification only. |
-| Release redactions | `f709cb9` | Private infrastructure removed from the handoff, the guides and the standalone bundle. |
-| Dynamics v2 | `001b692` | Under v1, DNa02_R sat at -184 mV, below any chloride reversal, and never fired: **WP5's one-sided optomotor result was an engine property, not anatomy.** v2 bounds the membrane and both sides now respond, but the runaway is 4x worse. |
+| WP6 spec | `0e5c70f` | Recommends ER4d+ER2 -> EPG heading-map learning (3,081 edges, 0.012 % of the graph, all inhibitory, depression-only) over optomotor gain or olfactory conditioning, because it is the only candidate whose plastic site, modulator and motor readout are all identifiable here. Feasible in 6-7 wall hours; the 47-hour design is excluded. Specification only. |
+| Release redactions | `bb53d9d` | Private infrastructure removed from the handoff, the guides and the standalone bundle. |
+| Dynamics v2 | `49e1239` | Under v1, DNa02_R sat at -184 mV, below any chloride reversal, and never fired: **WP5's one-sided optomotor result was an engine property, not anatomy.** v2 bounds the membrane and both sides now respond, but the runaway is 4x worse. |
 
 ### The blocking scientific problem
 

@@ -1,6 +1,6 @@
 # NeuroFly v0.5.0rc2 release notes (PRERELEASE)
 
-*Second release candidate, 7 October 2026. Base: `v0.5.0rc1` (`a4368a2`).*
+*Second release candidate, 7 October 2026. Base: `v0.5.0rc1` (`38ec828`).*
 
 > **Experimental prerelease; not biological validation.** This candidate fixes cohort
 > resume and other correctness issues found in rc1, makes GPU cohorts faster with

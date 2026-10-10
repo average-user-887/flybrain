@@ -25,7 +25,7 @@ learning or complete biological control.
 - Preserved the divergent laptop standalone HTML in that archive, verified its
   SHA256, and restored the tracked file to the canonical committed version.
 - Removed the misplaced Uroboros plan from active documentation after preserving
-  a copy outside each checkout. Git history at `4db4b88` also retains it.
+  a copy outside each checkout. Git history at `397662a` also retains it.
 - Moved the separately versioned `neurofly-site` repository out of the Ryzen
   checkout into a sibling directory, retaining its `.git` and commit. Verified
   it was clean and no process had a working directory inside it before moving.

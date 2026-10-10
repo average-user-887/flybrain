@@ -88,7 +88,7 @@ from successful task performance. The baseline is in
 
 ### Completed validation receipt
 
-* Core sensorimotor revision: `da7d4bc`. The final behavior audit is
+* Core sensorimotor revision: `dc6e400`. The final behavior audit is
   `outputs/behavior-review/final.json`: **42 runs, 126,000 integration steps**,
   maximum displacement **0.070 mm per 20 ms**, no nonfinite poses or jumps.
 * All three heat-maze runs reached the refuge (13.1–29.1 simulated seconds), and

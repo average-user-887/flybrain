@@ -1,5 +1,7 @@
 # Release plan — NeuroFly v0.4.0
 
+> **Superseded, 10 October 2026.** The v0.4 HOLD below ended: `v0.4.0` was published on 7 October 2026 and `v0.5.0` on 8 October (see [`CHANGELOG.md`](../CHANGELOG.md)). Statements below that there is no AMD engine, that GitHub releases are "none", or that the hand-built controller is the default describe 5 October 2026 and are not current: the AMD engine is experimental and shipped in `v0.4.0`, and the connectome is the featured default controller. The G9 "published history is not rewritten" residual was also superseded: the public history was rewritten once on 9 October 2026 (see [`OWNER_DECISIONS.md`](OWNER_DECISIONS.md)). Text kept as written.
+
 Owner of this plan: the Claude agent responsible for day-to-day implementation, working
 under direction and acceptance gates set by a separate Codex agent. The owner delegated
 those roles on 5 October 2026; see `docs/OWNER_DECISIONS.md` and
@@ -44,14 +46,14 @@ were run on.*
 |---|---|
 | Release | **HOLD**; see the status above |
 | Code on GitHub | master moved several times on 5 October (install fixes, documentation, privacy guard, PRs #25/#30, hostname redaction, E_inh code restoration, audit receipts). None of these heads is a reviewed release candidate. |
-| Last exact-commit full suite on master | `3e9bc5d`: 893 passed, 9 skipped, 0 failed (reference NVIDIA host, real graph, GPU). Later master commits are documentation only and have not had a full-suite run. |
+| Last exact-commit full suite on master | `1bbf52a`: 893 passed, 9 skipped, 0 failed (reference NVIDIA host, real graph, GPU). Later master commits are documentation only and have not had a full-suite run. |
 | Functional audit (5 Oct) | modular controller: 1 of 14 assays fully works; connectome: 0 of 14 fully work (2 partial, 5 no behaviour, 7 misleading); 97 controls checked, several broken or misleading; 7 silent-freeze paths. See `docs/receipts/audit-20261005/`. |
 | Plumbing sign-off (`scripts/live_ui_signoff.py`) | It checks page load, counters and switching, **not** whether experiments work. Its earlier 7/7 passes are not acceptance evidence. |
 | GitHub releases | **none**, only a bare tag `v0.3.0` (24 Sep) |
 | Version in `pyproject.toml` | 0.3.0 |
 | Licence | MIT (code); MaleCNS data CC-BY 4.0; FlyGym/MuJoCo Apache-2.0 (see `NOTICE`) |
 | Discussions | **on** |
-| AMD / non-NVIDIA | Earlier AMD CPU testing at `5c54b03` passed (full suite 0 failures; cross-machine bit-identical embodied runs). Verification of the current fixes on AMD is pending. CPU only; no AMD GPU engine exists. |
+| AMD / non-NVIDIA | Earlier AMD CPU testing at `c2b641d` passed (full suite 0 failures; cross-machine bit-identical embodied runs). Verification of the current fixes on AMD is pending. CPU only; no AMD GPU engine exists. |
 
 ---
 
@@ -96,7 +98,7 @@ Each gate has an owner, a check and a receipt. The release is cut only when ever
 | G6 | README and capability matrix match the receipts | MUST | orchestrator | every claim in README traceable; stale items fixed (status date, 18-DOF vs measured 66 joint DOFs, GPU reproducibility wording, test count) |
 | G7 | Release notes and CHANGELOG | MUST | orchestrator | `CHANGELOG.md` covering 0.3.0 → 0.4.0; notes carry §3 verbatim in substance |
 | G8 | Citation and attribution | MUST | orchestrator | `CITATION.cff`; MaleCNS CC-BY 4.0 attribution in README and NOTICE |
-| G9 | No secrets or personal data in the published tree | MUST | orchestrator | **Not clean (corrected 5 Oct 2026).** The earlier entry here said the 29 commits published on 5 Oct were scanned clean; that was wrong. An external audit on 5 Oct 2026 found personal data in the tree and in commit metadata: the local username and home-directory paths (163 occurrences in 46 tracked files), agent scratch paths, the workstation hostname in 7 receipts, internal host and share names in docs, and a tracked `.claude/settings.json`. Branch `claude/sanitize-tree` removes these from the current tree (receipts redacted with placeholders, logged in `docs/receipts/REDACTIONS.md`; measurement scripts made repository-relative), untracks `.claude/settings.json`, and extends `scripts/check_private_infra.sh` (run in CI) so they cannot be reintroduced. **Accepted residual (owner decision, 5 Oct 2026, `docs/OWNER_DECISIONS.md`):** published history is not rewritten, because a rewrite would change every cited commit ID and could not truly erase anything. Older commits keep personal e-mail addresses in their author/committer metadata, private session links in some commit messages, and the removed strings in their trees; this is documented and accepted. GitHub e-mail privacy is on and the repository's commit identity is now a noreply address. G9 passes when the current tree is clean, the guard passes in CI, and no new commit carries personal data. **Correction (5 October 2026):** the session-link part of the history is not "documented and accepted". The owner ruling covers *not rewriting* history. Links published since the audit remain an unresolved exposure, not one approved after the fact. Counts by scope: `master` at `713ba82` has 244 commits, of which 145 carry session links and 223 fail a metadata rule; the range `5c54b03..713ba82` has 61 commits, of which 44 carry session links. Across all 52 live branch heads (Codex remote audit), 153 reachable commit bodies carry session links, 17 of them outside the ancestry of `69e52db`, and 128 commits have identity findings, all inside that ancestry. See the factual note in `docs/OWNER_DECISIONS.md`. A clean tree and the metadata guard prevent new exposure; they do not erase what has already been published. |
+| G9 | No secrets or personal data in the published tree | MUST | orchestrator | **Not clean (corrected 5 Oct 2026).** The earlier entry here said the 29 commits published on 5 Oct were scanned clean; that was wrong. An external audit on 5 Oct 2026 found personal data in the tree and in commit metadata: the local username and home-directory paths (163 occurrences in 46 tracked files), agent scratch paths, the workstation hostname in 7 receipts, internal host and share names in docs, and a tracked `.claude/settings.json`. Branch `claude/sanitize-tree` removes these from the current tree (receipts redacted with placeholders, logged in `docs/receipts/REDACTIONS.md`; measurement scripts made repository-relative), untracks `.claude/settings.json`, and extends `scripts/check_private_infra.sh` (run in CI) so they cannot be reintroduced. **Accepted residual (owner decision, 5 Oct 2026, `docs/OWNER_DECISIONS.md`):** published history is not rewritten, because a rewrite would change every cited commit ID and could not truly erase anything. Older commits keep personal e-mail addresses in their author/committer metadata, private session links in some commit messages, and the removed strings in their trees; this is documented and accepted. GitHub e-mail privacy is on and the repository's commit identity is now a noreply address. G9 passes when the current tree is clean, the guard passes in CI, and no new commit carries personal data. **Correction (5 October 2026):** the session-link part of the history is not "documented and accepted". The owner ruling covers *not rewriting* history. Links published since the audit remain an unresolved exposure, not one approved after the fact. Counts by scope: `master` at `0f144ca` has 244 commits, of which 145 carry session links and 223 fail a metadata rule; the range `c2b641d..0f144ca` has 61 commits, of which 44 carry session links. Across all 52 live branch heads (Codex remote audit), 153 reachable commit bodies carry session links, 17 of them outside the ancestry of `9c58db4`, and 128 commits have identity findings, all inside that ancestry. See the factual note in `docs/OWNER_DECISIONS.md`. A clean tree and the metadata guard prevent new exposure; they do not erase what has already been published. |
 | G10 | Performance stated honestly | MUST | orchestrator, AMD test host (T4) | measured sim-s/wall-s on GPU, the reference host CPU and AMD CPU, with peak memory |
 | G11 | Cross-machine determinism stated | SHOULD | AMD test host (T3) | same seed and commit on the reference host and the AMD test host; hashes compared |
 | G12 | Discussions on, issue templates, CONTRIBUTING current | MUST | owner (toggle) + orchestrator | see §7 |
@@ -107,7 +109,7 @@ Each gate has an owner, a check and a receipt. The release is cut only when ever
 
 ## 5. Work order
 
-1. **Now:** publish current master (done, `5c54b03`). Pin the AMD test host to it (done).
+1. **Now:** publish current master (done, `c2b641d`). Pin the AMD test host to it (done).
 2. **Docs pass (G6, G7, G8):** README status and claims, CHANGELOG, CITATION.cff,
    NOTICE check. Branch `claude/release-v0.4`.
 3. **PR review (G13):** #25 is documents only, so review it for honesty and merge. #30 changes
@@ -121,7 +123,7 @@ Each gate has an owner, a check and a receipt. The release is cut only when ever
 7. **Release:** tag `v0.4.0`, publish the GitHub Release with notes, announce in
    Discussions.
 
-*Status correction, 5 October 2026:* v6a (branch `claude/gain-v6a`, `446a6af`; not on
+*Status correction, 5 October 2026:* v6a (branch `claude/gain-v6a`, pre-rewrite commit ID omitted; not on
 `master`) failed its declared amplitude (stage) gate on T4/T5, so its motion verdict
 was **not run**. The v3/v4/v5/v6a negatives are model-specific. They are never proof
 that the biological connectome cannot compute motion.
@@ -169,4 +171,4 @@ from. Therefore:
 
 Through dated files on the project's archive share
 (`ORCHESTRATOR_TO_DECK_*` and `DECK_*`). The first test scope (T1–T6) was sent on
-5 October 2026 and pinned to `5c54b03`.
+5 October 2026 and pinned to `c2b641d`.

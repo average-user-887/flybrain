@@ -5,6 +5,8 @@ Every capability claim in the README and in
 This index records which engine produced each receipt and what it can and cannot support.
 It was written on 2026-09-24 as part of ROADMAP Phase 0.
 
+Commit IDs inside receipts dated before 9 October 2026 are pre-rewrite IDs: the public history was rewritten once on that date (see `CHANGELOG.md`). Receipts are evidence and are not edited; for a commit that still exists with the same subject and author date, find its current ID with `git log --format="%h %ad %s"`.
+
 Engine labels: **v1** is current-based LIF (runaway, ~10⁶ spikes/s). **v2** is
 conductance-based (~4 × 10⁶ spikes/s). **v3** is conductance-based with per-sign PSP
 calibration and the `v3-modulatory-only` transmitter policy. **v4** is v3 plus the

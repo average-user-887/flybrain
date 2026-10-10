@@ -91,7 +91,7 @@ preregistered spec later.
      the T-maze `encoder` block byte-identical: on 25 Sep 2026 after PR #22
      changed the T-maze status (`7ac171fa…` → `7eb6f62b…`), and on 5 Oct 2026
      after master repointed the T-maze spec to `firing_rate_bounds_v3.json`
-     (`7eb6f62b…` → `405cc81a…`, commit `9b1023f`). Each re-pin changes only
+     (`7eb6f62b…` → `405cc81a…`, commit `86732ba`). Each re-pin changes only
      `encoder.from_spec_sha256` and therefore the two frozen content hashes
      above.
 2. **Owner gate.** Only the owner changes `status` from `draft` to

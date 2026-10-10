@@ -1,7 +1,7 @@
 # Next presentation candidate: integration receipt (2026-10-08)
 
-1. Review only: based on W4 `2e0210b`; includes accepted renderer `750246cc21c621c208a89587dc11533c4eb8121e`. Published `c9fed0a`, sensory `5c64ce9` and running services are unchanged.
-2. Environment source snapshot: `6e9b77acbc63b2f4daf336e0b7ef52a5c943ee5d`; scene source snapshot: `66d7a6f`. Every source hash in their manifests matches this tree.
+1. Review only: based on W4 `19bb1bb`; includes accepted renderer `4f10ccdef4a5434b549f4cea0106ce9fb67b9f4d`. Published `2097b5f`, sensory (pre-rewrite commit, not in the published master history) and running services are unchanged.
+2. Environment source snapshot and scene source snapshot: pre-rewrite commits not in the published master history. Every source hash in their manifests matches this tree.
 3. V4 spider clips SHA256: `29de58fa2c1906919dc59ed58720a1b1e50949cfad7950d2aa6bffe1f0fd72ae`.
 4. V4 mantis clips SHA256: `e28b10a4dbebd177bc31886d47217f7d97c2bdef74d48bfa53b45cc45a08b3c9`.
 5. Optional base archive SHA256: `bf6ea528e94632596365a589befba7e0c48f5e30b777167489e7368e04ad1554`; verified before staging. Scene and v4 assets are staged strictly from manifest file/hash mappings; no recordings or editable Blend files enter the artifact.

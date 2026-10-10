@@ -5,14 +5,115 @@ All notable changes to Project NeuroFly are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). Scientific results, including negative
 ones, get their own section, because for this project they matter as much as code.
 
-## [Unreleased]
+## [Unreleased] (rc3)
 
-- An installable 0.5.1rc2 graphics candidate is prepared from accepted presentation
-  source `c4557e9`; see `docs/RELEASE_NOTES_v0.5.1rc2.md`. It is not published or
-  tagged. The separate BODY-MAP change is excluded, and installed runtime/browser
-  qualification remains outstanding.
+Changes on `master` since the `v0.5.1rc2` tag. Nothing here is tagged or published yet.
 
 ### Changed
+
+- **Privacy guard.** `scripts/check_private_infra.py` now also fails on agent
+  session references (claude.ai project, artifact and conversation links, agent home
+  directories, scratch paths, transcript names and canonical UUIDs), in the tree and
+  in commit messages. The guard's manifests were repinned to the rewritten history.
+- **Documentation corrections.** The README status, this changelog, the roadmap,
+  the owner-decisions log and the release notes now match the published releases
+  (`v0.5.0` stable; `v0.5.1rc1` and `v0.5.1rc2` pre-releases), and the GPU position
+  (CPU supported, NVIDIA optional, AMD experimental and unqualified).
+
+### History rewrite (9 October 2026)
+
+The public `master` history was rewritten once on 9 October 2026 to remove agent
+session links and personal data, and every commit ID changed. Commit IDs cited in
+documents written before that date are pre-rewrite IDs. Where a commit with the same
+subject and author date exists in the current history, the documents now cite its new
+ID; where none exists, they say so. All release tags resolve to the rewritten commits.
+
+
+## [0.5.1rc2] - 2026-10-08 (PRERELEASE)
+
+Graphics candidate on top of `v0.5.1rc1`, published as a GitHub pre-release.
+**Experimental prerelease; not biological validation.** Details:
+`docs/RELEASE_NOTES_v0.5.1rc2.md`. The separate BODY-MAP change is excluded.
+
+### Fixed
+
+- The installed gallery loads GLB files when the server does not support HEAD requests.
+- The dashboard recovers an exact request acknowledgement after an HTTP timeout, only
+  from a final receipt for the same request, action and daemon. The two-second
+  timeout is unchanged and mutations are never resent.
+
+
+### Added (candidate, presentation only, off by default)
+
+- This candidate includes renderer `4f10ccd`: the dashboard uses the female
+  HQ appearance by default under `?assets=hq`, with a female/male presentation
+  selector and a neutral-asset fallback. Without the flag, the fly is procedural.
+  Appearance never selects brain sex, dataset, physiology or behaviour. The replay
+  HQ loader still uses the neutral fly. The published 0.5.1rc1 notes describe the
+  earlier renderer and remain unchanged.
+- The 3D viewport adds lighting, soft shadows, floor/contact presentation, camera
+  presets, themes and an automatic frame-time quality fallback. Its fly-only root
+  adapter repairs heading and anatomical sides; environment animals retain +X
+  anatomical left without reflection. These are presentation changes, with no
+  new sensory, physics or biological-motion claim.
+- `web/asset_gallery.html`, a standalone, manifest-driven review page: close-range
+  orbit, LOD and layer toggles, floor/bounds/axes/scale overlays, a contact sheet,
+  and fly rig v2 with illustrative animation clips. Each clip is labelled
+  "illustrative animation, not simulated behaviour" and checked against the
+  documented joint envelope.
+- `web/env_inspector.html`, a read-only environment inspector that follows
+  `docs/SENSORY_CAPABILITY_CONTRACT.md`. It shows field concentration, delivered
+  receptor input and neural response separately, with explicit paused, stale and
+  unavailable states.
+- Food, odour, wind and illustrative predator props, with icons and a sense legend.
+
+## [0.5.1rc1] - 2026-10-08 (PRERELEASE)
+
+Sensory-delivery repair on top of `v0.5.0`, published as a GitHub pre-release.
+**Experimental prerelease; not biological validation.** Details:
+`docs/RELEASE_NOTES_v0.5.1rc1.md`.
+
+### Migration
+
+- **Graph I/O v3: saved connectome runs need `--continue-io-state`.** The sensory
+  delivery repair bumps the declared graph I/O from `graph-arena-io-v2-unassisted`
+  to `graph-arena-io-v3-unassisted`, because the multisensory sandbox's airflow
+  now reaches the JO wind probe. A run saved under v2 (or with no recorded I/O)
+  is refused on an ordinary resume, with nothing written. Restart with
+  `--continue-io-state` to create a linked child run from a verified checkpoint.
+  The parent is never changed or reinterpreted.
+
+### Fixed
+
+- **Multisensory wind reaches the graph.** The JO wind probe reads `wind_speed`,
+  else `wind_magnitude` (both are the world airflow speed in mm/s). The first key
+  present wins, an explicit 0 is kept, and a non-finite value is not delivered.
+  The `jon_wind` input row reports `stimulus_key` and `delivery`. Assays that
+  publish only a wind vector stay NOT DELIVERED. Gains, thresholds and formulas
+  are unchanged. Delivery is not evidence of sensing
+  (`docs/SENSORY_DELIVERY_REPAIR_20261008.md`).
+- **RPC bridge packet keys.** The experimental `hybrid-bridge-rpc-experimental`
+  path now sends the keys the server reads for odour, cVA, wind and temperature,
+  and non-finite inputs are no longer injected at the cap.
+
+### Added (opt-in, presentation only, off by default)
+
+- `?assets=hq`, `web/asset_gallery.html` and `web/env_inspector.html`, with an optional
+  asset download (`neurofly-hq-assets-0.5.1rc1.zip`) that is not in the wheel. The
+  renderer in this release is superseded by the one in `0.5.1rc2`.
+
+## [0.5.0] - 2026-10-08
+
+First stable 0.5 release, on top of `v0.5.0rc2`. **Research software; not biological
+validation.** Details: `docs/RELEASE_NOTES_v0.5.0.md`.
+
+### Changed
+
+- **Split processes are the default**, and the connectome is the default backend. When
+  no prepared graph is available, the dashboard shows a visible no-graph fallback
+  instead of silently substituting another controller.
+
+### Launch defaults (detail; shipped in this release, previously listed under Unreleased)
 
 - **Split by default.** `neurofly run`, `neurofly_daemon.py` and `./start_daemon.sh`
   now start a headless simulation process (brain, learning records, checkpoints) and
@@ -37,64 +138,6 @@ ones, get their own section, because for this project they matter as much as cod
 
 - README: `neurofly run` without a prepared graph falls back visibly to the modular
   controller (it did not exit), and the daemon binds 127.0.0.1 by default.
-
-### Migration (draft for the next release notes)
-
-- **Graph I/O v3: saved connectome runs need `--continue-io-state`.** The sensory
-  delivery repair bumps the declared graph I/O from `graph-arena-io-v2-unassisted`
-  to `graph-arena-io-v3-unassisted`, because the multisensory sandbox's airflow
-  now reaches the JO wind probe. A run saved under v2 (or with no recorded I/O)
-  is refused on an ordinary resume, with nothing written. Restart with
-  `--continue-io-state` to create a linked child run from a verified checkpoint.
-  The parent is never changed or reinterpreted.
-
-### Fixed (candidate, not yet released)
-
-- **Multisensory wind reaches the graph.** The JO wind probe reads `wind_speed`,
-  else `wind_magnitude` (both are the world airflow speed in mm/s). The first key
-  present wins, an explicit 0 is kept, and a non-finite value is not delivered.
-  The `jon_wind` input row reports `stimulus_key` and `delivery`. Assays that
-  publish only a wind vector stay NOT DELIVERED. Gains, thresholds and formulas
-  are unchanged. Delivery is not evidence of sensing
-  (`docs/SENSORY_DELIVERY_REPAIR_20261008.md`).
-- **RPC bridge packet keys.** The experimental `hybrid-bridge-rpc-experimental`
-  path now sends the keys the server reads for odour, cVA, wind and temperature,
-  and non-finite inputs are no longer injected at the cap.
-
-### Added (candidate, presentation only, off by default)
-
-- This next candidate includes renderer `750246c`: the dashboard uses the female
-  HQ appearance by default under `?assets=hq`, with a female/male presentation
-  selector and a neutral-asset fallback. Without the flag, the fly is procedural.
-  Appearance never selects brain sex, dataset, physiology or behaviour. The replay
-  HQ loader still uses the neutral fly. The published 0.5.1rc1 notes describe the
-  earlier renderer and remain unchanged.
-- The 3D viewport adds lighting, soft shadows, floor/contact presentation, camera
-  presets, themes and an automatic frame-time quality fallback. Its fly-only root
-  adapter repairs heading and anatomical sides; environment animals retain +X
-  anatomical left without reflection. These are presentation changes, with no
-  new sensory, physics or biological-motion claim.
-- `web/asset_gallery.html`, a standalone, manifest-driven review page: close-range
-  orbit, LOD and layer toggles, floor/bounds/axes/scale overlays, a contact sheet,
-  and fly rig v2 with six illustrative animation clips. Each clip is labelled
-  "illustrative animation, not simulated behaviour" and checked against the
-  documented joint envelope.
-- `web/env_inspector.html`, a read-only environment inspector that follows
-  `docs/SENSORY_CAPABILITY_CONTRACT.md`. It shows field concentration, delivered
-  receptor input and neural response separately, with explicit paused, stale and
-  unavailable states.
-- Food, odour, wind and illustrative predator props, with icons and a sense legend.
-
-## [0.5.0] - 2026-10-08
-
-First stable 0.5 release, on top of `v0.5.0rc2`. **Research software; not biological
-validation.** Details: `docs/RELEASE_NOTES_v0.5.0.md`.
-
-### Changed
-
-- **Split processes are the default**, and the connectome is the default backend. When
-  no prepared graph is available, the dashboard shows a visible no-graph fallback
-  instead of silently substituting another controller.
 
 ### Added
 
@@ -198,7 +241,7 @@ is now only about 1.1–1.4× faster than the CPU (see Scientific results). Deta
 ### Scientific results
 
 - **GPU cohort CPU-reference gate:**
-  - **Original fixed-point kernel (`af87006`): FAIL.** First breach at tick 172, a g
+  - **Original fixed-point kernel (`b354b4a`): FAIL.** First breach at tick 172, a g
     relative error of 1.006e-6.
   - **This candidate: PASS** (new run, same unchanged contract). Arrivals are added one
     at a time in float32, in ascending (pre, edge) order. The CPU uses its own
@@ -225,8 +268,8 @@ is now only about 1.1–1.4× faster than the CPU (see Scientific results). Deta
 
 ## [0.4.0] - 2026-10-07
 
-Everything merged to `master` since the `v0.3.0` tag (`b6031b7`, 24 September 2026),
-plus the release candidate `cbaa876`. Pull-request numbers refer to
+Everything merged to `master` since the `v0.3.0` tag (`7716114`, 24 September 2026),
+plus the release candidate `0a490b3`. Pull-request numbers refer to
 <https://github.com/average-user-887/flybrain/pulls>.
 
 **Scope of this release.** v0.4.0 is a downloadable, **experimental research
@@ -350,12 +393,12 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
   `--step-hard-limit`, `--keep-shutdown-checkpoints`, `NEUROFLY_CHECKPOINT_INTERVAL`.
   See `docs/LEARNING_OBSERVATORY.md`, "When something fails".
 - Graph-controller node indices are resolved against the loaded graph, not a separately
-  read neuron table (`a9c988c`).
+  read neuron table (`52bda8d`).
 - The cached WP5 optomotor loop is bound to the live graph instance, which stopped the
   simulation freezing on the second optomotor visit after an experiment switch
-  (`8b8ba85`, evidence in `docs/receipts/switch-race-20261004/`).
+  (`3c8c680`, evidence in `docs/receipts/switch-race-20261004/`).
 - A step error now halts the run honestly and can be recovered from; the dashboard
-  shows SIMULATION HALTED instead of LIVE DAEMON while halted (`85f075d`, `ce1d248`).
+  shows SIMULATION HALTED instead of LIVE DAEMON while halted (`17f5abf`, `b894a99`).
 - `neurofly run` and the WP6 rule's time step (#18); `full-sim` checkpoint,
   weight serialization, heading and plasticity-update defects (24 September).
 - Scheduler timing tests no longer depend on CI runner load (#12).
@@ -428,7 +471,7 @@ Details: `docs/RELEASE_NOTES_v0.4.0.md`.
 
 ## [0.3.0] - 2026-09-24
 
-Tagged as `v0.3.0` (`b6031b7`); no changelog was kept before this version.
+Tagged as `v0.3.0` (`7716114`); no changelog was kept before this version.
 
 [0.5.0]: https://github.com/average-user-887/flybrain/compare/v0.5.0rc2...v0.5.0
 [0.5.0rc2]: https://github.com/average-user-887/flybrain/compare/v0.5.0rc1...v0.5.0rc2

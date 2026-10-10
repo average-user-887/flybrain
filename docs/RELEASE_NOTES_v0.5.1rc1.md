@@ -1,6 +1,6 @@
 # NeuroFly v0.5.1rc1 release notes (PRERELEASE)
 
-*Release candidate, 8 October 2026. Base: `v0.5.0` (`33242c7`).*
+*Release candidate, 8 October 2026. Base: `v0.5.0` (`8bae810`).*
 
 > **Experimental prerelease; not biological validation.** This candidate repairs two
 > sensory delivery paths and adds opt-in presentation tools. Everything in

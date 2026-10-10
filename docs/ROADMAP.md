@@ -3,6 +3,20 @@
 **Version**: 2.0 · **Date**: 2026-09-24 · **Status**: approved by the owner on 2026-09-24
 **Replaces**: [`docs/archive/ROADMAP_v1.0.md`](archive/ROADMAP_v1.0.md)
 
+> **Status note, 10 October 2026.** This is the 24 September 2026 plan. Public releases
+> have shipped since this plan was approved: `v0.3.0` (24 September), `v0.4.0` (7 October) and `v0.5.0` (8 October), with
+> pre-releases up to `v0.5.1rc2` (see [`CHANGELOG.md`](../CHANGELOG.md)). The project
+> direction of 7 October 2026 replaced the phase map with four milestones, in this
+> order: (1) ship `v0.4.0` as an experimental instrument, **done**; (2) split the brain
+> and web processes, **done** (the default since `v0.5.0`); (3) a batched sparse GPU
+> engine for many flies at once, **shipped as the experimental, optional `neurofly
+> cohort` engine** (`v0.5.0rc1`, faster in `v0.5.0rc2`); (4) only then, biology,
+> starting with graded potentials in the early visual layers, **not yet delivered**.
+> That direction also supersedes this plan's "mushroom-body odor learning comes first"
+> and the NVIDIA wording in P6: the CPU path is supported, NVIDIA GPU acceleration is
+> optional, and the AMD GPU engine is experimental and unqualified. Where this page
+> and that direction differ, the direction governs. The text below is kept as written.
+
 This plan turns NeuroFly into a research tool people can trust and a
 citizen-science instrument people can run at home. It starts by resetting the
 claims to what the receipts prove, then earns each capability back with a
@@ -279,8 +293,10 @@ one real person.
 **Deliverables**
 - One-command install plus `neurofly download-data`, with GPU detection and the
   CPU path documented as about 10x slower.
-- A hardware page with measured numbers: NVIDIA GPU recommended (GTX 1660 Ti is
-  the reference), and the RAM floor measured, not guessed.
+- A hardware page with measured numbers: the CPU path is supported, NVIDIA GPU
+  acceleration is optional (GTX 1660 Ti is the reference), the AMD GPU engine is
+  experimental and unqualified (corrected 10 October 2026; this line originally said
+  "NVIDIA GPU recommended"), and the RAM floor measured, not guessed.
 - A clean-clone test on a second machine that passes.
 - `CITATION.cff`, a DOI for the release, and a public dataset of the validation
   receipts and curated runs.

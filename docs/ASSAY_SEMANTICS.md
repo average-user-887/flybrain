@@ -253,7 +253,7 @@ Units are from the closed vocabulary. A **proxy** is named as one.
 ## 6. Legacy views (C3 mapping; unchanged at C0)
 
 `get_metrics()` and the step outputs are unchanged at C0. S-12 checks them against fixtures generated from
-`713ba82`. At C3, `legacy[k] = record.value` (null when unavailable), following v1 §8, with these v1.1 rows:
+`0f144ca` (the test name below keeps the pre-rewrite ID `713ba82`). At C3, `legacy[k] = record.value` (null when unavailable), following v1 §8, with these v1.1 rows:
 
 - `mean_torque_safe` and `mean_torque_punished` come from the **signed** records `mean_yaw_command_*_rad_s` and are
   null when not observed. They are never reconstructed from the absolute means.

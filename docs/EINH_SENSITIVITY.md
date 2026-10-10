@@ -678,7 +678,7 @@ Not established by anything retrieved:
   `E_inh` value is physiologically privileged, so no single magnitude is "the" one.
   These limits come on top of WP5 §12.4's engine qualifiers and of the larger
   reservation that the encoder imposes direction selectivity on T4/T5.
-- **Reproduction is not validation.** The code restoration merged at `3e9bc5d` and the
+- **Reproduction is not validation.** The code restoration merged at `1bbf52a` and the
   exact re-run of the −70 and −60 mV rows (§5) show that the computation reproduces
   from the public repository. They say nothing about whether the physiological
   interpretation in §1–§2 was right, and it was not.

@@ -239,7 +239,7 @@ dashboard is unsupported for this loop today.
 
 ## 8. Integration hooks needed to run this live
 
-**Status: landed in the live path (see the commit that follows `ca7b71b`).** The arena
+**Status: landed in the live path (see the commit that follows `e136398`).** The arena
 sends slip and contrast for the optomotor assay only, the graph yaw replaces (never
 adds to) the modular bias, the tethered assay runs at speed 0, and a missing
 `optomotor` block reports `graph-unmapped-io` instead of a silent zero. Receipt:
@@ -660,7 +660,7 @@ version of this engine represents.
 Spec: [`LIF_DYNAMICS_SPEC.md` §9](LIF_DYNAMICS_SPEC.md). Locked declaration:
 [`receipts/receptor_kinetics_v5_declaration.locked.md`](receipts/receptor_kinetics_v5_declaration.locked.md),
 sha256 `3f5996b5c132bd5d0ebb099446761344da11add9dc7340933d105a8269756b6b`. It was
-committed (`b93275d`) before any measurement. Receipt:
+committed (`972e18c`) before any measurement. Receipt:
 [`receipts/lif_dynamics_v5.json`](receipts/lif_dynamics_v5.json). Raw data for
 every run is in [`receipts/v5_raw/`](receipts/v5_raw/).
 

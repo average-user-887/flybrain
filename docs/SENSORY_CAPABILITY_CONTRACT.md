@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Base** | `f96bdc3` (branch `claude/ui-assets-20261008`). Every `file:line` below refers to that commit. |
+| **Base** | pre-rewrite commit `f96bdc3`, not in the published master history (branch `claude/ui-assets-20261008`). Every `file:line` below refers to that commit. |
 | **Scope** | Inventory and display contract only. No code, encoder, physics or brain weight was changed, and no simulation was run for this document. |
 | **Consumer** | W4, the sole web-UI integrator: environmental inspector and sensory overlays. |
 | **Rules applied** | A decorative model is never evidence of detection. Delivering an input is never evidence of a neural response. A biological claim appears only with a primary citation. An observed response is quoted only from an existing receipt. |
@@ -133,7 +133,7 @@ Each claim was checked against the Crossref record and the PubMed abstract (and,
 
 Column notes:
 
-- **Observed** quotes only existing receipts. The connectome audit `docs/receipts/audit-20261005/C-assays-connectome.md` ran on `b0abd8f` with LIF v3, **before** the removal of the tonic DNb01 drive and the forward floor (`provenance.py:137-138` `removed_undisclosed_drive`). Its responses are historical and are not re-validated for `f96bdc3`.
+- **Observed** quotes only existing receipts. The connectome audit `docs/receipts/audit-20261005/C-assays-connectome.md` ran on `49dbb4d` with LIF v3, **before** the removal of the tonic DNb01 drive and the forward floor (`provenance.py:137-138` `removed_undisclosed_drive`). Its responses are historical and are not re-validated for `f96bdc3`.
 - **Wiring** names cells in the default MaleCNS graph that our encoder actually drives. "Present, undriven" means the cells exist in the graph but no stimulus reaches them.
 
 | Stimulus | Biological detection (cited §2) | Environmental field? | Adapter encoding? | Connectome wiring (MaleCNS) | Observed model response (receipts only) | UNSUPPORTED |
