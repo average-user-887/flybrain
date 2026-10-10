@@ -1,13 +1,14 @@
 """v7 medulla timing: per-type fit of Mi1/Tm3/Tm1/Tm2 timing to Behnia 2014 Fig. 3 filters (mV).
 
-Implements qualification/v7/V7_medulla_prereg.json (refuses another sha256).  Only TRAINING data
+Implements qualification/v7/V7_medulla_prereg_v2.json (refuses another sha256; v1 is superseded).  Only TRAINING data
 are read (v7_data.load_training); the held-out set is evaluated separately by heldout_v7.py
 after the fitted parameters are frozen.  No grating, no direction selectivity, no T4/T5, no
 behaviour: the cutout contains no T4/T5 cell.  No edge or base weight is changed; every free
 parameter is a per-type quantity that BrainV6 already reads from a parameter file.
 
   python scripts/v7/fit_v7.py --prereg P --prereg-sha256 SHA --base-params B --base-sha256 SHA \\
-      --training-dir DIR --phase1 DIR --start K --out DIR
+      --training-dir DIR --phase1 DIR --start K --out DIR       (one start of the fit)
+  python scripts/v7/fit_v7.py ... --smoke                         (one timed evaluation, no fit)
 (one process per start; the prereg fixes the starts, the budget and the selection rule)
 """
 from __future__ import annotations
@@ -145,17 +146,30 @@ class NoiseModel:
         return V
 
     def filters(self, fitted):
+        return self.filters_and_sd(fitted)[0]
+
+    def filters_and_sd(self, fitted):
         V = self.run(fitted)
-        return {t: D.observe_filter(self.s, V[:, j]) for j, t in enumerate(D.RECORDED)}
+        K = {t: D.observe_filter(self.s, V[:, j]) for j, t in enumerate(D.RECORDED)}
+        sd = {t: D.response_sd(V[:, j]) for j, t in enumerate(D.RECORDED)}
+        return K, sd
 
 
 def main():
     ap = argparse.ArgumentParser()
-    for k in ('--prereg', '--base-params', '--training-dir', '--phase1', '--out'):
+    for k in ('--prereg', '--base-params', '--training-dir', '--phase1'):
         ap.add_argument(k, type=Path, required=True)
+    ap.add_argument('--out', type=Path)
     ap.add_argument('--prereg-sha256', required=True); ap.add_argument('--base-sha256', required=True)
-    ap.add_argument('--start', type=int, required=True)
+    ap.add_argument('--start', type=int)
+    ap.add_argument('--smoke', action='store_true', help='one timed evaluation at start 0; no fit')
     a = ap.parse_args()
+    if a.smoke:
+        print(json.dumps(smoke(a.prereg, a.prereg_sha256, a.base_params, a.base_sha256, a.training_dir, a.phase1),
+                         indent=1, sort_keys=True))
+        return
+    if a.start is None or a.out is None:
+        raise SystemExit('--start and --out are required for a fit')
     pre = load_prereg(a.prereg, a.prereg_sha256)
     from scipy.optimize import minimize
     from brainlab.v6_calibrated import load_params
@@ -185,12 +199,12 @@ def main():
     r = minimize(f, x0, method='Powell', bounds=list(zip(lo, hi)),
                  options=dict(maxfev=int(opt['maxfev_per_start']), xtol=float(opt['xtol']), ftol=float(opt['ftol'])))
     fitted = from_x(r.x, spec)
-    K = m.filters(fitted)
+    K, sd = m.filters_and_sd(fitted)
     cost, per, nrmse = D.objective(K, data)
     a.out.mkdir(parents=True, exist_ok=True)
-    rep = dict(prereg_sha256=a.prereg_sha256, base_params_sha256=bsha, start=a.start, cutout=info,
-               evals=len(hist), wall_s=round(time.time() - t0, 1), cost=cost, per_type=per, fitted=fitted,
-               gates=D.train_gates(K, data), model_filters={t: K[t].tolist() for t in D.RECORDED},
+    rep = dict(status='completed', prereg_sha256=a.prereg_sha256, base_params_sha256=bsha, start=a.start,
+               cutout=info, evals=len(hist), wall_s=round(time.time() - t0, 1), cost=cost, per_type=per,
+               fitted=fitted, gates=D.train_gates(K, data, sd), model_filters={t: K[t].tolist() for t in D.RECORDED},
                heldout='NOT READ by the fit (heldout_v7.py, after freezing)')
     (a.out / f'fit_start{a.start}.json').write_text(json.dumps(rep, indent=1, sort_keys=True))
     out = params_file(base, bsha, a.prereg_sha256, fitted, f'v7-medulla-timing start {a.start} (candidate)')
@@ -198,9 +212,45 @@ def main():
     print(json.dumps(dict(cost=cost, gates=rep['gates']['TRAIN_PASS'], nrmse=nrmse), indent=1))
 
 
-def select(reports):
-    """Prereg selection rule: lowest training cost; ties -> lowest start index."""
-    return min(reports, key=lambda r: (r['cost'], r['start']))
+MIN_COMPLETED_STARTS = 2
+
+
+def outcome(reports, n_starts):
+    """Prereg v2 decision on all starts (a start killed at the compute cap or crashed has no
+    report or status != 'completed').
+      * fewer than MIN_COMPLETED_STARTS completed  -> ('NOT_EVALUABLE', None)   (never F1)
+      * else the starts whose OWN gates give TRAIN_PASS; if any, the selected one is the lowest
+        training cost among them, ties -> lowest start index  -> ('TRAIN_PASS', report)
+      * else  -> ('F1', None)."""
+    done = [r for r in reports if r.get('status') == 'completed']
+    if len(done) < MIN_COMPLETED_STARTS:
+        return 'NOT_EVALUABLE', None
+    passing = [r for r in done if r['gates']['TRAIN_PASS']]
+    if not passing:
+        return 'F1', None
+    return 'TRAIN_PASS', min(passing, key=lambda r: (r['cost'], r['start']))
+
+
+def smoke(prereg_path, prereg_sha, base_path, base_sha, training_dir, phase1):
+    """ONE timed objective evaluation at start 0 on the real 7-column cutout (prereg v2 item:
+    measured, not extrapolated, cost).  Not an optimisation: no parameter is changed."""
+    pre = load_prereg(prereg_path, prereg_sha)
+    from brainlab.v6_calibrated import load_params
+    sys.path.insert(0, str(REPO / 'scripts' / 'v6'))
+    import fit_s2
+    fit_s2.PHASE1 = Path(phase1)
+    base, bsha = load_params(base_path, base_sha)
+    data = D.load_training(training_dir, pre['data']['training']['files'])
+    spec = free_spec(pre)
+    t_build = time.time()
+    b, ct, light, _cl, cc, info = fit_s2.build_cutout(base, bsha)
+    m = NoiseModel(b, ct, light, cc, int(pre['stimulus']['training_seed']))
+    t0 = time.time()
+    K, sd = m.filters_and_sd(from_x(starts(pre, base, spec)[0], spec))
+    t1 = time.time()
+    cost, per, nrmse = D.objective(K, data)
+    return dict(cutout=info, build_s=round(t0 - t_build, 2), eval_s=round(t1 - t0, 3), cost_start0=cost,
+                nrmse_start0=nrmse, response_sd_start0=sd, finite=bool(all(np.isfinite(K[t]).all() for t in K)))
 
 
 if __name__ == '__main__':

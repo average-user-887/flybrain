@@ -7,7 +7,10 @@ agree; every value is finite.  For split v6 arms it checks the PARTS before the 
 Repair (8 Oct, ASTRA_TO_CLAUDE_S3_REPAIR_GO item 3): across arms only SHARED metadata is
 compared; the lattice-specific encoder fields (LATTICE_FIELDS) are allowed to differ but must
 match the arm's lattice; within a split arm the parts must agree on everything.
-  python scripts/v6/s3_guard.py DIR [--arms TAG,TAG,...]   (default: the four preregistered arms)"""
+  python scripts/v6/s3_guard.py DIR [--arms TAG,TAG,...]   (default: the four preregistered arms)
+v7 (prereg v2, minimal patch; default behaviour unchanged):
+  --params-sha256 SHA  the params sha every v6/v7 part must carry (default: the v6 leak40 sha)
+  --split ARM,ARM      arms given by name whose parts are ARM_A and ARM_B (checked before merge)"""
 import json, sys
 from pathlib import Path
 import numpy as np
@@ -20,7 +23,11 @@ LATTICE_FIELDS = ('lattice', 'lattice_matrix', 'correction')
 d = Path(sys.argv[1])
 ARMS = {f'v6_leak40_{l}': [f'v6_leak40_{l}_A', f'v6_leak40_{l}_B'] for l in ('axial-v1', 'malecns-hex-v2')}
 ARMS.update({f'v5_gpu_{l}': [f'v5_gpu_{l}'] for l in ('axial-v1', 'malecns-hex-v2')})
-if '--arms' in sys.argv:
+if '--params-sha256' in sys.argv:
+    PAR = sys.argv[sys.argv.index('--params-sha256') + 1]
+if '--split' in sys.argv:
+    ARMS = {a: [f'{a}_A', f'{a}_B'] for a in sys.argv[sys.argv.index('--split') + 1].split(',')}
+elif '--arms' in sys.argv:
     ARMS = {a: [a] for a in sys.argv[sys.argv.index('--arms') + 1].split(',')}
 errs, ref_shapes, ref_trace, ref_proto, ref_enc = [], {}, None, None, None
 
@@ -40,7 +47,7 @@ for arm, parts in ARMS.items():
             errs.append(f'{pt}: missing {ex.filename}'); continue
         metas.append(m)
         if m.get('prereg_sha256') != PRE: errs.append(f'{pt}: prereg sha')
-        if arm.startswith('v6') and m.get('params_sha256') != PAR: errs.append(f'{pt}: params sha')
+        if arm.startswith(('v6', 'v7')) and m.get('params_sha256') != PAR: errs.append(f'{pt}: params sha')
         if m.get('lattice') != lat or m['encoder'].get('lattice', 'axial-v1') != lat: errs.append(f'{pt}: lattice')
         if lat == 'malecns-hex-v2' and 'lattice_matrix' not in m['encoder']: errs.append(f'{pt}: hex arm lacks lattice_matrix')
         p = pin(m)

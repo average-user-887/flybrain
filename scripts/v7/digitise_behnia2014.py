@@ -23,6 +23,7 @@ Method (documented, deterministic):
   * lag 0 = the panel's y-axis line (validated: digitised peak times 70.5/55.8/53.8/43.6 ms vs
     the paper's text means 71+/-3.8, 53+/-5.2, 56+/-3.8, 43+/-2.7 ms);
   * resampled to a 1 ms grid by linear interpolation.
+Fig. 3a/3d self-consistency (prereg v2): see fig3a_check.
 Uncertainty: y quantisation 1 px = 0.0042 mV contrast^-1 ms^-1; time 50 ms = 39+/-1 px
 (+/-2.6 % scale), lag-0 +/-1.5 px (+/-1.9 ms); Fig. 2 amplitudes +/-1 px = +/-0.23 mV
 (panel a) / 0.20 mV (panel b) plus +/-1 px on the 10 mV bar (+/-2.3 %).
@@ -175,6 +176,52 @@ def digitise_fig2(img, cell):
                 amplitude_uncertainty_mV=round(p['mv_px'] * 1.0 + 0.023 * max(abs(onset), abs(offset)), 3))
 
 
+# Fig. 3a/3d self-consistency (v2 prereg, scale convention).  Panel rows: stimulus intensity axis
+# 0/0.5/1 at rows 133/84/35 (a) and 750.5/701.5/652.5 (d), 98 px per unit; voltage axes 10 mV per
+# 36.75-37 px with 0 mV at the dotted line; x from column 126 to 500, 200 ms = 37 px (bar in d).
+FIG3A = {
+    'Mi1': dict(rows=(163, 268), zero=220.0, px10=36.75, stim=(33, 136, 133.0)),
+    'Tm3': dict(rows=(292, 397), zero=349.5, px10=37.0, stim=(33, 136, 133.0)),
+    'Tm1': dict(rows=(780, 885), zero=837.5, px10=37.0, stim=(650, 753, 750.5)),
+    'Tm2': dict(rows=(910, 1015), zero=966.5, px10=37.0, stim=(650, 753, 750.5)),
+}
+FIG3A_X = (126, 500)
+FIG3A_MS_PER_PX = 200.0 / 37.0
+FIG3A_WARMUP_MS = 250.0
+
+
+def _colmean(mask, y0):
+    v = np.array([(np.flatnonzero(mask[:, k]).mean() + y0) if mask[:, k].any() else np.nan
+                  for k in range(mask.shape[1])])
+    return _interp_nan(np.arange(len(v), dtype=float), v)[0]
+
+
+def fig3a_check(img, cell, K):
+    """Convolve the digitised filter K (per ms) with the digitised Fig. 3a stimulus expressed as
+    the plotted intensity deviation u = I - 0.5 (I on the figure's 0-1 axis, 1 = 2m), and compare
+    with the paper's own black predicted-linear trace.  slope ~1 means K is per unit of u
+    (= c/2, c = q/m - 1); slope ~0.5 would mean per unit of c.  Also returns the s.d. of the
+    measured mean response (mV): a convention-free amplitude."""
+    p = FIG3A[cell]; x0, x1 = FIG3A_X; y0, y1 = p['rows']
+    dark = img.max(-1) < 100
+    d = dark[y0:y1, x0:x1].copy()
+    zr = int(round(p['zero'])) - y0
+    d[zr - 1:zr + 2, :] = False                         # the dotted zero line
+    pred = (p['zero'] - _colmean(d, y0)) * 10.0 / p['px10']
+    meas = (p['zero'] - _colmean(_dist(img[y0:y1, x0:x1], LINE[cell]) < LINE_TOL, y0)) * 10.0 / p['px10']
+    sy0, sy1, syz = p['stim']
+    stim = (syz - _colmean(img[sy0:sy1, x0:x1].max(-1) < 120, sy0)) / 98.0
+    t = np.arange(len(stim)) * FIG3A_MS_PER_PX
+    t1 = np.arange(0.0, t[-1], 1.0)
+    u = np.interp(t1, t, stim) - 0.5
+    lin = np.interp(t, t1, np.convolve(u, np.asarray(K, float))[:len(u)])
+    k0 = int(FIG3A_WARMUP_MS / FIG3A_MS_PER_PX)
+    a = pred[k0:] - pred[k0:].mean(); b = lin[k0:] - lin[k0:].mean()
+    return dict(r=float(np.corrcoef(a, b)[0, 1]), slope_paper_pred_on_K_u=float(a @ b / (b @ b)),
+                measured_response_sd_mV=float(meas[k0:].std()), paper_pred_sd_mV=float(pred[k0:].std()),
+                stimulus_sd_I_colmean=float(stim.std()))
+
+
 def write_filter_csv(path, d):
     with open(path, 'w', newline='') as f:
         w = csv.writer(f)
@@ -204,7 +251,8 @@ def main():
                                             interpolated_ms=int(d['flag'].sum()), peak_ms=pk,
                                             peak_abs=float(np.abs(d['mean']).max()),
                                             text_peak_ms=m, text_sem_ms=sem, n_cells=n,
-                                            peak_check=bool(abs(pk - m) <= 2 * sem + 3.0))
+                                            peak_check=bool(abs(pk - m) <= 2 * sem + 3.0),
+                                            fig3a_check=fig3a_check(img3, cell, d['mean']))
     img2 = load_rgb(a.fig2)
     held = {cell: digitise_fig2(img2, cell) for cell in FIG2}
     hp = a.out / 'heldout' / 'behnia2014_fig2_flash1s.json'

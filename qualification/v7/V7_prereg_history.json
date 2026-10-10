@@ -1,0 +1,18 @@
+{
+  "v1": {
+    "file": "qualification/v7/V7_medulla_prereg.json",
+    "sha256": "b432005c7fc44b126144a49a9ae2bc780cd6807625238e0ee3e47cfe93d4d69a",
+    "status": "SUPERSEDED",
+    "when": "2026-10-10, before any fit",
+    "reason": "audit 1 REJECT-as-frozen (F-a scale ~2x, F-b selection vs TRAIN_PASS, F-c loose H2, F-d S3 guard not preregistered, F-e risks/full-network check) and audit 2 conditions C1-C3 (S3 cwd/interpreter, unpinned graph, engine diff) plus measured compute",
+    "data_pin": {
+      "file": "qualification/v7/V7_data_pin.json",
+      "sha256": "890c1bf73256c172ad9aafc5e0f128ec4a5a56e07bef2593a7c69f8354c8cf41",
+      "status": "SUPERSEDED by V7_data_pin_v2.json"
+    }
+  },
+  "v2": {
+    "file": "qualification/v7/V7_medulla_prereg_v2.json",
+    "status": "CURRENT (frozen)"
+  }
+}

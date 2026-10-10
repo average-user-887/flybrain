@@ -1,6 +1,7 @@
 """v7 medulla timing: TRAINING data loading, the Behnia 2014 stimulus, the filter estimator and the
 mV observation model.  Pure functions; no simulation here.
 
+Prereg v2 (supersedes v1 b432005c; see qualification/v7/V7_prereg_history.json).
 Owner rules (10 Oct 2026): per-type parameters only, fitted only to NON-MOTION recordings of
 medulla cells upstream of T4/T5; no edge changes; held-out data kept separate; calcium is not an
 mV target.  The training set is Behnia et al. 2014 Fig. 3b/3e (in vivo whole-cell, mV); the
@@ -124,11 +125,25 @@ def estimate_filter(s, r, n_lags=N_LAGS, snippet_ms=SNIPPET_MS, hop_ms=HOP_MS, e
     return np.fft.irfft(K, nfft)[:n_lags]
 
 
+# Scale convention (prereg v2, resolved from the paper's own Fig. 3a): the plotted filters are per
+# unit of the plotted stimulus-intensity deviation u = q/(2m) - 1/2 = c/2 (c = q/m - 1, s.d. 0.5 as
+# in the Methods): the digitised filter convolved with the digitised Fig. 3a stimulus as u
+# reproduces the paper's predicted-linear trace with slope 1.03 (Mi1), 1.09 (Tm1), 1.00 (Tm2);
+# as c it would be 2x too large.  The model filter is therefore estimated against u.
+FILTER_STIM_SCALE = 0.5
+
+
 def observe_filter(s, v_mV, settle_ms=0):
     """mV observation model: somatic V of the recorded cell (single compartment = soma),
-    high-passed at 0.008 Hz, then the same filter estimator as the data."""
+    high-passed at 0.008 Hz, then the same filter estimator as the data, against
+    u = FILTER_STIM_SCALE * s (the paper's plotted intensity deviation)."""
     v = np.asarray(v_mV, float)[settle_ms:]
-    return estimate_filter(np.asarray(s, float)[settle_ms:], highpass(v))
+    return estimate_filter(FILTER_STIM_SCALE * np.asarray(s, float)[settle_ms:], highpass(v))
+
+
+def response_sd(v_mV, warmup_ms=250):
+    """Convention-free amplitude: s.d. (mV) of the high-passed somatic response to the noise."""
+    return float(np.std(highpass(np.asarray(v_mV, float))[warmup_ms:]))
 
 
 SIGMA_DIG = 0.01      # digitisation s.d. (mV contrast^-1 ms^-1): ~2 px in y incl. time misregistration
@@ -152,20 +167,31 @@ def peak_ms(K, cell):
     return float(np.argmax(POLARITY[cell] * np.asarray(K)))
 
 
-# Training gates (frozen in qualification/v7/V7_medulla_prereg.json before any fit).
+# Training gates (frozen in qualification/v7/V7_medulla_prereg_v2.json before any fit).
 GATE_NRMSE = 0.35
 GATE_PEAK_SLACK_MS = 5.0
 GATE_ORDER_MS = 5.0
+GATE_SD_FACTOR = 1.5
+# s.d. (mV) of the measured mean response in Fig. 3a/3d after 250 ms (digitise_report fig3a_check);
+# a direct mV measurement, independent of the filter-scale convention.  Used ONLY as gate A5,
+# never in the objective.
+FIG3A_RESPONSE_SD_MV = {'Mi1': 4.436, 'Tm3': 3.853, 'Tm1': 4.651, 'Tm2': 4.241}
 
 
-def train_gates(model_K: dict, data: dict):
+def train_gates(model_K: dict, data: dict, model_sd: dict):
+    """A1-A5 on ONE start.  model_sd: response_sd of the model under the training noise."""
     _, _, nrmse = objective(model_K, data)
     pk_m = {c: peak_ms(model_K[c], c) for c in RECORDED}
     pk_d = {c: peak_ms(data[c]['mean'], c) for c in RECORDED}
     a1 = {c: nrmse[c] <= GATE_NRMSE for c in RECORDED}
     a2 = {c: abs(pk_m[c] - pk_d[c]) <= 2 * TEXT_PEAK_MS[c][1] + GATE_PEAK_SLACK_MS for c in RECORDED}
     a3 = dict(ON=pk_m['Mi1'] - pk_m['Tm3'] >= GATE_ORDER_MS, OFF=pk_m['Tm1'] - pk_m['Tm2'] >= GATE_ORDER_MS)
-    a4 = {c: float(POLARITY[c] * np.asarray(model_K[c])[int(pk_d[c])]) > 0 for c in RECORDED}
-    ok = all(a1.values()) and all(a2.values()) and all(a3.values()) and all(a4.values())
-    return dict(A1_nrmse=a1, A2_peak=a2, A3_order=a3, A4_polarity=a4, nrmse=nrmse, peak_model_ms=pk_m,
-                peak_data_ms=pk_d, TRAIN_PASS=bool(ok))
+    a4 = {}
+    for c in RECORDED:
+        k = np.asarray(model_K[c])
+        main = float(k[int(np.argmax(np.abs(k)))])
+        a4[c] = POLARITY[c] * main > 0 and POLARITY[c] * float(k[int(pk_d[c])]) > 0
+    a5 = {c: (1.0 / GATE_SD_FACTOR) <= model_sd[c] / FIG3A_RESPONSE_SD_MV[c] <= GATE_SD_FACTOR for c in RECORDED}
+    ok = all(a1.values()) and all(a2.values()) and all(a3.values()) and all(a4.values()) and all(a5.values())
+    return dict(A1_nrmse=a1, A2_peak=a2, A3_order=a3, A4_polarity=a4, A5_response_sd=a5, nrmse=nrmse,
+                peak_model_ms=pk_m, peak_data_ms=pk_d, model_sd_mV=model_sd, TRAIN_PASS=bool(ok))

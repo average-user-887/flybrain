@@ -2,6 +2,7 @@
 No fit and no network simulation beyond a 400-cell random graph."""
 import ast
 import csv
+import os
 import hashlib
 import json
 import math
@@ -19,7 +20,9 @@ import fit_v7 as F  # noqa: E402
 import heldout_v7 as H  # noqa: E402
 import digitise_behnia2014 as G  # noqa: E402
 
-PREREG = ROOT / 'qualification' / 'v7' / 'V7_medulla_prereg.json'
+PREREG = ROOT / 'qualification' / 'v7' / 'V7_medulla_prereg_v2.json'
+PREREG_V1 = ROOT / 'qualification' / 'v7' / 'V7_medulla_prereg.json'
+SD_OK = dict(D.FIG3A_RESPONSE_SD_MV)
 
 
 def _sha(p):
@@ -66,7 +69,7 @@ def test_encoder_mapping_mean_is_s3_gray_level():
 def test_filter_estimator_recovers_a_known_filter():
     s = D.behnia_noise(D.NOISE_MS, seed=4)
     k = _biphasic(peak=55, amp=0.5)
-    r = np.convolve(s, k)[:len(s)] + np.random.default_rng(0).normal(0, 0.2, len(s))
+    r = np.convolve(0.5 * s, k)[:len(s)] + np.random.default_rng(0).normal(0, 0.2, len(s))   # paper convention
     est = D.observe_filter(s, r - 60.0)                 # resting offset is irrelevant
     nrmse = np.sqrt(((est - k) ** 2).sum() / (k ** 2).sum())
     assert nrmse < 0.15
@@ -200,31 +203,47 @@ def test_noise_model_refuses_a_cutout_with_motion_cells():
         F.NoiseModel(None, ct, np.array([], int), cc, seed=1)
 
 
-def test_selection_rule_is_lowest_training_cost_then_lowest_start():
-    reps = [dict(start=0, cost=2.0), dict(start=1, cost=1.0), dict(start=2, cost=1.0)]
-    assert F.select(reps)['start'] == 1
+def _rep(start, cost, ok, status='completed'):
+    return dict(start=start, cost=cost, status=status, gates=dict(TRAIN_PASS=ok))
+
+
+def test_outcome_selects_among_passing_starts_and_caps_are_not_f1():
+    # the lowest-cost start fails its gates, another passes: the passing one is selected (v1 was ambiguous)
+    reps = [_rep(0, 1.0, False), _rep(1, 2.0, True), _rep(2, 2.0, True), _rep(3, 3.0, False)]
+    o, best = F.outcome(reps, 4)
+    assert o == 'TRAIN_PASS' and best['start'] == 1
+    assert F.outcome([_rep(0, 1.0, False), _rep(1, 2.0, False)], 4) == ('F1', None)
+    capped = [dict(start=k, status='capped') for k in range(4)]
+    assert F.outcome(capped, 4) == ('NOT_EVALUABLE', None)
+    assert F.outcome(capped[:3] + [_rep(3, 1.0, False)], 4) == ('NOT_EVALUABLE', None)
 
 
 # --- gates --------------------------------------------------------------------------------
 
 def test_train_gates_pass_on_data_and_fail_on_reversed_delay():
     data = _data_from(FILTERS)
-    assert D.train_gates(FILTERS, data)['TRAIN_PASS']
+    assert D.train_gates(FILTERS, data, SD_OK)['TRAIN_PASS']
     swapped = dict(FILTERS, Mi1=_biphasic(peak=45, sign=1, amp=0.62))
-    g = D.train_gates(swapped, data)
+    g = D.train_gates(swapped, data, SD_OK)
     assert not g['A3_order']['ON'] and not g['TRAIN_PASS']
     flipped = dict(FILTERS, Tm1=-FILTERS['Tm1'])
-    assert not D.train_gates(flipped, data)['A4_polarity']['Tm1']
+    assert not D.train_gates(flipped, data, SD_OK)['A4_polarity']['Tm1']
+    loud = dict(SD_OK, Tm2=2 * SD_OK['Tm2'])                 # 2x the measured mV response
+    g = D.train_gates(FILTERS, data, loud)
+    assert not g['A5_response_sd']['Tm2'] and not g['TRAIN_PASS']
 
 
 def test_heldout_gates():
     held = {'Mi1': dict(onset_peak_mV=30.2, offset_peak_mV=-3.3), 'Tm3': dict(onset_peak_mV=24.7, offset_peak_mV=-8.4),
             'Tm1': dict(onset_peak_mV=-5.9, offset_peak_mV=22.1), 'Tm2': dict(onset_peak_mV=-3.7, offset_peak_mV=20.0)}
-    assert H.heldout_gates(held, held)['HELDOUT_PASS']
+    assert H.heldout_gates(held, held)['HELDOUT_CONSISTENT']
     bad = dict(held, Tm1=dict(onset_peak_mV=5.9, offset_peak_mV=-22.1))
     assert not H.heldout_gates(bad, held)['H1_polarity']['Tm1']
     small = {c: {k: v / 3 for k, v in held[c].items()} for c in held}
-    assert not H.heldout_gates(small, held)['HELDOUT_PASS']
+    assert not H.heldout_gates(small, held)['HELDOUT_CONSISTENT']
+    louder = {c: {k: v * 1.7 for k, v in held[c].items()} for c in held}      # passed v1's x2, fails v2's x1.5
+    assert not H.heldout_gates(louder, held)['HELDOUT_CONSISTENT']
+    assert H.ratio_range('Tm3') == pytest.approx((15.3, 57.9)) and H.ratio_range('Mi1') == pytest.approx((0.5, 21.5))
     v = np.full(H.PRE_MS + H.FLASH_MS + H.POST_MS, -55.0)
     v[H.PRE_MS + 30] = -40.0; v[H.PRE_MS + H.FLASH_MS + 50] = -58.0
     assert H.cell_values('Mi1', v) == dict(onset_peak_mV=15.0, offset_peak_mV=-3.0)
@@ -270,7 +289,12 @@ def test_prereg_is_consistent_with_the_frozen_code_and_pins():
     assert g['nrmse_max'] == D.GATE_NRMSE and g['peak_slack_ms'] == D.GATE_PEAK_SLACK_MS
     assert g['order_min_ms'] == D.GATE_ORDER_MS
     h = pre['acceptance']['heldout']
-    assert h['amp_factor'] == H.GATE_AMP_FACTOR and h['ratio_population_sd'] == H.GATE_RATIO_SD
+    assert h['amp_factor'] == H.GATE_AMP_FACTOR and h['ratio_sem'] == H.GATE_RATIO_SEM
+    assert g['sd_factor'] == D.GATE_SD_FACTOR and g['fig3a_response_sd_mV'] == D.FIG3A_RESPONSE_SD_MV
+    for c, (lo, hi) in h['ratio_ranges_pct'].items():
+        assert H.ratio_range(c) == pytest.approx((lo, hi))
+    assert pre['observation_model']['filter_stim_scale'] == D.FILTER_STIM_SCALE
+    assert pre['optimiser']['min_completed_starts'] == F.MIN_COMPLETED_STARTS
     s3 = pre['downstream_s3']['unchanged_sha256']
     for rel, sha in s3.items():
         assert _sha(ROOT / rel) == sha, rel
@@ -299,7 +323,7 @@ class _FakeBrain:
         h = np.array(self.hist[::-1][:D.N_LAGS])
         for t, kern in self.k.items():
             i = int(np.flatnonzero(self.ct == t)[0])
-            self.v[i] = -60.0 + float(np.dot(kern[:len(h)], h))
+            self.v[i] = -60.0 + float(np.dot(kern[:len(h)], 0.5 * h))   # paper convention: K per u = c/2
 
 
 def test_noise_model_wiring_recovers_the_stub_filters():
@@ -311,5 +335,48 @@ def test_noise_model_wiring_recovers_the_stub_filters():
     K = m.filters({'Mi1': {'tau_m_ms': 30.0}})
     assert b.tau_m[2] == 30.0
     data = _data_from(FILTERS)
-    g = D.train_gates(K, data)
-    assert g['TRAIN_PASS'], g
+    g = D.train_gates(K, data, SD_OK)
+    assert g['A1_nrmse'] == {c: True for c in D.RECORDED} and g['A3_order'] == dict(ON=True, OFF=True), g
+
+
+def test_scale_convention_fail_old_pass_new():
+    """fail-old / pass-new (audit 1 F-a): a cell that responds exactly as the paper's own linear
+    prediction (K_plot convolved with u = c/2) must reproduce K_plot.  The v1 estimator (against c)
+    returns K_plot/2, which drove a 2x amplitude error into the objective and the L1/L2 gains."""
+    s = D.behnia_noise(D.NOISE_MS, seed=6)
+    k = FILTERS['Mi1']
+    v = np.convolve(0.5 * s, k)[:len(s)] - 55.0
+    new = D.observe_filter(s, v)
+    old = D.estimate_filter(s, D.highpass(v))                # v1 observation model
+    data = _data_from(FILTERS)
+    nr = lambda K: float(np.sqrt(((K - k) ** 2).sum() / (k ** 2).sum()))
+    assert nr(new) < 0.1 and nr(old) > 0.4
+
+
+def test_prereg_v1_is_kept_byte_identical_and_marked_superseded():
+    assert _sha(PREREG_V1) == 'b432005c7fc44b126144a49a9ae2bc780cd6807625238e0ee3e47cfe93d4d69a'
+    hist = json.loads((ROOT / 'qualification/v7/V7_prereg_history.json').read_text())
+    assert hist['v1']['sha256'] == _sha(PREREG_V1) and hist['v1']['status'] == 'SUPERSEDED'
+    assert json.loads(PREREG.read_text())['supersedes']['sha256'] == _sha(PREREG_V1)
+
+
+def test_s3_preflight_refuses_a_wrong_environment(tmp_path):
+    import run_s3_v7 as R
+    pre = json.loads(PREREG.read_text())
+    p = tmp_path / 'p.json'; p.write_text('{}')
+    bad = R.preflight(pre, p, 'x' * 64, cwd=tmp_path, versions=dict(numpy='0', scipy='0', numba='0'))
+    joined = ' '.join(bad)
+    for needle in ('not the checkout root', 'graph.npz missing', 'connectome_data missing', 'numpy',
+                   'params sha256 mismatch'):
+        assert needle in joined, needle
+
+
+@pytest.mark.skipif(not os.environ.get('NEUROFLY_V7_SMOKE'), reason='needs the real cutout data (set NEUROFLY_V7_SMOKE=1, '
+                    'NEUROFLY_V7_TRAINING_DIR, NEUROFLY_V7_PHASE1)')
+def test_real_cutout_single_evaluation_is_finite_and_timed():
+    pre_sha = _sha(PREREG)
+    pre = json.loads(PREREG.read_text())
+    r = F.smoke(PREREG, pre_sha, ROOT / pre['base_params']['file'], pre['base_params']['sha256'],
+                os.environ['NEUROFLY_V7_TRAINING_DIR'], os.environ['NEUROFLY_V7_PHASE1'])
+    print(json.dumps(r, sort_keys=True))
+    assert r['finite'] and r['cutout']['cells'] == 97 and r['eval_s'] < 60

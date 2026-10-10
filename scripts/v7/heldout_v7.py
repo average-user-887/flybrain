@@ -6,7 +6,9 @@ Held-out data (never read by fit_v7.py):
   * Behnia 2014 Extended Data Fig. 1c, released as numbers in the text: the weak-polarity
     response as a fraction of the strong one (mean, s.e.m., n).
 Different stimulus class from the training flicker (flashes from darkness vs. Gaussian flicker
-about a mean), same lab and preparation; not guaranteed to be different animals.
+about a mean), same lab and preparation, PROBABLY THE SAME CELLS (one cell per fly; Mi1 N=7 in both
+figures); the author saw the values.  Prereg v2 labels this a weak, non-independent consistency
+check: a pass is never claimed as validation.
 
   python scripts/v7/heldout_v7.py --prereg P --prereg-sha256 SHA --params F --params-sha256 SHA \\
       --heldout FILE --phase1 DIR --out DIR
@@ -33,8 +35,8 @@ TEXT_RATIO_PCT = {'Mi1': (11.0, 3.5, 7), 'Tm3': (36.6, 7.1, 10), 'Tm1': (26.1, 3
 DARK_SETTLE_MS, PRE_MS, FLASH_MS, POST_MS = 3000, 1000, 1000, 1500
 OFFSET_WINDOW_MS = 727                 # = the digitised window (24 px at 33 px/s)
 FLASH_LEVEL = 20.0                     # intensity 1 = 2 x the flicker mean (encoder 2 x 10)
-GATE_AMP_FACTOR = 2.0
-GATE_RATIO_SD = 2.0
+GATE_AMP_FACTOR = 1.5
+GATE_RATIO_SEM = 3.0
 
 
 def load_heldout(path, sha):
@@ -64,10 +66,17 @@ def cell_values(cell, v_mV):
     return dict(onset_peak_mV=float(on.min()), offset_peak_mV=float(off.max()))
 
 
+def ratio_range(c):
+    mu, sem, _n = TEXT_RATIO_PCT[c]
+    return max(0.0, mu - GATE_RATIO_SEM * sem), mu + GATE_RATIO_SEM * sem
+
+
 def heldout_gates(model: dict, heldout: dict):
-    """H1 polarity (all four), H2 weak/strong ratio within mean +/- 2 population s.d. of the
-    recorded cells (>= 3 of 4), H3 strong-polarity peak within a factor 2 of the digitised
-    value (>= 3 of 4).  HELDOUT_PASS = H1 and H2 and H3."""
+    """Prereg v2 (tightened; WEAK and NON-INDEPENDENT: probably the same cells as the training
+    data, and the author saw the values before setting the gates; a pass is a consistency check,
+    never validation).  H1 polarity (all four); H2 weak/strong ratio within the text mean
+    +/- 3 s.e.m. (>= 3 of 4); H3 strong-polarity peak within a factor 1.5 of the digitised value
+    (>= 3 of 4).  HELDOUT_CONSISTENT = H1 and H2 and H3."""
     h1, h2, h3, ratio = {}, {}, {}, {}
     for c in RECORDED:
         m = model[c]
@@ -81,12 +90,13 @@ def heldout_gates(model: dict, heldout: dict):
             h1[c] = strong > 0 and weak < 0
         r = 100.0 * abs(weak) / abs(strong) if strong != 0 else math.inf
         mu, sem, n = TEXT_RATIO_PCT[c]
-        sd = sem * math.sqrt(n)
         ratio[c] = r
-        h2[c] = max(0.0, mu - GATE_RATIO_SD * sd) <= r <= mu + GATE_RATIO_SD * sd
+        lo, hi = ratio_range(c)
+        h2[c] = lo <= r <= hi
         h3[c] = strong > 0 and (1.0 / GATE_AMP_FACTOR) <= strong / d_strong <= GATE_AMP_FACTOR
     ok = all(h1.values()) and sum(h2.values()) >= 3 and sum(h3.values()) >= 3
-    return dict(H1_polarity=h1, H2_ratio=h2, H3_amplitude=h3, model_ratio_pct=ratio, HELDOUT_PASS=bool(ok))
+    return dict(H1_polarity=h1, H2_ratio=h2, H3_amplitude=h3, model_ratio_pct=ratio, HELDOUT_CONSISTENT=bool(ok),
+                label='weak, non-independent consistency check; not validation')
 
 
 def run_flash(b, light, cols):
